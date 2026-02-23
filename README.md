@@ -59,9 +59,10 @@ Need to generate documents for hundreds of records at once?
 - **Class**: `DocGenBulkFlowAction`
 - **Usage**: Ideal for **Scheduled Flows**. Pass a Template ID and an optional SOQL condition to trigger a batch job that generates documents for all matching records in the background.
 
-### 6. Zero-Config Background PDF Engine
+### 6. Secure Background PDF Engine
 - **Architecture**: The package features a self-contained, async PDF rendering engine.
-- **Dynamic Loopback**: Uses native Salesforce Connect APIs via `Url.getOrgDomainUrl()`. No Named Credentials or Remote Site Settings required!
+- **Secure Loopback**: Uses native Salesforce Connect APIs via an automated **Named Credential** setup. No external services or third-party APIs required!
+- **Wizard Driven**: The **DocGen Setup** wizard automatically generates the necessary Connected App, Auth Provider, and Named Credentials for you.
 - **Resilience**: Built-in 3x retry mechanism gracefully handles `202 Accepted` latency from Salesforce servers.
 
 ### 7. Native Electronic Signatures (Experience Cloud)
