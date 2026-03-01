@@ -1,0 +1,295 @@
+<template>
+    <div class="node-container slds-m-bottom_small" onclick={handleOutsideClick}>
+
+        <!-- Header -->
+        <div class="slds-box slds-box_x-small slds-theme_shade node-header slds-grid slds-grid_vertical-align-center">
+
+            <div class="slds-col slds-grow slds-grid slds-grid_vertical-align-center">
+                <!-- Level Indicator -->
+                <span class="level-indicator slds-m-right_x-small slds-text-color_weak"
+                    title={levelTitle}>L{level}</span>
+
+                <!-- Expand / Collapse -->
+                <lightning-button-icon icon-name={expandIcon} variant="bare" size="small" class="slds-m-right_x-small"
+                    onclick={toggleExpand}></lightning-button-icon>
+
+                <!-- Title -->
+                <lightning-icon icon-name={iconName} size="small" class="slds-m-right_x-small"></lightning-icon>
+                <div class="slds-text-heading_small slds-truncate node-title">
+                    <strong>{nodeTitle}</strong>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="slds-col slds-no-flex slds-grid">
+                <!-- Filters Button (if filterable) -->
+                <template if:true={isFilterable}>
+                    <lightning-button-icon icon-name="utility:filterList" variant={filterButtonVariant} size="small"
+                        class="slds-m-right_x-small" onclick={openFilterModal} tooltip="Object Filters &amp; Properties"
+                        badge-value={filterCountText}>
+                    </lightning-button-icon>
+                </template>
+
+                <!-- Delete button (not for root) -->
+                <template if:true={isRemovable}>
+                    <lightning-button-icon icon-name="utility:delete" variant="border-filled" size="small"
+                        onclick={handleRemoveNode}></lightning-button-icon>
+                </template>
+            </div>
+        </div>
+
+        <!-- Expanded Body -->
+        <template if:true={isExpanded}>
+            <div class="node-body slds-box slds-box_x-small slds-theme_default node-body-border">
+
+                <!-- 1. Fields Selector -->
+                <div class="slds-m-bottom_small">
+                    <!-- Search + Selected Only -->
+                    <div class="slds-grid slds-gutters slds-m-bottom_xx-small slds-grid_vertical-align-end">
+                        <div class="slds-col slds-grow">
+                            <lightning-input type="search" placeholder="Search fields..." variant="label-hidden"
+                                onchange={handleFieldSearch}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-no-flex">
+                            <lightning-button label="Select All" variant="neutral" size="small"
+                                onclick={handleSelectAll}></lightning-button>
+                        </div>
+                    </div>
+                    <!-- Checkbox List -->
+                    <div class="slds-box slds-box_small slds-scrollable_y field-scroll-box"
+                        style="height: 160px; padding: 0.25rem;">
+                        <template if:true={isLoadingFields}>
+                            <div class="slds-is-relative slds-m-around_medium" style="height: 50px;">
+                                <lightning-spinner alternative-text="Loading fields..."
+                                    size="small"></lightning-spinner>
+                            </div>
+                        </template>
+                        <template if:false={isLoadingFields}>
+                            <lightning-checkbox-group name="fields" label="Fields" variant="label-hidden"
+                                options={filteredFieldOptions} value={localConfig.selectedFields}
+                                onchange={handleFieldChange}>
+                            </lightning-checkbox-group>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- 2. Drill Down Selection (Parents & Children) -->
+                <template if:false={maxLevelReached}>
+                    <div class="slds-grid slds-gutters">
+
+                        <!-- Lookup (Parent) Selector -->
+                        <div class="slds-col slds-size_1-of-2">
+                            <template if:false={maxParentLevelReached}>
+                                <div class="slds-form-element slds-m-bottom_small">
+                                    <label class="slds-form-element__label">Add Lookup Field (Drill Up)</label>
+                                    <div
+                                        class="slds-form-element__control slds-input-has-icon slds-input-has-icon_right">
+                                        <template if:true={isLoadingParents}>
+                                            <lightning-spinner size="x-small"
+                                                alternative-text="Loading Parent Lookups"></lightning-spinner>
+                                        </template>
+                                        <template if:false={isLoadingParents}>
+                                            <template if:true={parentLoadError}>
+                                                <lightning-icon icon-name="utility:error" size="x-small"
+                                                    class="slds-icon slds-input__icon slds-input__icon_right slds-icon-text-error"
+                                                    title="Failed to load lookups"></lightning-icon>
+                                            </template>
+                                            <template if:false={parentLoadError}>
+                                                <lightning-icon icon-name="utility:search" size="x-small"
+                                                    class="slds-icon slds-input__icon slds-input__icon_right slds-icon-text-default"></lightning-icon>
+                                            </template>
+                                        </template>
+                                        <input type="search" class="slds-input" placeholder="Search parent lookups..."
+                                            value={selectedParentLabel} oninput={handleParentSearch}
+                                            onfocus={handleParentFocus} onblur={handleParentBlur}
+                                            disabled={parentLoadError}>
+                                    </div>
+                                    <template if:true={showParentDropdown}>
+                                        <div class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid"
+                                            role="listbox">
+                                            <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                                                <template for:each={filteredParentOptions} for:item="opt">
+                                                    <li role="presentation" class="slds-listbox__item" key={opt.value}
+                                                        onclick={handleParentSelect} data-value={opt.value}
+                                                        data-label={opt.label} data-target={opt.childObjectApiName}>
+                                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                                            role="option">
+                                                            <span class="slds-truncate"
+                                                                title={opt.label}>{opt.label}</span>
+                                                        </div>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:true={maxParentLevelReached}>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-top_medium">
+                                    <lightning-icon icon-name="utility:info" size="x-small"
+                                        class="slds-m-right_xx-small"></lightning-icon>
+                                    Max 5 levels of lookup (dot-notation) reached.
+                                </p>
+                            </template>
+                        </div>
+
+                        <!-- Child Selector -->
+                        <div class="slds-col slds-size_1-of-2">
+                            <template if:false={maxChildLevelReached}>
+                                <div class="slds-form-element slds-m-bottom_small">
+                                    <label class="slds-form-element__label">Add Related List (Drill Down)</label>
+                                    <div
+                                        class="slds-form-element__control slds-input-has-icon slds-input-has-icon_right">
+                                        <template if:true={isLoadingChildren}>
+                                            <lightning-spinner size="x-small"
+                                                alternative-text="Loading Related Lists"></lightning-spinner>
+                                        </template>
+                                        <template if:false={isLoadingChildren}>
+                                            <template if:true={childLoadError}>
+                                                <lightning-icon icon-name="utility:error" size="x-small"
+                                                    class="slds-icon slds-input__icon slds-input__icon_right slds-icon-text-error"
+                                                    title="Failed to load related lists"></lightning-icon>
+                                            </template>
+                                            <template if:false={childLoadError}>
+                                                <lightning-icon icon-name="utility:search" size="x-small"
+                                                    class="slds-icon slds-input__icon slds-input__icon_right slds-icon-text-default"></lightning-icon>
+                                            </template>
+                                        </template>
+                                        <input type="search" class="slds-input"
+                                            placeholder="Search child relationships..." value={selectedChildLabel}
+                                            oninput={handleChildSearch} onfocus={handleChildFocus}
+                                            onblur={handleChildBlur} disabled={childLoadError}>
+                                    </div>
+                                    <template if:true={showChildDropdown}>
+                                        <div class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid"
+                                            role="listbox">
+                                            <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                                                <template for:each={filteredChildOptions} for:item="opt">
+                                                    <li role="presentation" class="slds-listbox__item" key={opt.value}
+                                                        onclick={handleChildSelect} data-value={opt.value}
+                                                        data-label={opt.label} data-target={opt.childObjectApiName}>
+                                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                                            role="option">
+                                                            <span class="slds-truncate"
+                                                                title={opt.label}>{opt.label}</span>
+                                                        </div>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template if:true={maxChildLevelReached}>
+                                <p class="slds-text-body_small slds-text-color_weak slds-m-top_medium">
+                                    <lightning-icon icon-name="utility:info" size="x-small"
+                                        class="slds-m-right_xx-small"></lightning-icon>
+                                    Max 5 levels of subquery nesting reached (Salesforce limit).
+                                </p>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 3. Children Rendered Recursively -->
+
+                <!-- Parent Nodes -->
+                <template if:true={localConfig.parentConfigs.length}>
+                    <div class="slds-m-top_x-small slds-border_top slds-p-top_x-small">
+                        <template for:each={localConfig.parentConfigs} for:item="pConf" for:index="i">
+                            <c-doc-gen-query-node key={pConf.relationshipName} node-config={pConf} level={nextLevel}
+                                subquery-depth={subqueryDepth} lookup-depth={nextLookupDepth}
+                                show-tags-only={showTagsOnly} globals={globals} data-index={i}
+                                onconfigchange={handleParentChange} onremove={handleRemoveParent}>
+                            </c-doc-gen-query-node>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Child Nodes -->
+                <template if:true={localConfig.childConfigs.length}>
+                    <div class="slds-m-top_x-small slds-border_top slds-p-top_x-small">
+                        <template for:each={localConfig.childConfigs} for:item="cConf" for:index="i">
+                            <c-doc-gen-query-node key={cConf.relationshipName} node-config={cConf} level={nextLevel}
+                                subquery-depth={nextChildSubqueryDepth} lookup-depth="0" show-tags-only={showTagsOnly}
+                                globals={globals} data-index={i} onconfigchange={handleChildChange}
+                                onremove={handleRemoveChild}>
+                            </c-doc-gen-query-node>
+                        </template>
+                    </div>
+                </template>
+
+            </div>
+        </template>
+    </div>
+
+    <!-- Filter Modal -->
+    <template if:true={showFilterModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_small">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <lightning-button-icon class="slds-modal__close" icon-name="utility:close"
+                        onclick={closeFilterModal}></lightning-button-icon>
+                    <h2 class="slds-text-heading_medium slds-hyphenate">Query Properties: {nodeTitle}</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Filters (WHERE)</h3>
+
+                    <!-- Added Filters -->
+                    <template if:true={hasFilters}>
+                        <ul class="slds-list_vertical slds-m-bottom_medium slds-box slds-box_x-small slds-theme_shade">
+                            <template for:each={localConfig.whereFilters} for:item="f" for:index="i">
+                                <li key={f.clause}
+                                    class="slds-grid slds-grid_vertical-align-center slds-m-bottom_xx-small">
+                                    <div class="slds-col slds-grow slds-text-font_monospace">{f.clause}</div>
+                                    <div class="slds-col slds-no-flex">
+                                        <lightning-button-icon icon-name="utility:delete" size="small" variant="bare"
+                                            data-index={i} onclick={removeFilter}></lightning-button-icon>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
+
+                    <!-- Add Filter Form -->
+                    <div class="slds-grid slds-gutters slds-grid_vertical-align-bottom slds-m-bottom_large">
+                        <div class="slds-col slds-size_4-of-12">
+                            <lightning-combobox label="Field" options={_fieldOptions} value={filterField}
+                                onchange={handleFilterFieldChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_3-of-12">
+                            <lightning-combobox label="Operator" options={operators} value={filterOp}
+                                onchange={handleFilterOpChange}></lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_4-of-12">
+                            <lightning-input label="Value" value={filterValue}
+                                onchange={handleFilterValChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-12">
+                            <lightning-button-icon icon-name="utility:add" variant="brand"
+                                onclick={addFilter}></lightning-button-icon>
+                        </div>
+                    </div>
+
+                    <!-- ORDER / LIMIT -->
+                    <div class="slds-grid slds-gutters slds-border_top slds-p-top_small">
+                        <div class="slds-col slds-size_8-of-12">
+                            <lightning-input label="Order By" placeholder="e.g. CreatedDate DESC"
+                                value={localConfig.orderBy} onchange={handleOrderChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_4-of-12">
+                            <lightning-input label="Limit" type="number" value={localConfig.limitAmount}
+                                onchange={handleLimitChange}></lightning-input>
+                        </div>
+                    </div>
+
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Close" onclick={closeFilterModal}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

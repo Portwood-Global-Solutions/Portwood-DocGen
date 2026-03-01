@@ -173,6 +173,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>DocGen_Template_Version__c.Query_Metadata__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>DocGen_Template_Version__c.Type__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -194,6 +199,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Template__c.Query_Config__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Template__c.Query_Metadata__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

@@ -1,0 +1,25 @@
+.node-container {
+    border-left: 2px solid #0176D3;
+    margin-left: 8px;
+    padding-left: 8px;
+}
+.level-indicator {
+    font-size: 0.75rem;
+    font-weight: bold;
+    background: #E5E5E5;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.node-header {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+}
+.node-body-border {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top: none;
+}
+.node-title {
+    max-width: 250px;
+}

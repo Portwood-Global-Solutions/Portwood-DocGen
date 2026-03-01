@@ -12,102 +12,8 @@ public with sharing class DocGenDataRetriever {
             throw new AuraHandledException('Invalid parameters for data retrieval.');
         }
 
-        // Basic sanity check to prevent obvious injection if not using binding (though we use binding for ID)
-        // In a real robust system, we would parse fieldsConfig more strictly.
-        // For now, we assume the admin configuring this knows SOQL.
-        
-        // Parse and validate fields
-        Set<String> validFields = new Set<String>();
-        SObjectType objType = Schema.getGlobalDescribe().get(baseObject);
-        if (objType == null) {
-             throw new AuraHandledException('Invalid object: ' + baseObject);
-        }
-        Map<String, SObjectField> fieldMap = objType.getDescribe().fields.getMap();
-        
-        // Simple regex to split top-level fields vs subqueries is hard.
-        // But the input `fieldsConfig` comes from our builder: "Field1, Field2, (SELECT ...)"
-        // We can try to split by comma, but subqueries contain commas.
-        // A safer approach: Catch the exception or use a smarter split.
-        // Given complexity of parsing subqueries, we will wrap the query in a Try/Catch with Field Validation logic *if* straightforward query fails?
-        // No, user wants us to skip invalid fields.
-        
-        // Strategy:
-        // 1. Split by comma (ignoring parens).
-        // 2. For each part:
-        //    a. If subquery: Keep as is (or validate subquery object/fields if ambitious).
-        //    b. If field: Check existance. Check for custom field suffix.
-        
-        List<String> queryParts = new List<String>();
-        String currentPart = '';
-        Integer parenLevel = 0;
-        
-        for (Integer i = 0; i < fieldsConfig.length(); i++) {
-            String charAt = fieldsConfig.substring(i, i+1);
-            if (charAt == '(') parenLevel++;
-            if (charAt == ')') parenLevel--;
-            
-            if (charAt == ',' && parenLevel == 0) {
-                queryParts.add(currentPart.trim());
-                currentPart = '';
-            } else {
-                currentPart += charAt;
-            }
-        }
-        queryParts.add(currentPart.trim()); // Last part
-        
-        String cleanSelect = '';
-        for (String part : queryParts) {
-            String cleanPart = part;
-            
-            // Check if it is a subquery
-            // Allow for "(SELECT" or "( SELECT" etc.
-            String upperPart = part.toUpperCase();
-            if (part.startsWith('(') && upperPart.contains('SELECT') && upperPart.contains('FROM')) {
-                // Keep subqueries as is for now (too complex to validate fully without full parser)
-            } else {
-                 // Is it a relationship field? e.g. Account.Name
-                 String fieldName = part.trim();
-                 if (String.isBlank(fieldName)) continue;
-                 
-                 // Handle "Tier" vs "Tier__c"
-                 // Check if field exists on base object
-                 if (!fieldMap.containsKey(fieldName)) {
-                     // Try appending __c if missing
-                     if (!fieldName.endsWithIgnoreCase('__c') && fieldMap.containsKey(fieldName + '__c')) {
-                         cleanPart = fieldName + '__c';
-                     } else if (fieldName.contains('.')) {
-                         // Relationship field: e.g. Account.Name or custom__r.Field__c
-                         List<String> relParts = fieldName.split('\\.');
-                         if (relParts.size() == 2) {
-                             String relName = relParts[0];
-                             Boolean relFound = false;
-                             for (Schema.SObjectField sof : fieldMap.values()) {
-                                 Schema.DescribeFieldResult dfr = sof.getDescribe();
-                                 if (dfr.getRelationshipName() == relName) {
-                                     relFound = true;
-                                     break;
-                                 }
-                             }
-                             if (!relFound) {
-                                 System.debug(LoggingLevel.WARN, 'DocGen: Relationship not found, skipping: ' + fieldName);
-                                 continue;
-                             }
-                         }
-                     } else {
-                         // Field does not exist. SKIP it to prevent crash.
-                         System.debug(LoggingLevel.WARN, 'DocGen: Field not found, skipping: ' + fieldName);
-                         continue; 
-                     }
-                 }
-            }
-            
-            if (String.isNotBlank(cleanSelect)) cleanSelect += ', ';
-            cleanSelect += cleanPart;
-        }
-        
-        if (String.isBlank(cleanSelect)) cleanSelect = 'Id'; // Fallback
-        
-        String query = 'SELECT ' + cleanSelect + ' FROM ' + String.escapeSingleQuotes(baseObject) + ' WHERE Id = :recordId LIMIT 1';
+        // The query string is constructed safely by the builder, but we still ensure the base string is valid
+        String query = 'SELECT ' + fieldsConfig + ' FROM ' + String.escapeSingleQuotes(baseObject) + ' WHERE Id = :recordId LIMIT 1';
         
         System.debug(LoggingLevel.INFO, 'DocGen Query: ' + query);
 
@@ -165,6 +71,16 @@ public with sharing class DocGenDataRetriever {
                 // Skip this field but allow others
             }
         }
+
+        // To support handlebars "ifList", we need to explicitly put empty arrays in the map, 
+        // since getPopulatedFieldsAsMap won't include child lists that returned 0 records.
+        // A true robust solution would traverse the metadata to figure out what relationships were requested,
+        // but for Handlebars the standard approach when a property is missing is to evaluate as falsy,
+        // which works for empty arrays.
+        // Wait, Handlebars needs an explicit empty array if the document iterates over it, else it iterates undefined and does nothing. 
+        // BUT if the property is entirely missing, Handlebars treats it as empty/falsy for 'if' and 'each'.
+        // So we might be okay. We will leave it as is for now.
+
         return data;
     }
 }

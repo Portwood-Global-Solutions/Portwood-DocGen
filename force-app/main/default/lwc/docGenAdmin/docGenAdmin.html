@@ -75,7 +75,7 @@
                                 </p>
                             </div>
                             <c-doc-gen-query-builder selected-object={newTemplateObject} query-config={newTemplateQuery}
-                                onconfigchange={handleConfigChange}>
+                                query-metadata={newTemplateMetadata} onconfigchange={handleConfigChange}>
                             </c-doc-gen-query-builder>
                         </template>
 
@@ -220,8 +220,9 @@
                                 </div>
                             </div>
                             <c-doc-gen-query-builder selected-object={editTemplateObject}
-                                query-config={editTemplateQuery} show-tags-only="true"
-                                test-record-id={editTemplateTestRecordId}>
+                                query-config={editTemplateQuery} query-metadata={editTemplateMetadata}
+                                show-tags-only="true" test-record-id={editTemplateTestRecordId}
+                                template-type={editTemplateType}>
                             </c-doc-gen-query-builder>
                         </lightning-tab>
 
@@ -307,7 +308,7 @@
                     <!-- Single query builder outside tabset so it is always in DOM when modal is open (required for Save to read current state) -->
                     <div class={queryBuilderSectionClass}>
                         <c-doc-gen-query-builder selected-object={editTemplateObject} query-config={editTemplateQuery}
-                            onconfigchange={handleEditConfigChange}>
+                            query-metadata={editTemplateMetadata} onconfigchange={handleEditConfigChange}>
                         </c-doc-gen-query-builder>
                     </div>
                 </div>
@@ -365,8 +366,8 @@
                         <p><strong>Configuration Snapshot:</strong></p>
                     </div>
                     <c-doc-gen-query-builder selected-object={previewVersion.Base_Object_API__c}
-                        query-config={previewVersion.Query_Config__c} show-tags-only="true"
-                        test-record-id={previewVersion.Test_Record_Id__c}>
+                        query-config={previewVersion.Query_Config__c} query-metadata={previewVersion.Query_Metadata__c}
+                        show-tags-only="true" test-record-id={previewVersion.Test_Record_Id__c}>
                     </c-doc-gen-query-builder>
                 </div>
                 <footer class="slds-modal__footer">

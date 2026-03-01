@@ -22,6 +22,7 @@ import CATEGORY_FIELD from '@salesforce/schema/DocGen_Template__c.Category__c';
 import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 import BASE_OBJECT_FIELD from '@salesforce/schema/DocGen_Template__c.Base_Object_API__c';
 import QUERY_CONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Config__c';
+import QUERY_METADATA_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Metadata__c';
 import DESC_FIELD from '@salesforce/schema/DocGen_Template__c.Description__c';
 
 // Static Resources
@@ -97,6 +98,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
     newTemplateObject = 'Account';
     newTemplateDesc = '';
     newTemplateQuery = '';
+    newTemplateMetadata = '';
     isCreating = true;
     createdTemplateId;
 
@@ -111,6 +113,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
     editTemplateOutputFormat;
     editTemplateDesc;
     editTemplateQuery;
+    editTemplateMetadata;
     editTemplateTestRecordId;
     editTemplateTitleFormat; // New Field
 
@@ -246,6 +249,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
     handleConfigChange(event) {
         this.newTemplateObject = event.detail.objectName;
         this.newTemplateQuery = event.detail.queryConfig;
+        this.newTemplateMetadata = event.detail.queryMetadata;
     }
 
     // --- Edit Handlers ---
@@ -266,6 +270,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
     handleEditConfigChange(event) {
         this.editTemplateObject = event.detail.objectName;
         this.editTemplateQuery = event.detail.queryConfig;
+        this.editTemplateMetadata = event.detail.queryMetadata;
     }
 
     handleEditTestRecordChange(event) {
@@ -335,6 +340,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
         fields['Output_Format__c'] = this.newTemplateOutputFormat;
         fields[BASE_OBJECT_FIELD.fieldApiName] = this.newTemplateObject;
         fields[QUERY_CONFIG_FIELD.fieldApiName] = this.newTemplateQuery;
+        fields[QUERY_METADATA_FIELD.fieldApiName] = this.newTemplateMetadata;
         fields[DESC_FIELD.fieldApiName] = this.newTemplateDesc;
 
         try {
@@ -352,6 +358,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
                 Base_Object_API__c: this.newTemplateObject,
                 Description__c: this.newTemplateDesc,
                 Query_Config__c: this.newTemplateQuery,
+                Query_Metadata__c: this.newTemplateMetadata,
                 Test_Record_Id__c: null,
                 Document_Title_Format__c: null,
                 ContentDocumentLinks: []
@@ -415,6 +422,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
             this.editTemplateOutputFormat = row.Output_Format__c || 'Native';
             this.editTemplateDesc = row.Description__c;
             this.editTemplateQuery = row.Query_Config__c;
+            this.editTemplateMetadata = row.Query_Metadata__c;
             this.editTemplateTestRecordId = row.Test_Record_Id__c;
             this.editTemplateTitleFormat = row.Document_Title_Format__c;
 
@@ -505,6 +513,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
 
                 // Update local state to match restored version
                 this.editTemplateQuery = row.Query_Config__c;
+                this.editTemplateMetadata = row.Query_Metadata__c;
                 this.editTemplateCategory = row.Category__c;
                 this.editTemplateDesc = row.Description__c;
                 this.editTemplateType = row.Type__c;
@@ -557,6 +566,26 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
         return this.editTemplateQuery || '';
     }
 
+    getEditModeQueryMetadata() {
+        if (this.isManualQuery) {
+            const builder = this.template.querySelector('c-doc-gen-query-builder:not([show-tags-only="true"])');
+            if (builder && typeof builder.convertSOQLToMetadata === 'function') {
+                const newMetadata = builder.convertSOQLToMetadata(this.editTemplateQuery, this.editTemplateObject);
+                if (newMetadata) return newMetadata;
+            }
+            return this.editTemplateMetadata || '';
+        }
+        const builders = this.template.querySelectorAll('c-doc-gen-query-builder');
+        for (const b of builders) {
+            if (b.showTagsOnly === true) continue;
+            if (typeof b.getQueryMetadata === 'function') {
+                const qm = b.getQueryMetadata();
+                if (qm && typeof qm === 'string' && qm.trim().length > 0) return qm;
+            }
+        }
+        return this.editTemplateMetadata || '';
+    }
+
     async handleSaveOnly() {
         // Validate
         if (!this.editTemplateName || !this.editTemplateType) {
@@ -574,6 +603,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
             Base_Object_API__c: this.editTemplateObject,
             Description__c: this.editTemplateDesc,
             Query_Config__c: queryToSave,
+            Query_Metadata__c: this.getEditModeQueryMetadata(),
             Test_Record_Id__c: this.editTemplateTestRecordId,
             Document_Title_Format__c: this.editTemplateTitleFormat
         };
@@ -604,6 +634,7 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
             Base_Object_API__c: this.editTemplateObject,
             Description__c: this.editTemplateDesc,
             Query_Config__c: queryToSave,
+            Query_Metadata__c: this.getEditModeQueryMetadata(),
             Test_Record_Id__c: this.editTemplateTestRecordId,
             Document_Title_Format__c: this.editTemplateTitleFormat
         };

@@ -5,7 +5,7 @@ public with sharing class DocGenController {
         if (templateId == null) throw new DocGenException('Template ID is missing.');
         
         List<DocGen_Template__c> templates = [
-            SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
+            SELECT Base_Object_API__c, Query_Config__c, Query_Metadata__c, Type__c, Output_Format__c, Document_Title_Format__c
             FROM DocGen_Template__c 
             WHERE Id = :templateId 
             WITH USER_MODE
@@ -89,7 +89,7 @@ public with sharing class DocGenController {
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getAllTemplates() {
         return [
-            SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c, Test_Record_Id__c, Output_Format__c, Document_Title_Format__c,
+            SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c, Query_Metadata__c, Test_Record_Id__c, Output_Format__c, Document_Title_Format__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c 
             WITH USER_MODE
@@ -109,6 +109,7 @@ public with sharing class DocGenController {
             template.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
             template.Description__c = (String) fields.get('Description__c');
             template.Query_Config__c = (String) fields.get('Query_Config__c');
+            template.Query_Metadata__c = (String) fields.get('Query_Metadata__c');
             template.Test_Record_Id__c = (String) fields.get('Test_Record_Id__c');
             template.Document_Title_Format__c = (String) fields.get('Document_Title_Format__c');
             
@@ -151,6 +152,7 @@ public with sharing class DocGenController {
                 DocGen_Template_Version__c version = new DocGen_Template_Version__c();
                 version.Template__c = templateId;
                 version.Query_Config__c = (String) fields.get('Query_Config__c');
+                version.Query_Metadata__c = (String) fields.get('Query_Metadata__c');
                 version.Content_Version_Id__c = cvId; 
                 version.Is_Active__c = true;
                 
@@ -180,7 +182,7 @@ public with sharing class DocGenController {
     @AuraEnabled
     public static List<DocGen_Template_Version__c> getTemplateVersions(Id templateId) {
         return [
-            SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Content_Version_Id__c, 
+            SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Query_Metadata__c, Content_Version_Id__c, 
                    Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c
             FROM DocGen_Template_Version__c 
             WHERE Template__c = :templateId 
@@ -193,7 +195,7 @@ public with sharing class DocGenController {
     public static void activateVersion(Id versionId) {
         try {
             DocGen_Template_Version__c version = [
-                SELECT Template__c, Query_Config__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
+                SELECT Template__c, Query_Config__c, Query_Metadata__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
                 FROM DocGen_Template_Version__c 
                 WHERE Id = :versionId 
                 WITH USER_MODE
@@ -218,6 +220,7 @@ public with sharing class DocGenController {
             // 3. Update Template Record Headline
             DocGen_Template__c template = new DocGen_Template__c(Id = version.Template__c);
             template.Query_Config__c = version.Query_Config__c;
+            template.Query_Metadata__c = version.Query_Metadata__c;
             template.Category__c = version.Category__c;
             template.Description__c = version.Description__c;
             template.Type__c = version.Type__c;
@@ -371,7 +374,7 @@ public with sharing class DocGenController {
             parents.add(new Map<String, String>{
                 'label' => opt.label, 
                 'value' => opt.value, 
-                'targetObject' => opt.childObjectApiName // Reusing field
+                'childObjectApiName' => opt.childObjectApiName // Reusing field
             });
         }
         return parents;
