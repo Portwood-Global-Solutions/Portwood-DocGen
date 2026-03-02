@@ -4,8 +4,11 @@ public with sharing class DocGenService {
     private static List<Map<String, Object>> pendingImages = new List<Map<String, Object>>();
     private static Integer imageCounter = 0;
 
-    public static Id generateDocument(Id templateId, Id recordId) {
-        System.debug('Starting DocGen for Template: ' + templateId + ' Record: ' + recordId);
+    /**
+     * Processes a template with record data and returns the result as a Map containing
+     * the document Blob, title, output format, and template type. Does NOT save to record.
+     */
+    public static Map<String, Object> processDocument(Id templateId, Id recordId) {
         pendingImages = new List<Map<String, Object>>();
         imageCounter = 0;
 
@@ -36,7 +39,6 @@ public with sharing class DocGenService {
         Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
         Compression.ZipWriter writer = new Compression.ZipWriter();
 
-        // Collect entries for multi-pass processing
         String contentTypesXml = null;
         String relsXml = null;
 
@@ -68,7 +70,6 @@ public with sharing class DocGenService {
 
         // Inject collected images into the ZIP
         if (!pendingImages.isEmpty()) {
-            // Update Content_Types if we have images
             if (contentTypesXml != null) {
                 if (!contentTypesXml.contains('Extension="png"')) {
                     contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
@@ -77,24 +78,21 @@ public with sharing class DocGenService {
                     contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
                 }
             }
-            // Update rels with image relationships
             if (relsXml != null) {
                 for (Map<String, Object> img : pendingImages) {
                     String relId = (String) img.get('relId');
-                    String fileName = (String) img.get('fileName');
-                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fileName + '"/>';
+                    String fName = (String) img.get('fileName');
+                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
                     relsXml = relsXml.replace('</Relationships>', newRel + '</Relationships>');
                 }
             }
-            // Add image blobs to ZIP
             for (Map<String, Object> img : pendingImages) {
-                String fileName = (String) img.get('fileName');
+                String fName = (String) img.get('fileName');
                 Blob imageBlob = (Blob) img.get('blob');
-                writer.addEntry('word/media/' + fileName, imageBlob);
+                writer.addEntry('word/media/' + fName, imageBlob);
             }
         }
 
-        // Write back Content_Types and rels (even without images, they must be in the ZIP)
         if (contentTypesXml != null) {
             writer.addEntry('[Content_Types].xml', Blob.valueOf(contentTypesXml));
         }
@@ -103,11 +101,26 @@ public with sharing class DocGenService {
         }
 
         Blob resultBlob = writer.getArchive();
-        String titleFormat = (String) dataMap.get('titleFormat');
-        String recordName = (String) resolveValue(recordDataMap, 'Name');
+        String docTitle = generateDocTitle((String) dataMap.get('titleFormat'), recordDataMap);
+        if (docTitle == null) docTitle = (String) resolveValue(recordDataMap, 'Name');
 
-        String docTitle = generateDocTitle(titleFormat, recordDataMap);
-        if (docTitle == null) docTitle = recordName;
+        return new Map<String, Object>{
+            'blob' => resultBlob,
+            'title' => docTitle,
+            'outputFormat' => outputFormat,
+            'templateType' => templateType
+        };
+    }
+
+    /**
+     * Processes a template and saves the result as a ContentVersion attached to the record.
+     */
+    public static Id generateDocument(Id templateId, Id recordId) {
+        Map<String, Object> result = processDocument(templateId, recordId);
+        Blob resultBlob = (Blob) result.get('blob');
+        String docTitle = (String) result.get('title');
+        String outputFormat = (String) result.get('outputFormat');
+        String templateType = (String) result.get('templateType');
 
         return saveFile(resultBlob, docTitle, recordId, outputFormat, templateType);
     }
@@ -240,18 +253,22 @@ public with sharing class DocGenService {
                     
                     // Smart Table Row Expansion
                     // Check if we are inside a TR and if the loop is fully contained in it
-                    Integer trStart = xml.lastIndexOf('<w:tr ', cursor); // Try with space
+                    Integer trStart = xml.lastIndexOf('<w:tr ', cursor);
                     if (trStart == -1) trStart = xml.lastIndexOf('<w:tr>', cursor);
-                    
+
                     // Find matching TR End
                     Integer trEnd = -1;
                     if (trStart != -1) {
+                         // Verify trStart is actually an ancestor of our cursor (no </w:tr> between trStart and cursor)
+                         Boolean trClosesBefore = xml.substring(trStart, cursor).contains('</w:tr>');
+
                          trEnd = xml.indexOf('</w:tr>', trStart);
-                         // Check if our loop is INSIDE this TR
-                         // sectionEnd is index of start of {/Key}
                          Integer closeTagEnd = xml.indexOf('}', sectionEnd);
-                         
-                         if (trEnd > closeTagEnd) {
+
+                         if (trClosesBefore) {
+                             // The <w:tr> we found already closed before our tag - NOT our ancestor
+                             cursor = xml.indexOf('}', sectionEnd) + 1;
+                         } else if (trEnd > closeTagEnd) {
                              // Yes, the loop is fully inside this TR.
                              // Now, checking if we should expand.
                              // Expand if the start tag and end tag are in the SAME TR (implied by above)
@@ -266,40 +283,20 @@ public with sharing class DocGenService {
                              contentStart = trStart;
                              contentEnd = trEnd + 7; // Length of </w:tr>
                              innerXml = xml.substring(contentStart, contentEnd);
-                             
-                             // Strip placeholders to prevent infinite recursion
-                             // We must remove EXACTLY the tags found at `cursor` and `sectionEnd`
-                             // To be safe, we reconstruct:
-                             // Prefix (Before #Tag) + Suffix (After #Tag) ...
-                             // Actually, simpler: replace first occurrence of those tags in the substring.
-                             
+
                              String startTagFull = '{' + rawTag + '}';
                              innerXml = innerXml.replace(startTagFull, '');
-                             
-                             // Needed regex for end tag? No, construct it.
-                             // We know the key.
-                             // But strict replacement might fail if spaces differ.
-                             // We can use the actual string from xml
+
                              String endTagFull = xml.substring(sectionEnd, closeTagEnd + 1);
                              innerXml = innerXml.replace(endTagFull, '');
-                             
-                             // Clean up output buffer: we added up to `cursor` (start of tag).
-                             // We need to backtrack output to remove the prefix of the TR that we just added!
-                             // output currently = ...<w:tr>...<w:tc>...
-                             // We want to remove that part because `innerXml` now contains the WHOLE TR.
-                             
-                             // Calculate fallback amount
-                             Integer overlap = cursor - contentStart; // Distance from TR Start to Tag Start
+
+                             // Backtrack output to remove the TR prefix already appended
+                             Integer overlap = cursor - contentStart;
                              if (overlap > 0) {
                                   output = output.substring(0, output.length() - overlap);
                              }
-                             
-                             // Move cursor to end of TR
-                             // Next iteration should start AFTER the </w:tr>
-                             cursor = contentEnd; 
 
-                             // NOTE: We set cursor for the loop.
-                             // But we must NOT execute the default `cursor = closeTagEnd + 1` logic below.
+                             cursor = contentEnd;
                         } else {
                             // Loop spans across TRs or is outside TR?
                             // Default behavior (keep tags inside, repeat content)
@@ -375,9 +372,27 @@ public with sharing class DocGenService {
                 }
                 cursor = tagClose + 1;
             } else {
-                Object val = resolveValue(data, tagContent);
+                // Parse optional date format suffix: {FieldName:format}
+                String fieldName = tagContent;
+                String dateFormat = null;
+                if (tagContent.contains(':')) {
+                    Integer colonIdx = tagContent.indexOf(':');
+                    fieldName = tagContent.substring(0, colonIdx).trim();
+                    dateFormat = tagContent.substring(colonIdx + 1).trim();
+                }
+
+                Object val = resolveValue(data, fieldName);
                 if (val != null) {
-                    String strVal = String.valueOf(val);
+                    String strVal;
+                    // Apply date/time formatting if a format was specified
+                    if (dateFormat != null && val instanceof DateTime) {
+                        strVal = ((DateTime) val).format(dateFormat);
+                    } else if (dateFormat != null && val instanceof Date) {
+                        DateTime dt = DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
+                        strVal = dt.format(dateFormat);
+                    } else {
+                        strVal = String.valueOf(val);
+                    }
                     // Rich text containing images — inject as VML image
                     if (strVal.containsIgnoreCase('<img')) {
                         String imageXml = buildImageXml(strVal);
@@ -513,6 +528,15 @@ public with sharing class DocGenService {
                 if (docId.contains('?')) docId = docId.substringBefore('?');
                 imageBlob = fetchSalesforceImage(docId);
             }
+            // 7. Generic HTTP/HTTPS URL — attempt to fetch as image
+            else if (fieldValue.startsWith('http://') || fieldValue.startsWith('https://')) {
+                if (fieldValue.contains('.salesforce.com') || fieldValue.contains('.force.com') || fieldValue.contains('.documentforce.com')) {
+                    imageBlob = fetchViaNamedCredential(fieldValue.substringAfter('.com'));
+                } else {
+                    imageBlob = fetchDirectUrl(fieldValue);
+                }
+                if (fieldValue.containsIgnoreCase('.jpg') || fieldValue.containsIgnoreCase('.jpeg')) ext = 'jpeg';
+            }
 
             if (imageBlob == null) {
                 System.debug(LoggingLevel.WARN, 'DocGen: Could not resolve image from: ' + fieldValue.left(200));
@@ -530,25 +554,43 @@ public with sharing class DocGenService {
                 'blob' => imageBlob
             });
 
-            // Use VML format (<w:pict>) for server-side generation.
-            // Salesforce's PDF rendition API handles VML better than DrawingML (<w:drawing>).
-            // 1px at 96dpi = 0.75pt. Default: 4in = 288pt, 3in = 216pt
-            Decimal widthPt = (widthPx != null) ? (widthPx * 0.75) : 288;
-            Decimal heightPt = (heightPx != null) ? (heightPx * 0.75) : 216;
+            // Use DrawingML format (<w:drawing>) for broad compatibility.
+            // VML (<w:pict>) works in Word but docx-preview (used for client-side PDF) cannot render it.
+            // DrawingML is the modern OOXML standard supported by Word, docx-preview, and Salesforce rendition API.
+            // EMU conversion: 1px at 96dpi = 9525 EMU, 1pt = 12700 EMU. Default: 4in x 3in
+            Integer widthEmu = (widthPx != null) ? (widthPx * 9525) : (288 * 12700);
+            Integer heightEmu = (heightPx != null) ? (heightPx * 9525) : (216 * 12700);
 
             return '</w:t></w:r>' +
-                '<w:r><w:pict>' +
-                  '<v:shape xmlns:v="urn:schemas-microsoft-com:vml" ' +
-                    'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
-                    'id="DocGenImage' + imageCounter + '" ' +
-                    'type="#_x0000_t75" ' +
-                    'style="width:' + widthPt + 'pt;height:' + heightPt + 'pt" ' +
-                    'stroked="false" ' +
-                    'o:bordertopcolor="this" o:borderleftcolor="this" o:borderbottomcolor="this" o:borderrightcolor="this">' +
-                    '<v:imagedata xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
-                      'r:id="' + relId + '"/>' +
-                  '</v:shape>' +
-                '</w:pict></w:r><w:r><w:t xml:space="preserve">';
+                '<w:r><w:drawing>' +
+                '<wp:inline distT="0" distB="0" distL="0" distR="0" ' +
+                    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">' +
+                  '<wp:extent cx="' + widthEmu + '" cy="' + heightEmu + '"/>' +
+                  '<wp:docPr id="' + imageCounter + '" name="DocGenImage' + imageCounter + '"/>' +
+                  '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+                    '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+                      '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+                        '<pic:nvPicPr>' +
+                          '<pic:cNvPr id="' + imageCounter + '" name="DocGenImage' + imageCounter + '"/>' +
+                          '<pic:cNvPicPr/>' +
+                        '</pic:nvPicPr>' +
+                        '<pic:blipFill>' +
+                          '<a:blip r:embed="' + relId + '" ' +
+                            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>' +
+                          '<a:stretch><a:fillRect/></a:stretch>' +
+                        '</pic:blipFill>' +
+                        '<pic:spPr>' +
+                          '<a:xfrm>' +
+                            '<a:off x="0" y="0"/>' +
+                            '<a:ext cx="' + widthEmu + '" cy="' + heightEmu + '"/>' +
+                          '</a:xfrm>' +
+                          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' +
+                        '</pic:spPr>' +
+                      '</pic:pic>' +
+                    '</a:graphicData>' +
+                  '</a:graphic>' +
+                '</wp:inline>' +
+                '</w:drawing></w:r><w:r><w:t xml:space="preserve">';
 
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Image injection error: ' + e.getMessage());
@@ -603,6 +645,14 @@ public with sharing class DocGenService {
             String refId = src.substringAfterLast('refid=').substringBefore('&');
             if (String.isBlank(refId)) refId = src.substringAfterLast('refid=');
             return fetchSalesforceImage(refId);
+        }
+
+        // Generic HTTP/HTTPS URL in <img> tag — fetch directly or via Named Credential
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+            if (src.contains('.salesforce.com') || src.contains('.force.com') || src.contains('.documentforce.com')) {
+                return fetchViaNamedCredential(src.substringAfter('.com'));
+            }
+            return fetchDirectUrl(src);
         }
 
         return null;
@@ -660,6 +710,28 @@ public with sharing class DocGenService {
         return null;
     }
 
+    /**
+     * Fetches image data from a generic HTTP/HTTPS URL.
+     * Requires a Remote Site Setting for the target domain.
+     */
+    private static Blob fetchDirectUrl(String url) {
+        try {
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(url);
+            req.setMethod('GET');
+            req.setTimeout(15000);
+            Http h = new Http();
+            HttpResponse res = h.send(req);
+            if (res.getStatusCode() == 200) {
+                return res.getBodyAsBlob();
+            }
+            System.debug(LoggingLevel.WARN, 'DocGen: Direct URL fetch returned ' + res.getStatusCode() + ' for: ' + url.left(200));
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'DocGen: Direct URL fetch failed: ' + e.getMessage());
+        }
+        return null;
+    }
+
     private static Id saveFile(Blob fileBlob, String title, Id recordId, String format, String type) {
         ContentVersion cv = new ContentVersion();
         String baseName = (title != null ? title : 'Generated_Document');
@@ -677,16 +749,16 @@ public with sharing class DocGenService {
         cv.Title = baseName;
         cv.PathOnClient = baseName + ext;
         cv.VersionData = fileBlob;
-        cv.FirstPublishLocationId = recordId; 
-        insert cv;
+        cv.FirstPublishLocationId = recordId;
+        SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+        insert cvDecision.getRecords();
+        Id savedCvId = cvDecision.getRecords()[0].Id;
 
-        // EXPERIMENT: Background PDF Rendition Hack
-        // If the requested format is PDF, add to the collector for delayed background capture
+        // Background PDF Rendition: if requested format is PDF, queue for delayed capture
         if (format == 'PDF') {
-            System.debug('DocGen: Collecting Rendition Capture for ' + cv.Id);
-            DocGenRenditionService.addPendingRendition(cv.Id, recordId);
+            DocGenRenditionService.addPendingRendition(savedCvId, recordId);
         }
-        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE].ContentDocumentId;
+        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
     }
     private static String generateDocTitle(String format, Map<String, Object> data) {
         if (String.isBlank(format)) return null;

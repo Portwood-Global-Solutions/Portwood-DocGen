@@ -12,6 +12,11 @@ public with sharing class DocGenSetupController {
 
     @AuraEnabled
     public static void saveSettings(String experienceSiteUrl) {
+        // Only allow users with Customize Application or DocGen_Admin permission set
+        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') &&
+            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()) {
+            throw new AuraHandledException('Insufficient privileges to modify DocGen settings.');
+        }
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         settings.Experience_Site_Url__c = experienceSiteUrl;
         upsert settings;

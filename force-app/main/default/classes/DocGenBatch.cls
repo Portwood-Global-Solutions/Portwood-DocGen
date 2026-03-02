@@ -10,7 +10,7 @@ global with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
     
     global DocGenBatch(Id jobId) {
         this.jobId = jobId;
-        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
+        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
         this.templateId = job.Template__c;
         this.baseObject = job.Template__r.Base_Object_API__c;
         this.condition = job.Query_Condition__c;
@@ -19,18 +19,48 @@ global with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
     global Database.QueryLocator start(Database.BatchableContext BC) {
         // Update Status to Processing
         update new DocGen_Job__c(Id = jobId, Status__c = 'Processing');
-        
-        String query = 'SELECT Id FROM ' + String.escapeSingleQuotes(baseObject);
-        if (String.isNotBlank(condition)) {
-            query += ' WHERE ' + condition;
+
+        // Validate object name against Schema to prevent injection
+        if (Schema.getGlobalDescribe().get(baseObject) == null) {
+            throw new DocGenException('Invalid object: ' + baseObject);
+        }
+
+        String sanitizedCondition = sanitizeCondition(condition);
+        String query = 'SELECT Id FROM ' + baseObject;
+        if (String.isNotBlank(sanitizedCondition)) {
+            query += ' WHERE ' + sanitizedCondition;
         }
         query += ' WITH USER_MODE';
-        
+
         // Count total records for progress tracking
-        Integer total = Database.countQuery('SELECT Count() FROM ' + String.escapeSingleQuotes(baseObject) + (String.isNotBlank(condition) ? ' WHERE ' + condition : '') + ' WITH USER_MODE');
+        String countQuery = 'SELECT Count() FROM ' + baseObject;
+        if (String.isNotBlank(sanitizedCondition)) {
+            countQuery += ' WHERE ' + sanitizedCondition;
+        }
+        countQuery += ' WITH USER_MODE';
+        Integer total = Database.countQuery(countQuery);
         update new DocGen_Job__c(Id = jobId, Status__c = 'Processing', Total_Records__c = total);
-        
+
         return Database.getQueryLocator(query);
+    }
+
+    /**
+     * Basic sanitization of dynamic WHERE conditions to prevent SOQL injection.
+     */
+    private static String sanitizeCondition(String condition) {
+        if (String.isBlank(condition)) return condition;
+        String upper = condition.toUpperCase().trim();
+        List<String> disallowed = new List<String>{
+            'SELECT ', 'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
+            'WITH ', 'GROUP BY ', 'ORDER BY ', 'LIMIT ', 'OFFSET ', 'FOR UPDATE',
+            'HAVING ', 'TYPEOF '
+        };
+        for (String keyword : disallowed) {
+            if (upper.contains(keyword)) {
+                throw new DocGenException('Invalid filter condition: contains disallowed keyword.');
+            }
+        }
+        return condition;
     }
     
     global void execute(Database.BatchableContext BC, List<SObject> scope) {
@@ -51,20 +81,23 @@ global with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             Error_Count__c = failCount
         );
 
-        // EXPERIMENT: Flush collected PDF rendition jobs (one per batch execute)
-        // Direct enqueuing is used to preserve the user's auth context for loopback callouts
+        // Flush collected PDF rendition jobs (one per batch execute)
+        // Direct enqueuing preserves the user's auth context for loopback callouts
         DocGenRenditionService.enqueueRenditions(true);
     }
     
     global void finish(Database.BatchableContext BC) {
-        String status = (failCount > 0) ? 'Completed with Errors' : 'Completed';
-        // Note: 'Completed with Errors' not in picklist, defaulting to Completed or Failed?
-        // I'll stick to 'Completed' or 'Failed' if all failed.
-        if (successCount == 0 && failCount > 0) status = 'Failed';
-        else status = 'Completed';
-        
+        String status;
+        if (successCount == 0 && failCount > 0) {
+            status = 'Failed';
+        } else if (failCount > 0) {
+            status = 'Completed with Errors';
+        } else {
+            status = 'Completed';
+        }
+
         DocGen_Job__c jobToUpdate = new DocGen_Job__c(
-            Id = jobId, 
+            Id = jobId,
             Status__c = status,
             Success_Count__c = successCount,
             Error_Count__c = failCount

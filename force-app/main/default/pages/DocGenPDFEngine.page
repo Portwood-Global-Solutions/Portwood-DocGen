@@ -12,17 +12,16 @@
                 padding: 20px;
                 background: white;
             }
-            
-            /* Page Break Rules */
+
             /* Page Break Rules - Relaxed */
             table, tr, td, th {
                 page-break-inside: avoid !important;
             }
-            
+
             h1, h2, h3, h4 {
                 page-break-after: avoid !important;
             }
-            
+
             /* Print Media Query */
             @media print {
                 body {
@@ -33,28 +32,33 @@
                     page-break-before: always;
                 }
             }
-        
+
         /* OVERRIDES for docx-preview internal structure */
-        .docx-wrapper { 
-            padding: 0 !important; 
-            margin: 0 !important; 
-            background: transparent !important; 
+        .docx-wrapper {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
         }
-        section.docx-render { 
-            margin: 0 !important; 
-            padding: 0 !important; 
+        section.docx-render {
+            margin: 0 !important;
+            padding: 0 !important;
         }
     </style>
 </head>
     <body>
         <!-- Standard Letter Width: 816px. Hidden until needed. -->
         <div id="content-zone" style="display:none; width: 816px; margin: 0; background: white; padding: 0; box-sizing: border-box;"></div>
-        
+
         <!-- DOCX Preview for High Fidelity Rendering -->
         <script src="{!URLFOR($Resource.DocGenEngine, 'jszip.min.js')}"></script>
         <script src="{!URLFOR($Resource.DocGenEngine, 'docx-preview.js')}"></script>
-        
+
         <script>
+            // Store the LWC parent origin from the first message received.
+            // VF pages run on a different domain (visualforce.com) than LWC
+            // (lightning.force.com), so we capture the sender origin dynamically.
+            var parentOrigin = '*';
+
             // Wait for all images in container to finish loading
             function waitForImages(container) {
                 var images = container.querySelectorAll('img');
@@ -62,8 +66,8 @@
                     if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
                     return new Promise(function(resolve) {
                         img.onload = resolve;
-                        img.onerror = resolve; // Don't block on failed images
-                        setTimeout(resolve, 5000); // 5s max wait per image
+                        img.onerror = resolve;
+                        setTimeout(resolve, 5000);
                     });
                 });
                 return Promise.all(promises);
@@ -81,18 +85,17 @@
             // Listen for messages from LWC
             window.addEventListener('message', async function(event) {
                 var data = event.data;
-                if (data.type === 'generate') {
-                    console.log('PDF Engine: Received generation request', data.fileName);
+                if (!data || data.type !== 'generate') return;
 
+                // Capture the LWC origin for reply messages
+                parentOrigin = event.origin;
+                if (data.type === 'generate') {
                     try {
-                        var blob = new Blob([data.blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                        var blob = new Blob([data.blob], { type: 'application/octet-stream' });
 
                         var container = document.getElementById('content-zone');
                         container.innerHTML = '';
-                        // Show container for rendering, then hide after
                         container.style.display = 'block';
-
-                        console.log('PDF Engine: Rendering DOCX via docx-preview...');
 
                         var renderOptions = {
                             className: 'docx_viewer',
@@ -106,13 +109,9 @@
 
                         await docx.renderAsync(blob, container, null, renderOptions);
 
-                        console.log('PDF Engine: DOCX Rendered. Waiting for images and paint...');
-
                         // Wait for all images to load + browser paint
                         await waitForImages(container);
                         await waitForPaint();
-
-                        console.log('PDF Engine: All resources loaded. Converting to PDF...');
 
                         var opt = {
                             margin:       0,
@@ -134,35 +133,30 @@
 
                         if (data.mode === 'save') {
                             worker.output('arraybuffer').then(function(buffer) {
-                                console.log('PDF Engine: Blob generated for saving.');
                                 container.style.display = 'none';
                                 sendSuccess(buffer, data.fileName);
                             }).catch(function(err) {
-                                console.error(err);
                                 container.style.display = 'none';
                                 sendError('PDF Blob Generation Failed: ' + err.message);
                             });
                         } else {
                             worker.save().then(function() {
-                                console.log('PDF Engine: Download triggered.');
                                 container.style.display = 'none';
                                 sendSuccess();
                             }).catch(function(err) {
-                                console.error(err);
                                 container.style.display = 'none';
                                 sendError('PDF Generation Failed: ' + err.message);
                             });
                         }
 
                     } catch (e) {
-                         console.error('Render Error', e);
                          sendError('Render Error: ' + e.message);
                     }
                 }
             });
 
             function sendError(msg) {
-                window.parent.postMessage({ type: 'docgen_error', message: msg }, '*');
+                window.parent.postMessage({ type: 'docgen_error', message: msg }, parentOrigin);
             }
 
             function sendSuccess(blob, fileName) {
@@ -170,7 +164,7 @@
                     type: 'docgen_success',
                     blob: blob,
                     fileName: fileName
-                }, '*');
+                }, parentOrigin);
             }
         </script>
     </body>

@@ -8,6 +8,9 @@ import getSavedQueries from '@salesforce/apex/DocGenBulkController.getSavedQueri
 import saveQuery from '@salesforce/apex/DocGenBulkController.saveQuery';
 import deleteQuery from '@salesforce/apex/DocGenBulkController.deleteQuery';
 
+const POLL_INTERVAL_MS = 5000;
+const TERMINAL_STATUSES = ['Completed', 'Failed', 'Completed with Errors'];
+
 export default class DocGenBulkRunner extends LightningElement {
     @track templates = [];
     @track selectedTemplateId;
@@ -15,19 +18,24 @@ export default class DocGenBulkRunner extends LightningElement {
     @track condition = '';
     @track recordCount = null;
     @track isValidating = false;
-    
+
     @track jobId;
     @track jobStatus;
     @track jobProgress = {};
     @track isProcessing = false;
-    
+
     // Saved Queries State
     @track savedQueries = [];
     @track isSaveModalOpen = false;
     newQueryName = '';
     newQueryDesc = '';
-    
-    
+
+    // Job history for display
+    @track completedJobs = [];
+
+    _pollTimer;
+
+
     // Wire Templates
     @wire(getBulkTemplates)
     wiredTemplates({ error, data }) {
@@ -41,7 +49,11 @@ export default class DocGenBulkRunner extends LightningElement {
             this.showToast('Error', 'Failed to load templates', 'error');
         }
     }
-    
+
+    disconnectedCallback() {
+        this.stopPolling();
+    }
+
     handleTemplateChange(event) {
         this.selectedTemplateId = event.detail.value;
         const selected = this.templates.find(t => t.value === this.selectedTemplateId);
@@ -58,7 +70,6 @@ export default class DocGenBulkRunner extends LightningElement {
                 this.savedQueries = data;
             })
             .catch(error => {
-                console.error('Error loading saved queries', error);
             });
     }
 
@@ -124,12 +135,12 @@ export default class DocGenBulkRunner extends LightningElement {
             this.showToast('Error', error.body.message, 'error');
         });
     }
-    
+
     handleConditionChange(event) {
         this.condition = event.detail.value || event.target.value; // Support both
         this.recordCount = null;
     }
-    
+
     async handleValidate() {
         if (!this.baseObject) return;
         this.isValidating = true;
@@ -144,26 +155,45 @@ export default class DocGenBulkRunner extends LightningElement {
             this.isValidating = false;
         }
     }
-    
+
     async handleRun() {
         if (!this.selectedTemplateId) {
             this.showToast('Error', 'Please select a template.', 'error');
             return;
         }
-        
+
         this.isProcessing = true;
+        this.jobStatus = 'Queued';
+        this.jobProgress = { success: 0, error: 0, total: 0, percent: 0 };
+
         try {
             this.jobId = await submitJob({ templateId: this.selectedTemplateId, condition: this.condition });
-            this.showToast('Success', 'Job Started. Use the Refresh button to check progress.', 'success');
-            // Manual polling requested by user
-            await this.pollJob();
+            this.showToast('Success', 'Job started. Status will auto-refresh every 5 seconds.', 'success');
+            this.startPolling();
         } catch (error) {
             this.showToast('Error', error.body.message, 'error');
             this.isProcessing = false;
         }
     }
-    
-    
+
+    // --- Polling ---
+    startPolling() {
+        this.stopPolling();
+        // Poll immediately, then every POLL_INTERVAL_MS
+        this.pollJob();
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._pollTimer = setInterval(() => {
+            this.pollJob();
+        }, POLL_INTERVAL_MS);
+    }
+
+    stopPolling() {
+        if (this._pollTimer) {
+            clearInterval(this._pollTimer);
+            this._pollTimer = null;
+        }
+    }
+
     async pollJob() {
         if (!this.jobId) return;
         try {
@@ -177,23 +207,56 @@ export default class DocGenBulkRunner extends LightningElement {
                 total: total,
                 percent: total > 0 ? Math.floor((current / total) * 100) : 0
             };
-            
-            if (this.jobStatus === 'Completed' || this.jobStatus === 'Failed' || this.jobStatus === 'Completed with Errors') {
-                clearInterval(this.pollInterval);
+
+            if (TERMINAL_STATUSES.includes(this.jobStatus)) {
+                this.stopPolling();
                 this.isProcessing = false;
-                this.showToast('Job Finished', `Status: ${this.jobStatus}`, 'info');
+                const variant = this.jobStatus === 'Completed' ? 'success' : (this.jobStatus === 'Failed' ? 'error' : 'warning');
+                this.showToast('Job Finished', `Status: ${this.jobStatus} — ${this.jobProgress.success} succeeded, ${this.jobProgress.error} failed`, variant);
             }
         } catch (e) {
-            console.error(e);
-            clearInterval(this.pollInterval);
+            this.stopPolling();
         }
     }
-    
+
+    // --- New Job ---
+    handleNewJob() {
+        this.stopPolling();
+        // Archive completed job info
+        if (this.jobId && this.jobStatus) {
+            this.completedJobs = [{
+                id: this.jobId,
+                status: this.jobStatus,
+                success: this.jobProgress.success || 0,
+                error: this.jobProgress.error || 0,
+                total: this.jobProgress.total || 0
+            }, ...this.completedJobs].slice(0, 5); // Keep last 5
+        }
+        this.jobId = null;
+        this.jobStatus = null;
+        this.jobProgress = {};
+        this.isProcessing = false;
+    }
+
+    get hasCompletedJobs() {
+        return this.completedJobs.length > 0;
+    }
+
+    get isJobFinished() {
+        return this.jobStatus && TERMINAL_STATUSES.includes(this.jobStatus);
+    }
+
+    get jobStatusVariant() {
+        if (this.jobStatus === 'Completed') return 'success';
+        if (this.jobStatus === 'Failed') return 'error';
+        if (this.jobStatus === 'Completed with Errors') return 'warning';
+        return 'inverse';
+    }
 
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
-    
+
     get isRunDisabled() {
         return !this.selectedTemplateId || this.isProcessing;
     }

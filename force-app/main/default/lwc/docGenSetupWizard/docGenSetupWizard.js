@@ -19,7 +19,6 @@ export default class DocGenSetupWizard extends LightningElement {
         if (data) {
             this.orgUrl = data;
         } else if (error) {
-            console.error('Error fetching Org URL', error);
         }
     }
 
@@ -29,7 +28,6 @@ export default class DocGenSetupWizard extends LightningElement {
             this.experienceSiteUrl = data.Experience_Site_Url__c || '';
             this.isLoaded = true;
         } else if (error) {
-            console.error('Error fetching settings', error);
             this.isLoaded = true;
         }
     }
@@ -76,7 +74,6 @@ export default class DocGenSetupWizard extends LightningElement {
             })
             .catch(error => {
                 this.isLoaded = true;
-                console.error('Error saving settings', error);
             });
     }
 }

@@ -1,1 +1,1 @@
-public class DocGenException extends Exception {}
+public with sharing class DocGenException extends Exception {}

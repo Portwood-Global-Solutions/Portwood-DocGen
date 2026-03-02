@@ -27,7 +27,7 @@
                     {},
                     "lightning-container",
                     function(cmp) {
-                        console.log("Document Authenticator loaded successfully!");
+                        // Component loaded
                     }
                 );
             });

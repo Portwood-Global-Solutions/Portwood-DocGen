@@ -10,8 +10,7 @@ import getAllTemplates from '@salesforce/apex/DocGenController.getAllTemplates';
 import deleteTemplate from '@salesforce/apex/DocGenController.deleteTemplate';
 import saveTemplate from '@salesforce/apex/DocGenController.saveTemplate';
 import getTemplateVersions from '@salesforce/apex/DocGenController.getTemplateVersions';
-import generateDocumentData from '@salesforce/apex/DocGenController.generateDocumentData'; 
-// import createSampleData ... removed
+import processAndReturnDocument from '@salesforce/apex/DocGenController.processAndReturnDocument';
 import activateVersion from '@salesforce/apex/DocGenController.activateVersion';
 
 // Schema
@@ -25,14 +24,13 @@ import QUERY_CONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Conf
 import DESC_FIELD from '@salesforce/schema/DocGen_Template__c.Description__c';
 
 // Static Resources
-import PIZZIP_JS from '@salesforce/resourceUrl/pizzip';
-import DOCXTEMPLATER_JS from '@salesforce/resourceUrl/docxtemplater';
 import FILESAVER_JS from '@salesforce/resourceUrl/filesaver';
 
 const COLUMNS = [
     { label: 'Category', fieldName: 'Category__c', initialWidth: 150 },
     { label: 'Name', fieldName: 'Name' },
     { label: 'Type', fieldName: 'Type__c', initialWidth: 100 },
+    { label: 'Output Format', fieldName: 'Output_Format__c', initialWidth: 120 },
     { label: 'Base Object', fieldName: 'Base_Object_API__c' },
     { label: 'Description', fieldName: 'Description__c' },
     { type: 'action', typeAttributes: { rowActions: [
@@ -126,12 +124,13 @@ const VERSION_COLUMNS = [
     get filteredTemplates() {
         if (!this.searchKey) return this.templates;
         const lowerKey = this.searchKey.toLowerCase();
-        return this.templates.filter(t => 
+        return this.templates.filter(t =>
             (t.Name && t.Name.toLowerCase().includes(lowerKey)) ||
             (t.Category__c && t.Category__c.toLowerCase().includes(lowerKey)) ||
             (t.Base_Object_API__c && t.Base_Object_API__c.toLowerCase().includes(lowerKey)) ||
             (t.Type__c && t.Type__c.toLowerCase().includes(lowerKey)) ||
-            (t.Description__c && t.Description__c.toLowerCase().includes(lowerKey)) || 
+            (t.Output_Format__c && t.Output_Format__c.toLowerCase().includes(lowerKey)) ||
+            (t.Description__c && t.Description__c.toLowerCase().includes(lowerKey)) ||
             (t.Id && t.Id.toLowerCase().includes(lowerKey))
         );
     }
@@ -157,18 +156,14 @@ const VERSION_COLUMNS = [
     renderedCallback() {
         if (this.librariesLoaded) return;
         this.librariesLoaded = true;
-        
-        Promise.all([
-            loadScript(this, PIZZIP_JS),
-            loadScript(this, DOCXTEMPLATER_JS),
-            loadScript(this, FILESAVER_JS)
-        ]).then(() => {
-            console.log('Libraries loaded successfully');
-            this.librariesReady = true;
-        }).catch(error => {
-            console.error('Error loading libraries', error);
-            this.showToast('Error', 'Error loading preview libraries', 'error');
-        });
+
+        loadScript(this, FILESAVER_JS)
+            .then(() => {
+                this.librariesReady = true;
+            })
+            .catch(() => {
+                this.showToast('Error', 'Error loading download library', 'error');
+            });
     }
 
     // --- Wizard Logic ---
@@ -325,10 +320,9 @@ const VERSION_COLUMNS = [
 
     // --- Row Action ---
     async handleRowAction(event) {
-        console.log('Row Action Triggered:', event.detail.action.name);
+        // Row action handler
         const actionName = event.detail.action.name;
         const row = event.detail.row;
-        console.log('Row Data:', JSON.parse(JSON.stringify(row)));
         
         if (actionName === 'delete') {
             try {
@@ -350,7 +344,6 @@ const VERSION_COLUMNS = [
 
     // --- Edit Modal ---
     openEditModal(row, activeTab) {
-        console.log('Opening Edit Modal...', activeTab);
         try {
             this.editTemplateId = row.Id;
             this.editTemplateName = row.Name;
@@ -390,7 +383,6 @@ const VERSION_COLUMNS = [
             this.isCreating = false;
             this.isEditModalOpen = true;
         } catch (e) {
-            console.error('Error opening Edit Modal:', e);
             this.showToast('Error', 'Failed to open modal: ' + e.message, 'error');
         }
     }
@@ -432,7 +424,6 @@ const VERSION_COLUMNS = [
                 });
             })
             .catch(error => {
-                console.error('Error loading versions', error);
                 this.versions = [];
             });
     }
@@ -553,366 +544,81 @@ const VERSION_COLUMNS = [
     }
 
     async handleTestGenerate() {
-        console.log('DEBUG: handleTestGenerate (Generate Sample) called');
-        
         if (!this.editTemplateTestRecordId) {
             this.showToast('Warning', 'Please select a Test Record ID first.', 'warning');
             return;
         }
 
-        // --- SELF HEAL SAMPLE DATA ---
+        // Auto-heal sample query config
         if (this.editTemplateName === 'Sample Quote Template' && this.editTemplateQuery && !this.editTemplateQuery.toLowerCase().includes('quotelineitems')) {
-            console.log('DEBUG: Auto-healing sample query config...');
             this.editTemplateQuery += ', (SELECT Product2.Name, Description, Quantity, UnitPrice, TotalPrice FROM QuoteLineItems)';
         }
 
-        // 1. Save First
+        // Save first
         await this.handleSaveOnly();
 
-        // 2. Check Libraries
         if (!this.librariesReady) {
-            this.showToast('Error', 'Libraries not loaded yet. Please wait.', 'error');
+            this.showToast('Error', 'Download library not loaded yet. Please wait.', 'error');
             return;
         }
 
-        this.isLoadingVersions = true; 
-        
+        this.isLoadingVersions = true;
+
         try {
-            // 3. fetch Data
-            console.log('Fetching data for template:', this.editTemplateId, 'record:', this.editTemplateTestRecordId);
-            const result = await generateDocumentData({ 
-                templateId: this.editTemplateId, 
-                recordId: this.editTemplateTestRecordId 
+            // Server-side document processing
+            const result = await processAndReturnDocument({
+                templateId: this.editTemplateId,
+                recordId: this.editTemplateTestRecordId
             });
-            
-            const templateData = result.templateFile; // Base64
-            const templateType = this.editTemplateType; 
 
-            // 4. Sanitize Data
-            let recordData; 
-            try {
-                const rawData = JSON.parse(JSON.stringify(result.data));
-                recordData = this.flattenData(rawData);
-            } catch (jsonErr) {
-                 throw new Error('Data sanitization failed: ' + jsonErr.message);
+            if (!result || !result.base64) {
+                throw new Error('Document generation returned empty result.');
             }
 
-            // 5. PizZip
-            console.log('DEBUG: PizZip Loading...');
-            let zip;
-            try {
-                const binaryString = atob(templateData);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                zip = new window.PizZip(bytes.buffer);
-            } catch (zipErr) {
-                throw new Error('PizZip Load Failed: ' + zipErr.message);
-            }
-
-            // 6. Docxtemplater
-            console.log('DEBUG: Docxtemplater Init...');
-            let doc;
-            let _imageTagCounter = 0;
-            const _pendingImageData = {};
-
-            try {
-                doc = new window.docxtemplater(zip, {
-                    paragraphLoop: true,
-                    linebreaks: true,
-                    nullGetter: (part) => {
-                        if (!part.module || part.module === "rawxml") return "";
-                        return "";
-                    },
-                    parser: (tag) => {
-                         return {
-                            get: (scope, context) => {
-                                if (tag === '.') return scope;
-                                // Image tags: resolve from current scope and generate unique placeholder
-                                if (tag.startsWith('%')) {
-                                    const fieldName = tag.substring(1);
-                                    const keys = fieldName.split('.');
-                                    let val = scope;
-                                    for (const key of keys) {
-                                        if (val === undefined || val === null) return '';
-                                        if (Object.prototype.hasOwnProperty.call(val, key)) {
-                                            val = val[key];
-                                        } else {
-                                            const lowerKey = key.toLowerCase();
-                                            const matchedKey = Object.keys(val).find(k => k.toLowerCase() === lowerKey);
-                                            if (matchedKey) {
-                                                val = val[matchedKey];
-                                            } else {
-                                                return '';
-                                            }
-                                        }
-                                    }
-                                    if (val) {
-                                        _imageTagCounter++;
-                                        const placeholder = 'DOCGENIMG' + _imageTagCounter;
-                                        _pendingImageData[placeholder] = String(val);
-                                        console.log('DocGen: Image tag resolved → placeholder ' + placeholder + ', value length: ' + String(val).length + ', hasDataUri: ' + String(val).includes('data:image'));
-                                        return '{%' + placeholder + '}';
-                                    }
-                                    console.log('DocGen: Image tag resolved to empty/null');
-                                    return '';
-                                }
-                                const keys = tag.split('.');
-                                let value = scope;
-                                for (let i = 0; i < keys.length; i++) {
-                                    if (value === undefined || value === null) return '';
-                                    const key = keys[i];
-                                    if (Object.prototype.hasOwnProperty.call(value, key)) {
-                                        value = value[key];
-                                    } else {
-                                        const lowerKey = key.toLowerCase();
-                                        const matchedKey = Object.keys(value).find(k => k.toLowerCase() === lowerKey);
-                                        if (matchedKey) {
-                                            value = value[matchedKey];
-                                        } else {
-                                            return '';
-                                        }
-                                    }
-                                }
-                                // Strip HTML from rich text values for regular text tags
-                                if (typeof value === 'string' && value.includes('<') && (value.includes('<p') || value.includes('<div') || value.includes('<span') || value.includes('<br'))) {
-                                    const tmp = document.createElement('div');
-                                    tmp.innerHTML = value;
-                                    value = tmp.textContent || tmp.innerText || '';
-                                }
-                                return value;
-                            }
-                        };
-                    }
-                });
-            } catch (dtErr) {
-                console.error('DT Init Error:', dtErr);
-                let msg = dtErr.message;
-                if (msg.includes('The filetype for this file could not be identified')) {
-                    msg = 'The uploaded file is not a valid Zip file (e.g. .docx or .pptx). Please re-upload the template file.';
-                }
-                throw new Error('Docxtemplater Init Failed: ' + msg);
-            }
-
-            // 7. Render
-            console.log('DEBUG: Rendering...');
-            try {
-                doc.render(recordData);
-            } catch (renderErr) {
-                 console.error('Render Error:', renderErr);
-                throw renderErr;
-            }
-
-            // 7b. Post-process: inject images using unique placeholder data
-            console.log('DEBUG: Post-processing images...');
-            this.injectImages(doc.getZip(), _pendingImageData);
-
-            // 8. Output
-            console.log('DEBUG: Outputting. TemplateType:', templateType);
+            const base64Data = result.base64;
+            const docTitle = result.title || 'Sample_Document';
+            const templateType = this.editTemplateType;
             const isPPT = ['PowerPoint', 'PPT', 'PPTX'].includes(templateType);
-            const downloadMime = 'application/octet-stream'; 
-            const baseName = 'Sample_' + (recordData.Name || 'Document');
-            
-            let outZip;
-            try {
-                 outZip = doc.getZip().generate({
-                    type: 'uint8array'
-                });
-            } catch (genErr) {
-                 console.error('Zip Generate Error:', genErr);
-                 throw new Error('Zip Generation Failed: ' + genErr.message);
+            const baseName = 'Sample_' + docTitle;
+
+            // Decode base64 to binary
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
             }
 
             if (isPPT || this.editTemplateOutputFormat === 'Native') {
-                 // Forces browser to treat as generic file
-                 const out = new Blob([outZip], { type: downloadMime });
-                 window.saveAs(out, baseName + (isPPT ? '.pptx' : '.docx'));
-                 this.showToast('Success', 'Sample Document Downloaded', 'success');
+                const out = new Blob([bytes], { type: 'application/octet-stream' });
+                window.saveAs(out, baseName + (isPPT ? '.pptx' : '.docx'));
+                this.showToast('Success', 'Sample Document Downloaded', 'success');
             } else {
-                 // PDF
-                 this.showToast('Info', 'Generating PDF Sample...', 'info');
-                 
-                 const docxBuffer = doc.getZip().generate({ type: 'arraybuffer' });
-                 
-                 const iframe = this.template.querySelector('iframe');
-                 if (!iframe) {
-                     this.showToast('Error', 'PDF Engine not found in DOM.', 'error');
-                     return;
-                 }
-                 
-                 iframe.contentWindow.postMessage({
-                     type: 'generate',
-                     blob: docxBuffer, 
-                     fileName: baseName
-                 }, '*'); 
+                // PDF
+                this.showToast('Info', 'Generating PDF Sample...', 'info');
+                const iframe = this.template.querySelector('iframe');
+                if (!iframe) {
+                    this.showToast('Error', 'PDF Engine not found in DOM.', 'error');
+                    return;
+                }
+
+                iframe.contentWindow.postMessage({
+                    type: 'generate',
+                    blob: bytes.buffer,
+                    fileName: baseName
+                }, new URL('/apex/DocGenPDFEngine', window.location.origin).origin);
             }
 
         } catch (error) {
-            console.error('handleTestGenerate Error:', error);
-            let technicalMsg = error.message || 'Unknown error';
-            let userMsg = 'Generation Failed. ';
-            
-            if (technicalMsg.includes('PizZip')) {
-                userMsg += 'We had trouble reading the file format. Please ensure you uploaded a valid .docx or .pptx file.';
-            } else if (technicalMsg.includes('Docxtemplater')) {
-                userMsg += 'The template structure is invalid or the file is corrupted. ' + technicalMsg;
-            } else {
-                userMsg += technicalMsg;
+            let msg = 'Unknown error';
+            if (error.body && error.body.message) {
+                msg = error.body.message;
+            } else if (error.message) {
+                msg = error.message;
             }
-
-            this.showToast('Generation Failed', userMsg, 'error');
+            this.showToast('Generation Failed', 'Generation Failed. ' + msg, 'error');
         } finally {
             this.isLoadingVersions = false;
         }
-    }
-
-    /**
-     * Post-processes a PizZip instance to replace {%PlaceholderKey} tags with actual images.
-     * Uses imageDataMap (keyed by unique placeholder) to resolve image data per instance.
-     */
-    injectImages(zip, imageDataMap) {
-        console.log('DocGen: injectImages called with', Object.keys(imageDataMap).length, 'pending images:', Object.keys(imageDataMap));
-        const imageRegex = /\{%([^}]+)\}/g;
-        let imageCount = 0;
-        const images = [];
-
-        const extractImage = (strVal) => {
-            if (strVal.includes('<img')) {
-                const match = strVal.match(/<img[^>]+src\s*=\s*["']([^"']+)["']/i);
-                if (match) {
-                    const src = match[1];
-                    if (src.startsWith('data:image/')) {
-                        const base64Part = src.split(',')[1];
-                        if (base64Part) {
-                            const bin = atob(base64Part);
-                            const arr = new Uint8Array(bin.length);
-                            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-                            return { data: arr, ext: src.includes('jpeg') || src.includes('jpg') ? 'jpeg' : 'png' };
-                        }
-                    }
-                }
-                return null;
-            }
-            if (strVal.startsWith('data:image/')) {
-                const base64Part = strVal.split(',')[1];
-                if (base64Part) {
-                    const bin = atob(base64Part);
-                    const arr = new Uint8Array(bin.length);
-                    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-                    return { data: arr, ext: strVal.includes('jpeg') || strVal.includes('jpg') ? 'jpeg' : 'png' };
-                }
-            }
-            return null;
-        };
-
-        const xmlFiles = ['word/document.xml'];
-        for (const fname of Object.keys(zip.files)) {
-            if ((fname.startsWith('word/header') || fname.startsWith('word/footer')) && fname.endsWith('.xml')) {
-                xmlFiles.push(fname);
-            }
-        }
-
-        for (const xmlFile of xmlFiles) {
-            if (!zip.files[xmlFile]) continue;
-            let xml = zip.file(xmlFile).asText();
-            let hasChanges = false;
-
-            xml = xml.replace(imageRegex, (fullMatch, placeholderKey) => {
-                hasChanges = true;
-
-                const val = imageDataMap[placeholderKey];
-                if (!val) {
-                    console.log('DocGen: injectImages - no value for placeholder:', placeholderKey);
-                    return '';
-                }
-
-                const imgResult = extractImage(val);
-                if (!imgResult) {
-                    console.log('DocGen: injectImages - extractImage returned null for placeholder:', placeholderKey, 'value starts with:', val.substring(0, 100));
-                    return '';
-                }
-
-                imageCount++;
-                const relId = 'rIdImg' + imageCount;
-                const fileName = 'docgen_image_' + imageCount + '.' + imgResult.ext;
-                images.push({ relId, fileName, data: imgResult.data });
-
-                const cx = 3657600;
-                const cy = 2743200;
-
-                return '</w:t></w:r>' +
-                    '<w:r><w:drawing>' +
-                      '<wp:inline distT="0" distB="0" distL="0" distR="0">' +
-                        '<wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
-                        '<wp:effectExtent l="0" t="0" r="0" b="0"/>' +
-                        '<wp:docPr id="' + (900 + imageCount) + '" name="DocGenImage' + imageCount + '"/>' +
-                        '<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>' +
-                        '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
-                          '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
-                            '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
-                              '<pic:nvPicPr><pic:cNvPr id="0" name="DocGenImage' + imageCount + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
-                              '<pic:blipFill>' +
-                                '<a:blip r:embed="' + relId + '"/>' +
-                                '<a:stretch><a:fillRect/></a:stretch>' +
-                              '</pic:blipFill>' +
-                              '<pic:spPr>' +
-                                '<a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
-                                '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' +
-                              '</pic:spPr>' +
-                            '</pic:pic>' +
-                          '</a:graphicData>' +
-                        '</a:graphic>' +
-                      '</wp:inline>' +
-                    '</w:drawing></w:r><w:r><w:t xml:space="preserve">';
-            });
-
-            if (hasChanges) {
-                zip.file(xmlFile, xml);
-            }
-        }
-
-        if (images.length > 0) {
-            if (zip.files['[Content_Types].xml']) {
-                let ct = zip.file('[Content_Types].xml').asText();
-                if (!ct.includes('Extension="png"')) {
-                    ct = ct.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
-                }
-                if (!ct.includes('Extension="jpeg"')) {
-                    ct = ct.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
-                }
-                zip.file('[Content_Types].xml', ct);
-            }
-            if (zip.files['word/_rels/document.xml.rels']) {
-                let rels = zip.file('word/_rels/document.xml.rels').asText();
-                for (const img of images) {
-                    const newRel = '<Relationship Id="' + img.relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + img.fileName + '"/>';
-                    rels = rels.replace('</Relationships>', newRel + '</Relationships>');
-                }
-                zip.file('word/_rels/document.xml.rels', rels);
-            }
-            for (const img of images) {
-                zip.file('word/media/' + img.fileName, img.data);
-            }
-            console.log('DocGen: Injected ' + images.length + ' image(s) into document.');
-        }
-    }
-
-    flattenData(obj) {
-        if (!obj || typeof obj !== 'object') return obj;
-        if (Array.isArray(obj)) return obj.map(item => this.flattenData(item));
-        if (obj.hasOwnProperty('totalSize') && obj.hasOwnProperty('records') && Array.isArray(obj.records)) {
-             return this.flattenData(obj.records);
-        }
-        const newObj = {};
-        for (const key in obj) {
-            if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                if (key === 'attributes') continue; 
-                newObj[key] = this.flattenData(obj[key]);
-            }
-        }
-        return newObj;
     }
 
     // --- File Upload ---
@@ -947,7 +653,8 @@ const VERSION_COLUMNS = [
     }
 
     handlePdfMessage = (event) => {
-         if (event.data.type === 'docgen_success') {
+        if (!event.data || !event.data.type) return;
+        if (event.data.type === 'docgen_success') {
             this.showToast('Success', 'PDF Sample Generated', 'success');
         } else if (event.data.type === 'docgen_error') {
             this.showToast('Error', 'PDF Engine: ' + event.data.message, 'error');

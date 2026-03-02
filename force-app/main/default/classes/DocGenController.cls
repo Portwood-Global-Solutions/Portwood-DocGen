@@ -8,7 +8,7 @@ public with sharing class DocGenController {
             SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
             FROM DocGen_Template__c
             WHERE Id = :templateId
-            WITH USER_MODE
+            WITH SYSTEM_MODE
             LIMIT 1
         ];
 
@@ -49,20 +49,45 @@ public with sharing class DocGenController {
             cv.PathOnClient = fileName + (extension.startsWith('.') ? extension : '.' + extension);
             cv.VersionData = EncodingUtil.base64Decode(base64Data);
             cv.IsMajorVersion = true;
-            insert cv;
+            SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+            insert cvDecision.getRecords();
+            Id cvId = cvDecision.getRecords()[0].Id;
 
-            Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH SYSTEM_MODE].ContentDocumentId;
+            Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cvId WITH USER_MODE].ContentDocumentId;
 
             ContentDocumentLink cdl = new ContentDocumentLink();
             cdl.ContentDocumentId = contentDocId;
             cdl.LinkedEntityId = recordId;
             cdl.ShareType = 'V';
             cdl.Visibility = 'AllUsers';
-            insert cdl;
+            SObjectAccessDecision cdlDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+            insert cdlDecision.getRecords();
 
             return contentDocId;
+        } catch (System.NoAccessException e) {
+            throw new DocGenException('Insufficient access to save document: ' + e.getMessage());
         } catch (Exception e) {
             throw new DocGenException('Error saving document to record: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Processes a template server-side and returns the document as base64, along with
+     * the title, output format, and template type. Used by LWC for download/preview.
+     */
+    @AuraEnabled
+    public static Map<String, Object> processAndReturnDocument(Id templateId, Id recordId) {
+        try {
+            Map<String, Object> result = DocGenService.processDocument(templateId, recordId);
+            Blob docBlob = (Blob) result.get('blob');
+            return new Map<String, Object>{
+                'base64' => EncodingUtil.base64Encode(docBlob),
+                'title' => result.get('title'),
+                'outputFormat' => result.get('outputFormat'),
+                'templateType' => result.get('templateType')
+            };
+        } catch (Exception e) {
+            throw new AuraHandledException('Error generating document: ' + e.getMessage());
         }
     }
 
@@ -85,7 +110,7 @@ public with sharing class DocGenController {
             SELECT Id, Name, Description__c, Type__c 
             FROM DocGen_Template__c 
             WHERE Base_Object_API__c = :objectApiName
-            WITH USER_MODE
+            WITH SYSTEM_MODE
         ];
     }
     
@@ -94,8 +119,8 @@ public with sharing class DocGenController {
         return [
             SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c, Test_Record_Id__c, Output_Format__c, Document_Title_Format__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
-            FROM DocGen_Template__c 
-            WITH USER_MODE
+            FROM DocGen_Template__c
+            WITH SYSTEM_MODE
             ORDER BY Category__c ASC, Name ASC
         ];
     }
@@ -115,12 +140,14 @@ public with sharing class DocGenController {
             template.Test_Record_Id__c = (String) fields.get('Test_Record_Id__c');
             template.Document_Title_Format__c = (String) fields.get('Document_Title_Format__c');
             
-            update template;
-            
+            SObjectAccessDecision tplDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update tplDecision.getRecords();
+
             // Update Output Format if provided
             if (fields.containsKey('Output_Format__c')) {
                 template.Output_Format__c = (String) fields.get('Output_Format__c');
-                update template;
+                SObjectAccessDecision fmtDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+                update fmtDecision.getRecords();
             }
             
             // 2. Create Version if requested
@@ -129,12 +156,13 @@ public with sharing class DocGenController {
                 List<DocGen_Template_Version__c> activeVersions = [
                     SELECT Id FROM DocGen_Template_Version__c 
                     WHERE Template__c = :templateId AND Is_Active__c = true
-                    WITH USER_MODE
+                    WITH SYSTEM_MODE
                 ];
                 for (DocGen_Template_Version__c av : activeVersions) {
                     av.Is_Active__c = false;
                 }
-                update activeVersions;
+                SObjectAccessDecision avDecision = Security.stripInaccessible(AccessType.UPDATABLE, activeVersions);
+                update avDecision.getRecords();
 
                 // Get latest ContentVersionId
                 List<ContentDocumentLink> links = [
@@ -163,7 +191,8 @@ public with sharing class DocGenController {
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
                 
-                insert version;
+                SObjectAccessDecision verDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ version });
+                insert verDecision.getRecords();
             }
         } catch (Exception e) {
             throw new AuraHandledException('Error saving template: ' + e.getMessage());
@@ -186,8 +215,8 @@ public with sharing class DocGenController {
             SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Content_Version_Id__c, 
                    Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c
             FROM DocGen_Template_Version__c 
-            WHERE Template__c = :templateId 
-            WITH USER_MODE
+            WHERE Template__c = :templateId
+            WITH SYSTEM_MODE
             ORDER BY CreatedDate DESC
         ];
     }
@@ -198,8 +227,8 @@ public with sharing class DocGenController {
             DocGen_Template_Version__c version = [
                 SELECT Template__c, Query_Config__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
                 FROM DocGen_Template_Version__c 
-                WHERE Id = :versionId 
-                WITH USER_MODE
+                WHERE Id = :versionId
+                WITH SYSTEM_MODE
                 LIMIT 1
             ];
             
@@ -207,17 +236,19 @@ public with sharing class DocGenController {
             List<DocGen_Template_Version__c> others = [
                 SELECT Id FROM DocGen_Template_Version__c 
                 WHERE Template__c = :version.Template__c AND Is_Active__c = true
-                WITH USER_MODE
+                WITH SYSTEM_MODE
             ];
             for (DocGen_Template_Version__c v : others) {
                 v.Is_Active__c = false;
             }
-            update others;
-            
+            SObjectAccessDecision othersDecision = Security.stripInaccessible(AccessType.UPDATABLE, others);
+            update othersDecision.getRecords();
+
             // 2. Activate this one
             version.Is_Active__c = true;
-            update version;
-            
+            SObjectAccessDecision versionDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template_Version__c>{ version });
+            update versionDecision.getRecords();
+
             // 3. Update Template Record Headline
             DocGen_Template__c template = new DocGen_Template__c(Id = version.Template__c);
             template.Query_Config__c = version.Query_Config__c;
@@ -226,8 +257,9 @@ public with sharing class DocGenController {
             template.Type__c = version.Type__c;
             // Base Object usually constant but update it anyway
             template.Base_Object_API__c = version.Base_Object_API__c;
-            
-            update template;
+
+            SObjectAccessDecision tplDecision2 = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update tplDecision2.getRecords();
             
         } catch (Exception e) {
             throw new DocGenException('Error activating version: ' + e.getMessage());
@@ -243,9 +275,11 @@ public with sharing class DocGenController {
             cv.VersionData = Blob.valueOf(htmlContent);
             cv.Description = 'Temp DocGen HTML for PDF Rendering';
             cv.IsMajorVersion = false;
-            insert cv;
-            
-            return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE].ContentDocumentId;
+            SObjectAccessDecision htmlDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+            insert htmlDecision.getRecords();
+            Id htmlCvId = htmlDecision.getRecords()[0].Id;
+
+            return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :htmlCvId WITH USER_MODE].ContentDocumentId;
         } catch (Exception e) {
             throw new AuraHandledException('Error saving temp HTML: ' + e.getMessage());
         }
@@ -391,7 +425,7 @@ public with sharing class DocGenController {
         List<SObject> shareRecords = Database.query(
             'SELECT Id, UserOrGroupId, UserOrGroup.Name, AccessLevel, RowCause ' +
             'FROM DocGen_Template__Share ' +
-            'WHERE ParentId = :templateId AND RowCause != \'Owner\''
+            'WHERE ParentId = :templateId AND RowCause != \'Owner\' WITH SYSTEM_MODE'
         );
 
         for (SObject s : shareRecords) {
@@ -483,8 +517,13 @@ public with sharing class DocGenController {
                 Object val = mapData.get(key);
                 if (val instanceof String) {
                     String strVal = (String) val;
+                    // Resolve Salesforce rich text image URLs (refid-based) to base64 data URIs
                     if (strVal.containsIgnoreCase('<img') && strVal.containsIgnoreCase('refid=')) {
                         mapData.put(key, resolveImageUrlsInHtml(strVal, objectType, recordId, key));
+                    }
+                    // Also resolve Salesforce servlet/sfc URLs in img tags (without refid)
+                    else if (strVal.containsIgnoreCase('<img') && (strVal.containsIgnoreCase('/servlet/') || strVal.containsIgnoreCase('/sfc/'))) {
+                        mapData.put(key, resolveServletImageUrls(strVal));
                     }
                 } else {
                     resolveRichTextImages(val);
@@ -494,6 +533,49 @@ public with sharing class DocGenController {
             for (Object item : (List<Object>) data) {
                 resolveRichTextImages(item);
             }
+        }
+    }
+
+    /**
+     * Resolves Salesforce servlet/sfc image URLs in HTML to base64 data URIs via Named Credential.
+     */
+    private static String resolveServletImageUrls(String html) {
+        try {
+            Pattern imgPattern = Pattern.compile('(?i)<img[^>]+src\\s*=\\s*["\']([^"\']+)["\']');
+            Matcher m = imgPattern.matcher(html.replace('&amp;', '&'));
+            String result = html;
+
+            while (m.find()) {
+                String src = m.group(1);
+                if (src.startsWith('data:')) continue; // Already resolved
+
+                String path = null;
+                if (src.containsIgnoreCase('servlet/rtaImage')) {
+                    path = '/servlet/' + src.substringAfter('/servlet/');
+                } else if (src.containsIgnoreCase('/servlet/') || src.containsIgnoreCase('/sfc/')) {
+                    path = src.contains('://') ? src.substringAfter('.com') : src;
+                }
+
+                if (path != null) {
+                    HttpRequest req = new HttpRequest();
+                    req.setEndpoint('callout:DocGen_Loopback' + path);
+                    req.setMethod('GET');
+                    req.setTimeout(15000);
+                    Http h = new Http();
+                    HttpResponse res = h.send(req);
+                    if (res.getStatusCode() == 200) {
+                        String contentType = res.getHeader('Content-Type');
+                        if (String.isBlank(contentType) || !contentType.startsWith('image/')) contentType = 'image/png';
+                        String base64 = EncodingUtil.base64Encode(res.getBodyAsBlob());
+                        String dataUri = 'data:' + contentType + ';base64,' + base64;
+                        result = result.replace(src, dataUri);
+                    }
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'DocGen: resolveServletImageUrls failed: ' + e.getMessage());
+            return html;
         }
     }
 

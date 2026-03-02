@@ -93,7 +93,6 @@ export default class DocGenQueryBuilder extends LightningElement {
                 );
             } catch (err) {
                 // Fallback or error
-                console.error('Failed to copy: ', err);
                 // Fallback to legacy execCommand if needed, but discouraged.
             }
         }
@@ -134,10 +133,9 @@ export default class DocGenQueryBuilder extends LightningElement {
                 this.parseConfig(this._queryConfig);
             }
         } else if (error) {
-            console.error(error);
         }
     }
-    
+
     // --- Field Logic ---
     
     @track isLoadingFields = false;
@@ -479,19 +477,12 @@ export default class DocGenQueryBuilder extends LightningElement {
         this.previewResult = result; // Store for refresh
         const { error, data } = result;
 
-        console.log('DEBUG: wiredPreview triggered. testRecordId:', this.testRecordId);
-        
         if (data) {
-            console.log('DEBUG: Data received');
             this.previewData = this.flattenPreview(data);
             this.previewError = null;
         } else if (error) {
-            console.error('DEBUG: Preview Error', error);
             this.previewData = null;
             this.previewError = error.body ? error.body.message : error.message;
-        } else {
-             // Loading or null
-             console.log('DEBUG: No data/error (Loading/Null)');
         }
     }
     
@@ -959,7 +950,6 @@ export default class DocGenQueryBuilder extends LightningElement {
                 });
             })
             .catch(error => {
-                console.error('Error fetching child fields', error);
             });
 
         this.selectedChildRel = null;

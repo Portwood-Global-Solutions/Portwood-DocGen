@@ -7,7 +7,7 @@
                     How Bulk Generation Works
                 </h3>
                 <p class="slds-text-body_small">
-                    Select a template and define a filter to identify the records you want to process. 
+                    Select a template and define a filter to identify the records you want to process.
                     When you run the generation, documents will be created in the background and attached to the <strong>Files</strong> related list of each record.
                 </p>
             </div>
@@ -22,60 +22,79 @@
                         onchange={handleTemplateChange}
                         disabled={isProcessing}>
                     </lightning-combobox>
-                    
+
                     <template if:true={baseObject}>
                         <div class="slds-text-color_weak slds-var-m-top_x-small">
                             Target Object: <strong>{baseObject}</strong>
                         </div>
                     </template>
                 </div>
-                
+
                 <div class="slds-col slds-size_1-of-2">
-                     <!-- Monitor -->
+                     <!-- Job Status Monitor -->
                      <template if:true={jobId}>
                         <div class="slds-box slds-theme_shade">
-                            <h3 class="slds-text-heading_small slds-var-m-bottom_small">Batch Job Status</h3>
+                            <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_small">
+                                <h3 class="slds-text-heading_small">Batch Job Status</h3>
+                                <lightning-badge label={jobStatus} class={jobStatusVariant}></lightning-badge>
+                            </div>
                             <div class="slds-var-m-bottom_small">
                                 <div class="slds-grid slds-grid_align-spread">
-                                    <span>Status:</span>
-                                    <strong>{jobStatus}</strong>
-                                </div>
-                                <div class="slds-grid slds-grid_align-spread">
                                     <span>Success:</span>
-                                    <span class="slds-text-color_success">{jobProgress.success}</span>
+                                    <span class="slds-text-color_success"><strong>{jobProgress.success}</strong></span>
                                 </div>
                                 <div class="slds-grid slds-grid_align-spread">
                                     <span>Errors:</span>
-                                    <span class="slds-text-color_error">{jobProgress.error}</span>
+                                    <span class="slds-text-color_error"><strong>{jobProgress.error}</strong></span>
+                                </div>
+                                <div class="slds-grid slds-grid_align-spread">
+                                    <span>Total:</span>
+                                    <span><strong>{jobProgress.total}</strong></span>
                                 </div>
                             </div>
-                             <template if:true={isProcessing}>
+
+                            <template if:true={isProcessing}>
                                 <div class="slds-var-m-top_x-small">
                                     <lightning-progress-bar value={jobProgress.percent} variant="circular"></lightning-progress-bar>
                                     <div class="slds-grid slds-grid_align-spread slds-var-m-top_xx-small">
-                                        <p class="slds-text-body_small">Processing records...</p>
+                                        <p class="slds-text-body_small">Auto-refreshing every 5s...</p>
                                         <lightning-button
                                             icon-name="utility:refresh"
                                             variant="neutral"
                                             onclick={pollJob}
-                                            label="Refresh"
-                                            title="Refresh Status">
+                                            label="Refresh Now"
+                                            title="Refresh Status Now">
                                         </lightning-button>
                                     </div>
                                 </div>
                             </template>
-                            <template if:false={isProcessing}>
-                                <div class="slds-var-m-top_x-small">
-                                    <lightning-button 
-                                        label="Refresh Final Status" 
-                                        icon-name="utility:refresh" 
-                                        variant="neutral" 
-                                        onclick={pollJob} 
+
+                            <template if:true={isJobFinished}>
+                                <div class="slds-var-m-top_small">
+                                    <lightning-button
+                                        label="Start New Job"
+                                        icon-name="utility:add"
+                                        variant="brand"
+                                        onclick={handleNewJob}
                                         class="slds-size_full">
                                     </lightning-button>
                                 </div>
                             </template>
                         </div>
+                     </template>
+
+                     <!-- Completed Jobs History -->
+                     <template if:true={hasCompletedJobs}>
+                         <div class="slds-var-m-top_small">
+                             <p class="slds-text-title_caps slds-var-m-bottom_xx-small">Recent Jobs</p>
+                             <template for:each={completedJobs} for:item="cj">
+                                 <div key={cj.id} class="slds-text-body_small slds-var-m-bottom_xx-small">
+                                     <lightning-badge label={cj.status}></lightning-badge>
+                                     &nbsp;{cj.success}/{cj.total} succeeded
+                                     <template if:true={cj.error}>, {cj.error} errors</template>
+                                 </div>
+                             </template>
+                         </div>
                      </template>
                 </div>
             </div>
@@ -84,12 +103,13 @@
                 <div class="slds-var-m-top_medium slds-box slds-theme_default">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Record Filter (SOQL)</h3>
                     <p class="slds-var-m-bottom_small">Define a SOQL WHERE clause to select records. Leave empty to process ALL records.</p>
-                    
+
                     <lightning-textarea
                         label="SOQL Condition"
                         value={condition}
                         onchange={handleConditionChange}
-                        placeholder="e.g. StageName = 'Closed Won'">
+                        placeholder="e.g. StageName = 'Closed Won'"
+                        disabled={isProcessing}>
                     </lightning-textarea>
 
                     <div class="slds-grid slds-gutters slds-var-m-top_small">
@@ -104,7 +124,7 @@
                                 </ul>
                             </div>
                         </div>
-                        
+
                         <!-- Right: Saved Queries -->
                         <div class="slds-col slds-size_1-of-2">
                             <div class="slds-box slds-box_x-small slds-theme_default">
@@ -130,16 +150,16 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="slds-var-m-top_small">
-                        <lightning-button 
-                            label="Validate Filter" 
-                            onclick={handleValidate} 
+                        <lightning-button
+                            label="Validate Filter"
+                            onclick={handleValidate}
                             disabled={isProcessing}
                             variant="neutral"
                             class="slds-var-m-right_small">
                         </lightning-button>
-                        
+
                         <template if:true={recordCount}>
                              <lightning-badge label={recordCount}></lightning-badge> Records Found
                         </template>
@@ -149,11 +169,11 @@
                     </div>
                 </div>
             </template>
-            
+
             <div class="slds-var-m-top_medium slds-align_absolute-center">
-                <lightning-button 
-                    label="Run Bulk Generation" 
-                    variant="brand" 
+                <lightning-button
+                    label="Run Bulk Generation"
+                    variant="brand"
                     onclick={handleRun}
                     disabled={isRunDisabled}
                     class="slds-var-p-horizontal_medium">

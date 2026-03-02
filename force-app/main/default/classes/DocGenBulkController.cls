@@ -2,17 +2,45 @@ public with sharing class DocGenBulkController {
 
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getBulkTemplates() {
-        return [SELECT Id, Name, Base_Object_API__c, Description__c FROM DocGen_Template__c WITH USER_MODE ORDER BY Name];
+        return [SELECT Id, Name, Base_Object_API__c, Description__c FROM DocGen_Template__c WITH SYSTEM_MODE ORDER BY Name];
     }
 
     @AuraEnabled
     public static Integer validateFilter(String objectName, String condition) {
         if (String.isBlank(objectName)) return 0;
-        String query = 'SELECT Count() FROM ' + String.escapeSingleQuotes(objectName);
-        if (String.isNotBlank(condition)) {
-            query += ' WHERE ' + condition;
+        // Validate object name against Schema to prevent injection
+        if (Schema.getGlobalDescribe().get(objectName) == null) {
+            throw new AuraHandledException('Invalid object: ' + objectName);
         }
+        String sanitizedCondition = sanitizeCondition(condition);
+        String query = 'SELECT Count() FROM ' + objectName;
+        if (String.isNotBlank(sanitizedCondition)) {
+            query += ' WHERE ' + sanitizedCondition;
+        }
+        query += ' WITH USER_MODE';
         return Database.countQuery(query);
+    }
+
+    /**
+     * Basic sanitization of dynamic WHERE conditions to prevent SOQL injection.
+     * Rejects conditions containing dangerous SOQL keywords that should never
+     * appear in a WHERE clause fragment from the filter builder.
+     */
+    private static String sanitizeCondition(String condition) {
+        if (String.isBlank(condition)) return condition;
+        String upper = condition.toUpperCase().trim();
+        // Reject conditions containing SOQL/DML keywords that don't belong in a WHERE clause
+        List<String> disallowed = new List<String>{
+            'SELECT ', 'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
+            'WITH ', 'GROUP BY ', 'ORDER BY ', 'LIMIT ', 'OFFSET ', 'FOR UPDATE',
+            'HAVING ', 'TYPEOF '
+        };
+        for (String keyword : disallowed) {
+            if (upper.contains(keyword)) {
+                throw new AuraHandledException('Invalid filter condition: contains disallowed keyword.');
+            }
+        }
+        return condition;
     }
 
     @AuraEnabled
@@ -24,7 +52,9 @@ public with sharing class DocGenBulkController {
                 Query_Condition__c = condition,
                 Status__c = 'Queued'
             );
-            insert job;
+            SObjectAccessDecision jobDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
+            insert jobDecision.getRecords();
+            job = (DocGen_Job__c) jobDecision.getRecords()[0];
 
             // 2. Run Batch
             // Batch Size 1: each record needs its own transaction so callouts
@@ -39,9 +69,9 @@ public with sharing class DocGenBulkController {
         }
     }
 
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static DocGen_Job__c getJobStatus(Id jobId) {
-        return [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
+        return [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
     }
 
     // --- Saved Queries ---
@@ -51,7 +81,7 @@ public with sharing class DocGenBulkController {
             SELECT Id, Name, Description__c, Query_Condition__c 
             FROM DocGen_Saved_Query__c 
             WHERE DocGen_Template__c = :templateId 
-            WITH USER_MODE
+            WITH SYSTEM_MODE
             ORDER BY CreatedDate DESC
         ];
     }
@@ -65,7 +95,8 @@ public with sharing class DocGenBulkController {
                 Description__c = description,
                 Query_Condition__c = condition
             );
-            insert sq;
+            SObjectAccessDecision sqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Saved_Query__c>{ sq });
+            insert sqDecision.getRecords();
         } catch (Exception e) {
             throw new AuraHandledException('Error saving query: ' + e.getMessage());
         }

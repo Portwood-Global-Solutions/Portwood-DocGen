@@ -66,7 +66,6 @@ export default class DocGenSignatureSender extends LightningElement {
                 value: entry.value
             }));
         } else if (error) {
-            console.error('Error loading role picklist:', error);
         }
         this._checkInitialLoad();
     }
@@ -79,7 +78,6 @@ export default class DocGenSignatureSender extends LightningElement {
                 ...data.map(t => ({ label: t.Name, value: t.Id }))
             ];
         } else if (error) {
-            console.error('Error loading templates:', error);
         }
         this._checkInitialLoad();
     }
@@ -239,7 +237,6 @@ export default class DocGenSignatureSender extends LightningElement {
                 } : s
             );
         } catch (err) {
-            console.error('Could not auto-fill from contact:', err);
         }
     }
 
@@ -353,7 +350,6 @@ export default class DocGenSignatureSender extends LightningElement {
             try {
                 document.execCommand('copy');
             } catch (err) {
-                console.error('Copy fallback failed:', err);
             }
             document.body.removeChild(textArea);
         }

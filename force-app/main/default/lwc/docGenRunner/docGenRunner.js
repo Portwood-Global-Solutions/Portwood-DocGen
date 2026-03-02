@@ -2,26 +2,24 @@ import { LightningElement, api, wire, track } from 'lwc';
 import { loadScript } from 'lightning/platformResourceLoader';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getTemplatesForObject from '@salesforce/apex/DocGenController.getTemplatesForObject';
-import generateDocumentData from '@salesforce/apex/DocGenController.generateDocumentData';
+import processAndReturnDocument from '@salesforce/apex/DocGenController.processAndReturnDocument';
 import saveGeneratedDocument from '@salesforce/apex/DocGenController.saveGeneratedDocument';
-import PIZZIP_JS from '@salesforce/resourceUrl/pizzip';
-import DOCXTEMPLATER_JS from '@salesforce/resourceUrl/docxtemplater';
 import FILESAVER_JS from '@salesforce/resourceUrl/filesaver';
 
 export default class DocGenRunner extends LightningElement {
     @api recordId;
     @api objectApiName;
-    
+
     @track templateOptions = [];
     @track selectedTemplateId;
     @track outputMode = 'download';
-    @track templateOutputFormat = 'Document'; 
-    
+    @track templateOutputFormat = 'Document';
+
     isLoading = false;
     error;
     librariesLoaded = false;
     _librariesPromise;
-    _templateData = []; // Store raw template metadata
+    _templateData = [];
 
     get engineUrl() {
         return '/apex/DocGenPDFEngine';
@@ -50,33 +48,12 @@ export default class DocGenRunner extends LightningElement {
     renderedCallback() {
         if (this.librariesLoaded) return;
         this.librariesLoaded = true;
-
-        const loadPizZip = loadScript(this, PIZZIP_JS)
-            .catch(e => { console.error('Failed to load PizZip', e); throw e; });
-            
-        const loadDocxtemplater = loadScript(this, DOCXTEMPLATER_JS)
-            .catch(e => { console.error('Failed to load Docxtemplater', e); throw e; });
-            
-        const loadFileSaver = loadScript(this, FILESAVER_JS);
-
-        this._librariesPromise = Promise.all([
-            loadPizZip,
-            loadDocxtemplater,
-            loadFileSaver
-        ])
-        .then(() => {
-             console.log('Document Generation libraries loaded successfully');
-        })
-        .catch(error => {
-            console.error('Library load error:', error);
-        });
+        this._librariesPromise = loadScript(this, FILESAVER_JS);
     }
 
     handleTemplateChange(event) {
         this.selectedTemplateId = event.detail.value;
         this.error = null;
-        
-        // Update the UI labels immediately based on selected template
         const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
         if (selected) {
             this.templateOutputFormat = selected.Output_Format__c || 'Document';
@@ -94,220 +71,96 @@ export default class DocGenRunner extends LightningElement {
     async generateDocument() {
         this.isLoading = true;
         this.error = null;
-        
+
         try {
-            console.log('DocGen: Starting generation process...');
-            
-            // 0. Ensure Libraries are loaded
             if (this._librariesPromise) {
                 await this._librariesPromise;
-            } else {
-                 throw new Error('Libraries failed to initialize.');
             }
 
-            if (!window.PizZip || !window.docxtemplater) {
-                throw new Error('Required libraries (PizZip/docxtemplater) not found in window scope.');
-            }
-
-            // 1. Get Data and Template Content
-            console.log('DocGen: Fetching template and record data...');
-            const result = await generateDocumentData({ 
-                templateId: this.selectedTemplateId, 
-                recordId: this.recordId 
+            // Server-side document processing
+            const result = await processAndReturnDocument({
+                templateId: this.selectedTemplateId,
+                recordId: this.recordId
             });
-            
-            if (!result || !result.templateFile) {
-                throw new Error('Template file content is empty or could not be retrieved.');
+
+            if (!result || !result.base64) {
+                throw new Error('Document generation returned empty result.');
             }
 
-            const templateData = result.templateFile; 
+            const base64Data = result.base64;
+            const docTitle = result.title || 'Document';
             const templateType = result.templateType;
             this.templateOutputFormat = result.outputFormat || 'Document';
 
-            // 2. Local DOCX Generation (PizZip + docxtemplater)
-            console.log('DocGen: Processing record data and initializing docxtemplater...');
-            let recordData = this.flattenData(JSON.parse(JSON.stringify(result.data)));
-            
-            const binaryString = atob(templateData);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            
-            const zip = new window.PizZip(bytes.buffer);
-
-            // Pre-process: escape {#Signature...} placeholders so docxtemplater
-            // doesn't treat them as section/loop tags (they're used later by the
-            // signature stamping engine, not by docxtemplater).
-            const _sigEscapes = [];
-            const xmlFiles = ['word/document.xml'];
-            for (const fn of Object.keys(zip.files)) {
-                if ((fn.startsWith('word/header') || fn.startsWith('word/footer')) && fn.endsWith('.xml')) {
-                    xmlFiles.push(fn);
-                }
-            }
-            for (const xf of xmlFiles) {
-                if (!zip.files[xf]) continue;
-                let xContent = zip.file(xf).asText();
-                let changed = false;
-                xContent = xContent.replace(/\{#Signature([^}]*)\}/g, (match, suffix) => {
-                    changed = true;
-                    const key = 'DOCGEN_SIGESC_' + _sigEscapes.length;
-                    _sigEscapes.push({ key, original: match, file: xf });
-                    return key;
-                });
-                if (changed) zip.file(xf, xContent);
-            }
-
-            let _imageTagCounter = 0;
-            const _pendingImageData = {};
-
-            const doc = new window.docxtemplater(zip, {
-                paragraphLoop: true,
-                linebreaks: true,
-                delimiters: {start: '{', end: '}'},
-                nullGetter: () => { return ""; },
-                parser: (tag) => {
-                    return {
-                        get: (scope) => {
-                            if (tag === '.') return scope;
-                            // Image tags: resolve from current scope and generate unique placeholder
-                            if (tag.startsWith('%')) {
-                                let imageSpec = tag.substring(1);
-                                let widthPx = null;
-                                let heightPx = null;
-                                // Parse optional :WxH size suffix
-                                if (imageSpec.includes(':')) {
-                                    const colonIdx = imageSpec.lastIndexOf(':');
-                                    const sizeStr = imageSpec.substring(colonIdx + 1).trim().toLowerCase();
-                                    if (sizeStr.includes('x')) {
-                                        const dims = sizeStr.split('x');
-                                        if (dims.length === 2 && !isNaN(dims[0]) && !isNaN(dims[1])) {
-                                            widthPx = parseInt(dims[0], 10);
-                                            heightPx = parseInt(dims[1], 10);
-                                            imageSpec = imageSpec.substring(0, colonIdx);
-                                        }
-                                    }
-                                }
-                                const fieldName = imageSpec;
-                                const keys = fieldName.split('.');
-                                let val = scope;
-                                for (const key of keys) {
-                                    if (val === undefined || val === null) return '';
-                                    val = val[key];
-                                }
-                                if (val) {
-                                    _imageTagCounter++;
-                                    const placeholder = 'DOCGENIMG' + _imageTagCounter;
-                                    _pendingImageData[placeholder] = { value: String(val), widthPx, heightPx };
-                                    console.log('DocGen: Image tag {%' + fieldName + '} resolved → placeholder ' + placeholder + (widthPx ? ' size:' + widthPx + 'x' + heightPx : ' default size'));
-                                    return '{%' + placeholder + '}';
-                                }
-                                console.log('DocGen: Image tag {%' + fieldName + '} resolved to empty/null');
-                                return '';
-                            }
-                            const keys = tag.split('.');
-                            let value = scope;
-                            for (let i = 0; i < keys.length; i++) {
-                                if (value === undefined || value === null) return '';
-                                value = value[keys[i]];
-                            }
-                            // Strip HTML from rich text values for regular text tags
-                            if (typeof value === 'string' && value.includes('<') && (value.includes('<p') || value.includes('<div') || value.includes('<span') || value.includes('<br'))) {
-                                const tmp = document.createElement('div');
-                                tmp.innerHTML = value;
-                                value = tmp.textContent || tmp.innerText || '';
-                            }
-                            return value;
-                        }
-                    };
-                }
-            });
-
-            console.log('DocGen: Rendering template...');
-            doc.render(recordData);
-
-            // Post-process: restore escaped signature placeholders
-            if (_sigEscapes.length > 0) {
-                const outZip = doc.getZip();
-                const touchedFiles = new Set(_sigEscapes.map(s => s.file));
-                for (const xf of touchedFiles) {
-                    if (!outZip.files[xf]) continue;
-                    let xOut = outZip.file(xf).asText();
-                    for (const esc of _sigEscapes) {
-                        if (esc.file === xf) {
-                            xOut = xOut.replace(esc.key, esc.original);
-                        }
-                    }
-                    outZip.file(xf, xOut);
-                }
-                console.log('DocGen: Restored ' + _sigEscapes.length + ' signature placeholder(s).');
-            }
-
-            // Post-process: inject images using the unique placeholder data
-            console.log('DocGen: Post-processing images...');
-            this.injectImages(doc.getZip(), _pendingImageData);
-
-            const baseName = recordData.Name || recordData.QuoteNumber || recordData.CaseNumber || recordData.Subject || 'Document';
             const isPPT = templateType === 'PowerPoint';
             const isPDF = this.templateOutputFormat === 'PDF' && !isPPT;
+            const ext = isPPT ? 'pptx' : 'docx';
 
-            if (isPPT) {
-                console.log('DocGen: PowerPoint detected. Generating PPTX...');
-                const outBlob = doc.getZip().generate({ type: 'blob' });
-                if (this.outputMode === 'save') {
-                    await this.saveToSalesforce(baseName, outBlob, 'pptx');
-                } else {
-                    window.saveAs(outBlob, baseName + '.pptx');
-                    this.showToast('Success', 'PowerPoint downloaded.', 'success');
-                    this.isLoading = false;
-                }
-            } else if (!isPDF) {
-                console.log('DocGen: Native format detected. Generating DOCX...');
-                const outBlob = doc.getZip().generate({ type: 'blob' });
-                if (this.outputMode === 'save') {
-                    await this.saveToSalesforce(baseName, outBlob, 'docx');
-                } else {
-                    window.saveAs(outBlob, baseName + '.docx');
-                    this.showToast('Success', 'Word document downloaded.', 'success');
-                    this.isLoading = false;
-                }
-            } else {
-                // Word DOCX -> Send to PDF Engine (For PDF Output)
-                console.log('DocGen: PDF output requested. Sending to PDF Engine...');
+            if (isPDF) {
+                // Send processed DOCX to PDF Engine iframe
+                // Use '*' for targetOrigin because VF pages run on a different domain
                 this.showToast('Info', 'Generating PDF...', 'info');
-                const docxBuffer = doc.getZip().generate({ type: 'arraybuffer' });
+                const binaryString = atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
                 const iframe = this.template.querySelector('iframe');
-                
                 if (!iframe) throw new Error('PDF Engine iframe not found.');
 
                 iframe.contentWindow.postMessage({
                     type: 'generate',
-                    blob: docxBuffer,
-                    fileName: baseName,
-                    mode: this.outputMode 
+                    blob: bytes.buffer,
+                    fileName: docTitle,
+                    mode: this.outputMode
                 }, '*');
+
+                // Safety timeout — stop spinner if PDF engine never responds
+                // eslint-disable-next-line @lwc/lwc/no-async-operation
+                this._pdfTimeout = setTimeout(() => {
+                    if (this.isLoading) {
+                        this.error = 'PDF generation timed out. Try downloading as Word instead.';
+                        this.isLoading = false;
+                    }
+                }, 60000);
+            } else if (this.outputMode === 'save') {
+                this.showToast('Info', 'Saving to Record...', 'info');
+                await saveGeneratedDocument({
+                    recordId: this.recordId,
+                    fileName: docTitle,
+                    base64Data: base64Data,
+                    extension: ext
+                });
+                this.showToast('Success', `${ext.toUpperCase()} saved to record.`, 'success');
+                this.isLoading = false;
+            } else {
+                // Download — use octet-stream to avoid LWS MIME type restrictions
+                const binaryString = atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = docTitle + '.' + ext;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.showToast('Success', `${isPPT ? 'PowerPoint' : 'Word document'} downloaded.`, 'success');
+                this.isLoading = false;
             }
 
         } catch (e) {
-            console.error('DocGen Error Detailed:', e);
             let msg = 'Unknown error during generation';
-            
-            if (e.message) {
+            if (e.body && e.body.message) {
+                msg = e.body.message;
+            } else if (e.message) {
                 msg = e.message;
             } else if (typeof e === 'string') {
                 msg = e;
-            } else {
-                try {
-                    msg = JSON.stringify(e);
-                } catch (jsonErr) {
-                    msg = 'Critical failure (could not stringify error)';
-                }
-            }
-
-            if (e.properties && e.properties.errors instanceof Array) {
-                msg += ': ' + e.properties.errors.map(err => err.properties.explanation).join(', ');
             }
             this.error = 'Generation Error: ' + msg;
             this.isLoading = false;
@@ -317,14 +170,15 @@ export default class DocGenRunner extends LightningElement {
     connectedCallback() {
         window.addEventListener('message', this.handleMessage);
     }
-    
+
     disconnectedCallback() {
         window.removeEventListener('message', this.handleMessage);
     }
-    
+
     handleMessage = async (event) => {
+        if (!event.data || !event.data.type) return;
         if (event.data.type === 'docgen_success') {
-            console.log('DocGen: PDF Engine success received.');
+            if (this._pdfTimeout) { clearTimeout(this._pdfTimeout); this._pdfTimeout = null; }
             if (this.outputMode === 'save' && event.data.blob) {
                 await this.saveToSalesforce(event.data.fileName, event.data.blob, 'pdf');
             } else {
@@ -332,7 +186,7 @@ export default class DocGenRunner extends LightningElement {
                 this.isLoading = false;
             }
         } else if (event.data.type === 'docgen_error') {
-            console.error('DocGen: PDF Engine reported error:', event.data.message);
+            if (this._pdfTimeout) { clearTimeout(this._pdfTimeout); this._pdfTimeout = null; }
             this.error = 'PDF Engine Error: ' + event.data.message;
             this.isLoading = false;
         }
@@ -340,9 +194,7 @@ export default class DocGenRunner extends LightningElement {
 
     async saveToSalesforce(fileName, blob, extension) {
         try {
-            console.log(`DocGen: Saving ${extension} to record...`);
             this.showToast('Info', 'Saving to Record...', 'info');
-            
             const base64 = await this.blobToBase64(blob);
             if (!base64) throw new Error('Failed to convert file to binary data.');
 
@@ -354,7 +206,6 @@ export default class DocGenRunner extends LightningElement {
             });
             this.showToast('Success', `${extension.toUpperCase()} saved to record.`, 'success');
         } catch (e) {
-            console.error('DocGen: Save error:', e);
             this.error = 'Save Error: ' + (e.body ? e.body.message : (e.message || e));
             this.showToast('Error', 'Save failed. Check error message.', 'error');
         } finally {
@@ -373,8 +224,7 @@ export default class DocGenRunner extends LightningElement {
                 const base64String = reader.result.split(',')[1];
                 resolve(base64String);
             };
-            reader.onerror = (e) => {
-                console.error('FileReader error:', e);
+            reader.onerror = () => {
                 reject(new Error('Error reading file data.'));
             };
 
@@ -383,7 +233,6 @@ export default class DocGenRunner extends LightningElement {
             } else if (blob instanceof Blob) {
                 reader.readAsDataURL(blob);
             } else {
-                // Try treating it as a buffer if it's an TypedArray
                 try {
                     reader.readAsDataURL(new Blob([blob]));
                 } catch (err) {
@@ -395,165 +244,5 @@ export default class DocGenRunner extends LightningElement {
 
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
-    }
-
-    /**
-     * Post-processes a PizZip instance to replace {%PlaceholderKey} tags with actual images.
-     * Uses imageDataMap (keyed by unique placeholder) to resolve image data per instance.
-     */
-    injectImages(zip, imageDataMap) {
-        console.log('DocGen: injectImages called with', Object.keys(imageDataMap).length, 'pending images:', Object.keys(imageDataMap));
-        const imageRegex = /\{%([^}]+)\}/g;
-        let imageCount = 0;
-        const images = []; // {relId, fileName, data (Uint8Array)}
-
-        // Helper to extract base64 image from HTML <img> tag or data URI string
-        const extractImage = (strVal) => {
-            // HTML with <img> tag containing data URI
-            if (strVal.includes('<img')) {
-                const match = strVal.match(/<img[^>]+src\s*=\s*["']([^"']+)["']/i);
-                if (match) {
-                    const src = match[1];
-                    if (src.startsWith('data:image/')) {
-                        const base64Part = src.split(',')[1];
-                        if (base64Part) {
-                            const bin = atob(base64Part);
-                            const arr = new Uint8Array(bin.length);
-                            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-                            return { data: arr, ext: src.includes('jpeg') || src.includes('jpg') ? 'jpeg' : 'png' };
-                        }
-                    }
-                }
-                return null;
-            }
-            // Direct base64 data URI
-            if (strVal.startsWith('data:image/')) {
-                const base64Part = strVal.split(',')[1];
-                if (base64Part) {
-                    const bin = atob(base64Part);
-                    const arr = new Uint8Array(bin.length);
-                    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-                    return { data: arr, ext: strVal.includes('jpeg') || strVal.includes('jpg') ? 'jpeg' : 'png' };
-                }
-            }
-            return null;
-        };
-
-        // Scan all XML files in the ZIP for {%...} patterns
-        const xmlFiles = ['word/document.xml'];
-        for (const fname of Object.keys(zip.files)) {
-            if ((fname.startsWith('word/header') || fname.startsWith('word/footer')) && fname.endsWith('.xml')) {
-                xmlFiles.push(fname);
-            }
-        }
-
-        for (const xmlFile of xmlFiles) {
-            if (!zip.files[xmlFile]) continue;
-            let xml = zip.file(xmlFile).asText();
-            let hasChanges = false;
-
-            xml = xml.replace(imageRegex, (fullMatch, placeholderKey) => {
-                hasChanges = true; // Always mark changes when regex matches
-
-                const imgEntry = imageDataMap[placeholderKey];
-                if (!imgEntry) {
-                    console.log('DocGen: injectImages - no value for placeholder:', placeholderKey);
-                    return '';
-                }
-
-                // Support both old string format and new {value, widthPx, heightPx} object
-                const val = typeof imgEntry === 'string' ? imgEntry : imgEntry.value;
-                const imgResult = extractImage(val);
-                if (!imgResult) {
-                    console.log('DocGen: injectImages - extractImage returned null for placeholder:', placeholderKey, 'value starts with:', val.substring(0, 100));
-                    return '';
-                }
-
-                imageCount++;
-                const relId = 'rIdImg' + imageCount;
-                const fileName = 'docgen_image_' + imageCount + '.' + imgResult.ext;
-                images.push({ relId, fileName, data: imgResult.data });
-
-                // 1 pixel at 96 DPI = 9525 EMU. Default: 4" x 3" (384px x 288px)
-                const emuPerPx = 9525;
-                const wpx = (typeof imgEntry === 'object' && imgEntry.widthPx) ? imgEntry.widthPx : 384;
-                const hpx = (typeof imgEntry === 'object' && imgEntry.heightPx) ? imgEntry.heightPx : 288;
-                const cx = wpx * emuPerPx;
-                const cy = hpx * emuPerPx;
-
-                return '</w:t></w:r>' +
-                    '<w:r><w:drawing>' +
-                      '<wp:inline distT="0" distB="0" distL="0" distR="0">' +
-                        '<wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
-                        '<wp:effectExtent l="0" t="0" r="0" b="0"/>' +
-                        '<wp:docPr id="' + (900 + imageCount) + '" name="DocGenImage' + imageCount + '"/>' +
-                        '<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>' +
-                        '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
-                          '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
-                            '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
-                              '<pic:nvPicPr><pic:cNvPr id="0" name="DocGenImage' + imageCount + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
-                              '<pic:blipFill>' +
-                                '<a:blip r:embed="' + relId + '"/>' +
-                                '<a:stretch><a:fillRect/></a:stretch>' +
-                              '</pic:blipFill>' +
-                              '<pic:spPr>' +
-                                '<a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
-                                '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' +
-                              '</pic:spPr>' +
-                            '</pic:pic>' +
-                          '</a:graphicData>' +
-                        '</a:graphic>' +
-                      '</wp:inline>' +
-                    '</w:drawing></w:r><w:r><w:t xml:space="preserve">';
-            });
-
-            if (hasChanges) {
-                zip.file(xmlFile, xml);
-            }
-        }
-
-        // Update Content_Types.xml and rels
-        if (images.length > 0) {
-            if (zip.files['[Content_Types].xml']) {
-                let ct = zip.file('[Content_Types].xml').asText();
-                if (!ct.includes('Extension="png"')) {
-                    ct = ct.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
-                }
-                if (!ct.includes('Extension="jpeg"')) {
-                    ct = ct.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
-                }
-                zip.file('[Content_Types].xml', ct);
-            }
-
-            if (zip.files['word/_rels/document.xml.rels']) {
-                let rels = zip.file('word/_rels/document.xml.rels').asText();
-                for (const img of images) {
-                    const newRel = '<Relationship Id="' + img.relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + img.fileName + '"/>';
-                    rels = rels.replace('</Relationships>', newRel + '</Relationships>');
-                }
-                zip.file('word/_rels/document.xml.rels', rels);
-            }
-
-            for (const img of images) {
-                zip.file('word/media/' + img.fileName, img.data);
-            }
-
-            console.log('DocGen: Injected ' + images.length + ' image(s) into document.');
-        }
-    }
-
-    flattenData(obj) {
-        if (!obj || typeof obj !== 'object') return obj;
-        if (Array.isArray(obj)) return obj.map(item => this.flattenData(item));
-        if (obj.hasOwnProperty('totalSize') && obj.hasOwnProperty('records')) return this.flattenData(obj.records);
-        
-        const newObj = {};
-        for (const key in obj) {
-            if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                if (key === 'attributes') continue; 
-                newObj[key] = this.flattenData(obj[key]);
-            }
-        }
-        return newObj;
     }
 }

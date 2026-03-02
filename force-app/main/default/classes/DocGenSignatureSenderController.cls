@@ -48,7 +48,9 @@ public with sharing class DocGenSignatureSenderController {
         req.Source_Document_Id__c = contentVersionId;
         req.Related_Record_Id__c = relatedRecordId;
         req.Status__c = 'Sent';
-        insert req;
+        SObjectAccessDecision reqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Request__c>{ req });
+        insert reqDecision.getRecords();
+        req = (DocGen_Signature_Request__c) reqDecision.getRecords()[0];
 
         // Create individual signer records
         String siteUrl = getSiteBaseUrl();
@@ -89,7 +91,8 @@ public with sharing class DocGenSignatureSenderController {
             results.add(sr);
         }
 
-        insert signerRecords;
+        SObjectAccessDecision signerDecision = Security.stripInaccessible(AccessType.CREATABLE, signerRecords);
+        insert signerDecision.getRecords();
         return results;
     }
 
@@ -114,7 +117,8 @@ public with sharing class DocGenSignatureSenderController {
         req.Related_Record_Id__c = relatedRecordId;
         req.Secure_Token__c = token;
         req.Status__c = 'Sent';
-        insert req;
+        SObjectAccessDecision legacyDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Request__c>{ req });
+        insert legacyDecision.getRecords();
 
         return getSiteBaseUrl() + '/apex/DocGenSignature?token=' + token;
     }
@@ -142,7 +146,7 @@ public with sharing class DocGenSignatureSenderController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Signature_Template__c> getSignatureTemplates() {
-        return [SELECT Id, Name, Description__c FROM DocGen_Signature_Template__c WITH USER_MODE ORDER BY Name ASC];
+        return [SELECT Id, Name, Description__c FROM DocGen_Signature_Template__c WITH SYSTEM_MODE ORDER BY Name ASC];
     }
 
     /**
@@ -154,7 +158,7 @@ public with sharing class DocGenSignatureSenderController {
             SELECT Id, Role_Name__c, Sort_Order__c
             FROM DocGen_Signature_Template_Role__c
             WHERE Signature_Template__c = :templateId
-            WITH USER_MODE
+            WITH SYSTEM_MODE
             ORDER BY Sort_Order__c ASC
         ];
     }
@@ -167,7 +171,9 @@ public with sharing class DocGenSignatureSenderController {
     public static Id saveSignatureTemplate(String templateName, String rolesJson) {
         DocGen_Signature_Template__c tmpl = new DocGen_Signature_Template__c();
         tmpl.Name = templateName;
-        insert tmpl;
+        SObjectAccessDecision tmplDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Template__c>{ tmpl });
+        insert tmplDecision.getRecords();
+        tmpl = (DocGen_Signature_Template__c) tmplDecision.getRecords()[0];
 
         List<Object> roleInputs = (List<Object>) JSON.deserializeUntyped(rolesJson);
         List<DocGen_Signature_Template_Role__c> roles = new List<DocGen_Signature_Template_Role__c>();
@@ -181,7 +187,8 @@ public with sharing class DocGenSignatureSenderController {
             roles.add(role);
         }
 
-        insert roles;
+        SObjectAccessDecision rolesDecision = Security.stripInaccessible(AccessType.CREATABLE, roles);
+        insert rolesDecision.getRecords();
         return tmpl.Id;
     }
 
@@ -214,10 +221,24 @@ public with sharing class DocGenSignatureSenderController {
                     FROM Signers__r ORDER BY Sort_Order__c ASC)
             FROM DocGen_Signature_Request__c
             WHERE Related_Record_Id__c = :relatedRecordId
-            WITH USER_MODE
+            WITH SYSTEM_MODE
             ORDER BY CreatedDate DESC
             LIMIT 20
         ];
+
+        // Bulkify: collect all Source_Document_Id__c values and query titles in one SOQL
+        Set<Id> sourceDocIds = new Set<Id>();
+        for (DocGen_Signature_Request__c req : requests) {
+            if (req.Source_Document_Id__c != null) {
+                sourceDocIds.add(req.Source_Document_Id__c);
+            }
+        }
+        Map<Id, String> docTitleMap = new Map<Id, String>();
+        if (!sourceDocIds.isEmpty()) {
+            for (ContentVersion cv : [SELECT Id, Title FROM ContentVersion WHERE Id IN :sourceDocIds WITH USER_MODE]) {
+                docTitleMap.put(cv.Id, cv.Title);
+            }
+        }
 
         for (DocGen_Signature_Request__c req : requests) {
             Map<String, Object> reqMap = new Map<String, Object>();
@@ -226,10 +247,9 @@ public with sharing class DocGenSignatureSenderController {
             reqMap.put('status', req.Status__c);
             reqMap.put('createdDate', req.CreatedDate);
 
-            // Get document title
+            // Get document title from pre-fetched map
             if (req.Source_Document_Id__c != null) {
-                List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
-                reqMap.put('documentTitle', !cvs.isEmpty() ? cvs[0].Title : 'Unknown');
+                reqMap.put('documentTitle', docTitleMap.containsKey(req.Source_Document_Id__c) ? docTitleMap.get(req.Source_Document_Id__c) : 'Unknown');
             }
 
             List<Map<String, Object>> signerList = new List<Map<String, Object>>();

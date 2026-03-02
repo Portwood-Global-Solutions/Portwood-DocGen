@@ -49,7 +49,6 @@ export default class DocGenSignaturePad extends LightningElement {
                     this.mergeDataJson = res.mergeDataJson;
                 }
             } catch (error) {
-                console.error('DocGen: Error initializing data:', error);
             }
         }
     }
@@ -135,24 +134,36 @@ export default class DocGenSignaturePad extends LightningElement {
         const activeToken = this.token || this.secureToken;
 
         try {
-            console.log('DocGen: Capturing signature for backend Flow rendition');
             // 1. Get Signature Image
             const canvas = this.template.querySelector('.signature-pad');
+
+            // Stamp date/time onto the signature image
+            const now = new Date();
+            const timestamp = now.toLocaleString(undefined, {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            this.ctx.save();
+            this.ctx.font = 'bold 28px Arial, sans-serif';
+            this.ctx.fillStyle = '#000000';
+            this.ctx.textAlign = 'right';
+            this.ctx.textBaseline = 'bottom';
+            this.ctx.fillText('Signed: ' + timestamp, canvas.width - 10, canvas.height - 10);
+            this.ctx.restore();
+
             const dataUrl = canvas.toDataURL('image/png');
-            this.signatureData = dataUrl.split(',')[1]; 
+            this.signatureData = dataUrl.split(',')[1];
 
             this.isLocked = true;
             this.dispatchEvent(new CustomEvent('signaturesuccess', { detail: { token: activeToken } }));
 
             // 2. AUTO-ADVANCE FLOW
             if (this.availableActions && this.availableActions.find(action => action === 'NEXT')) {
-                console.log('DocGen: Navigating to NEXT screen...');
                 const navigateNextEvent = new FlowNavigationNextEvent();
                 this.dispatchEvent(navigateNextEvent);
             }
 
         } catch (error) {
-            console.error('DocGen: Error capturing signature:', error);
             const errorMsg = error.body ? error.body.message : (error.message || JSON.stringify(error));
             alert('Error capturing signature: ' + errorMsg);
         } finally {

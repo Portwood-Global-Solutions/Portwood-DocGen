@@ -5,10 +5,17 @@ private class DocGenBulkFlowActionTest {
     static void setup() {
         // Assign DocGen_Admin permission set for custom object/field access in 2GP context
         PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
-        insert new PermissionSetAssignment(
-            AssigneeId = UserInfo.getUserId(),
-            PermissionSetId = ps.Id
-        );
+        List<PermissionSetAssignment> existing = [
+            SELECT Id FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :ps.Id
+            LIMIT 1
+        ];
+        if (existing.isEmpty()) {
+            insert new PermissionSetAssignment(
+                AssigneeId = UserInfo.getUserId(),
+                PermissionSetId = ps.Id
+            );
+        }
 
         DocGen_Template__c temp = new DocGen_Template__c(
             Name = 'Test Bulk Template',
@@ -27,7 +34,7 @@ private class DocGenBulkFlowActionTest {
         
         DocGenBulkFlowAction.Request req = new DocGenBulkFlowAction.Request();
         req.templateId = temp.Id;
-        req.queryCondition = 'Name LIKE \'Test Account%\'';
+        req.queryCondition = 'Name = \'Test Account 1\'';
         
         Test.startTest();
         List<DocGenBulkFlowAction.Response> responses = DocGenBulkFlowAction.generateBulkDocuments(new List<DocGenBulkFlowAction.Request>{req});

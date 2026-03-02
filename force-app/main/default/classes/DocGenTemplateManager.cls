@@ -12,10 +12,11 @@ public with sharing class DocGenTemplateManager {
 
         // 1. Check for Active Version first
         List<DocGen_Template_Version__c> activeVersions = [
-            SELECT Content_Version_Id__c 
-            FROM DocGen_Template_Version__c 
-            WHERE Template__c = :templateId 
-            AND Is_Active__c = true 
+            SELECT Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId
+            AND Is_Active__c = true
+            WITH SYSTEM_MODE
             LIMIT 1
         ];
 
@@ -28,20 +29,22 @@ public with sharing class DocGenTemplateManager {
         // Fallback: If no active version OR active version has null CV ID (legacy/broken data)
         if (targetCvId == null) {
             List<ContentDocumentLink> links = [
-                SELECT ContentDocumentId 
-                FROM ContentDocumentLink 
-                WHERE LinkedEntityId = :templateId 
-                ORDER BY ContentDocument.CreatedDate DESC 
+                SELECT ContentDocumentId
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId = :templateId
+                WITH USER_MODE
+                ORDER BY ContentDocument.CreatedDate DESC
                 LIMIT 1
             ];
 
             if (!links.isEmpty()) {
                  // Get latest ContentVersion for this document
                 List<ContentVersion> cvs = [
-                    SELECT Id 
-                    FROM ContentVersion 
-                    WHERE ContentDocumentId = :links[0].ContentDocumentId 
+                    SELECT Id
+                    FROM ContentVersion
+                    WHERE ContentDocumentId = :links[0].ContentDocumentId
                     AND IsLatest = true
+                    WITH USER_MODE
                     LIMIT 1
                 ];
                 if (!cvs.isEmpty()) {
@@ -56,9 +59,10 @@ public with sharing class DocGenTemplateManager {
 
         // Get the specific ContentVersion
         List<ContentVersion> cvs = [
-            SELECT VersionData, Title, FileExtension 
-            FROM ContentVersion 
+            SELECT VersionData, Title, FileExtension
+            FROM ContentVersion
             WHERE Id = :targetCvId
+            WITH USER_MODE
             LIMIT 1
         ];
         

@@ -28,7 +28,9 @@
         <members>DocGenSignatureSubmitter</members>
         <members>DocGenSignatureValidator</members>
         <members>DocGenAuthenticatorController</members>
-        <members>LoopbackTestQueueable</members>
+        <members>DocGenControllerTests</members>
+        <members>DocGenSignatureTests</members>
+        <members>DocGenMiscTests</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -102,12 +104,10 @@
         <members>DocGen_Bulk_Screen</members>
         <members>DocGen_Manager_Screen</members>
         <members>DocGen_Wizard_Screen</members>
-        <members>docxtemplater</members>
         <members>filesaver</members>
         <members>html2pdf</members>
         <members>jszip</members>
         <members>mammoth</members>
-        <members>pizzip</members>
         <name>StaticResource</name>
     </types>
     <types>

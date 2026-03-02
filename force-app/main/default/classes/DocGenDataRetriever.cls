@@ -141,7 +141,16 @@ public with sharing class DocGenDataRetriever {
                     }
                     data.put(key, new Map<String, Object>{ 'totalSize' => childList.size(), 'records' => childList });
                 } else if (value instanceof SObject) {
-                    data.put(key, mapSObject((SObject) value));
+                    Map<String, Object> parentMap = mapSObject((SObject) value);
+                    // Ensure parent record Id is always available for image resolution
+                    if (!parentMap.containsKey('Id')) {
+                        try {
+                            parentMap.put('Id', ((SObject) value).Id);
+                        } catch (Exception ignored) {
+                            // Id may not be accessible in all contexts
+                        }
+                    }
+                    data.put(key, parentMap);
                 } else if (value instanceof Address) {
                      Address addr = (Address) value;
                      data.put(key, new Map<String, Object>{

@@ -491,6 +491,21 @@
             showState('processing');
 
             var canvas = document.getElementById('signature-canvas');
+
+            // Stamp date/time onto the signature image
+            var now = new Date();
+            var timestamp = now.toLocaleString(undefined, {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            ctx.save();
+            ctx.font = 'bold 28px Arial, sans-serif';
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('Signed: ' + timestamp, canvas.width - 10, canvas.height - 10);
+            ctx.restore();
+
             var dataUrl = canvas.toDataURL('image/png');
             var base64Image = dataUrl.split(',')[1];
 
