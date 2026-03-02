@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Query_Config__c</fullName>
-    <deprecated>false</deprecated>
     <description>JSON storing the query logic or field mapping.</description>
     <label>Query Configuration</label>
     <length>32768</length>
-    <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>10</visibleLines>
 </CustomField>

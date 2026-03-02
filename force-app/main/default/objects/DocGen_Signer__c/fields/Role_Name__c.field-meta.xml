@@ -5,7 +5,6 @@
     <externalId>false</externalId>
     <label>Signer Role</label>
     <required>false</required>
-    <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
         <restricted>false</restricted>

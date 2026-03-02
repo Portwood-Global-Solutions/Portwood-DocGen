@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Base_Object_API__c</fullName>
-    <deprecated>false</deprecated>
     <description>API Name of the root object (e.g., Account).</description>
     <externalId>false</externalId>
     <label>Base Object API Name</label>
     <length>100</length>
     <required>true</required>
-    <trackTrending>false</trackTrending>
     <type>Text</type>
     <unique>false</unique>
 </CustomField>

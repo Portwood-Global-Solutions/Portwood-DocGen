@@ -5,7 +5,6 @@
     <label>Role Name</label>
     <length>80</length>
     <required>true</required>
-    <trackTrending>false</trackTrending>
     <type>Text</type>
     <unique>false</unique>
 </CustomField>

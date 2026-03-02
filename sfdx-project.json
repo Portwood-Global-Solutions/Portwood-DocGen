@@ -1,12 +1,12 @@
 {
   "packageDirectories": [
     {
-      "versionName": "ver 0.1",
-      "versionNumber": "0.1.0.NEXT",
+      "versionName": "v0.5.0 - Multi-Signer Signatures & Rich Text",
+      "versionNumber": "0.5.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
-      "versionDescription": ""
+      "versionDescription": "Multi-signer signature roles, VF-based signing portal, rich text support, image size controls, async PDF engine fixes, and SLDS mobile accessibility improvements."
     }
   ],
   "name": "Document Generation",
@@ -21,6 +21,8 @@
     "Document Generation@0.1.0-4": "04tdL000000Nos9QAC",
     "Document Generation@0.1.0-5": "04tdL000000NrlBQAS",
     "Document Generation@0.1.0-6": "04tdL000000Nxx3QAC",
-    "Document Generation@0.1.0-7": "04tdL000000Ny3VQAS"
+    "Document Generation@0.1.0-7": "04tdL000000Ny3VQAS",
+    "Document Generation@0.5.0-1": "04tdL000000OjlZQAS",
+    "Document Generation@0.5.0-2": "04tdL000000OjnBQAS"
   }
 }

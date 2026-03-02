@@ -7,16 +7,13 @@
 }
 
 .canvas-wrapper {
-    width: 100%;
     border: 2px dashed #cbd5e1;
     border-radius: 8px;
     background-color: #f8fafc;
-    overflow: hidden;
     touch-action: none; /* Prevents scrolling while signing on mobile */
 }
 
 .signature-pad {
-    width: 100%;
     height: 300px;
     cursor: crosshair;
 }

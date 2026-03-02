@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Document_Title_Format__c</fullName>
-    <deprecated>false</deprecated>
     <description>Format for the generated file name (e.g., &quot;Quote_{QuoteNumber}&quot;). Supports merge fields.</description>
     <externalId>false</externalId>
     <inlineHelpText>Enter the pattern for the document title. Use {Field} syntax for merge fields.</inlineHelpText>
     <label>Document Title Format</label>
     <length>255</length>
     <required>false</required>
-    <trackTrending>false</trackTrending>
     <type>Text</type>
     <unique>false</unique>
 </CustomField>

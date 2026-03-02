@@ -2,13 +2,11 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Error_Count__c</fullName>
     <defaultValue>0</defaultValue>
-    <deprecated>false</deprecated>
     <externalId>false</externalId>
     <label>Error Count</label>
     <precision>18</precision>
     <required>false</required>
     <scale>0</scale>
-    <trackTrending>false</trackTrending>
     <type>Number</type>
     <unique>false</unique>
 </CustomField>

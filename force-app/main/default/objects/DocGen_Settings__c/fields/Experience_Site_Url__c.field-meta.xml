@@ -4,6 +4,5 @@
     <description>The base URL of the Experience Cloud site where signatures are captured (e.g. https://domain.com/s/sign).</description>
     <label>Experience Site URL</label>
     <required>false</required>
-    <trackTrending>false</trackTrending>
     <type>Url</type>
 </CustomField>

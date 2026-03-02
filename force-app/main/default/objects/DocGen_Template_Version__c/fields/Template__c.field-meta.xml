@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Template__c</fullName>
-    <deprecated>false</deprecated>
     <description>Parent Template.</description>
     <label>Template</label>
     <referenceTo>DocGen_Template__c</referenceTo>
@@ -9,7 +8,6 @@
     <relationshipName>Versions</relationshipName>
     <relationshipOrder>0</relationshipOrder>
     <reparentableMasterDetail>false</reparentableMasterDetail>
-    <trackTrending>false</trackTrending>
     <type>MasterDetail</type>
     <writeRequiresMasterRead>false</writeRequiresMasterRead>
 </CustomField>

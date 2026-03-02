@@ -5,7 +5,6 @@
     <externalId>false</externalId>
     <label>Signature Data</label>
     <length>131072</length>
-    <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>3</visibleLines>
 </CustomField>

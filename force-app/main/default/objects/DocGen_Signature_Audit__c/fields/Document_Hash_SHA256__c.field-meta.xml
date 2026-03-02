@@ -5,7 +5,6 @@
     <label>Document Hash (SHA-256)</label>
     <length>255</length>
     <required>false</required>
-    <trackTrending>false</trackTrending>
     <type>Text</type>
     <unique>false</unique>
 </CustomField>

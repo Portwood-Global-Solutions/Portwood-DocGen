@@ -4,7 +4,6 @@
     <description>Captures failure details during background PDF generation.</description>
     <label>Error Message</label>
     <length>32768</length>
-    <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>5</visibleLines>
 </CustomField>

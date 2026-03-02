@@ -2,12 +2,10 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Template__c</fullName>
     <deleteConstraint>Restrict</deleteConstraint>
-    <deprecated>false</deprecated>
     <label>Template</label>
     <referenceTo>DocGen_Template__c</referenceTo>
     <relationshipLabel>DocGen Jobs</relationshipLabel>
     <relationshipName>DocGen_Jobs</relationshipName>
     <required>true</required>
-    <trackTrending>false</trackTrending>
     <type>Lookup</type>
 </CustomField>

@@ -8,6 +8,5 @@
     <relationshipLabel>Signature Requests</relationshipLabel>
     <relationshipName>DocGen_Signers</relationshipName>
     <required>false</required>
-    <trackTrending>false</trackTrending>
     <type>Lookup</type>
 </CustomField>

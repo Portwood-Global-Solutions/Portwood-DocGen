@@ -4,7 +4,6 @@
     <externalId>false</externalId>
     <label>Status</label>
     <required>false</required>
-    <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
         <restricted>true</restricted>
