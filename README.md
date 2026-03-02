@@ -20,16 +20,32 @@ This project gives you a professional-grade document engine -- template manageme
 
 ## Quick Install
 
-**Subscriber Package Version ID**: `PACKAGE_VERSION_ID`
+### v0.5.0 -- Sandbox / Developer Org (Beta)
+
+> This is an unvalidated package version for testing in sandboxes and developer orgs. A production-promoted version will be available once the DevHub daily build limit resets and code coverage validation completes.
+
+**Subscriber Package Version ID**: `04tdL000000OjnBQAS`
 
 **CLI:**
 ```bash
-sf package install --package PACKAGE_VERSION_ID --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000OjnBQAS --wait 10 --installation-key-bypass
 ```
 
 **Browser:**
-- [Install in Production / Developer Org](https://login.salesforce.com/packaging/installPackage.apexp?p0=PACKAGE_VERSION_ID)
-- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=PACKAGE_VERSION_ID)
+- [Install in Developer Org](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000OjnBQAS)
+- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000OjnBQAS)
+
+### v0.5.0 -- Production
+
+Coming soon. To create the production-promoted version:
+
+```bash
+# 1. Create validated version (requires code coverage)
+sf package version create --package "Document Generation" --installation-key-bypass --code-coverage --wait 30
+
+# 2. Promote for production install
+sf package version promote --package "Document Generation@0.5.0-3"
+```
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users afterward.
 
