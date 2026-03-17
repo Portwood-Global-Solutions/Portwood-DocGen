@@ -1266,7 +1266,8 @@ private class DocGenSignatureTests {
             DocGenSignatureController.saveSignature('0000000000000000000000000000000000000000000000000000000000000099', fakeBase64);
         } catch (AuraHandledException e) {
             caught = true;
-            System.assert(e.getMessage().contains('Signer not found'), 'Error should mention signer not found');
+            // AuraHandledException.getMessage() returns 'Script-thrown exception' in Apex;
+            // the custom message is only available client-side.
         }
         Test.stopTest();
 
@@ -1286,7 +1287,8 @@ private class DocGenSignatureTests {
             DocGenSignatureController.saveSignature('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5', fakeBase64);
         } catch (AuraHandledException e) {
             caught = true;
-            System.assert(e.getMessage().contains('expired'), 'Error should mention expiration');
+            // AuraHandledException.getMessage() returns 'Script-thrown exception' in Apex;
+            // the custom message ('This signature link has expired.') is only available client-side.
         }
         Test.stopTest();
 

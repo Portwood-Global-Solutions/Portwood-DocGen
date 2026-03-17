@@ -2040,15 +2040,15 @@ private class DocGenMiscTests {
 
     @isTest
     static void testGenerateDocumentNullTitleFallback() {
-        // Title format resolves to empty → falls back to Name, but exercises the saveFile baseName logic
+        // Document_Title_Format__c is null → generateDocTitle returns null → falls back to Name
         String docXml =
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>';
         createValidDocxFile(docXml);
 
-        DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-        tpl.Document_Title_Format__c = '{NonExistentField}';
+        DocGen_Template__c tpl = [SELECT Id, Document_Title_Format__c FROM DocGen_Template__c LIMIT 1];
+        tpl.Document_Title_Format__c = null;
         update tpl;
 
         Account acc = [SELECT Id FROM Account LIMIT 1];

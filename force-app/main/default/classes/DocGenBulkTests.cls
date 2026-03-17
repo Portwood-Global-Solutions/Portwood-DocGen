@@ -194,11 +194,11 @@ private class DocGenBulkTests {
         try {
             DocGenBatch batch = new DocGenBatch(job.Id);
             Database.executeBatch(batch, 1);
-        } catch (Exception e) {
+        } catch (DocGenException e) {
             caught = true;
         }
         Test.stopTest();
-        // The condition with /* should be rejected by sanitizeCondition
+        System.assert(caught, 'Should throw DocGenException for comment injection');
     }
 
     @IsTest
@@ -216,9 +216,10 @@ private class DocGenBulkTests {
         try {
             DocGenBatch batch = new DocGenBatch(job.Id);
             Database.executeBatch(batch, 1);
-        } catch (Exception e) {
+        } catch (DocGenException e) {
             caught = true;
         }
         Test.stopTest();
+        System.assert(caught, 'Should throw DocGenException for dash injection');
     }
 }

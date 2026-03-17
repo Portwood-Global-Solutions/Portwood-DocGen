@@ -619,7 +619,7 @@ public with sharing class DocGenService {
             // 7. Generic HTTPS URL — attempt to fetch as image (reject plain HTTP)
             else if (fieldValue.startsWith('https://')) {
                 if (fieldValue.contains('.salesforce.com') || fieldValue.contains('.force.com') || fieldValue.contains('.documentforce.com')) {
-                    imageBlob = fetchViaNamedCredential(fieldValue.substringAfter('.com'));
+                    imageBlob = fetchViaSessionAuth(fieldValue.substringAfter('.com'));
                 } else {
                     imageBlob = fetchDirectUrl(fieldValue);
                 }
@@ -688,7 +688,7 @@ public with sharing class DocGenService {
 
     /**
      * Extracts the first image from rich text HTML.
-     * Handles data URIs, Salesforce servlet URLs (via Named Credential callout), and refid references.
+     * Handles data URIs, Salesforce servlet URLs (via session-based auth), and refid references.
      */
     private static Blob extractImageFromHtml(String html) {
         // Use string parsing instead of regex to avoid "Regex too complicated" on large base64 data
@@ -718,14 +718,14 @@ public with sharing class DocGenService {
             return EncodingUtil.base64Decode(base64Part);
         }
 
-        // Salesforce rtaImage servlet URL — fetch via Named Credential
+        // Salesforce rtaImage servlet URL — fetch via session auth
         if (src.containsIgnoreCase('servlet/rtaImage')) {
-            return fetchViaNamedCredential('/servlet/' + src.substringAfter('/servlet/'));
+            return fetchViaSessionAuth('/servlet/' + src.substringAfter('/servlet/'));
         }
 
         // Other Salesforce servlet/sfc URL
         if (src.containsIgnoreCase('/servlet/') || src.containsIgnoreCase('/sfc/')) {
-            return fetchViaNamedCredential(src.contains('://') ? src.substringAfter('.com') : src);
+            return fetchViaSessionAuth(src.contains('://') ? src.substringAfter('.com') : src);
         }
 
         // Salesforce refid reference (fallback)
@@ -735,10 +735,10 @@ public with sharing class DocGenService {
             return fetchSalesforceImage(refId);
         }
 
-        // Generic HTTPS URL in <img> tag — fetch directly or via Named Credential (reject plain HTTP)
+        // Generic HTTPS URL in <img> tag — fetch directly or via session auth (reject plain HTTP)
         if (src.startsWith('https://')) {
             if (src.contains('.salesforce.com') || src.contains('.force.com') || src.contains('.documentforce.com')) {
-                return fetchViaNamedCredential(src.substringAfter('.com'));
+                return fetchViaSessionAuth(src.substringAfter('.com'));
             }
             return fetchDirectUrl(src);
         }
@@ -747,22 +747,24 @@ public with sharing class DocGenService {
     }
 
     /**
-     * Fetches a resource from the same org via the DocGen_Loopback Named Credential.
+     * Fetches a resource from the same org using session-based authentication.
      */
-    private static Blob fetchViaNamedCredential(String path) {
+    private static Blob fetchViaSessionAuth(String path) {
         try {
             HttpRequest req = new HttpRequest();
-            req.setEndpoint('callout:DocGen_Loopback' + path);
+            String baseUrl = URL.getOrgDomainUrl().toExternalForm();
+            req.setEndpoint(baseUrl + path);
             req.setMethod('GET');
+            req.setHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
             req.setTimeout(15000);
             Http h = new Http();
             HttpResponse res = h.send(req);
             if (res.getStatusCode() == 200) {
                 return res.getBodyAsBlob();
             }
-            System.debug(LoggingLevel.WARN, 'DocGen: Named Credential fetch returned ' + res.getStatusCode() + ' for: ' + path.left(200));
+            System.debug(LoggingLevel.WARN, 'DocGen: Session auth fetch returned ' + res.getStatusCode() + ' for: ' + path.left(200));
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR, 'DocGen: Named Credential fetch failed: ' + e.getMessage());
+            System.debug(LoggingLevel.ERROR, 'DocGen: Failed to fetch image: ' + e.getMessage());
         }
         return null;
     }

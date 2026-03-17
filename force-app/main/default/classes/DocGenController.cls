@@ -536,7 +536,7 @@ public with sharing class DocGenController {
 
     /**
      * Recursively walks record data and converts Salesforce rtaImage URLs
-     * in rich text fields to base64 data URIs using the REST API via DocGen_Loopback.
+     * in rich text fields to base64 data URIs using the REST API via session-based auth.
      * Passes record context (Id, field name) so we can call the richTextImageFields endpoint.
      */
     private static void resolveRichTextImages(Object data) {
@@ -579,13 +579,14 @@ public with sharing class DocGenController {
     }
 
     /**
-     * Resolves Salesforce servlet/sfc image URLs in HTML to base64 data URIs via Named Credential.
+     * Resolves Salesforce servlet/sfc image URLs in HTML to base64 data URIs via session-based auth.
      */
     private static String resolveServletImageUrls(String html) {
         try {
             Pattern imgPattern = Pattern.compile('(?i)<img[^>]+src\\s*=\\s*["\']([^"\']+)["\']');
             Matcher m = imgPattern.matcher(html.replace('&amp;', '&'));
             String result = html;
+            String baseUrl = URL.getOrgDomainUrl().toExternalForm();
 
             while (m.find()) {
                 String src = m.group(1);
@@ -600,8 +601,9 @@ public with sharing class DocGenController {
 
                 if (path != null) {
                     HttpRequest req = new HttpRequest();
-                    req.setEndpoint('callout:DocGen_Loopback' + path);
+                    req.setEndpoint(baseUrl + path);
                     req.setMethod('GET');
+                    req.setHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
                     req.setTimeout(15000);
                     Http h = new Http();
                     HttpResponse res = h.send(req);
@@ -635,6 +637,7 @@ public with sharing class DocGenController {
         Matcher m = refidPattern.matcher(html.replace('&amp;', '&'));
         String result = html;
         Set<String> processed = new Set<String>();
+        String baseUrl = URL.getOrgDomainUrl().toExternalForm();
 
         while (m.find()) {
             String refId = m.group(1);
@@ -646,8 +649,9 @@ public with sharing class DocGenController {
                     + '/richTextImageFields/' + fieldName + '/' + refId;
 
                 HttpRequest req = new HttpRequest();
-                req.setEndpoint('callout:DocGen_Loopback' + apiPath);
+                req.setEndpoint(baseUrl + apiPath);
                 req.setMethod('GET');
+                req.setHeader('Authorization', 'Bearer ' + UserInfo.getSessionId());
                 req.setTimeout(15000);
                 Http h = new Http();
                 HttpResponse res = h.send(req);
