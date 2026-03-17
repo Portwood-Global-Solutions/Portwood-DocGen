@@ -5,7 +5,10 @@ private class DocGenSignatureTests {
     static void setup() {
         // Assign DocGen Admin permission set for FLS access
         PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
-        insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = ps.Id);
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            insert new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = ps.Id);
+        }
 
         Account acc = new Account(Name = 'Signature Test Account', Website = 'https://test.com');
         insert acc;
