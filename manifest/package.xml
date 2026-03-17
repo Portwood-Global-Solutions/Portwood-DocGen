@@ -5,41 +5,35 @@
         <name>CustomApplication</name>
     </types>
     <types>
+        <members>DocGenAuthenticatorController</members>
         <members>DocGenBatch</members>
         <members>DocGenBulkController</members>
         <members>DocGenBulkFlowAction</members>
         <members>DocGenBulkFlowActionTest</members>
         <members>DocGenBulkTests</members>
         <members>DocGenController</members>
+        <members>DocGenControllerTests</members>
         <members>DocGenDataRetriever</members>
         <members>DocGenException</members>
         <members>DocGenFlowAction</members>
+        <members>DocGenHtmlRenderer</members>
+        <members>DocGenHtmlRendererTest</members>
+        <members>DocGenMiscTests</members>
         <members>DocGenService</members>
-        <members>DocGenRenditionQueueable</members>
-        <members>DocGenRenditionService</members>
-        <members>DocGenSharingTests</members>
-        <members>DocGenTemplateManager</members>
-        <members>DocGenTests</members>
         <members>DocGenSetupController</members>
+        <members>DocGenSharingTests</members>
         <members>DocGenSignatureController</members>
-        <members>DocGenSignatureSenderController</members>
         <members>DocGenSignatureFinalizer</members>
+        <members>DocGenSignatureSenderController</members>
         <members>DocGenSignatureService</members>
         <members>DocGenSignatureSubmitter</members>
-        <members>DocGenSignatureValidator</members>
-        <members>DocGenAuthenticatorController</members>
-        <members>DocGenControllerTests</members>
         <members>DocGenSignatureTests</members>
-        <members>DocGenMiscTests</members>
+        <members>DocGenSignatureValidator</members>
+        <members>DocGenTemplateManager</members>
+        <members>DocGenTests</members>
         <name>ApexClass</name>
     </types>
     <types>
-        <members>DocGenRenditionTrigger</members>
-        <name>ApexTrigger</name>
-    </types>
-    <types>
-        <members>DocGenPDFEngine</members>
-        <members>DocGenProvision</members>
         <members>DocGenSign</members>
         <members>DocGenSignature</members>
         <members>DocGenVerify</members>
@@ -48,59 +42,45 @@
     <types>
         <members>DocGen_Job__c</members>
         <members>DocGen_Saved_Query__c</members>
+        <members>DocGen_Settings__c</members>
+        <members>DocGen_Signature_Audit__c</members>
+        <members>DocGen_Signature_Request__c</members>
+        <members>DocGen_Signature_Template_Role__c</members>
+        <members>DocGen_Signature_Template__c</members>
+        <members>DocGen_Signer__c</members>
         <members>DocGen_Template_Version__c</members>
         <members>DocGen_Template__c</members>
-        <members>DocGen_Signature_Request__c</members>
-        <members>DocGen_Signature_Audit__c</members>
-        <members>DocGen_Signature_Template__c</members>
-        <members>DocGen_Signature_Template_Role__c</members>
-        <members>DocGen_Signer__c</members>
-        <members>DocGen_Settings__c</members>
-        <members>DocGen_Rendition_Event__e</members>
         <name>CustomObject</name>
     </types>
     <types>
         <members>DocGen_Bulk_Gen</members>
         <members>DocGen_Job__c</members>
+        <members>DocGen_Setup</members>
         <members>DocGen_Template_Manager</members>
         <members>DocGen_Template_Version__c</members>
         <members>DocGen_Template__c</members>
-        <members>DocGen_Setup</members>
         <name>CustomTab</name>
     </types>
     <types>
         <members>docGenAdmin</members>
+        <members>docGenAuthenticator</members>
         <members>docGenBulkRunner</members>
         <members>docGenFilterBuilder</members>
         <members>docGenQueryBuilder</members>
         <members>docGenRunner</members>
-        <members>docGenSharing</members>
-        <members>docGenTitleEditor</members>
-        <members>docGenWelcome</members>
         <members>docGenSetupWizard</members>
+        <members>docGenSharing</members>
         <members>docGenSignaturePad</members>
         <members>docGenSignatureSender</members>
-        <members>docGenAuthenticator</members>
+        <members>docGenTitleEditor</members>
+        <members>docGenWelcome</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
         <members>DocGen_Admin</members>
-        <members>DocGen_User</members>
         <members>DocGen_Guest_Signature</members>
+        <members>DocGen_User</members>
         <name>PermissionSet</name>
-    </types>
-    <types>
-        <members>DocGenEngine</members>
-        <members>DocGenSampleDoc</members>
-        <members>DocGenSampleOpp</members>
-        <members>DocGenSamplePPT</members>
-        <members>DocGen_Bulk_Screen</members>
-        <members>DocGen_Manager_Screen</members>
-        <members>DocGen_Wizard_Screen</members>
-        <members>filesaver</members>
-        <members>html2pdf</members>
-        <members>jszip</members>
-        <name>StaticResource</name>
     </types>
     <version>66.0</version>
 </Package>
