@@ -1,5 +1,5 @@
 import { LightningElement, track, wire } from 'lwc';
-import { createRecord, updateRecord } from 'lightning/uiRecordApi';
+import { createRecord } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
@@ -179,7 +179,7 @@ const VERSION_COLUMNS = [
         else if (this.currentWizardStep === '2') this.currentWizardStep = '1';
     }
 
-    handleWizardTabActive(event) {
+    handleWizardTabActive(_event) {
         this.activeMainTab = 'new_template';
         this.resetForm();
     }
@@ -417,7 +417,7 @@ const VERSION_COLUMNS = [
                     };
                 });
             })
-            .catch(error => {
+            .catch(_error => {
                 this.versions = [];
             });
     }
@@ -451,11 +451,13 @@ const VERSION_COLUMNS = [
 
     handlePreviewVersion(row) {
         this.previewVersion = row;
+        this.isGeneratingPreview = false;
         this.isPreviewModalOpen = true;
     }
 
     closePreviewModal() {
         this.isPreviewModalOpen = false;
+        this.isGeneratingPreview = false;
     }
 
     handleRestoreFromPreview() {
@@ -467,6 +469,110 @@ const VERSION_COLUMNS = [
         };
         this.handleRestoreVersion(event);
         this.closePreviewModal();
+    }
+
+    // --- Version Preview Helpers ---
+
+    @track isGeneratingPreview = false;
+
+    get previewVersionQueryFormatted() {
+        const raw = this.previewVersion?.Query_Config__c;
+        if (!raw) return '';
+        // Format: split on commas that are NOT inside parentheses (subqueries)
+        let depth = 0;
+        let formatted = '';
+        for (let i = 0; i < raw.length; i++) {
+            const ch = raw[i];
+            if (ch === '(') {
+                depth++;
+                formatted += '\n  (';
+            } else if (ch === ')') {
+                depth--;
+                formatted += ')';
+            } else if (ch === ',' && depth === 0) {
+                formatted += ',\n';
+            } else {
+                formatted += ch;
+            }
+        }
+        return formatted.trim();
+    }
+
+    get previewGenerateDisabled() {
+        return !this.previewVersion?.Content_Version_Id__c || !this.editTemplateTestRecordId || this.isGeneratingPreview;
+    }
+
+    handlePreviewDownload() {
+        const cvId = this.previewVersion?.Content_Version_Id__c;
+        if (cvId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__webPage',
+                attributes: {
+                    url: `/sfc/servlet.shepherd/version/download/${cvId}`
+                }
+            }, false);
+        }
+    }
+
+    async handlePreviewGenerate() {
+        if (!this.previewVersion?.Content_Version_Id__c || !this.editTemplateTestRecordId) {
+            this.showToast('Warning', 'Template file and test record are required.', 'warning');
+            return;
+        }
+
+        this.isGeneratingPreview = true;
+
+        try {
+            // Activate this version first so generation uses its file and config
+            if (!this.previewVersion.Is_Active__c) {
+                await activateVersion({ versionId: this.previewVersion.Id });
+                // Sync version config to local edit state
+                this.editTemplateQuery = this.previewVersion.Query_Config__c;
+                this.editTemplateCategory = this.previewVersion.Category__c;
+                this.editTemplateDesc = this.previewVersion.Description__c;
+                this.editTemplateType = this.previewVersion.Type__c;
+                this.loadVersions(this.editTemplateId);
+                refreshApex(this.wiredTemplatesResult);
+            }
+
+            const isPPT = ['PowerPoint', 'PPT', 'PPTX'].includes(this.previewVersion.Type__c);
+
+            if (isPPT || this.editTemplateOutputFormat === 'Native') {
+                const result = await processAndReturnDocument({
+                    templateId: this.editTemplateId,
+                    recordId: this.editTemplateTestRecordId
+                });
+                if (!result || !result.base64) {
+                    throw new Error('Document generation returned empty result.');
+                }
+                const docTitle = 'Preview_' + this.previewVersion.VersionNumber + '_' + (result.title || 'Document');
+                const ext = isPPT ? '.pptx' : '.docx';
+                this.downloadBase64(result.base64, docTitle + ext, 'application/octet-stream');
+                this.showToast('Success', 'Sample document generated for ' + this.previewVersion.VersionNumber, 'success');
+            } else {
+                this.showToast('Info', 'Generating PDF sample for ' + this.previewVersion.VersionNumber + '...', 'info');
+                const asyncResult = await generatePdfAsync({
+                    templateId: this.editTemplateId,
+                    recordId: this.editTemplateTestRecordId,
+                    saveToRecord: false
+                });
+                const resultKey = asyncResult.resultKey;
+                const pdfTitle = 'Preview_' + this.previewVersion.VersionNumber + '_' + (asyncResult.title || 'Document');
+                const pdfResult = await this._waitForPdfResult(resultKey);
+                if (!pdfResult || !pdfResult.base64) {
+                    throw new Error('PDF generation timed out or returned empty result.');
+                }
+                this.downloadBase64(pdfResult.base64, pdfTitle + '.pdf', 'application/pdf');
+                this.showToast('Success', 'PDF sample generated for ' + this.previewVersion.VersionNumber, 'success');
+            }
+        } catch (error) {
+            let msg = 'Unknown error';
+            if (error.body && error.body.message) msg = error.body.message;
+            else if (error.message) msg = error.message;
+            this.showToast('Generation Failed', msg, 'error');
+        } finally {
+            this.isGeneratingPreview = false;
+        }
     }
 
     // --- Save Logic ---

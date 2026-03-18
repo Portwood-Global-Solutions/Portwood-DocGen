@@ -48,7 +48,9 @@ public with sharing class DocGenSignatureSenderController {
         req.Source_Document_Id__c = contentVersionId;
         req.Related_Record_Id__c = relatedRecordId;
         req.Status__c = 'Sent';
-        insert req;
+        SObjectAccessDecision reqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Request__c>{ req });
+        insert reqDecision.getRecords();
+        req.Id = reqDecision.getRecords()[0].Id;
 
         // Create individual signer records
         String siteUrl = getSiteBaseUrl();
@@ -62,9 +64,10 @@ public with sharing class DocGenSignatureSenderController {
             String roleName = (String) input.get('roleName');
             String contactId = (String) input.get('contactId');
 
-            // Generate unique token per signer
+            // Generate unique token per signer using cryptographic randomness
+            Blob randomBytes = Crypto.generateAesKey(256);
             Blob hash = Crypto.generateDigest('SHA-256',
-                Blob.valueOf(String.valueOf(System.now().getTime()) + Math.random() + signerEmail + i)
+                Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + signerEmail + i)
             );
             String token = EncodingUtil.convertToHex(hash);
 
@@ -89,7 +92,8 @@ public with sharing class DocGenSignatureSenderController {
             results.add(sr);
         }
 
-        insert signerRecords;
+        SObjectAccessDecision signersDecision = Security.stripInaccessible(AccessType.CREATABLE, signerRecords);
+        insert signersDecision.getRecords();
 
         // Send branded signature request emails automatically
         String documentTitle = getDocumentTitle(contentVersionId);
@@ -123,7 +127,8 @@ public with sharing class DocGenSignatureSenderController {
         }
         Id contentVersionId = docs[0].LatestPublishedVersionId;
 
-        Blob hash = Crypto.generateDigest('SHA-256', Blob.valueOf(String.valueOf(System.now().getTime()) + Math.random() + signerEmail));
+        Blob randomBytes = Crypto.generateAesKey(256);
+        Blob hash = Crypto.generateDigest('SHA-256', Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + signerEmail));
         String token = EncodingUtil.convertToHex(hash);
         String signatureUrl = getSiteBaseUrl() + '/apex/DocGenSignature?token=' + token;
 
@@ -134,7 +139,8 @@ public with sharing class DocGenSignatureSenderController {
         req.Related_Record_Id__c = relatedRecordId;
         req.Secure_Token__c = token;
         req.Status__c = 'Sent';
-        insert req;
+        SObjectAccessDecision reqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Request__c>{ req });
+        insert reqDecision.getRecords();
 
         // Send branded signature request email automatically
         String documentTitle = getDocumentTitle(contentVersionId);
@@ -196,7 +202,9 @@ public with sharing class DocGenSignatureSenderController {
     public static Id saveSignatureTemplate(String templateName, String rolesJson) {
         DocGen_Signature_Template__c tmpl = new DocGen_Signature_Template__c();
         tmpl.Name = templateName;
-        insert tmpl;
+        SObjectAccessDecision tmplDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Template__c>{ tmpl });
+        insert tmplDecision.getRecords();
+        tmpl.Id = tmplDecision.getRecords()[0].Id;
 
         List<Object> roleInputs = (List<Object>) JSON.deserializeUntyped(rolesJson);
         List<DocGen_Signature_Template_Role__c> roles = new List<DocGen_Signature_Template_Role__c>();
@@ -210,7 +218,8 @@ public with sharing class DocGenSignatureSenderController {
             roles.add(role);
         }
 
-        insert roles;
+        SObjectAccessDecision rolesDecision = Security.stripInaccessible(AccessType.CREATABLE, roles);
+        insert rolesDecision.getRecords();
         return tmpl.Id;
     }
 

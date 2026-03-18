@@ -2,6 +2,11 @@
  * Controller for DocGenPdfRenderer.page — generates PDF by rendering HTML via
  * the VF renderAs="pdf" engine (Flying Saucer), which supports data URI images.
  * Blob.toPdf() does NOT render data URI images, so this VF page is used instead.
+ *
+ * Uses 'without sharing' because this runs in VF page context for PDF rendering.
+ * The page is accessed by system processes (Queueable jobs, platform event triggers)
+ * that need to read ContentVersion and template data regardless of the running user's
+ * sharing rules. Access is gated by requiring valid templateId/recordId/batchKey params.
  */
 public without sharing class DocGenPdfRendererController {
 

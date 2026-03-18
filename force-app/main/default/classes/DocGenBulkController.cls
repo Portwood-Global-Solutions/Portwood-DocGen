@@ -10,7 +10,7 @@ public with sharing class DocGenBulkController {
         if (String.isBlank(objectName)) return 0;
         // Validate object name against Schema to prevent injection
         if (Schema.getGlobalDescribe().get(objectName) == null) {
-            throw new AuraHandledException('Invalid object: ' + objectName);
+            throw new AuraHandledException('Invalid or inaccessible object.');
         }
         String sanitizedCondition = sanitizeCondition(condition);
         String query = 'SELECT Count() FROM ' + objectName;
@@ -32,7 +32,8 @@ public with sharing class DocGenBulkController {
         if (condition.contains(';') || condition.contains('--') || condition.contains('/*')) {
             throw new AuraHandledException('Invalid filter condition.');
         }
-        String upper = condition.toUpperCase().trim();
+        // Normalize whitespace for keyword matching (tabs, newlines, multiple spaces → single space)
+        String normalized = condition.replaceAll('\\s+', ' ').toUpperCase().trim();
         // Reject conditions containing SOQL/DML keywords that don't belong in a WHERE clause
         List<String> disallowed = new List<String>{
             'SELECT ', 'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
@@ -40,7 +41,7 @@ public with sharing class DocGenBulkController {
             'HAVING ', 'TYPEOF '
         };
         for (String keyword : disallowed) {
-            if (upper.contains(keyword)) {
+            if (normalized.contains(keyword)) {
                 throw new AuraHandledException('Invalid filter condition.');
             }
         }
@@ -56,7 +57,9 @@ public with sharing class DocGenBulkController {
                 Query_Condition__c = condition,
                 Status__c = 'Queued'
             );
-            insert job;
+            SObjectAccessDecision jobDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
+            insert jobDecision.getRecords();
+            job.Id = jobDecision.getRecords()[0].Id;
 
             // 2. Run Batch
             // Batch Size 1: each record needs its own transaction so callouts
@@ -98,7 +101,8 @@ public with sharing class DocGenBulkController {
                 Description__c = description,
                 Query_Condition__c = condition
             );
-            insert sq;
+            SObjectAccessDecision sqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Saved_Query__c>{ sq });
+            insert sqDecision.getRecords();
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error saving query: ' + e.getMessage());
             throw new AuraHandledException('Error saving query.');
@@ -108,6 +112,9 @@ public with sharing class DocGenBulkController {
     @AuraEnabled
     public static void deleteQuery(Id queryId) {
         try {
+            if (!Schema.sObjectType.DocGen_Saved_Query__c.isDeletable()) {
+                throw new AuraHandledException('Insufficient access.');
+            }
             delete new DocGen_Saved_Query__c(Id = queryId);
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error deleting query: ' + e.getMessage());

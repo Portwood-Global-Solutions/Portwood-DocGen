@@ -97,7 +97,7 @@ export default class DocGenQueryBuilder extends LightningElement {
                         variant: 'success',
                     })
                 );
-            } catch (err) {
+            } catch (_err) {
                 this.dispatchEvent(
                     new ShowToastEvent({
                         title: 'Copy Failed',
@@ -494,11 +494,6 @@ export default class DocGenQueryBuilder extends LightningElement {
     @api testRecordId;
     @track previewData = null;
     @track showRawData = false;
-
-    get rawPreviewJson() {
-        if (!this.previewData) return 'No data loaded. Select a test record.';
-        return JSON.stringify(this.previewData, null, 2);
-    }
 
     handleToggleRawData() {
         this.showRawData = !this.showRawData;
@@ -931,7 +926,7 @@ export default class DocGenQueryBuilder extends LightningElement {
         // Note: This only selects them in the listbox. User must still click "Add".
     }
     
-    handleOutsideClick(event) {
+    handleOutsideClick(_event) {
         // ... (Existing)
     }
     
@@ -987,7 +982,7 @@ export default class DocGenQueryBuilder extends LightningElement {
                     return c;
                 });
             })
-            .catch(error => {
+            .catch(_error => {
             });
 
         this.selectedChildRel = null;

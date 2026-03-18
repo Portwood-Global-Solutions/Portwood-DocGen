@@ -357,6 +357,10 @@
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <tabSettings>
+        <tab>DocGen_Admin_Guide</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
         <tab>DocGen_Bulk_Gen</tab>
         <visibility>Visible</visibility>
     </tabSettings>

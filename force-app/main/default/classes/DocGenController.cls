@@ -13,7 +13,7 @@ public with sharing class DocGenController {
         ];
 
         if (templates.isEmpty()) {
-            throw new DocGenException('Template not found or you do not have access.');
+            throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
         }
         DocGen_Template__c template = templates[0];
 
@@ -163,7 +163,8 @@ public with sharing class DocGenController {
                 template.Is_Default__c = (Boolean) fields.get('Is_Default__c');
             }
             // Package-internal object — CRUD controlled by DocGen permission sets
-            update template;
+            SObjectAccessDecision templateDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update templateDecision.getRecords();
 
             // 2. Create Version if requested
             if (createVersion == true) {
@@ -176,7 +177,10 @@ public with sharing class DocGenController {
                 for (DocGen_Template_Version__c av : activeVersions) {
                     av.Is_Active__c = false;
                 }
-                update activeVersions;
+                if (!activeVersions.isEmpty()) {
+                    SObjectAccessDecision avDecision = Security.stripInaccessible(AccessType.UPDATABLE, activeVersions);
+                    update avDecision.getRecords();
+                }
 
                 // Get latest ContentVersionId
                 List<ContentDocumentLink> links = [
@@ -205,7 +209,9 @@ public with sharing class DocGenController {
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
 
-                insert version;
+                SObjectAccessDecision versionDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ version });
+                insert versionDecision.getRecords();
+                version.Id = versionDecision.getRecords()[0].Id;
 
                 // Extract images from DOCX/PPTX and save as ContentVersions linked to the version.
                 // Blob.toPdf() cannot render data URI images — needs committed CV URLs.
@@ -224,8 +230,10 @@ public with sharing class DocGenController {
     @AuraEnabled
     public static void deleteTemplate(Id templateId) {
         try {
-            DocGen_Template__c template = new DocGen_Template__c(Id = templateId);
-            delete template;
+            if (!Schema.sObjectType.DocGen_Template__c.isDeletable()) {
+                throw new AuraHandledException('Insufficient access.');
+            }
+            delete new DocGen_Template__c(Id = templateId);
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error deleting template: ' + e.getMessage());
             throw new AuraHandledException('Error deleting template. Please check your permissions.');
@@ -265,11 +273,15 @@ public with sharing class DocGenController {
                 v.Is_Active__c = false;
             }
             // Package-internal objects — CRUD controlled by DocGen permission sets
-            update others;
+            if (!others.isEmpty()) {
+                SObjectAccessDecision othersDecision = Security.stripInaccessible(AccessType.UPDATABLE, others);
+                update othersDecision.getRecords();
+            }
 
             // 2. Activate this one
             version.Is_Active__c = true;
-            update version;
+            SObjectAccessDecision versionDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template_Version__c>{ version });
+            update versionDecision.getRecords();
 
             // 3. Update Template Record Headline
             DocGen_Template__c template = new DocGen_Template__c(Id = version.Template__c);
@@ -279,7 +291,8 @@ public with sharing class DocGenController {
             template.Type__c = version.Type__c;
             template.Base_Object_API__c = version.Base_Object_API__c;
 
-            update template;
+            SObjectAccessDecision templateDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update templateDecision.getRecords();
             
         } catch (Exception e) {
             throw new DocGenException('Error activating version: ' + e.getMessage());
@@ -653,7 +666,8 @@ public with sharing class DocGenController {
         share.put('RowCause', 'Manual');
         
         try {
-            insert share;
+            SObjectAccessDecision shareDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<SObject>{ share });
+            insert shareDecision.getRecords();
         } catch (DmlException e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error sharing template: ' + e.getMessage());
             throw new AuraHandledException('Error sharing template. Please check permissions.');
@@ -663,8 +677,10 @@ public with sharing class DocGenController {
     @AuraEnabled
     public static void removeShare(Id shareId) {
         try {
-            DocGen_Template__Share shareToDelete = new DocGen_Template__Share(Id = shareId);
-            delete shareToDelete;
+            if (!Schema.sObjectType.DocGen_Template__c.isDeletable()) {
+                throw new AuraHandledException('Insufficient access.');
+            }
+            delete new DocGen_Template__Share(Id = shareId);
         } catch (DmlException e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error removing share: ' + e.getMessage());
             throw new AuraHandledException('Error removing share. Please check permissions.');

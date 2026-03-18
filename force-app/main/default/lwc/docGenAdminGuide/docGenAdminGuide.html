@@ -1,0 +1,962 @@
+<template>
+    <div class="slds-grid slds-gutters" style="min-height: 80vh;">
+
+        <!-- Left Nav -->
+        <div class="slds-col slds-size_1-of-5 slds-theme_shade" style="border-right: 1px solid #d8dde6;">
+            <div class="slds-var-p-around_medium">
+                <h1 class="slds-text-heading_medium slds-var-m-bottom_small">
+                    <lightning-icon icon-name="standard:article" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                    Admin Guide
+                </h1>
+            </div>
+            <nav class="slds-nav-vertical" aria-label="Admin Guide Navigation">
+                <div class="slds-nav-vertical__section">
+                    <ul>
+                        <template for:each={computedSections} for:item="sec">
+                            <li key={sec.name} class={sec.cssClass}>
+                                <a href="#" class="slds-nav-vertical__action" data-section={sec.name} onclick={handleSectionClick} aria-current={sec.ariaCurrent}>
+                                    <lightning-icon icon-name={sec.icon} size="x-small" class="slds-var-m-right_x-small"></lightning-icon>
+                                    {sec.label}
+                                </a>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Content -->
+        <div class="slds-col slds-size_4-of-5 slds-var-p-around_large" style="max-width: 900px; overflow-y: auto;">
+
+            <!-- ==================== OVERVIEW ==================== -->
+            <template if:true={isOverview}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Welcome to DocGen</h2>
+                <p class="slds-text-body_regular slds-var-m-bottom_medium">
+                    DocGen is a 100% native Salesforce application for generating documents by merging live Salesforce data into Microsoft Word (.docx) and PowerPoint (.pptx) templates. It runs entirely on-platform with zero external dependencies.
+                </p>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Key Capabilities</h3>
+                    <div class="slds-grid slds-wrap slds-gutters">
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>Word &amp; PowerPoint</strong> template merge with live data
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>PDF output</strong> via native Blob.toPdf()
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>E-Signatures</strong> with audit trail and multi-signer support
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>Bulk generation</strong> for hundreds of records at once
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>Flow actions</strong> for automation and triggers
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>Template versioning</strong> with rollback capability
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>Document Authenticator</strong> with SHA-256 verification
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
+                            <strong>No external services</strong> — AppExchange safe
+                        </div>
+                    </div>
+                </div>
+
+                <div class="slds-box slds-theme_info slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">How It Works</h3>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small"><strong>Create a Template Record</strong> — Define the base Salesforce object and select the fields you need.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Upload a Word or PowerPoint file</strong> — Add merge tags like <code>&#123;Name&#125;</code> where you want data inserted.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Generate</strong> — From any record, click Generate to produce a merged document (DOCX, PPTX, or PDF).</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Optionally, send for signature</strong> — Route the generated document for e-signatures with a full audit trail.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Permission Sets</h3>
+                    <p class="slds-var-m-bottom_small">Assign one of the following permission sets to your users:</p>
+                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col">Permission Set</th>
+                                <th scope="col">Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>DocGen Admin</strong></td>
+                                <td>Full access to all DocGen features including template management, setup, and all records.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>DocGen User</strong></td>
+                                <td>Generate documents, view templates (read-only), and manage own signature requests.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>DocGen Guest Signature</strong></td>
+                                <td>Assigned to the Salesforce Site guest user for public e-signature access. Do NOT assign to internal users.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <!-- ==================== INSTALLATION & SETUP ==================== -->
+            <template if:true={isInstallation}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Installation &amp; Setup</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 1: Install the Package</h3>
+                    <p class="slds-var-m-bottom_small">Install DocGen from the AppExchange or via the package installation URL provided by your administrator. Choose "Install for Admins Only" to start, then assign permission sets as needed.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 2: Assign Permission Sets</h3>
+                    <ol class="slds-list_ordered">
+                        <li>Go to <strong>Setup &gt; Permission Sets</strong>.</li>
+                        <li>Click <strong>DocGen Admin</strong> and assign it to administrators who will manage templates.</li>
+                        <li>Click <strong>DocGen User</strong> and assign it to end-users who will generate documents.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 3: Add the Document Generator to Record Pages</h3>
+                    <p class="slds-var-m-bottom_small">To let users generate documents from record pages:</p>
+                    <ol class="slds-list_ordered">
+                        <li>Navigate to a record page (e.g., Account) and click the gear icon &gt; <strong>Edit Page</strong>.</li>
+                        <li>Drag the <strong>docGenRunner</strong> component onto the page layout.</li>
+                        <li>Save and activate the page.</li>
+                    </ol>
+                    <p class="slds-text-body_small slds-text-color_weak">The Document Generator component automatically detects the record's object type and shows matching templates.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 4: Add Signature Sender (Optional)</h3>
+                    <p class="slds-var-m-bottom_small">To enable e-signatures from record pages:</p>
+                    <ol class="slds-list_ordered">
+                        <li>Edit the record page in Lightning App Builder.</li>
+                        <li>Drag the <strong>docGenSignatureSender</strong> component onto the page.</li>
+                        <li>Save and activate.</li>
+                    </ol>
+                    <p class="slds-text-body_small slds-text-color_weak">Users will see recently generated documents and can send them for signature directly.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 5: Configure E-Signature Site (Optional)</h3>
+                    <p class="slds-var-m-bottom_small">If you plan to use e-signatures, you need a Salesforce Site for the public signing page:</p>
+                    <ol class="slds-list_ordered">
+                        <li>Go to <strong>Setup &gt; Sites</strong> (search "Sites" in Quick Find).</li>
+                        <li>If you don't have a Sites domain, register one (e.g., <code>docgen</code>).</li>
+                        <li>Click <strong>New</strong> and configure:
+                            <ul class="slds-list_dotted slds-var-m-left_medium">
+                                <li>Site Label: <strong>DocGen Signatures</strong></li>
+                                <li>Active Site Home Page: <strong>DocGenSignature</strong></li>
+                                <li>Check <strong>Active</strong></li>
+                            </ul>
+                        </li>
+                        <li>After saving, click <strong>Public Access Settings</strong>.</li>
+                        <li>In the Guest User profile, add <strong>DocGenSignature</strong> to Enabled Visualforce Page Access.</li>
+                        <li>Assign the <strong>DocGen Guest Signature</strong> permission set to the Site Guest User.</li>
+                        <li>Copy the <strong>Site URL</strong> and paste it into the <strong>DocGen Setup</strong> tab.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_warning">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Important: E-Signature Security</h3>
+                    <p>Signature links are secured with SHA-256 tokens and expire after 30 days. The guest user permission set is intentionally minimal — it only allows reading signature request records and creating audit trail entries. Never assign broader permissions to the Site guest user.</p>
+                </div>
+            </template>
+
+            <!-- ==================== CREATING TEMPLATES ==================== -->
+            <template if:true={isTemplates}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Creating Templates</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Template Manager Overview</h3>
+                    <p class="slds-var-m-bottom_small">The <strong>Template Manager</strong> tab is your central hub. Here you can create, edit, version, share, and test templates.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Creating a New Template</h3>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small"><strong>Click the "New Template" tab</strong> in the Template Manager.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Step 1 — Details:</strong> Enter the template name, category (for organization), type (Word or PowerPoint), and output format (PDF or Native).</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Step 2 — Query Configuration:</strong> Select the base Salesforce object (e.g., Account, Opportunity, Quote). Use the visual builder to pick the fields you want available in your document. You can also add parent fields (e.g., Account.Owner.Name) and child relationships (e.g., OpportunityLineItems, Contacts).</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Step 3 — Finish:</strong> Click Create. The system will prompt you to upload your template file.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Editing a Template</h3>
+                    <p class="slds-var-m-bottom_small">Click the row actions menu on any template and choose <strong>Edit</strong>. The edit modal has four tabs:</p>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small"><strong>Settings</strong> — Update name, category, type, output format, default status, and document title format.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Query Configuration</strong> — Modify the fields included in the query. Add/remove parent fields, child relationships, and configure WHERE, ORDER BY, and LIMIT clauses on child lists.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Template Tags</strong> — View all available merge tags with sample values from a test record. Use the copy buttons to grab tags for your template file. Select a <strong>Test Record ID</strong> here to see real data and to enable sample document generation.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Document &amp; History</strong> — Upload new template files and view version history. You can preview, download, or activate any previous version.</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Saving: Details vs. New Version</h3>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small"><strong>Save Details</strong> — Updates the template record (name, category, query config, etc.) without creating a version snapshot. Use this for minor edits.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Save as New Version</strong> — Creates a versioned snapshot that includes the current query configuration AND the currently uploaded file. Use this whenever you upload a new template file or make significant query changes you may want to roll back.</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Dynamic Document Titles</h3>
+                    <p class="slds-var-m-bottom_small">In the Settings tab, use the <strong>Document Title Format</strong> field to create dynamic file names using merge tags:</p>
+                    <p class="slds-var-m-bottom_small"><code>&#123;Name&#125;_Proposal_&#123;CreatedDate&#125;</code> would produce: <strong>Acme Corp_Proposal_2026-03-18.pdf</strong></p>
+                    <p class="slds-text-body_small slds-text-color_weak">If left blank, the template name is used as the document title.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Default Templates</h3>
+                    <p>Mark a template as <strong>Default</strong> in the Settings tab. When users open the Document Generator on a record page, the default template for that object is pre-selected. Only one template per object should be marked as default.</p>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Query Builder Limits</h3>
+                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col">Limit</th>
+                                <th scope="col">Value</th>
+                                <th scope="col">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Parent fields</td><td>10 max</td><td>SOQL query complexity</td></tr>
+                            <tr><td>Child relationships</td><td>5 max</td><td>SOQL subquery limit</td></tr>
+                            <tr><td>Total fields</td><td>60+ triggers warning</td><td>Heap size and performance</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <!-- ==================== MERGE TAGS & SYNTAX ==================== -->
+            <template if:true={isTags}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Merge Tags &amp; Syntax</h2>
+
+                <div class="slds-box slds-theme_warning slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">How Merge Tags Work</h3>
+                    <p class="slds-var-m-bottom_small">DocGen uses <strong>plain text replacement</strong>. When a document is generated, each merge tag in your template is replaced with the corresponding field value from the Salesforce record. That's it — simple, predictable, and reliable.</p>
+                    <p class="slds-text-title_bold slds-var-m-bottom_x-small">What this means in practice:</p>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small">Tags are replaced with <strong>plain text values only</strong>. They will not insert images, charts, or other media into your document. If you need an image in your output, place it directly in the Word/PowerPoint template file itself.</li>
+                        <li class="slds-var-p-bottom_x-small">Tables do not dynamically expand or resize. If you need repeating rows, use <strong>loop tags</strong> (<code>&#123;#ListName&#125;</code> / <code>&#123;/ListName&#125;</code>) — each child record creates a new row by duplicating the row containing the loop tags.</li>
+                        <li class="slds-var-p-bottom_x-small">Formatting (bold, font size, color) comes from your template, not from the data. The replaced text inherits whatever formatting the tag had in the original document.</li>
+                        <li class="slds-var-p-bottom_x-small">Rich Text fields are inserted as plain text. HTML formatting from Rich Text Area fields is stripped — only the text content appears.</li>
+                    </ul>
+                    <p class="slds-var-m-top_small slds-text-body_small"><strong>Tip:</strong> Design your template with final formatting in mind. Set the font, size, and color on the merge tag itself — the replacement value will take on that styling.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Basic Field Tags</h3>
+                    <p class="slds-var-m-bottom_small">Place merge tags in your Word or PowerPoint template wherever you want Salesforce data to appear:</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;Name&#125;</code> — Inserts the record's Name field<br/>
+                        <code>&#123;Account.Name&#125;</code> — Inserts a parent field value<br/>
+                        <code>&#123;Owner.Email&#125;</code> — Inserts the record owner's email
+                    </div>
+                    <p class="slds-text-body_small slds-text-color_weak">Tags are case-sensitive and must match the API field names exactly. Use the Template Tags tab in the editor to copy the correct tags.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Child Record Loops</h3>
+                    <p class="slds-var-m-bottom_small">To repeat rows in a table for child records (e.g., line items, contacts), use loop tags:</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;#OpportunityLineItems&#125;</code> — Start of loop<br/>
+                        <code>&nbsp;&nbsp;&#123;Product2.Name&#125; | &#123;Quantity&#125; | &#123;UnitPrice&#125;</code><br/>
+                        <code>&#123;/OpportunityLineItems&#125;</code> — End of loop
+                    </div>
+                    <p class="slds-var-m-bottom_small">In Word, place the loop start and end tags in the <strong>first cell of a table row</strong>. Each child record will generate a new row. In PowerPoint, the loop duplicates the content between the start and end tags.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Conditional Content</h3>
+                    <p class="slds-var-m-bottom_small">Show or hide content based on field values:</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;%IsActive&#125;</code> — Content here only appears if IsActive is truthy<br/>
+                        <code>&#123;%/IsActive&#125;</code> — End of conditional block
+                    </div>
+                    <p class="slds-text-body_small slds-text-color_weak">Conditional blocks work with boolean fields, or any field value that is non-null and non-empty.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Date Formatting</h3>
+                    <p class="slds-var-m-bottom_small">Format date fields using pipe syntax:</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;CreatedDate|MM/dd/yyyy&#125;</code> — Outputs: 03/18/2026<br/>
+                        <code>&#123;CloseDate|MMMM d, yyyy&#125;</code> — Outputs: March 18, 2026
+                    </div>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Dynamic Images with the % Tag</h3>
+                    <p class="slds-var-m-bottom_small">Use the <code>&#123;%FieldName&#125;</code> tag to dynamically insert images into your Word document from Salesforce data. This is the one exception to the "plain text only" rule — the <code>%</code> prefix tells DocGen to treat the field value as an image source.</p>
+
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;%Company_Logo__c&#125;</code> — Insert image at default size (4" x 3")<br/>
+                        <code>&#123;%Photo__c:200x150&#125;</code> — Insert image at 200px wide by 150px tall<br/>
+                        <code>&#123;%Headshot__c:100x100&#125;</code> — Insert a 100x100px square image
+                    </div>
+
+                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Supported Image Sources</h4>
+                    <p class="slds-var-m-bottom_small">The field value referenced by the <code>%</code> tag can be any of the following:</p>
+                    <table class="slds-table slds-table_bordered slds-table_cell-buffer slds-var-m-bottom_small">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col">Source Type</th>
+                                <th scope="col">What to Store in the Field</th>
+                                <th scope="col">Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>ContentVersion ID</strong> (Recommended)</td>
+                                <td>The 18-character ID of a ContentVersion record (starts with <code>068</code>). Upload the image as a Salesforce File and store the ID in a text field on your record.</td>
+                                <td><code>068xx0000012345AAA</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Rich Text HTML</strong></td>
+                                <td>A Rich Text Area field that contains an embedded image. DocGen extracts the <code>&lt;img&gt;</code> tag and resolves the Salesforce URL.</td>
+                                <td>Any Rich Text Area field with an inserted image</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Base64 Data URI</strong></td>
+                                <td>A base64-encoded image string with the data URI prefix.</td>
+                                <td><code>data:image/png;base64,iVBOR...</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Raw Base64</strong></td>
+                                <td>A long base64 string without a prefix (auto-detected).</td>
+                                <td><code>iVBORw0KGgoAAAANSUhEU...</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Salesforce File URL</strong></td>
+                                <td>A URL pointing to a Salesforce file (servlet or sfc pattern).</td>
+                                <td><code>/sfc/servlet.shepherd/version/download/068...</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="slds-box slds-theme_info slds-var-m-bottom_small">
+                        <p><strong>Best practice:</strong> Use a <strong>ContentVersion ID</strong> stored in a custom text field. Upload your image as a Salesforce File, copy its ContentVersion ID, and store it in a field like <code>Company_Logo_CV__c</code>. Then use <code>&#123;%Company_Logo_CV__c:200x60&#125;</code> in your template. This approach is reliable for both DOCX and PDF output.</p>
+                    </div>
+
+                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Controlling Image Size</h4>
+                    <p class="slds-var-m-bottom_small">Append <code>:WIDTHxHEIGHT</code> in pixels to the tag to control the rendered size:</p>
+                    <ul class="slds-list_dotted slds-var-m-bottom_small">
+                        <li><code>&#123;%Logo__c:300x80&#125;</code> — 300px wide, 80px tall</li>
+                        <li><code>&#123;%Photo__c:150x150&#125;</code> — 150px square</li>
+                        <li><code>&#123;%Banner__c&#125;</code> — No size specified, defaults to 4" x 3" (288x216 pixels)</li>
+                    </ul>
+                    <p class="slds-text-body_small slds-text-color_weak">Size is in pixels. The default (no size suffix) is 4 inches wide by 3 inches tall. For logos, a good starting point is <code>:200x60</code>. For headshots, try <code>:100x100</code>.</p>
+
+                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Limitations</h4>
+                    <ul class="slds-list_dotted">
+                        <li>Image tags only work in <strong>Word (.docx)</strong> templates. PowerPoint templates skip image tags to avoid corrupting the file format.</li>
+                        <li>External URLs (e.g., <code>https://example.com/logo.png</code>) cannot be fetched server-side because DocGen does not make HTTP callouts. Use a ContentVersion ID instead.</li>
+                        <li>The image replaces the tag inline in the document. It does not resize table cells or page layout — design your template with the expected image dimensions in mind.</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Static Images in Templates</h3>
+                    <p class="slds-var-m-bottom_small">For images that are the same in every document (logos, watermarks, headers), just place them directly in your Word or PowerPoint file as normal images. DocGen preserves all embedded template images in the output — they are extracted and stored as ContentVersions for reliable rendering in both DOCX and PDF.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signature Placeholders</h3>
+                    <p class="slds-var-m-bottom_small">To mark where signatures should appear in a document:</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;#Signature&#125;</code> — Generic signature placeholder (single signer)<br/>
+                        <code>&#123;#Signature_Client&#125;</code> — Named role placeholder for "Client"<br/>
+                        <code>&#123;#Signature_Witness&#125;</code> — Named role placeholder for "Witness"
+                    </div>
+                    <p class="slds-text-body_small slds-text-color_weak">When the document is signed, the placeholder is replaced with the signer's handwritten signature image plus a timestamp.</p>
+                </div>
+            </template>
+
+            <!-- ==================== GENERATING DOCUMENTS ==================== -->
+            <template if:true={isGeneration}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Generating Documents</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">From a Record Page</h3>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small">Navigate to a record (e.g., an Account, Opportunity, or Quote).</li>
+                        <li class="slds-var-p-bottom_x-small">Find the <strong>Document Generator</strong> component on the page.</li>
+                        <li class="slds-var-p-bottom_x-small">Select a template from the dropdown (the default template is pre-selected).</li>
+                        <li class="slds-var-p-bottom_x-small">Choose <strong>Download</strong> (saves to your computer) or <strong>Save to Record</strong> (attaches as a File on the record).</li>
+                        <li class="slds-var-p-bottom_x-small">Click <strong>Generate Document</strong>.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Output Formats</h3>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small"><strong>Native (.docx / .pptx)</strong> — Preserves the original file format. Best for documents that recipients need to edit.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>PDF</strong> — Converts Word templates to PDF using Salesforce's native Blob.toPdf(). Best for finalized documents and those sent for signature. Note: PowerPoint templates always output as .pptx (PDF conversion is not supported for PPT).</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Testing from the Template Manager</h3>
+                    <p class="slds-var-m-bottom_small">You can generate a sample document without leaving the Template Manager:</p>
+                    <ol class="slds-list_ordered">
+                        <li>Open a template for editing.</li>
+                        <li>Go to the <strong>Template Tags</strong> tab.</li>
+                        <li>Select a <strong>Test Record ID</strong> using the record picker.</li>
+                        <li>Click <strong>Generate Sample Document</strong> in the modal footer.</li>
+                    </ol>
+                    <p class="slds-text-body_small slds-text-color_weak">This is the fastest way to iterate on template design — make changes, re-upload, and test without navigating to a record page.</p>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">PDF Generation Notes</h3>
+                    <ul class="slds-list_dotted">
+                        <li>PDF generation runs asynchronously via a Queueable job. The UI polls for the result automatically.</li>
+                        <li>Images from Rich Text fields render in PDFs when they are hosted on Salesforce URLs.</li>
+                        <li>Complex Word formatting (multi-column layouts, text boxes) may not convert perfectly to PDF. Test your templates.</li>
+                        <li>PDF timeout is approximately 60 seconds. Very large documents may time out.</li>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ==================== BULK GENERATION ==================== -->
+            <template if:true={isBulk}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Bulk Generation</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Overview</h3>
+                    <p>Generate documents for multiple records at once. Each record produces its own document, saved as a File (ContentVersion) attached to that record.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">How to Use</h3>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small">Go to the <strong>Bulk Generation</strong> tab.</li>
+                        <li class="slds-var-p-bottom_x-small">Select a template from the dropdown.</li>
+                        <li class="slds-var-p-bottom_x-small">Enter a <strong>filter condition</strong> (SOQL WHERE clause) to target specific records. For example: <code>Industry = 'Technology'</code> or <code>StageName = 'Closed Won' AND CloseDate = THIS_YEAR</code>.</li>
+                        <li class="slds-var-p-bottom_x-small">Click <strong>Count Records</strong> to verify how many records will be processed.</li>
+                        <li class="slds-var-p-bottom_x-small">Click <strong>Generate</strong> to start the batch job.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Saved Queries</h3>
+                    <p class="slds-var-m-bottom_small">Save frequently used filter conditions for reuse. Click <strong>Save Query</strong> after entering your condition, give it a name, and load it later from the dropdown.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Visual Filter Builder</h3>
+                    <p>Toggle from the text input to the <strong>visual filter builder</strong> for a point-and-click interface. Select fields, operators (equals, not equals, LIKE, greater than, less than, IN), and values. The builder generates the SOQL WHERE clause for you.</p>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Batch Job Monitoring</h3>
+                    <p class="slds-var-m-bottom_small">Once submitted, the job appears in the <strong>Recent Jobs</strong> section. The page auto-refreshes every 5 seconds while a job is running. Each job shows:</p>
+                    <ul class="slds-list_dotted">
+                        <li>Status: Queued, Running, Completed, Failed, or Completed with Errors</li>
+                        <li>Total records, success count, and error count</li>
+                        <li>Start and completion timestamps</li>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ==================== E-SIGNATURES ==================== -->
+            <template if:true={isSignatures}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">E-Signatures</h2>
+
+                <div class="slds-box slds-theme_info slds-var-m-bottom_medium">
+                    <p><strong>Prerequisite:</strong> You must configure a Salesforce Site before using e-signatures. See the <strong>Installation &amp; Setup</strong> section for step-by-step instructions.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">How Signatures Work</h3>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small"><strong>Generate a document</strong> with signature placeholders (<code>&#123;#Signature&#125;</code> or <code>&#123;#Signature_RoleName&#125;</code>).</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Send for signature</strong> using the Signature Sender component on the record page. Select the document, assign signers to roles, and click Send.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Signers receive a branded email</strong> with a secure link to the signing page.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Signers review and sign</strong> on a public Visualforce page with a signature pad. Their drawn signature and a timestamp are captured.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>The signed document is generated</strong> — the signature image replaces the placeholder in the document, and a new PDF is produced and saved to the record.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>An audit trail record</strong> is created with the signer's name, email, IP address, browser info, signed date, and a SHA-256 hash of the document.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Sending Signatures</h3>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small">On the record page, find the <strong>Signature Sender</strong> component.</li>
+                        <li class="slds-var-p-bottom_x-small">Select the document to sign from the dropdown (shows recently generated files).</li>
+                        <li class="slds-var-p-bottom_x-small">Add signers — for each signer, enter their name, email, and assign a role (the role must match a <code>&#123;#Signature_RoleName&#125;</code> placeholder in the document).</li>
+                        <li class="slds-var-p-bottom_x-small">Optionally, use the <strong>Contact lookup</strong> to auto-fill name and email from a Contact record.</li>
+                        <li class="slds-var-p-bottom_x-small">Click <strong>Send for Signature</strong>. Each signer receives their own unique, secure link.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Tracking Status</h3>
+                    <p class="slds-var-m-bottom_small">After sending, the Signature Sender component shows the status of each signer:</p>
+                    <ul class="slds-list_dotted">
+                        <li><strong>Pending</strong> — Email sent, signer hasn't opened the link yet.</li>
+                        <li><strong>Viewed</strong> — Signer opened the signing page but hasn't signed yet.</li>
+                        <li><strong>In Progress</strong> — Signer is actively on the signing page.</li>
+                        <li><strong>Signed</strong> — Signer completed their signature.</li>
+                    </ul>
+                    <p class="slds-var-m-top_small">Once all signers have signed, the final PDF is generated with all signatures stamped in place.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Manual Signature Links</h3>
+                    <p>After sending, you can copy the signature link for any signer directly. This is useful if you need to share the link through a different channel (e.g., Slack, text message) or if the email didn't arrive.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Document Authenticator</h3>
+                    <p class="slds-var-m-bottom_small">DocGen includes a document verification tool that lets anyone verify a signed PDF's authenticity:</p>
+                    <ul class="slds-list_dotted">
+                        <li>Drop or upload a signed PDF file.</li>
+                        <li>The system computes a SHA-256 hash of the file <strong>entirely in the browser</strong> — the file content is never uploaded to the server.</li>
+                        <li>The hash is compared against the audit trail. If it matches, the signer details and signing timestamp are displayed.</li>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ==================== SIGNATURE ROLES & TEMPLATES ==================== -->
+            <template if:true={isRoles}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Signature Roles &amp; Templates</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Understanding Roles</h3>
+                    <p class="slds-var-m-bottom_small">Roles allow multiple people to sign the same document, each in a designated location. Every role maps to a placeholder in the Word template.</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <strong>Example:</strong> A contract template might have:<br/>
+                        <code>&#123;#Signature_Client&#125;</code> — Where the client signs<br/>
+                        <code>&#123;#Signature_Account_Executive&#125;</code> — Where the AE signs<br/>
+                        <code>&#123;#Signature_Witness&#125;</code> — Where the witness signs
+                    </div>
+                    <p>When you send this document for signature, you assign each signer to one of these roles. The system scans your document and auto-detects available roles in the Signature Sender component.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Role Naming Rules</h3>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small">Role names follow the format <code>&#123;#Signature_RoleName&#125;</code> in the template.</li>
+                        <li class="slds-var-p-bottom_x-small">Use underscores for multi-word roles: <code>&#123;#Signature_Account_Executive&#125;</code></li>
+                        <li class="slds-var-p-bottom_x-small">Role names are case-sensitive and must match exactly between the template and the signer assignment.</li>
+                        <li class="slds-var-p-bottom_x-small">For single-signer documents, use the generic <code>&#123;#Signature&#125;</code> placeholder (no role suffix).</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signer Templates</h3>
+                    <p class="slds-var-m-bottom_small">If you frequently send documents with the same set of signer roles, create a <strong>Signer Template</strong> to save time:</p>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small">In the Signature Sender, configure your signers and roles.</li>
+                        <li class="slds-var-p-bottom_x-small">Click <strong>Save as Template</strong> and give it a name (e.g., "Standard Contract Signers").</li>
+                        <li class="slds-var-p-bottom_x-small">Next time, select the template from the <strong>Load from Template</strong> dropdown. The roles are pre-populated — just fill in the contact details.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Sort Order</h3>
+                    <p>Signers are processed in the order defined by the <strong>Sort Order</strong> field on each signer role. This determines the sequence in which the system generates the final signed document. Lower numbers are processed first.</p>
+                </div>
+            </template>
+
+            <!-- ==================== EMAIL BRANDING & COPY ==================== -->
+            <template if:true={isEmail}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Email Branding &amp; Copy</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Overview</h3>
+                    <p class="slds-var-m-bottom_small">When you send a document for e-signature, DocGen sends a branded HTML email to each signer. You can customize every visible element of these emails from the <strong>DocGen Setup</strong> tab.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Configurable Email Settings</h3>
+                    <p class="slds-var-m-bottom_small">Navigate to the <strong>DocGen Setup</strong> tab and go to <strong>Step 2: Email Branding</strong>. You can customize:</p>
+                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col">Setting</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Default</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Company Name</strong></td>
+                                <td>Displayed in the email header when no logo URL is provided.</td>
+                                <td>(blank)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Logo Image URL</strong></td>
+                                <td>URL to your company logo. Displayed in the email header bar. Recommended: 200x60px PNG with transparent background.</td>
+                                <td>(blank — company name shown instead)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Brand Color</strong></td>
+                                <td>Hex color used for the email header bar and "Review &amp; Sign" CTA button.</td>
+                                <td>#0176D3 (Salesforce blue)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email Subject Line</strong></td>
+                                <td>Subject of the outbound email. Supports merge fields.</td>
+                                <td>Action Required: Please Sign &#123;DocumentTitle&#125;</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email Footer Text</strong></td>
+                                <td>Custom footer text at the bottom of the email.</td>
+                                <td>Powered by DocGen — Open-Source Document Generation for Salesforce</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Merge Fields</h3>
+                    <p class="slds-var-m-bottom_small">The following merge fields are available in the <strong>Email Subject Line</strong>:</p>
+                    <div class="slds-box slds-theme_shade">
+                        <code>&#123;SignerName&#125;</code> — The name of the signer receiving the email<br/>
+                        <code>&#123;DocumentTitle&#125;</code> — The title of the document being sent for signature<br/>
+                        <code>&#123;SenderName&#125;</code> — The name of the Salesforce user who initiated the signature request
+                    </div>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Structure (Not Configurable)</h3>
+                    <p class="slds-var-m-bottom_small">The email body layout is fixed for consistency and deliverability. The structure includes:</p>
+                    <ul class="slds-list_dotted">
+                        <li><strong>Header bar</strong> — Brand color background with logo or company name.</li>
+                        <li><strong>Greeting</strong> — "Hi [Signer Name],"</li>
+                        <li><strong>Message</strong> — "[Sender Name] has sent you a document that requires your signature."</li>
+                        <li><strong>Document info box</strong> — Shows document title and signer role (if multi-signer).</li>
+                        <li><strong>CTA button</strong> — "Review &amp; Sign Document" (links to the signing page).</li>
+                        <li><strong>Security note</strong> — "This link is unique to you and will expire in 30 days."</li>
+                        <li><strong>Fallback URL</strong> — Plain text URL in case the button doesn't render.</li>
+                        <li><strong>Footer</strong> — Your custom footer text or the default.</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Deliverability Tips</h3>
+                    <ul class="slds-list_dotted">
+                        <li>Emails are sent from the Salesforce org's configured email address (via <code>Messaging.sendEmail</code>).</li>
+                        <li>If a signer is linked to a Contact record, the email uses <code>setTargetObjectId</code> for proper activity tracking.</li>
+                        <li>Ensure your org's email deliverability setting is set to <strong>"All Email"</strong> (Setup &gt; Deliverability).</li>
+                        <li>In sandbox environments, emails are only sent to verified addresses by default.</li>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ==================== LOGO & IMAGES ==================== -->
+            <template if:true={isLogo}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Logo &amp; Images</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Logo Setup</h3>
+                    <p class="slds-var-m-bottom_small">The logo appears at the top of every signature request email. To configure it:</p>
+                    <ol class="slds-list_ordered">
+                        <li class="slds-var-p-bottom_x-small">Go to the <strong>DocGen Setup</strong> tab.</li>
+                        <li class="slds-var-p-bottom_x-small">In <strong>Step 2: Email Branding</strong>, enter the <strong>Logo Image URL</strong>.</li>
+                        <li class="slds-var-p-bottom_x-small">Recommended dimensions: <strong>200x60px</strong>, PNG with transparent background.</li>
+                        <li class="slds-var-p-bottom_x-small">Click <strong>Save Email Settings</strong>.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_warning slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Logo Hosting: Important Notes</h3>
+                    <p class="slds-var-m-bottom_small">The logo URL must be publicly accessible for email clients to render it. Here are your options:</p>
+
+                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 1: External Hosting (Recommended for Emails)</h4>
+                    <p class="slds-var-m-bottom_small">Host your logo on a public web server, CDN, or service like your company website. The image URL should start with <code>https://</code>. Email clients (Gmail, Outlook, etc.) will fetch and display the image directly.</p>
+                    <p class="slds-var-m-bottom_small"><strong>Example:</strong> <code>https://www.yourcompany.com/assets/logo.png</code></p>
+
+                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 2: Salesforce-Hosted (Static Resource or ContentVersion)</h4>
+                    <p class="slds-var-m-bottom_small">You can upload the logo as a Salesforce Static Resource or as a File (ContentVersion) and use its URL. However:</p>
+                    <ul class="slds-list_dotted slds-var-m-bottom_small">
+                        <li>Salesforce-hosted URLs require authentication — email clients <strong>will not render the image</strong> in the recipient's inbox.</li>
+                        <li>The image <strong>will still render</strong> if the recipient clicks through to the signing page (which runs in a browser with access).</li>
+                        <li>For the best email experience, use an externally hosted URL.</li>
+                    </ul>
+
+                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 3: Salesforce Site-Hosted</h4>
+                    <p class="slds-var-m-bottom_small">If you have a Salesforce Site configured (for e-signatures), you can host the logo as a Static Resource and reference it via the Site URL:</p>
+                    <p class="slds-var-m-bottom_small"><code>https://yourdomain.my.salesforce-sites.com/resource/YourLogo</code></p>
+                    <p>This approach makes the image publicly accessible (via the Site) so email clients can render it. No Remote Site Setting is needed for this since it's on Salesforce's domain.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Remote Site Settings</h3>
+                    <p class="slds-var-m-bottom_small">If your logo is hosted on a domain <strong>outside of Salesforce</strong> and you want Salesforce server-side processes to fetch or validate the image, you need a Remote Site Setting:</p>
+                    <ol class="slds-list_ordered">
+                        <li>Go to <strong>Setup &gt; Remote Site Settings</strong>.</li>
+                        <li>Click <strong>New Remote Site</strong>.</li>
+                        <li>Enter a name (e.g., "Company Logo Host").</li>
+                        <li>Enter the Remote Site URL (e.g., <code>https://www.yourcompany.com</code>).</li>
+                        <li>Check <strong>Active</strong> and save.</li>
+                    </ol>
+                    <p class="slds-var-m-top_small slds-text-body_small slds-text-color_weak"><strong>Note:</strong> For email logos, a Remote Site Setting is typically <strong>not required</strong> because the email client (Gmail, Outlook) fetches the image directly — Salesforce never makes a server-side callout to the logo URL. Remote Site Settings are only needed if a future feature requires Salesforce to fetch the image server-side.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Images in Generated Documents</h3>
+                    <p class="slds-var-m-bottom_small">Images can appear in generated documents in several ways:</p>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small"><strong>Template images</strong> — Logos, watermarks, or other images placed directly in your .docx/.pptx file are preserved in the output. They are extracted and stored as ContentVersions linked to the template version for reliable rendering.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Rich Text field images</strong> — Images in Rich Text Area fields (e.g., a photo uploaded to a Description field) are automatically resolved and embedded. Salesforce-hosted image URLs are converted to absolute URLs for rendering.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>Signature images</strong> — Drawn signatures are captured as PNG images and stamped into the document at the placeholder location.</li>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ==================== SHARING & PERMISSIONS ==================== -->
+            <template if:true={isSharing}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Sharing &amp; Permissions</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Template Sharing</h3>
+                    <p class="slds-var-m-bottom_small">By default, templates are visible based on org-wide defaults. To share specific templates with users or groups:</p>
+                    <ol class="slds-list_ordered">
+                        <li>In the Template Manager, click the row actions menu on a template and choose <strong>Share</strong>.</li>
+                        <li>Search for a user or public group.</li>
+                        <li>Select the access level: <strong>Read Only</strong> or <strong>Read/Write</strong>.</li>
+                        <li>Click <strong>Share</strong>.</li>
+                    </ol>
+                    <p class="slds-text-body_small slds-text-color_weak">Sharing rules are managed via manual sharing (DocGen_Template__Share). The template owner always has full access.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Permission Set Details</h3>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small"><strong>DocGen Admin</strong> — Full CRUD on all objects. Can manage templates, versions, sharing, settings, and view all audit records. Has modifyAllRecords and viewAllRecords on DocGen objects.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>DocGen User</strong> — Can create and generate documents. Read-only on templates and versions. Can create own signature requests and view audit trail. Cannot modify templates or access setup.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>DocGen Guest Signature</strong> — Minimal access for the Salesforce Site guest user. Can read signature request/signer records (to validate tokens) and create audit trail entries. Cannot read or modify templates, settings, or other records.</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Security Architecture</h3>
+                    <ul class="slds-list_dotted">
+                        <li class="slds-var-p-bottom_x-small">All controller classes use <code>with sharing</code> to enforce sharing rules, except signature classes that must support guest user access (<code>without sharing</code> with token-based authentication).</li>
+                        <li class="slds-var-p-bottom_x-small">CRUD/FLS enforcement uses a mix of <code>WITH USER_MODE</code> (for user-context queries) and <code>Security.stripInaccessible()</code> (for DML operations).</li>
+                        <li class="slds-var-p-bottom_x-small">Dynamic SOQL in the data retriever validates all field names against the Schema before inclusion in queries.</li>
+                        <li class="slds-var-p-bottom_x-small">Guest user signature tokens are SHA-256 hashes with a 30-day expiration window.</li>
+                        <li class="slds-var-p-bottom_x-small">No HTTP callouts or session ID usage — the app is fully AppExchange safe.</li>
+                    </ul>
+                </div>
+            </template>
+
+            <!-- ==================== TEMPLATE VERSIONING ==================== -->
+            <template if:true={isVersions}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Template Versioning</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">How Versioning Works</h3>
+                    <p class="slds-var-m-bottom_small">Every time you click <strong>Save as New Version</strong>, DocGen creates a snapshot that captures:</p>
+                    <ul class="slds-list_dotted">
+                        <li>The current template file (Word/PowerPoint)</li>
+                        <li>The query configuration (all selected fields, child lists, and clauses)</li>
+                        <li>Template metadata (type, category, description, base object)</li>
+                    </ul>
+                    <p class="slds-var-m-top_small">Only one version is <strong>Active</strong> at a time. When a document is generated, the system uses the active version's file and configuration.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Viewing Version History</h3>
+                    <ol class="slds-list_ordered">
+                        <li>Open a template for editing.</li>
+                        <li>Go to the <strong>Document &amp; History</strong> tab.</li>
+                        <li>The version history table shows all versions with their version number, created date, creator, and active status.</li>
+                    </ol>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Previewing a Version</h3>
+                    <p class="slds-var-m-bottom_small">Click <strong>Preview</strong> on any version to see:</p>
+                    <ul class="slds-list_dotted">
+                        <li>Version metadata (created date, creator, status, object, type, category)</li>
+                        <li>The full query configuration that was active at that time</li>
+                        <li>A <strong>Download Template</strong> button to download the exact file that was used</li>
+                        <li>A <strong>Generate Sample</strong> button to produce a document using that version's template against your test record</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Activating (Rolling Back) a Version</h3>
+                    <p class="slds-var-m-bottom_small">To roll back to a previous version:</p>
+                    <ol class="slds-list_ordered">
+                        <li>Click <strong>Activate</strong> on the desired version (or click <strong>Activate This Version</strong> from the preview modal).</li>
+                        <li>The system deactivates all other versions and marks the selected one as active.</li>
+                        <li>The template record is updated with the activated version's query config, type, category, and description.</li>
+                        <li>All subsequent document generation will use the activated version's file.</li>
+                    </ol>
+                </div>
+            </template>
+
+            <!-- ==================== FLOW & AUTOMATION ==================== -->
+            <template if:true={isFlows}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Flow &amp; Automation</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Invocable Actions</h3>
+                    <p class="slds-var-m-bottom_small">DocGen provides Flow-compatible actions that you can use in Record-Triggered Flows, Screen Flows, or Scheduled Flows:</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Generate Document (Single Record)</h3>
+                    <p class="slds-var-m-bottom_small">Action: <code>DocGenFlowAction</code></p>
+                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col">Input</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>templateId</td><td>Text</td><td>ID of the DocGen Template record</td></tr>
+                            <tr><td>recordId</td><td>Text</td><td>ID of the source record to merge data from</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="slds-var-m-top_small">Returns: <code>contentDocumentId</code> — the ID of the generated document (saved as a File).</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Generate Documents (Bulk)</h3>
+                    <p class="slds-var-m-bottom_small">Action: <code>DocGenBulkFlowAction</code></p>
+                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col">Input</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>templateId</td><td>Text</td><td>ID of the DocGen Template record</td></tr>
+                            <tr><td>queryCondition</td><td>Text</td><td>SOQL WHERE clause to filter records</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="slds-var-m-top_small">Returns: <code>jobId</code> — the ID of the bulk job record for monitoring.</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signature Actions</h3>
+                    <p class="slds-var-m-bottom_small">For signature automation in Flows:</p>
+                    <ul class="slds-list_dotted">
+                        <li><strong>DocGenSignatureValidator</strong> — Validates a signature token. Use this in Experience Cloud flows to verify the signer's identity before showing the signature pad.</li>
+                        <li><strong>DocGenSignatureFinalizer</strong> — Processes a completed signature submission in system context. Call this after the signer draws their signature to stamp it into the document.</li>
+                        <li><strong>DocGenSignatureSubmitter</strong> — Handles signature submission from a Flow context.</li>
+                    </ul>
+                </div>
+
+                <div class="slds-box slds-theme_default">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Platform Event: DocGen_Signature_PDF__e</h3>
+                    <p class="slds-var-m-bottom_small">When all signers have completed their signatures, the system publishes a Platform Event that triggers asynchronous PDF generation. This runs as the Automated Process user, bypassing guest user limitations.</p>
+                    <p class="slds-text-body_small slds-text-color_weak">You don't need to configure this — it works automatically. However, if you're building custom automation, you can subscribe to this event to trigger downstream processes after a document is fully signed.</p>
+                </div>
+            </template>
+
+            <!-- ==================== TROUBLESHOOTING ==================== -->
+            <template if:true={isTroubleshooting}>
+                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Troubleshooting</h2>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Common Issues</h3>
+
+                    <div class="slds-var-m-bottom_medium">
+                        <h4 class="slds-text-title_bold">"Template file not found" error</h4>
+                        <ul class="slds-list_dotted">
+                            <li>Ensure a file is uploaded to the template (Document &amp; History tab).</li>
+                            <li>Check that at least one version is marked as Active.</li>
+                            <li>The file must be a .docx or .pptx format.</li>
+                        </ul>
+                    </div>
+
+                    <div class="slds-var-m-bottom_medium">
+                        <h4 class="slds-text-title_bold">Merge tags show as literal text (not replaced)</h4>
+                        <ul class="slds-list_dotted">
+                            <li>Tags are case-sensitive. Verify the exact API name in the Template Tags tab.</li>
+                            <li>In Word, sometimes formatting splits a tag across multiple XML runs. Type the tag in a plain text editor first, then paste it into Word.</li>
+                            <li>Ensure the field is included in the query configuration.</li>
+                        </ul>
+                    </div>
+
+                    <div class="slds-var-m-bottom_medium">
+                        <h4 class="slds-text-title_bold">Signature email not received</h4>
+                        <ul class="slds-list_dotted">
+                            <li>Check Setup &gt; Deliverability — must be set to "All Email".</li>
+                            <li>In sandbox, emails are only sent to verified addresses.</li>
+                            <li>Check the signer's email address is valid.</li>
+                            <li>Review email logs in Setup &gt; Email Logs.</li>
+                        </ul>
+                    </div>
+
+                    <div class="slds-var-m-bottom_medium">
+                        <h4 class="slds-text-title_bold">Signature link shows "Invalid or expired token"</h4>
+                        <ul class="slds-list_dotted">
+                            <li>Signature links expire after 30 days. A new signature request must be created.</li>
+                            <li>Verify the Salesforce Site URL is correctly configured in DocGen Setup.</li>
+                            <li>Ensure the DocGen Guest Signature permission set is assigned to the Site guest user.</li>
+                        </ul>
+                    </div>
+
+                    <div class="slds-var-m-bottom_medium">
+                        <h4 class="slds-text-title_bold">PDF generation times out</h4>
+                        <ul class="slds-list_dotted">
+                            <li>Very large documents (many pages, many images) may exceed the timeout.</li>
+                            <li>Reduce the number of fields or child records in the query.</li>
+                            <li>Consider using Native (.docx) output instead of PDF for complex documents.</li>
+                        </ul>
+                    </div>
+
+                    <div class="slds-var-m-bottom_medium">
+                        <h4 class="slds-text-title_bold">Images don't appear in PDF</h4>
+                        <ul class="slds-list_dotted">
+                            <li>Images must be hosted on Salesforce URLs for PDF rendering via Blob.toPdf().</li>
+                            <li>External image URLs will not render in server-side PDF generation.</li>
+                            <li>Template images (embedded in the .docx) are automatically handled.</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="slds-text-title_bold">Logo doesn't show in signature emails</h4>
+                        <ul class="slds-list_dotted">
+                            <li>If hosted on Salesforce, email clients cannot fetch authenticated URLs. See the <strong>Logo &amp; Images</strong> section for hosting options.</li>
+                            <li>Use a publicly accessible HTTPS URL for reliable rendering.</li>
+                            <li>Some email clients block images by default — recipients may need to click "Show images".</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="slds-box slds-theme_shade">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Debug Tips</h3>
+                    <ul class="slds-list_dotted">
+                        <li>Use the <strong>Generate Sample Document</strong> button in the Template Manager to test without navigating away.</li>
+                        <li>Check Salesforce Debug Logs (Setup &gt; Debug Logs) for detailed error messages — look for entries starting with "DocGen:".</li>
+                        <li>For bulk job failures, check the DocGen Job record for error counts and individual record errors.</li>
+                        <li>The Document Authenticator can verify if a signed PDF was tampered with after signing.</li>
+                    </ul>
+                </div>
+            </template>
+
+        </div>
+    </div>
+</template>

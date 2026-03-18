@@ -8,6 +8,7 @@
     <isOmniPinnedViewEnabled>false</isOmniPinnedViewEnabled>
     <label>DocGen</label>
     <navType>Standard</navType>
+    <tabs>DocGen_Admin_Guide</tabs>
     <tabs>DocGen_Setup</tabs>
     <tabs>DocGen_Template_Manager</tabs>
     <tabs>DocGen_Template__c</tabs>

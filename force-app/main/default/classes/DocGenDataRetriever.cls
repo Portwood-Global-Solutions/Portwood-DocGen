@@ -20,7 +20,7 @@ public with sharing class DocGenDataRetriever {
         Set<String> validFields = new Set<String>();
         SObjectType objType = Schema.getGlobalDescribe().get(baseObject);
         if (objType == null) {
-             throw new AuraHandledException('Invalid object: ' + baseObject);
+             throw new AuraHandledException('Invalid or inaccessible object.');
         }
         Map<String, SObjectField> fieldMap = objType.getDescribe().fields.getMap();
         
@@ -112,14 +112,14 @@ public with sharing class DocGenDataRetriever {
         try {
             List<SObject> results = Database.query(query, AccessLevel.USER_MODE);
             if (results.isEmpty()) {
-                System.debug(LoggingLevel.WARN, 'DocGen: Query returned no results for ID: ' + recordId);
+                System.debug(LoggingLevel.FINE, 'DocGen: Query returned no results for record.');
                 return null;
             }
             // Optimization: Use manual mapping to avoid JSON.serialize Heap Spike
             return mapSObject(results[0]);
         } catch (Exception e) {
              // Fallback: If stripping failed (e.g. subquery error), return clear error
-            System.debug(LoggingLevel.ERROR, 'DocGen: Query Execution Error: ' + e.getMessage());
+            System.debug(LoggingLevel.ERROR, 'DocGen: Query execution error.');
             throw new AuraHandledException('Error executing query. Please verify your template configuration.');
         }
     }
@@ -168,7 +168,7 @@ public with sharing class DocGenDataRetriever {
                     data.put(key, value);
                 }
             } catch (Exception e) {
-                System.debug(LoggingLevel.ERROR, 'DocGen: Error mapping field ' + key + ': ' + e.getMessage());
+                System.debug(LoggingLevel.FINE, 'DocGen: Error mapping field: ' + e.getMessage());
                 // Skip this field but allow others
             }
         }

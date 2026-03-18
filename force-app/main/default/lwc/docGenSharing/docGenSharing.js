@@ -1,4 +1,4 @@
-import { LightningElement, api, track, wire } from 'lwc';
+import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getTemplateShares from '@salesforce/apex/DocGenController.getTemplateShares';
 import shareTemplate from '@salesforce/apex/DocGenController.shareTemplate';
@@ -77,7 +77,7 @@ export default class DocGenSharing extends LightningElement {
             .then(results => {
                 this.searchResults = results;
             })
-            .catch(error => {
+            .catch(_error => {
             })
             .finally(() => {
                 this.isSearching = false;

@@ -21,8 +21,6 @@ export default class DocGenSignaturePad extends LightningElement {
     @track isProcessing = false;
     isDrawing = false;
     isCanvasEmpty = true;
-    isDrawing = false;
-    isCanvasEmpty = true;
     
     // Canvas Context
     ctx;
@@ -48,7 +46,7 @@ export default class DocGenSignaturePad extends LightningElement {
                     this.recordId = res.recordId;
                     this.mergeDataJson = res.mergeDataJson;
                 }
-            } catch (error) {
+            } catch (_error) {
             }
         }
     }

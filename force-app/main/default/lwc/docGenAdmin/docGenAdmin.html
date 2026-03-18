@@ -380,41 +380,110 @@
     
     <!-- Preview Modal -->
     <template if:true={isPreviewModalOpen}>
-        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_small">
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_medium">
             <div class="slds-modal__container">
                 <header class="slds-modal__header">
                     <lightning-button-icon icon-name="utility:close" alternative-text="Close" title="Close" variant="bare-inverse" class="slds-modal__close" onclick={closePreviewModal}></lightning-button-icon>
                     <h2 class="slds-text-heading_medium">Version Preview: {previewVersion.VersionNumber}</h2>
                 </header>
                 <div class="slds-modal__content slds-var-p-around_medium">
+                    <!-- Version Metadata -->
                     <div class="slds-grid slds-gutters slds-var-m-bottom_medium">
-                        <div class="slds-col">
-                            <p><strong>Created:</strong> <lightning-formatted-date-time value={previewVersion.CreatedDate}></lightning-formatted-date-time></p>
-                            <p><strong>By:</strong> {previewVersion.CreatedByName}</p>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-body_small slds-text-color_weak">Created</p>
+                            <p><lightning-formatted-date-time value={previewVersion.CreatedDate} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></p>
                         </div>
-                        <div class="slds-col">
-                            <p><strong>Type:</strong> {previewVersion.Type__c}</p>
-                            <p><strong>Category:</strong> {previewVersion.Category__c}</p>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-body_small slds-text-color_weak">Created By</p>
+                            <p>{previewVersion.CreatedByName}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-body_small slds-text-color_weak">Status</p>
+                            <p>
+                                <template if:true={previewVersion.Is_Active__c}>
+                                    <lightning-badge label="Active" class="slds-theme_success"></lightning-badge>
+                                </template>
+                                <template if:false={previewVersion.Is_Active__c}>
+                                    <lightning-badge label="Inactive"></lightning-badge>
+                                </template>
+                            </p>
                         </div>
                     </div>
-                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
-                        <p><strong>Configuration Snapshot:</strong></p>
+
+                    <div class="slds-grid slds-gutters slds-var-m-bottom_medium">
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-body_small slds-text-color_weak">Base Object</p>
+                            <p>{previewVersion.Base_Object_API__c}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-body_small slds-text-color_weak">Type</p>
+                            <p>{previewVersion.Type__c}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <p class="slds-text-body_small slds-text-color_weak">Category</p>
+                            <p>{previewVersion.Category__c}</p>
+                        </div>
                     </div>
-                    <c-doc-gen-query-builder
-                        selected-object={previewVersion.Base_Object_API__c}
-                        query-config={previewVersion.Query_Config__c} 
-                        show-tags-only="true"
-                        test-record-id={previewVersion.Test_Record_Id__c}>
-                    </c-doc-gen-query-builder>
+
+                    <!-- Query Config -->
+                    <div class="slds-box slds-var-m-bottom_medium">
+                        <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_small">
+                            <h3 class="slds-text-heading_small">Query Configuration</h3>
+                        </div>
+                        <template if:true={previewVersion.Query_Config__c}>
+                            <div class="slds-scrollable_y" style="max-height: 200px;">
+                                <pre class="slds-var-p-around_small slds-theme_shade" style="white-space: pre-wrap; word-break: break-word; font-size: 0.8125rem;">{previewVersionQueryFormatted}</pre>
+                            </div>
+                        </template>
+                        <template if:false={previewVersion.Query_Config__c}>
+                            <p class="slds-text-color_weak">No query configuration saved for this version.</p>
+                        </template>
+                    </div>
+
+                    <!-- Template File -->
+                    <div class="slds-box slds-var-m-bottom_medium">
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <h3 class="slds-text-heading_small">Template File</h3>
+                            <template if:true={previewVersion.Content_Version_Id__c}>
+                                <lightning-button label="Download Template" icon-name="utility:download" variant="neutral" onclick={handlePreviewDownload}></lightning-button>
+                            </template>
+                        </div>
+                        <template if:false={previewVersion.Content_Version_Id__c}>
+                            <p class="slds-text-color_weak slds-var-m-top_small">No template file reference saved for this version.</p>
+                        </template>
+                    </div>
+
+                    <!-- Generate Sample -->
+                    <div class="slds-box slds-theme_shade">
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <div>
+                                <h3 class="slds-text-heading_small">Generate Sample</h3>
+                                <p class="slds-text-body_small slds-text-color_weak">Generate a document using this version's template and the selected test record.</p>
+                            </div>
+                            <lightning-button label="Generate Sample" icon-name="utility:page" variant="brand" onclick={handlePreviewGenerate} disabled={previewGenerateDisabled}></lightning-button>
+                        </div>
+                        <template if:true={previewGenerateDisabled}>
+                            <p class="slds-text-color_weak slds-text-body_small slds-var-m-top_small">
+                                <template if:false={previewVersion.Content_Version_Id__c}>
+                                    No template file available for this version.
+                                </template>
+                                <template if:true={previewVersion.Content_Version_Id__c}>
+                                    <template if:false={editTemplateTestRecordId}>
+                                        Select a test record in the Template Tags tab first.
+                                    </template>
+                                </template>
+                            </p>
+                        </template>
+                        <template if:true={isGeneratingPreview}>
+                            <div class="slds-var-m-top_small slds-is-relative" style="height: 40px;">
+                                <lightning-spinner alternative-text="Generating..." size="small"></lightning-spinner>
+                            </div>
+                        </template>
+                    </div>
                 </div>
                 <footer class="slds-modal__footer">
                     <lightning-button label="Close" onclick={closePreviewModal} class="slds-var-m-right_small"></lightning-button>
-                    <!-- Row ID check in JS handleRestoreVersion if we add data attribute?
-                         Actually restore usually works on row. 
-                         In handleRestoreVersion I logic'd it out.
-                         Wait, I should pass the row to the restore handler if clicked from here.
-                    -->
-                    <lightning-button label="Activate This Version" variant="brand" onclick={handleRestoreFromPreview}></lightning-button>
+                    <lightning-button label="Activate This Version" variant="brand" onclick={handleRestoreFromPreview} disabled={previewVersion.Is_Active__c}></lightning-button>
                 </footer>
             </div>
         </section>

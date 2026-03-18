@@ -20,11 +20,10 @@ export default class DocGenTitleEditor extends LightningElement {
         // but we can try to guess or use basic substring.
         // Better: Use the Input Element to get cursor.
         
-        const input = this.template.querySelector('lightning-input');
-        // Note: LWC lightning-input doesn't expose selectionStart directly easily in all versions, 
-        // but usually we can check value logic. 
+        // Note: LWC lightning-input doesn't expose selectionStart directly easily in all versions,
+        // but usually we can check value logic.
         // Let's assume user is typing at end or we check the whole string for an open brace without close brace at the end?
-        
+
         // Robust strategy: Check if value ends with `{` or `{partial`.
         // We will regex search for `\{[a-zA-Z0-9_\.]*$`
         

@@ -149,7 +149,7 @@ export default class DocGenSignatureSender extends LightningElement {
                     signerEmail: ''
                 }));
             }
-        } catch (err) {
+        } catch (_err) {
             // Silently fail — user can still add signers manually
         }
     }
@@ -264,7 +264,7 @@ export default class DocGenSignatureSender extends LightningElement {
                     signerEmail: info.email || s.signerEmail
                 } : s
             );
-        } catch (err) {
+        } catch (_err) {
         }
     }
 
@@ -377,7 +377,7 @@ export default class DocGenSignatureSender extends LightningElement {
             textArea.select();
             try {
                 document.execCommand('copy');
-            } catch (err) {
+            } catch (_err) {
             }
             document.body.removeChild(textArea);
         }

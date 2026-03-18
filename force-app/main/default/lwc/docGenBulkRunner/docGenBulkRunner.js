@@ -69,7 +69,7 @@ export default class DocGenBulkRunner extends LightningElement {
             .then(data => {
                 this.savedQueries = data;
             })
-            .catch(error => {
+            .catch(_error => {
             });
     }
 
@@ -91,7 +91,7 @@ export default class DocGenBulkRunner extends LightningElement {
                 this.showToast('Success', 'Query deleted', 'success');
                 this.loadSavedQueries();
             })
-            .catch(error => {
+            .catch(_error => {
                 this.showToast('Error', 'Failed to delete query', 'error');
             });
     }
@@ -214,7 +214,7 @@ export default class DocGenBulkRunner extends LightningElement {
                 const variant = this.jobStatus === 'Completed' ? 'success' : (this.jobStatus === 'Failed' ? 'error' : 'warning');
                 this.showToast('Job Finished', `Status: ${this.jobStatus} — ${this.jobProgress.success} succeeded, ${this.jobProgress.error} failed`, variant);
             }
-        } catch (e) {
+        } catch (_e) {
             this.stopPolling();
         }
     }

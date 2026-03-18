@@ -7,6 +7,7 @@ public without sharing class DocGenAuthenticatorController {
             SELECT Id, Signed_Date__c, IP_Address__c, Signature_Request__r.Signer_Name__c, Signature_Request__r.Signer_Email__c
             FROM DocGen_Signature_Audit__c
             WHERE Document_Hash_SHA256__c = :fileHash
+            WITH SYSTEM_MODE
             LIMIT 1
         ];
 
@@ -21,7 +22,7 @@ public without sharing class DocGenAuthenticatorController {
             res.message = 'Authentic Document Verified';
         } else {
             res.isValid = false;
-            res.message = 'Document Hash Not Found. This document may have been tampered with or was not signed through this system.';
+            res.message = 'Document could not be verified. It may have been modified after signing or was not signed through this system.';
         }
         return res;
     }
