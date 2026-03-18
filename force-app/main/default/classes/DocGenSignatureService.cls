@@ -297,7 +297,7 @@ public without sharing class DocGenSignatureService {
 
         public void execute(QueueableContext ctx) {
             List<DocGen_Signature_Request__c> requests = [
-                SELECT Id, Signer_Name__c, Signer_Email__c, Source_Document_Id__c, Related_Record_Id__c
+                SELECT Id, Source_Document_Id__c
                 FROM DocGen_Signature_Request__c
                 WHERE Id = :requestId
                 WITH SYSTEM_MODE LIMIT 1
@@ -307,127 +307,78 @@ public without sharing class DocGenSignatureService {
             DocGen_Signature_Request__c req = requests[0];
 
             try {
-                // Stamp all signatures into the DOCX
-                List<DocGen_Signer__c> signers = [
-                    SELECT Id, Role_Name__c, Signature_Data__c
-                    FROM DocGen_Signer__c
-                    WHERE Signature_Request__c = :requestId AND Status__c = 'Signed'
-                    WITH SYSTEM_MODE
-                    ORDER BY Sort_Order__c ASC
-                ];
-
-                Blob stampedBlob;
-                if (!signers.isEmpty()) {
-                    List<DocGenSignatureService.SignerData> signerDataList = new List<DocGenSignatureService.SignerData>();
-                    for (DocGen_Signer__c s : signers) {
-                        String sigBase64 = s.Signature_Data__c;
-                        if (String.isBlank(sigBase64)) {
-                            List<ContentVersion> sigCvs = [
-                                SELECT VersionData FROM ContentVersion
-                                WHERE Title = :('docgen_signature_' + s.Id)
-                                WITH SYSTEM_MODE LIMIT 1
-                            ];
-                            if (!sigCvs.isEmpty()) {
-                                sigBase64 = EncodingUtil.base64Encode(sigCvs[0].VersionData);
-                            }
-                        }
-                        if (String.isNotBlank(sigBase64)) {
-                            signerDataList.add(new DocGenSignatureService.SignerData(s.Role_Name__c, sigBase64));
-                        }
-                    }
-                    if (!signerDataList.isEmpty()) {
-                        stampedBlob = DocGenSignatureService.stampAllSignaturesToBlob(req.Source_Document_Id__c, signerDataList);
-                    }
-                } else {
-                    // Legacy single-signer
-                    DocGen_Signature_Request__c fullReq = [
-                        SELECT Signature_Data__c FROM DocGen_Signature_Request__c
-                        WHERE Id = :requestId WITH SYSTEM_MODE LIMIT 1
-                    ];
-                    if (String.isNotBlank(fullReq.Signature_Data__c)) {
-                        stampedBlob = DocGenSignatureService.stampSignatureToBlob(
-                            req.Source_Document_Id__c, fullReq.Signature_Data__c, String.valueOf(requestId)
-                        );
-                    }
-                }
-
-                if (stampedBlob == null) {
-                    req.Status__c = 'Viewed';
-                    Database.update(req, false, AccessLevel.SYSTEM_MODE);
-                    return;
-                }
-
-                // Extract DOCX parts and build URL map from committed signature CVs
-                Map<String, Object> parts = DocGenSignatureController.extractDocxParts(stampedBlob);
-                String documentXml = (String) parts.get('documentXml');
-                Map<String, String> imagesByRelId = (Map<String, String>) parts.get('imagesByRelId');
-
-                Map<String, String> imageUrlMap = new Map<String, String>();
-                String baseUrl = URL.getOrgDomainUrl().toExternalForm();
-
-                // Look up committed signature image CVs
-                List<DocGen_Signer__c> signedSigners = [
-                    SELECT Id FROM DocGen_Signer__c
-                    WHERE Signature_Request__c = :requestId AND Status__c = 'Signed'
-                    WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC
-                ];
-                Integer sigIdx = 0;
-                List<String> sigCvUrls = new List<String>();
-                for (DocGen_Signer__c s : signedSigners) {
-                    List<ContentVersion> sigCvs = [
-                        SELECT Id FROM ContentVersion
-                        WHERE Title = :('docgen_signature_' + s.Id)
-                        WITH SYSTEM_MODE LIMIT 1
-                    ];
-                    if (!sigCvs.isEmpty()) {
-                        sigCvUrls.add(baseUrl + '/sfc/servlet.shepherd/version/download/' + sigCvs[0].Id);
-                    }
-                }
-
-                if (imagesByRelId != null) {
-                    for (String relId : imagesByRelId.keySet()) {
-                        String base64 = imagesByRelId.get(relId);
-                        Boolean isJpeg = base64.startsWith('/9j/') || base64.startsWith('/9J/');
-                        if (isJpeg && sigIdx < sigCvUrls.size()) {
-                            imageUrlMap.put(relId, sigCvUrls[sigIdx]);
-                            sigIdx++;
-                        }
-                    }
-                }
-
-                String html = DocGenHtmlRenderer.convertToHtml(documentXml, imageUrlMap);
+                // Generate PDF using the full image mapping logic in the controller
                 Blob pdfBlob;
                 if (Test.isRunningTest()) {
                     pdfBlob = Blob.toPdf('<html><body><p>Test PDF - Signed</p></body></html>');
                 } else {
-                    pdfBlob = Blob.toPdf(html);
+                    pdfBlob = DocGenSignatureController.convertSignatureRequestToPdf(requestId);
                 }
 
-                // Save PDF to record
-                ContentVersion source = [SELECT Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
+                // Save PDF to the record linked to the source document
+                ContentVersion source = [SELECT Title, ContentDocumentId FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
                 String fileName = source.Title + ' - Signed';
-                String base64Pdf = EncodingUtil.base64Encode(pdfBlob);
-                DocGenController.saveGeneratedDocument(req.Related_Record_Id__c, fileName, base64Pdf, 'pdf');
 
-                // Create audit trail
+                // Find the related record from the source document's ContentDocumentLink
+                String relatedRecordId = null;
+                List<ContentDocumentLink> srcLinks = [
+                    SELECT LinkedEntityId FROM ContentDocumentLink
+                    WHERE ContentDocumentId = :source.ContentDocumentId
+                    AND LinkedEntityId != :req.Id
+                    WITH SYSTEM_MODE LIMIT 1
+                ];
+                if (!srcLinks.isEmpty()) {
+                    relatedRecordId = srcLinks[0].LinkedEntityId;
+                }
+
+                if (relatedRecordId != null) {
+                    // Save using SYSTEM_MODE — Automated Process user may not pass
+                    // stripInaccessible/USER_MODE checks in saveGeneratedDocument
+                    ContentVersion pdfCv = new ContentVersion();
+                    pdfCv.Title = fileName;
+                    pdfCv.PathOnClient = fileName + '.pdf';
+                    pdfCv.VersionData = pdfBlob;
+                    pdfCv.FirstPublishLocationId = relatedRecordId;
+                    Database.insert(new List<ContentVersion>{ pdfCv }, false, AccessLevel.SYSTEM_MODE);
+                }
+
+                // Create per-signer audit trail
                 String pdfHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', pdfBlob));
-                DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c();
-                audit.Signature_Request__c = req.Id;
-                audit.Signer_Name__c = req.Signer_Name__c;
-                audit.Signer_Email__c = req.Signer_Email__c;
-                audit.Signed_Date__c = System.now();
-                audit.Document_Hash_SHA256__c = pdfHash;
-                audit.IP_Address__c = 'Server-Side';
-                audit.User_Agent__c = 'Blob.toPdf() - Server-Side PDF Generation';
-                Database.insert(new List<DocGen_Signature_Audit__c>{ audit }, false, AccessLevel.SYSTEM_MODE);
+                List<DocGen_Signer__c> allSigners = [
+                    SELECT Signer_Name__c, Signer_Email__c, Contact__c
+                    FROM DocGen_Signer__c
+                    WHERE Signature_Request__c = :requestId AND Status__c = 'Signed'
+                    WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC
+                ];
+                List<DocGen_Signature_Audit__c> audits = new List<DocGen_Signature_Audit__c>();
+                for (DocGen_Signer__c s : allSigners) {
+                    DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c();
+                    audit.Signature_Request__c = req.Id;
+                    audit.Signer__c = s.Id;
+                    audit.Signer_Name__c = s.Signer_Name__c;
+                    audit.Signer_Email__c = s.Signer_Email__c;
+                    audit.Contact__c = s.Contact__c;
+                    audit.Signed_Date__c = System.now();
+                    audit.Document_Hash_SHA256__c = pdfHash;
+                    audit.IP_Address__c = 'Server-Side';
+                    audit.User_Agent__c = 'Blob.toPdf() - Server-Side PDF Generation';
+                    audits.add(audit);
+                }
+                Database.insert(audits, false, AccessLevel.SYSTEM_MODE);
 
-                // Mark Request as Signed, clear signature data
+                // Mark Request as Signed, clear signature data from signers
                 req.Status__c = 'Signed';
-                req.Signature_Data__c = null;
                 Database.update(req, false, AccessLevel.SYSTEM_MODE);
 
+                List<DocGen_Signer__c> toClean = new List<DocGen_Signer__c>();
+                for (DocGen_Signer__c s : allSigners) {
+                    s.Signature_Data__c = null;
+                    toClean.add(s);
+                }
+                Database.update(toClean, false, AccessLevel.SYSTEM_MODE);
+
             } catch (Exception e) {
-                System.debug(LoggingLevel.ERROR, 'DocGen: Signature PDF failed for request ' + req.Id + ': ' + e.getMessage());
+                System.debug(LoggingLevel.ERROR, 'DocGen: Signature PDF failed for request ' + req.Id + ': ' + e.getMessage() + ' | ' + e.getStackTraceString());
                 req.Status__c = 'Viewed';
                 Database.update(req, false, AccessLevel.SYSTEM_MODE);
             }

@@ -273,7 +273,7 @@ public without sharing class DocGenSignatureController {
         }
 
         List<DocGen_Signer__c> signers = [
-            SELECT Id, Status__c, Signature_Request__c, CreatedDate
+            SELECT Id, Status__c, Signature_Request__c, Role_Name__c, CreatedDate
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
             WITH SYSTEM_MODE LIMIT 1
@@ -296,27 +296,22 @@ public without sharing class DocGenSignatureController {
         signer.Status__c = 'Signed';
         Database.update(signer, false, AccessLevel.SYSTEM_MODE);
 
-        // Save signature image as a ContentVersion linked to the signer record.
-        // This creates a committed file with a stable URL that Blob.toPdf() can fetch.
+        // Save signature image as a ContentVersion linked to the REQUEST record.
+        // Named by role so the Queueable (Automated Process user) can find it via
+        // ContentDocumentLink on the request. This ensures visibility regardless of
+        // which user runs the PDF generation.
         try {
             String base64Data = base64Image;
             if (base64Data.contains(',')) {
                 base64Data = base64Data.substringAfter(',');
             }
+            String roleName = String.isNotBlank(signer.Role_Name__c) ? signer.Role_Name__c : 'Signer';
             ContentVersion sigCv = new ContentVersion();
-            sigCv.Title = 'docgen_signature_' + signer.Id;
-            sigCv.PathOnClient = 'docgen_signature_' + signer.Id + '.png';
+            sigCv.Title = 'docgen_signature_' + roleName;
+            sigCv.PathOnClient = 'docgen_signature_' + roleName + '.png';
             sigCv.VersionData = EncodingUtil.base64Decode(base64Data);
-            Database.insert(sigCv, false, AccessLevel.SYSTEM_MODE);
-
-            // Link to the signer record
-            Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :sigCv.Id WITH SYSTEM_MODE LIMIT 1].ContentDocumentId;
-            ContentDocumentLink cdl = new ContentDocumentLink();
-            cdl.ContentDocumentId = conDocId;
-            cdl.LinkedEntityId = signer.Id;
-            cdl.ShareType = 'V';
-            cdl.Visibility = 'AllUsers';
-            Database.insert(cdl, false, AccessLevel.SYSTEM_MODE);
+            sigCv.FirstPublishLocationId = signer.Signature_Request__c;
+            Database.insert(new List<ContentVersion>{ sigCv }, false, AccessLevel.SYSTEM_MODE);
         } catch (Exception e) {
             System.debug(LoggingLevel.WARN, 'DocGen: Failed to save signature image file: ' + e.getMessage());
         }
@@ -382,59 +377,19 @@ public without sharing class DocGenSignatureController {
         String relatedRecordId = triggerSigner.Signature_Request__r.Related_Record_Id__c;
 
         try {
-            // Generate PDF via VF page (stamps signatures + renders HTML with images internally)
-            Blob pdfBlob = convertSignatureRequestToPdf(requestId);
+            // Publish Platform Event to trigger PDF generation in system context.
+            // The event trigger runs as Automated Process user, bypassing guest user
+            // limitations on ContentVersion access for image URLs.
+            DocGen_Signature_PDF__e pdfEvent = new DocGen_Signature_PDF__e();
+            pdfEvent.Request_Id__c = requestId;
+            EventBus.publish(pdfEvent);
 
+            // PDF generation, audit trail, status updates, and cleanup all happen
+            // in the Queueable (runs as system user with full Content access).
             ContentVersion sourceDoc = [SELECT Title FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
-            String fileName = sourceDoc.Title + ' - Signed';
-            String base64Pdf = EncodingUtil.base64Encode(pdfBlob);
-
-            // Save PDF to record
-            saveSignedDocument(relatedRecordId, fileName, base64Pdf, 'pdf');
-
-            // Query signers for audit trail
-            List<DocGen_Signer__c> allSigners = [
-                SELECT Signer_Name__c, Signer_Email__c, Contact__c
-                FROM DocGen_Signer__c
-                WHERE Signature_Request__c = :requestId AND Status__c = 'Signed'
-                WITH SYSTEM_MODE
-                ORDER BY Sort_Order__c ASC
-            ];
-
-            // Create per-signer audit trail for compliance (eIDAS/ESIGN)
-            String pdfHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', pdfBlob));
-            List<DocGen_Signature_Audit__c> audits = new List<DocGen_Signature_Audit__c>();
-            for (DocGen_Signer__c s : allSigners) {
-                DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c();
-                audit.Signature_Request__c = requestId;
-                audit.Signer__c = s.Id;
-                audit.Signer_Name__c = s.Signer_Name__c;
-                audit.Signer_Email__c = s.Signer_Email__c;
-                audit.Contact__c = s.Contact__c;
-                audit.Signed_Date__c = System.now();
-                audit.Document_Hash_SHA256__c = pdfHash;
-                audit.IP_Address__c = 'Server-Side';
-                audit.User_Agent__c = 'Blob.toPdf() - Server-Side PDF Generation';
-                audits.add(audit);
-            }
-            Database.insert(audits, false, AccessLevel.SYSTEM_MODE);
-
-            // Mark parent request as fully signed
-            DocGen_Signature_Request__c parentReq = new DocGen_Signature_Request__c(Id = requestId);
-            parentReq.Status__c = 'Signed';
-            Database.update(parentReq, false, AccessLevel.SYSTEM_MODE);
-
-            // Clear signature data from signer records
-            List<DocGen_Signer__c> toClean = new List<DocGen_Signer__c>();
-            for (DocGen_Signer__c s : allSigners) {
-                s.Signature_Data__c = null;
-                toClean.add(s);
-            }
-            Database.update(toClean, false, AccessLevel.SYSTEM_MODE);
-
             return new Map<String, String>{
                 'status' => 'complete',
-                'title' => fileName
+                'title' => sourceDoc.Title + ' - Signed'
             };
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Multi-signer stamping failed: ' + e.getMessage());
@@ -557,13 +512,13 @@ public without sharing class DocGenSignatureController {
      * Generates a PDF from a signature request using Blob.toPdf() with data URI images.
      * Stamps all signatures into the DOCX, converts to HTML, and renders via Blob.toPdf().
      */
-    private static Blob convertSignatureRequestToPdf(Id requestId) {
+    public static Blob convertSignatureRequestToPdf(Id requestId) {
         if (Test.isRunningTest()) {
             return Blob.toPdf('<html><body><p>Test PDF - Signed Document</p></body></html>');
         }
 
         List<DocGen_Signature_Request__c> requests = [
-            SELECT Source_Document_Id__c, Signature_Data__c
+            SELECT Source_Document_Id__c
             FROM DocGen_Signature_Request__c
             WHERE Id = :requestId
             WITH SYSTEM_MODE LIMIT 1
@@ -575,7 +530,7 @@ public without sharing class DocGenSignatureController {
         Id sourceDocId = requests[0].Source_Document_Id__c;
 
         // Stamp signatures into the DOCX.
-        // Signature data may be in Signature_Data__c field OR in the committed CV
+        // Signature data may be in Signature_Data__c field on Signer OR in the committed CV
         // (saveSignature saves a CV, and the field is cleared after PDF generation).
         List<DocGen_Signer__c> signers = [
             SELECT Id, Role_Name__c, Signature_Data__c
@@ -608,10 +563,6 @@ public without sharing class DocGenSignatureController {
             if (!signerDataList.isEmpty()) {
                 stampedBlob = DocGenSignatureService.stampAllSignaturesToBlob(sourceDocId, signerDataList);
             }
-        } else if (String.isNotBlank(requests[0].Signature_Data__c)) {
-            stampedBlob = DocGenSignatureService.stampSignatureToBlob(
-                sourceDocId, requests[0].Signature_Data__c, requestId
-            );
         }
 
         if (stampedBlob == null) {
@@ -627,21 +578,33 @@ public without sharing class DocGenSignatureController {
         Map<String, String> imageUrlMap = new Map<String, String>();
         String baseUrl = URL.getOrgDomainUrl().toExternalForm();
 
-        // Look up committed signature image CVs (saved during saveSignature)
+        // Look up committed signature image CVs linked to the request record.
+        // Named by role (e.g., docgen_signature_Buyer) and linked via FirstPublishLocationId.
         List<DocGen_Signer__c> signedSigners = [
-            SELECT Id FROM DocGen_Signer__c
+            SELECT Id, Role_Name__c FROM DocGen_Signer__c
             WHERE Signature_Request__c = :requestId AND Status__c = 'Signed'
             WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC
         ];
+        // Query all signature CVs linked to this request in one query
+        List<ContentDocumentLink> requestLinks = [
+            SELECT ContentDocument.LatestPublishedVersionId, ContentDocument.Title
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId = :requestId
+            AND ContentDocument.Title LIKE 'docgen_signature_%'
+            WITH SYSTEM_MODE
+        ];
+        Map<String, String> sigCvUrlsByRole = new Map<String, String>();
+        for (ContentDocumentLink cdl : requestLinks) {
+            String title = cdl.ContentDocument.Title;
+            String role = title.substringAfter('docgen_signature_');
+            sigCvUrlsByRole.put(role, baseUrl + '/sfc/servlet.shepherd/version/download/' + cdl.ContentDocument.LatestPublishedVersionId);
+        }
+        // Build ordered list matching signer sort order
         List<String> sigCvUrls = new List<String>();
         for (DocGen_Signer__c s : signedSigners) {
-            List<ContentVersion> sigCvs = [
-                SELECT Id FROM ContentVersion
-                WHERE Title = :('docgen_signature_' + s.Id)
-                WITH SYSTEM_MODE LIMIT 1
-            ];
-            if (!sigCvs.isEmpty()) {
-                sigCvUrls.add(baseUrl + '/sfc/servlet.shepherd/version/download/' + sigCvs[0].Id);
+            String role = String.isNotBlank(s.Role_Name__c) ? s.Role_Name__c : 'Signer';
+            if (sigCvUrlsByRole.containsKey(role)) {
+                sigCvUrls.add(sigCvUrlsByRole.get(role));
             }
         }
 
@@ -651,20 +614,49 @@ public without sharing class DocGenSignatureController {
             WHERE Id = :requestId WITH SYSTEM_MODE LIMIT 1
         ];
 
-        // Map images: JPEG = signatures (use committed CV URLs), PNG = template images
+        // Look up committed template image CVs from the active version.
+        // The source document was generated from a template — find that template's version images.
+        // Query all docgen_tmpl_img CVs and match by relId.
+        List<ContentVersion> allTmplCvs = [
+            SELECT Id, Title FROM ContentVersion
+            WHERE Title LIKE 'docgen_tmpl_img_%'
+            WITH SYSTEM_MODE
+            ORDER BY CreatedDate DESC
+            LIMIT 50
+        ];
+        Map<String, String> tmplImgUrls = new Map<String, String>();
+        for (ContentVersion cv : allTmplCvs) {
+            // Title format: docgen_tmpl_img_{versionId}_{relId}
+            String title = cv.Title;
+            Integer lastUnderscore = title.lastIndexOf('_');
+            if (lastUnderscore > 0) {
+                String imgRelId = title.substring(lastUnderscore + 1);
+                if (!tmplImgUrls.containsKey(imgRelId)) {
+                    tmplImgUrls.put(imgRelId, baseUrl + '/sfc/servlet.shepherd/version/download/' + cv.Id);
+                }
+            }
+        }
+
+        // Map all images
         Integer sigIdx = 0;
         if (imagesByRelId != null) {
             for (String relId : imagesByRelId.keySet()) {
-                String base64 = imagesByRelId.get(relId);
-                Boolean isJpeg = base64.startsWith('/9j/') || base64.startsWith('/9J/');
+                String base64Val = imagesByRelId.get(relId);
+                Boolean isJpeg = base64Val.startsWith('/9j/') || base64Val.startsWith('/9J/');
 
                 if (isJpeg && sigIdx < sigCvUrls.size()) {
                     // Signature image — use committed CV URL
                     imageUrlMap.put(relId, sigCvUrls[sigIdx]);
                     sigIdx++;
+                } else if (tmplImgUrls.containsKey(relId)) {
+                    // Template image — use committed version CV URL
+                    imageUrlMap.put(relId, tmplImgUrls.get(relId));
+                } else {
+                    // Dynamic image (e.g., from {%Title} CV ID) — try to find existing CV
+                    // The base64 is the image data; check if any committed CV matches
+                    // For now, these won't render in the signature PDF (known limitation)
+                    System.debug(LoggingLevel.WARN, 'DocGen: Signature PDF - no URL for image relId=' + relId);
                 }
-                // Non-signature images (template) — these need committed CVs too.
-                // For now, skip (they won't render without pre-saved CVs).
             }
         }
 
