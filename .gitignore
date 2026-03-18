@@ -54,5 +54,5 @@ $RECYCLE.BIN/
 docs/session-*.md
 docs/pr-*.md
 docs/plans/
-.claude/
+*/.claude/*
 */settings.local.json
