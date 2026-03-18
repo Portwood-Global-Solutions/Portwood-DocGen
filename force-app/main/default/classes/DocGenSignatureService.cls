@@ -285,13 +285,40 @@ public without sharing class DocGenSignatureService {
     }
 
     /**
-     * Queueable: Stamps signatures into DOCX, converts to HTML with data URI images,
-     * renders PDF via Blob.toPdf(), saves the PDF, creates audit trail, and marks as Signed.
+     * Stage 1 Queueable: Stamps signatures, extracts ALL images, saves them as
+     * committed CVs on the request record. Chains Stage 2 for PDF rendering.
      */
     public class SignaturePdfQueueable implements Queueable {
         private Id requestId;
 
         public SignaturePdfQueueable(Id requestId) {
+            this.requestId = requestId;
+        }
+
+        public void execute(QueueableContext ctx) {
+            try {
+                // Stage 1: Stamp signatures, save ALL images as committed CVs on request
+                DocGenSignatureController.prepareSignaturePdfImages(requestId);
+
+                // Chain Stage 2: render PDF from committed CVs (separate transaction)
+                System.enqueueJob(new SignaturePdfRenderQueueable(requestId));
+            } catch (Exception e) {
+                System.debug(LoggingLevel.ERROR, 'DocGen: Signature prep failed for ' + requestId + ': ' + e.getMessage());
+                DocGen_Signature_Request__c req = new DocGen_Signature_Request__c(Id = requestId);
+                req.Status__c = 'Viewed';
+                Database.update(req, false, AccessLevel.SYSTEM_MODE);
+            }
+        }
+    }
+
+    /**
+     * Stage 2 Queueable: Renders PDF from committed image CVs on the request record.
+     * All images were saved in Stage 1 and are now committed.
+     */
+    public class SignaturePdfRenderQueueable implements Queueable {
+        private Id requestId;
+
+        public SignaturePdfRenderQueueable(Id requestId) {
             this.requestId = requestId;
         }
 
@@ -307,19 +334,16 @@ public without sharing class DocGenSignatureService {
             DocGen_Signature_Request__c req = requests[0];
 
             try {
-                // Generate PDF using the full image mapping logic in the controller
                 Blob pdfBlob;
                 if (Test.isRunningTest()) {
                     pdfBlob = Blob.toPdf('<html><body><p>Test PDF - Signed</p></body></html>');
                 } else {
-                    pdfBlob = DocGenSignatureController.convertSignatureRequestToPdf(requestId);
+                    pdfBlob = DocGenSignatureController.renderSignaturePdfFromSavedImages(requestId);
                 }
 
-                // Save PDF to the record linked to the source document
+                // Find related record from source document's links
                 ContentVersion source = [SELECT Title, ContentDocumentId FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
                 String fileName = source.Title + ' - Signed';
-
-                // Find the related record from the source document's ContentDocumentLink
                 String relatedRecordId = null;
                 List<ContentDocumentLink> srcLinks = [
                     SELECT LinkedEntityId FROM ContentDocumentLink
@@ -332,8 +356,6 @@ public without sharing class DocGenSignatureService {
                 }
 
                 if (relatedRecordId != null) {
-                    // Save using SYSTEM_MODE — Automated Process user may not pass
-                    // stripInaccessible/USER_MODE checks in saveGeneratedDocument
                     ContentVersion pdfCv = new ContentVersion();
                     pdfCv.Title = fileName;
                     pdfCv.PathOnClient = fileName + '.pdf';
@@ -342,7 +364,7 @@ public without sharing class DocGenSignatureService {
                     Database.insert(new List<ContentVersion>{ pdfCv }, false, AccessLevel.SYSTEM_MODE);
                 }
 
-                // Create per-signer audit trail
+                // Audit trail
                 String pdfHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', pdfBlob));
                 List<DocGen_Signer__c> allSigners = [
                     SELECT Signer_Name__c, Signer_Email__c, Contact__c
@@ -366,7 +388,7 @@ public without sharing class DocGenSignatureService {
                 }
                 Database.insert(audits, false, AccessLevel.SYSTEM_MODE);
 
-                // Mark Request as Signed, clear signature data from signers
+                // Mark signed, clear sig data, clean up temp images
                 req.Status__c = 'Signed';
                 Database.update(req, false, AccessLevel.SYSTEM_MODE);
 
@@ -377,25 +399,27 @@ public without sharing class DocGenSignatureService {
                 }
                 Database.update(toClean, false, AccessLevel.SYSTEM_MODE);
 
+                // Clean up temp image CVs on request (keep signature CVs)
+                cleanupTempImages(requestId);
+
             } catch (Exception e) {
-                System.debug(LoggingLevel.ERROR, 'DocGen: Signature PDF failed for request ' + req.Id + ': ' + e.getMessage() + ' | ' + e.getStackTraceString());
+                System.debug(LoggingLevel.ERROR, 'DocGen: Signature PDF render failed for ' + req.Id + ': ' + e.getMessage() + ' | ' + e.getStackTraceString());
                 req.Status__c = 'Viewed';
                 Database.update(req, false, AccessLevel.SYSTEM_MODE);
             }
         }
 
-        private void cleanupSignatureTempImages(String bKey) {
+        private void cleanupTempImages(Id reqId) {
             try {
-                List<ContentVersion> tempCvs = [
-                    SELECT ContentDocumentId FROM ContentVersion
-                    WHERE Title LIKE :('docgen_sig_' + bKey + '_%')
+                List<ContentDocumentLink> tempCdls = [
+                    SELECT ContentDocumentId FROM ContentDocumentLink
+                    WHERE LinkedEntityId = :reqId
+                    AND (ContentDocument.Title LIKE 'docgen_sig_img_%' OR ContentDocument.Title LIKE 'docgen_sig_xml_%')
                     WITH SYSTEM_MODE
                 ];
-                if (!tempCvs.isEmpty()) {
+                if (!tempCdls.isEmpty()) {
                     Set<Id> docIds = new Set<Id>();
-                    for (ContentVersion cv : tempCvs) {
-                        docIds.add(cv.ContentDocumentId);
-                    }
+                    for (ContentDocumentLink cdl : tempCdls) docIds.add(cdl.ContentDocumentId);
                     delete [SELECT Id FROM ContentDocument WHERE Id IN :docIds];
                 }
             } catch (Exception e) {

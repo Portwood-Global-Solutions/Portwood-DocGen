@@ -356,6 +356,7 @@ public with sharing class DocGenService {
                         cv.Title = prefix + relId;
                         cv.PathOnClient = prefix + relId + '.' + ext;
                         cv.VersionData = imgBlob;
+                        cv.FirstPublishLocationId = versionId;
                         newCvs.add(cv);
                     }
                 }
@@ -364,21 +365,8 @@ public with sharing class DocGenService {
         }
 
         if (!newCvs.isEmpty()) {
+            // FirstPublishLocationId links the CVs to the version record automatically
             insert newCvs;
-            // Link to the version record
-            List<ContentVersion> insertedCvs = [
-                SELECT ContentDocumentId FROM ContentVersion WHERE Id IN :newCvs
-            ];
-            List<ContentDocumentLink> links = new List<ContentDocumentLink>();
-            for (ContentVersion cv : insertedCvs) {
-                links.add(new ContentDocumentLink(
-                    ContentDocumentId = cv.ContentDocumentId,
-                    LinkedEntityId = versionId,
-                    ShareType = 'V',
-                    Visibility = 'AllUsers'
-                ));
-            }
-            insert links;
         }
     }
 

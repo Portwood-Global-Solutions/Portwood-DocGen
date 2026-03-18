@@ -652,16 +652,140 @@ public without sharing class DocGenSignatureController {
                     // Template image — use committed version CV URL
                     imageUrlMap.put(relId, tmplImgUrls.get(relId));
                 } else {
-                    // Dynamic image (e.g., from {%Title} CV ID) — try to find existing CV
-                    // The base64 is the image data; check if any committed CV matches
-                    // For now, these won't render in the signature PDF (known limitation)
-                    System.debug(LoggingLevel.WARN, 'DocGen: Signature PDF - no URL for image relId=' + relId);
+                    // Unmatched image (e.g., dynamic CV image from {%Field}) —
+                    // save to request record so Automated Process user can access it
+                    String ext = isJpeg ? 'jpeg' : 'png';
+                    ContentVersion imgCv = new ContentVersion();
+                    imgCv.Title = 'docgen_sig_img_' + relId;
+                    imgCv.PathOnClient = 'docgen_sig_img_' + relId + '.' + ext;
+                    imgCv.VersionData = EncodingUtil.base64Decode(base64Val);
+                    imgCv.FirstPublishLocationId = requestId;
+                    Database.insert(new List<ContentVersion>{ imgCv }, false, AccessLevel.SYSTEM_MODE);
+                    imageUrlMap.put(relId, baseUrl + '/sfc/servlet.shepherd/version/download/' + imgCv.Id);
                 }
             }
         }
 
         String html = DocGenHtmlRenderer.convertToHtml(documentXml, imageUrlMap);
         return Blob.toPdf(html);
+    }
+
+    /**
+     * Stage 1: Stamps signatures into the DOCX, extracts ALL images, saves them
+     * as ContentVersions on the request record. Returns the stamped document XML
+     * saved as a CV too (so Stage 2 doesn't need to re-stamp).
+     */
+    public static void prepareSignaturePdfImages(Id requestId) {
+        List<DocGen_Signature_Request__c> requests = [
+            SELECT Source_Document_Id__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :requestId
+            WITH SYSTEM_MODE LIMIT 1
+        ];
+        if (requests.isEmpty()) return;
+
+        Id sourceDocId = requests[0].Source_Document_Id__c;
+
+        // Get signature data
+        List<DocGen_Signer__c> signers = [
+            SELECT Id, Role_Name__c, Signature_Data__c
+            FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :requestId AND Status__c = 'Signed'
+            WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC
+        ];
+
+        List<DocGenSignatureService.SignerData> signerDataList = new List<DocGenSignatureService.SignerData>();
+        for (DocGen_Signer__c s : signers) {
+            String sigBase64 = s.Signature_Data__c;
+            if (String.isBlank(sigBase64)) {
+                // Fall back to committed CV on request
+                List<ContentDocumentLink> cdls = [
+                    SELECT ContentDocument.LatestPublishedVersionId
+                    FROM ContentDocumentLink
+                    WHERE LinkedEntityId = :requestId AND ContentDocument.Title = :('docgen_signature_' + s.Role_Name__c)
+                    WITH SYSTEM_MODE LIMIT 1
+                ];
+                if (!cdls.isEmpty()) {
+                    ContentVersion cv = [SELECT VersionData FROM ContentVersion WHERE Id = :cdls[0].ContentDocument.LatestPublishedVersionId WITH SYSTEM_MODE LIMIT 1];
+                    sigBase64 = EncodingUtil.base64Encode(cv.VersionData);
+                }
+            }
+            if (String.isNotBlank(sigBase64)) {
+                signerDataList.add(new DocGenSignatureService.SignerData(s.Role_Name__c, sigBase64));
+            }
+        }
+
+        if (signerDataList.isEmpty()) return;
+
+        Blob stampedBlob = DocGenSignatureService.stampAllSignaturesToBlob(sourceDocId, signerDataList);
+        Map<String, Object> parts = extractDocxParts(stampedBlob);
+        String documentXml = (String) parts.get('documentXml');
+        Map<String, String> imagesByRelId = (Map<String, String>) parts.get('imagesByRelId');
+
+        // Save document XML as a CV on the request
+        List<ContentVersion> cvsToInsert = new List<ContentVersion>();
+        ContentVersion xmlCv = new ContentVersion();
+        xmlCv.Title = 'docgen_sig_xml_' + requestId;
+        xmlCv.PathOnClient = 'docgen_sig_xml.txt';
+        xmlCv.VersionData = Blob.valueOf(documentXml);
+        xmlCv.FirstPublishLocationId = requestId;
+        cvsToInsert.add(xmlCv);
+
+        // Save ALL images as CVs on the request (named by relId)
+        if (imagesByRelId != null) {
+            for (String relId : imagesByRelId.keySet()) {
+                String base64Val = imagesByRelId.get(relId);
+                String ext = (base64Val.startsWith('/9j/') || base64Val.startsWith('/9J/')) ? 'jpeg' : 'png';
+                ContentVersion imgCv = new ContentVersion();
+                imgCv.Title = 'docgen_sig_img_' + relId;
+                imgCv.PathOnClient = 'docgen_sig_img_' + relId + '.' + ext;
+                imgCv.VersionData = EncodingUtil.base64Decode(base64Val);
+                imgCv.FirstPublishLocationId = requestId;
+                cvsToInsert.add(imgCv);
+            }
+        }
+
+        Database.insert(cvsToInsert, false, AccessLevel.SYSTEM_MODE);
+    }
+
+    /**
+     * Stage 2: Builds PDF from pre-saved image CVs on the request record.
+     * All images are committed from Stage 1, so Blob.toPdf() can resolve their URLs.
+     */
+    public static Blob renderSignaturePdfFromSavedImages(Id requestId) {
+        String baseUrl = URL.getOrgDomainUrl().toExternalForm();
+
+        // Query all CVs on the request
+        List<ContentDocumentLink> cdls = [
+            SELECT ContentDocument.Title, ContentDocument.LatestPublishedVersionId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId = :requestId AND ContentDocument.Title LIKE 'docgen_sig_%'
+            WITH SYSTEM_MODE
+        ];
+
+        String documentXml = null;
+        Map<String, String> imageUrlMap = new Map<String, String>();
+
+        for (ContentDocumentLink cdl : cdls) {
+            String title = cdl.ContentDocument.Title;
+            Id cvId = cdl.ContentDocument.LatestPublishedVersionId;
+
+            if (title.startsWith('docgen_sig_xml_')) {
+                // Document XML
+                ContentVersion xmlCv = [SELECT VersionData FROM ContentVersion WHERE Id = :cvId WITH SYSTEM_MODE LIMIT 1];
+                documentXml = xmlCv.VersionData.toString();
+            } else if (title.startsWith('docgen_sig_img_')) {
+                // Image — extract relId from title
+                String relId = title.substringAfter('docgen_sig_img_');
+                imageUrlMap.put(relId, baseUrl + '/sfc/servlet.shepherd/version/download/' + cvId);
+            }
+        }
+
+        if (documentXml == null) {
+            throw new DocGenException('Stamped document XML not found for signature request.');
+        }
+
+        return Blob.toPdf(DocGenHtmlRenderer.convertToHtml(documentXml, imageUrlMap));
     }
 
     /**
