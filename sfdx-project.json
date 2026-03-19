@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v1.1.0 - Admin Guide, Security Hardening, Email Branding",
-      "versionNumber": "1.1.0.NEXT",
+      "versionName": "v1.1.1 - Signature fix, PDF renderer, merge field compatibility",
+      "versionNumber": "1.1.1.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
@@ -31,6 +31,7 @@
     "Document Generation@0.8.0-2": "04tdL000000OpEHQA0",
     "Document Generation@0.9.0-1": "04tdL000000OpPZQA0",
     "Document Generation@0.9.1-1": "04tdL000000Or6PQAS",
-    "Document Generation@1.1.0-1": "04tdL000000RCt7QAG"
+    "Document Generation@1.1.0-1": "04tdL000000RCt7QAG",
+    "Document Generation@1.1.1-1": "04tdL000000RGLdQAO"
   }
 }

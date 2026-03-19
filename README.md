@@ -2,7 +2,7 @@
 
 **A free, native, production-ready document engine for Salesforce.**
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](#quick-install)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](#quick-install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![API Version](https://img.shields.io/badge/API-v66.0-orange.svg)](#)
@@ -16,6 +16,7 @@ Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields,
 
 - [Why This Exists](#why-this-exists)
 - [Quick Install](#quick-install)
+- [What's New in v1.1.1](#whats-new-in-v111)
 - [What's New in v1.1.0](#whats-new-in-v110)
 - [Features at a Glance](#features-at-a-glance)
 - [Getting Started](#getting-started)
@@ -54,16 +55,16 @@ This project gives you a professional-grade document engine -- template manageme
 
 ## Quick Install
 
-**Package Version ID**: `04tdL000000RCt7QAG`
+**Package Version ID**: `04tdL000000RGLdQAO`
 
 **CLI:**
 ```bash
-sf package install --package 04tdL000000RCt7QAG --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000RGLdQAO --wait 10 --installation-key-bypass
 ```
 
 **Browser:**
-- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RCt7QAG)
-- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RCt7QAG)
+- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RGLdQAO)
+- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RGLdQAO)
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users.
 
@@ -78,6 +79,28 @@ Because the "heavy lifting" of PDF rendering and image injection happens on-serv
 
 Is this right for you?
 If your use case consistently requires generating documents or processing image data larger than these limits, this tool may not be the right fit for your requirements in its current state.
+
+## What's New in v1.1.1
+
+### Signature Fix (#28)
+- Fixed single-signer signature flow failing with "Script-thrown exception"
+- The VF page now uses an `isSignerToken` flag instead of signer count to route correctly -- works whether 1 or many signers are created through the multi-signer flow
+
+### Enhanced PDF Renderer (#27)
+- Users no longer need to add CSS to templates for proper PDF output
+- `DocGenHtmlRenderer` now converts Word heading styles (H1-H6), Title, and Subtitle to proper HTML tags
+- Added support for: line spacing, page breaks (`pageBreakBefore`, `w:br type="page"`), paragraph borders and shading, bullet and numbered lists, hanging indents, superscript/subscript, all caps/small caps, hyperlinks, tab characters, horizontal rules, letter spacing, and `keepNext`/`keepLines` page-break controls
+- Tables now support: cell-specific borders, column span (`gridSpan`), custom cell padding (`tcMar`), header rows (`<th>`), and table alignment (center/right)
+- Base CSS includes orphan/widow control and `page-break-inside: avoid` on table rows
+
+### Merge Field Compatibility
+- Templates now accept Salesforce-style `{!Field}` syntax in addition to `{Field}`
+- Base object prefix is automatically stripped (e.g., `{!Contact.Name}` resolves the same as `{Name}` when running on Contact)
+
+### Query Config Parser Fix
+- The field parser now handles missing commas between fields and subqueries (e.g., `Account.Name (SELECT ...)` is auto-split correctly)
+
+---
 
 ## What's New in v1.1.0
 
@@ -403,6 +426,12 @@ Open the **DocGen Admin Guide** tab in the DocGen app to access it.
 ---
 
 ## Changelog
+
+### v1.1.1
+- **Signature Fix** (#28) -- Single-signer flow no longer fails; uses `isSignerToken` flag for correct routing
+- **PDF Renderer** (#27) -- Full DOCX style conversion: headings, lists, line spacing, page breaks, borders, shading, hyperlinks, superscript/subscript, table enhancements
+- **Merge Fields** -- `{!Field}` Salesforce-style syntax and base object prefix stripping now supported
+- **Query Parser** -- Auto-splits fields from adjacent subqueries when comma is missing
 
 ### v1.1.0
 - **Admin Guide** -- In-app admin guide as the first tab with 14 sections covering all features
