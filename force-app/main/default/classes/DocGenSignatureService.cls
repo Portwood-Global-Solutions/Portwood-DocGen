@@ -129,7 +129,12 @@ public without sharing class DocGenSignatureService {
                 'docPrId' => String.valueOf(docPrIdBase + i)
             };
             signerMeta.add(meta);
-            signerBlobs.add(EncodingUtil.base64Decode(sd.base64Image));
+            // Strip data URI prefix if present (e.g., "data:image/png;base64,")
+            String imgData = sd.base64Image;
+            if (imgData.startsWith('data:')) {
+                imgData = imgData.substringAfter(',');
+            }
+            signerBlobs.add(EncodingUtil.base64Decode(imgData));
         }
 
         for (Compression.ZipEntry entry : reader.getEntries()) {
@@ -305,7 +310,14 @@ public without sharing class DocGenSignatureService {
                 // Chain Stage 2: render PDF from committed CVs (separate transaction)
                 System.enqueueJob(new SignaturePdfRenderQueueable(requestId));
             } catch (Exception e) {
-                System.debug(LoggingLevel.ERROR, 'DocGen: Signature prep failed for ' + requestId + ': ' + e.getMessage());
+                String errMsg = 'Stage1: ' + e.getTypeName() + ': ' + e.getMessage() + '\n' + e.getStackTraceString();
+                System.debug(LoggingLevel.ERROR, 'DocGen: Signature prep failed for ' + requestId + ': ' + errMsg);
+                DocGen_Signature_Audit__c errAudit = new DocGen_Signature_Audit__c();
+                errAudit.Signature_Request__c = requestId;
+                errAudit.Signer_Name__c = 'SYSTEM';
+                errAudit.Error_Message__c = errMsg;
+                errAudit.Signed_Date__c = System.now();
+                Database.insert(new List<DocGen_Signature_Audit__c>{ errAudit }, false, AccessLevel.SYSTEM_MODE);
                 DocGen_Signature_Request__c req = new DocGen_Signature_Request__c(Id = requestId);
                 req.Status__c = 'Viewed';
                 Database.update(req, false, AccessLevel.SYSTEM_MODE);
@@ -317,7 +329,7 @@ public without sharing class DocGenSignatureService {
      * Stage 2 Queueable: Renders PDF from committed image CVs on the request record.
      * All images were saved in Stage 1 and are now committed.
      */
-    public class SignaturePdfRenderQueueable implements Queueable {
+    public class SignaturePdfRenderQueueable implements Queueable, Database.AllowsCallouts {
         private Id requestId;
 
         public SignaturePdfRenderQueueable(Id requestId) {
@@ -398,7 +410,15 @@ public without sharing class DocGenSignatureService {
                 cleanupTempImages(requestId);
 
             } catch (Exception e) {
-                System.debug(LoggingLevel.ERROR, 'DocGen: Signature PDF render failed for ' + req.Id + ': ' + e.getMessage() + ' | ' + e.getStackTraceString());
+                String errMsg = e.getTypeName() + ': ' + e.getMessage() + '\n' + e.getStackTraceString();
+                System.debug(LoggingLevel.ERROR, 'DocGen: Signature PDF render failed for ' + req.Id + ': ' + errMsg);
+                // Save error to audit record for visibility
+                DocGen_Signature_Audit__c errAudit = new DocGen_Signature_Audit__c();
+                errAudit.Signature_Request__c = req.Id;
+                errAudit.Signer_Name__c = 'SYSTEM';
+                errAudit.Error_Message__c = errMsg;
+                errAudit.Signed_Date__c = System.now();
+                Database.insert(new List<DocGen_Signature_Audit__c>{ errAudit }, false, AccessLevel.SYSTEM_MODE);
                 req.Status__c = 'Viewed';
                 Database.update(req, false, AccessLevel.SYSTEM_MODE);
             }

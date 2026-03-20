@@ -756,9 +756,9 @@ public without sharing class DocGenSignatureController {
      * All images are committed from Stage 1, so Blob.toPdf() can resolve their URLs.
      */
     public static Blob renderSignaturePdfFromSavedImages(Id requestId) {
-        String baseUrl = URL.getOrgDomainUrl().toExternalForm();
-
-        // Query all CVs on the request
+        // Query all CVs on the request — read image BLOBS directly (not URLs)
+        // because this runs in a Queueable as Automated Process user which
+        // cannot access VF pages for the fallback.
         List<ContentDocumentLink> cdls = [
             SELECT ContentDocument.Title, ContentDocument.LatestPublishedVersionId
             FROM ContentDocumentLink
@@ -767,20 +767,22 @@ public without sharing class DocGenSignatureController {
         ];
 
         String documentXml = null;
-        Map<String, String> imageUrlMap = new Map<String, String>();
+        Map<String, String> imageBase64Map = new Map<String, String>();
 
         for (ContentDocumentLink cdl : cdls) {
             String title = cdl.ContentDocument.Title;
             Id cvId = cdl.ContentDocument.LatestPublishedVersionId;
 
             if (title.startsWith('docgen_sig_xml_')) {
-                // Document XML
                 ContentVersion xmlCv = [SELECT VersionData FROM ContentVersion WHERE Id = :cvId WITH SYSTEM_MODE LIMIT 1];
                 documentXml = xmlCv.VersionData.toString();
             } else if (title.startsWith('docgen_sig_img_')) {
-                // Image — extract relId from title
+                // Read image blob and encode as base64 — the HTML renderer
+                // will create data URI img tags that Blob.toPdf() can handle
+                // for small images (signatures are typically < 50KB).
                 String relId = title.substringAfter('docgen_sig_img_');
-                imageUrlMap.put(relId, baseUrl + '/sfc/servlet.shepherd/version/download/' + cvId);
+                ContentVersion imgCv = [SELECT VersionData FROM ContentVersion WHERE Id = :cvId WITH SYSTEM_MODE LIMIT 1];
+                imageBase64Map.put(relId, EncodingUtil.base64Encode(imgCv.VersionData));
             }
         }
 
@@ -788,7 +790,21 @@ public without sharing class DocGenSignatureController {
             throw new DocGenException('Stamped document XML not found for signature request.');
         }
 
-        return Blob.toPdf(DocGenHtmlRenderer.convertToHtml(documentXml, imageUrlMap));
+        String html = DocGenHtmlRenderer.convertToHtml(documentXml, imageBase64Map);
+
+        // Try Blob.toPdf() first (Spring '26 orgs with Release Update).
+        try {
+            return Blob.toPdf(html);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.INFO, 'DocGen: Blob.toPdf() failed for signature PDF, using VF fallback: ' + e.getMessage());
+        }
+
+        // Fallback: VF page renderAs="pdf" — requires DocGenPdfRenderer page access
+        // for the Automated Process user (granted via DocGen_Admin permission set).
+        PageReference pdfPage = Page.DocGenPdfRenderer;
+        pdfPage.getParameters().put('mode', 'signature');
+        pdfPage.getParameters().put('requestId', String.valueOf(requestId));
+        return pdfPage.getContentAsPDF();
     }
 
     /**
