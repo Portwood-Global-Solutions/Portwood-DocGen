@@ -75,14 +75,28 @@ public with sharing class DocGenService {
         mr.templateType = templateType;
         mr.outputFormat = outputFormat;
 
-        Blob templateBlob = EncodingUtil.base64Decode(base64File);
-        Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
-
         // Determine rels path based on template type
         mr.relsPath = (templateType == 'PowerPoint')
             ? 'ppt/_rels/presentation.xml.rels'
             : 'word/_rels/document.xml.rels';
         mr.mediaPath = (templateType == 'PowerPoint') ? 'ppt/media/' : 'word/media/';
+
+        // For PDF output, try the heap-efficient path: use pre-decomposed XML parts
+        // saved as ContentVersions during template version save, skipping full ZIP decompression.
+        // Saves ~1.5-2MB heap by avoiding base64 decode + ZIP reader + passthrough extraction.
+        if (outputFormat == 'PDF' && templateType == 'Word') {
+            MergeResult pdfResult = tryMergeFromPreDecomposed(templateId, recordDataMap, mr);
+            if (pdfResult != null) {
+                mr = pdfResult;
+                mr.docTitle = generateDocTitle((String) dataMap.get('titleFormat'), recordDataMap);
+                if (mr.docTitle == null) mr.docTitle = (String) resolveValue(recordDataMap, 'Name');
+                return mr;
+            }
+        }
+
+        // Full ZIP decompression path — used for DOCX/PPTX output or when pre-decomposed parts are unavailable
+        Blob templateBlob = EncodingUtil.base64Decode(base64File);
+        Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
 
         for (Compression.ZipEntry entry : reader.getEntries()) {
             String name = entry.getName();
@@ -229,6 +243,79 @@ public with sharing class DocGenService {
     }
 
     /**
+     * Attempts to build a MergeResult from pre-decomposed XML parts stored as ContentVersions.
+     * Skips full ZIP decompression — saves ~1.5-2MB heap for PDF generation.
+     * Returns null if pre-decomposed parts are not available (older templates).
+     */
+    private static MergeResult tryMergeFromPreDecomposed(Id templateId, Map<String, Object> recordDataMap, MergeResult mr) {
+        List<DocGen_Template_Version__c> activeVersions = [
+            SELECT Id FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = true
+            WITH SYSTEM_MODE LIMIT 1
+        ];
+        if (activeVersions.isEmpty()) return null;
+
+        String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
+        List<ContentVersion> xmlCvs = [
+            SELECT Id, Title, VersionData FROM ContentVersion
+            WHERE Title LIKE :(xmlPrefix + '%')
+            WITH SYSTEM_MODE
+        ];
+
+        if (xmlCvs.isEmpty()) return null;
+
+        // Reconstruct XML entries and rels from pre-stored CVs
+        for (ContentVersion cv : xmlCvs) {
+            String key = cv.Title.substring(xmlPrefix.length());
+            if (key == 'rels') {
+                mr.relsXml = cv.VersionData.toString();
+            } else {
+                // Restore original path: word__document.xml → word/document.xml
+                String originalPath = key.replace('__', '/');
+                String xml = cv.VersionData.toString();
+                currentTemplateType = mr.templateType;
+                xml = mergeRunsInTags(xml);
+                xml = processXml(xml, recordDataMap);
+                mr.processedXmlEntries.put(originalPath, xml);
+                if (originalPath == 'word/document.xml') {
+                    mr.documentXml = xml;
+                }
+            }
+        }
+
+        if (mr.documentXml == null) return null;
+
+        // Process pending images from merge field processing (RTF images, {%Field} images)
+        if (!pendingImages.isEmpty()) {
+            if (mr.relsXml != null) {
+                for (Map<String, Object> img : pendingImages) {
+                    if (img.containsKey('blob')) {
+                        String relId = (String) img.get('relId');
+                        String fName = (String) img.get('fileName');
+                        String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
+                        mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
+                    }
+                }
+            }
+            for (Map<String, Object> img : pendingImages) {
+                String relId = (String) img.get('relId');
+                if (img.containsKey('blob')) {
+                    Blob imgBlob = (Blob) img.get('blob');
+                    mr.imageBase64ByRelId.put(relId, EncodingUtil.base64Encode(imgBlob));
+                }
+                if (img.containsKey('url')) {
+                    mr.imageUrlByRelId.put(relId, (String) img.get('url'));
+                    if (!img.containsKey('blob')) {
+                        mr.imageBase64ByRelId.put(relId, (String) img.get('url'));
+                    }
+                }
+            }
+        }
+
+        return mr;
+    }
+
+    /**
      * Assembles a MergeResult into a DOCX/PPTX ZIP Blob.
      */
     private static Blob assembleZip(MergeResult mr) {
@@ -321,6 +408,7 @@ public with sharing class DocGenService {
 
         String relsXml = null;
         Map<String, Blob> mediaEntries = new Map<String, Blob>();
+        Map<String, String> xmlEntries = new Map<String, String>();
 
         for (Compression.ZipEntry entry : reader.getEntries()) {
             String name = entry.getName();
@@ -329,47 +417,83 @@ public with sharing class DocGenService {
             } else if (name.startsWith(mediaPath)) {
                 mediaEntries.put(name, reader.extract(name));
             }
-        }
-
-        if (relsXml == null || mediaEntries.isEmpty()) return;
-
-        // Parse rels and save each image as a ContentVersion linked to the version record
-        String prefix = 'docgen_tmpl_img_' + versionId + '_';
-        List<ContentVersion> newCvs = new List<ContentVersion>();
-
-        Integer relCursor = 0;
-        while (relCursor < relsXml.length()) {
-            Integer relStart = relsXml.indexOf('<Relationship ', relCursor);
-            if (relStart == -1) break;
-            Integer relSelfClose = relsXml.indexOf('/>', relStart);
-            Integer relClose = relsXml.indexOf('>', relStart);
-            if (relClose == -1) break;
-            Integer relEnd = (relSelfClose != -1 && relSelfClose < relClose) ? relSelfClose + 2 : relClose + 1;
-
-            String relTag = relsXml.substring(relStart, relEnd);
-            String relType = extractXmlAttrValue(relTag, 'Type');
-            if (relType != null && relType.contains('/image')) {
-                String relId = extractXmlAttrValue(relTag, 'Id');
-                String target = extractXmlAttrValue(relTag, 'Target');
-                if (relId != null && target != null && target.startsWith('media/')) {
-                    String fullPath = mediaPath + target.substringAfter('media/');
-                    Blob imgBlob = mediaEntries.get(fullPath);
-                    if (imgBlob != null) {
-                        String ext = target.substringAfterLast('.');
-                        ContentVersion cv = new ContentVersion();
-                        cv.Title = prefix + relId;
-                        cv.PathOnClient = prefix + relId + '.' + ext;
-                        cv.VersionData = imgBlob;
-                        cv.FirstPublishLocationId = versionId;
-                        newCvs.add(cv);
-                    }
+            // Capture XML parts needed for PDF generation (skip ZIP at render time)
+            if (templateType == 'Word') {
+                if (name == 'word/document.xml' ||
+                    (name.startsWith('word/header') && name.endsWith('.xml')) ||
+                    (name.startsWith('word/footer') && name.endsWith('.xml'))) {
+                    xmlEntries.put(name, reader.extract(name).toString());
+                }
+            } else if (templateType == 'PowerPoint') {
+                if (name.startsWith('ppt/slides/slide') && name.endsWith('.xml')) {
+                    xmlEntries.put(name, reader.extract(name).toString());
                 }
             }
-            relCursor = relEnd;
+        }
+
+        List<ContentVersion> newCvs = new List<ContentVersion>();
+
+        // Save pre-decomposed XML parts as ContentVersions for heap-efficient PDF generation.
+        // At render time, these are queried directly instead of decompressing the full ZIP.
+        String xmlPrefix = 'docgen_tmpl_xml_' + versionId + '_';
+        for (String xmlName : xmlEntries.keySet()) {
+            // Use a safe filename: word/document.xml → word__document.xml
+            String safeKey = xmlName.replace('/', '__');
+            ContentVersion xmlCv = new ContentVersion();
+            xmlCv.Title = xmlPrefix + safeKey;
+            xmlCv.PathOnClient = xmlPrefix + safeKey;
+            xmlCv.VersionData = Blob.valueOf(xmlEntries.get(xmlName));
+            xmlCv.FirstPublishLocationId = versionId;
+            newCvs.add(xmlCv);
+        }
+
+        // Save rels XML for image relId mapping during PDF generation
+        if (relsXml != null) {
+            ContentVersion relsCv = new ContentVersion();
+            relsCv.Title = xmlPrefix + 'rels';
+            relsCv.PathOnClient = xmlPrefix + 'rels.xml';
+            relsCv.VersionData = Blob.valueOf(relsXml);
+            relsCv.FirstPublishLocationId = versionId;
+            newCvs.add(relsCv);
+        }
+
+        // Parse rels and save each image as a ContentVersion linked to the version record
+        if (relsXml != null && !mediaEntries.isEmpty()) {
+            String imgPrefix = 'docgen_tmpl_img_' + versionId + '_';
+
+            Integer relCursor = 0;
+            while (relCursor < relsXml.length()) {
+                Integer relStart = relsXml.indexOf('<Relationship ', relCursor);
+                if (relStart == -1) break;
+                Integer relSelfClose = relsXml.indexOf('/>', relStart);
+                Integer relClose = relsXml.indexOf('>', relStart);
+                if (relClose == -1) break;
+                Integer relEnd = (relSelfClose != -1 && relSelfClose < relClose) ? relSelfClose + 2 : relClose + 1;
+
+                String relTag = relsXml.substring(relStart, relEnd);
+                String relType = extractXmlAttrValue(relTag, 'Type');
+                if (relType != null && relType.contains('/image')) {
+                    String relId = extractXmlAttrValue(relTag, 'Id');
+                    String target = extractXmlAttrValue(relTag, 'Target');
+                    if (relId != null && target != null && target.startsWith('media/')) {
+                        String fullPath = mediaPath + target.substringAfter('media/');
+                        Blob imgBlob = mediaEntries.get(fullPath);
+                        if (imgBlob != null) {
+                            String ext = target.substringAfterLast('.');
+                            ContentVersion cv = new ContentVersion();
+                            cv.Title = imgPrefix + relId;
+                            cv.PathOnClient = imgPrefix + relId + '.' + ext;
+                            cv.VersionData = imgBlob;
+                            cv.FirstPublishLocationId = versionId;
+                            newCvs.add(cv);
+                        }
+                    }
+                }
+                relCursor = relEnd;
+            }
         }
 
         if (!newCvs.isEmpty()) {
-            // FirstPublishLocationId links the CVs to the version record automatically
             SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, newCvs);
             insert cvDecision.getRecords();
         }

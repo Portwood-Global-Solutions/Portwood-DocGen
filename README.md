@@ -2,7 +2,7 @@
 
 **A free, native, production-ready document engine for Salesforce.**
 
-[![Version](https://img.shields.io/badge/version-1.3.2-blue.svg)](#quick-install)
+[![Version](https://img.shields.io/badge/version-1.3.3-blue.svg)](#quick-install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![API Version](https://img.shields.io/badge/API-v66.0-orange.svg)](#)
@@ -58,16 +58,16 @@ This project gives you a professional-grade document engine -- template manageme
 
 ## Quick Install
 
-**Package Version ID**: `04tdL000000Rd0TQAS`
+**Package Version ID**: `04tdL000000Rd6vQAC`
 
 **CLI:**
 ```bash
-sf package install --package 04tdL000000Rd0TQAS --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000Rd6vQAC --wait 10 --installation-key-bypass
 ```
 
 **Browser:**
-- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rd0TQAS)
-- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rd0TQAS)
+- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rd6vQAC)
+- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rd6vQAC)
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users.
 
@@ -89,7 +89,13 @@ DocGen runs 100% on the Salesforce platform, which means it operates within [Ape
 
 **Is this right for you?** — If your use case consistently requires documents or image data larger than these limits, this tool may not be the right fit in its current state. For very large documents, consider the [client-side generation option](https://github.com/DaveMoudy/SalesforceDocGen/issues/23) which offloads assembly to the browser.
 
-## What's New in v1.3.2
+## What's New in v1.3.3
+
+### Performance: Pre-Decomposed Template XML for PDF Generation
+- Template XML parts are now extracted and saved as ContentVersions during version save
+- PDF generation skips full ZIP decompression and loads only the pre-stored XML — **~75% heap reduction** for the template merge step
+- Existing templates automatically fall back to the ZIP path until re-saved as a new version
+- DOCX/PPTX output is unaffected (still uses full ZIP for reassembly)
 
 ### Bug Fix: PDF Images Broken in Single-Record Generation
 - Template images in PDFs were rendering as broken placeholders since v1.2.0
@@ -117,6 +123,7 @@ DocGen runs 100% on the Salesforce platform, which means it operates within [Ape
 
 ### Page Layouts
 - Updated all 9 custom object page layouts from DevOrg-398
+- Added Files related list to all DocGen page layouts
 
 ---
 

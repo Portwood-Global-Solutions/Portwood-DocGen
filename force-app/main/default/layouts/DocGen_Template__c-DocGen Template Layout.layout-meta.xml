@@ -102,6 +102,9 @@
         <fields>CREATED_DATE</fields>
         <relatedList>DocGen_Template_Version__c.Template__c</relatedList>
     </relatedLists>
+    <relatedLists>
+        <relatedList>RelatedFileList</relatedList>
+    </relatedLists>
     <showEmailCheckbox>false</showEmailCheckbox>
     <showHighlightsPanel>false</showHighlightsPanel>
     <showInteractionLogPanel>false</showInteractionLogPanel>

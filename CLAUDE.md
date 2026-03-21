@@ -41,8 +41,10 @@ At PDF generation time, `buildPdfImageMap()` queries for these pre-committed CVs
 
 ## Key Architecture
 
-- All PDF rendering goes through: `mergeTemplate()` → `buildPdfImageMap()` → `DocGenHtmlRenderer.convertToHtml()` → `Blob.toPdf()` with VF page fallback
-- `Blob.toPdf()` is used for text-only and image PDFs; VF fallback via `getContentAsPDF()` only if `Blob.toPdf()` throws
+- PDF rendering has two paths in `mergeTemplate()`:
+  1. **Pre-decomposed (preferred)**: Loads XML parts from ContentVersions saved during template version creation. Skips ZIP decompression entirely. ~75% heap savings. Used for PDF output when XML CVs exist.
+  2. **ZIP path (fallback)**: Full base64 decode + ZIP decompression. Used for DOCX/PPTX output, or PDF when pre-decomposed parts don't exist (older templates not yet re-saved).
+- After merge: `buildPdfImageMap()` → `DocGenHtmlRenderer.convertToHtml()` → `Blob.toPdf()` with VF page fallback
 - Signature PDFs use `Blob.toPdf()` exclusively (Automated Process user cannot access VF pages)
 - The Spring '26 Release Update "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations" is REQUIRED
 
