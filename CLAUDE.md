@@ -51,7 +51,6 @@ At PDF generation time, `buildPdfImageMap()` queries for these pre-committed CVs
   1. **Pre-decomposed (preferred)**: Loads XML parts from ContentVersions saved during template version creation. Skips ZIP decompression entirely. ~75% heap savings. Used for PDF output when XML CVs exist.
   2. **ZIP path (fallback)**: Full base64 decode + ZIP decompression. Used for DOCX/PPTX output, or PDF when pre-decomposed parts don't exist (older templates not yet re-saved).
 - After merge: `buildPdfImageMap()` → `DocGenHtmlRenderer.convertToHtml()` → `Blob.toPdf()` with VF page fallback
-- Signature PDFs use `Blob.toPdf()` exclusively (Automated Process user cannot access VF pages)
 - The Spring '26 Release Update "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations" is REQUIRED
 
 ## Client-Side DOCX Assembly (In Progress)
@@ -79,17 +78,40 @@ In both `mergeTemplate()` (full ZIP path, ~line 174) and `tryMergeFromPreDecompo
 - All binary data must be returned via Apex, not client-side fetch
 - `Blob` constructor in LWC rejects non-standard MIME types — use `application/octet-stream` for DOCX downloads
 
-## Next Priority: Signature Flow Without DOCX
+## E-Signatures: Removed (Decision Record)
 
-The signature flow should go: **template → stamp signatures into XML → PDF** without ever creating an intermediate DOCX:
+E-signature functionality was **intentionally removed** from DocGen. The rationale:
 
-1. Signer completes signature → signature image saved as ContentVersion (already works)
-2. Server loads pre-decomposed document.xml from template CVs (already works)
-3. **NEW: `stampSignaturesInXml(documentXml, relsXml, contentTypesXml, signers)`** — replaces `{#Signature_Role}` placeholders with DrawingML referencing signature image CVs. Returns stamped XML strings, NOT a ZIP.
-4. Render PDF: stamped XML → `DocGenHtmlRenderer.convertToHtml()` → `Blob.toPdf()` with relative CV URLs for signature images (already works)
-5. Save signed PDF to record (already works)
+1. **Legal liability** — Electronic signatures carry jurisdiction-specific legal requirements (ESIGN Act, eIDAS, etc.). A document generator shipping its own signature implementation exposes both the product and its users to legal risk if the implementation doesn't meet the relevant standard for a given use case. Dedicated e-signature providers (DocuSign, Adobe Sign, etc.) carry their own legal compliance certifications — we don't.
+2. **Security surface area** — The signature flow required a public-facing Salesforce Site with guest user access, token-based authentication, image upload endpoints, and cross-context PDF generation via platform events. Each of these is an attack vector: XSS in document previews, image injection via unvalidated uploads, token interception, and DOM manipulation of the signing page. Hardening these to production-grade security is a full-time security engineering effort, not a side feature.
+3. **Scope creep** — Signatures pulled focus from the core mission: being the best document generator on the platform. Every hour spent on signature audit trails, email branding, multi-signer orchestration, and PIN verification is an hour not spent on rendering fidelity, font support, template features, and output quality.
+4. **Better path forward** — The architecture supports a clean integration point for third-party signature providers in the future. Generate the document with DocGen, hand it off to a dedicated provider for signing. Best tool for each job.
 
-This eliminates the DOCX intermediate entirely. No ZIP decompress/recompress. No heap issues. The existing `stampAllSignaturesToBlob()` in `DocGenSignatureService.cls` has the placeholder replacement logic — extract the string operations and skip the ZIP parts.
+**What was removed:** 8 Apex classes, 7 custom objects (50+ fields), 2 VF pages, 3 LWC bundles, 2 Aura apps, 1 trigger, 1 permission set, 5 layouts, 5 settings fields, 2 tabs, 1 flow, 1 Salesforce Site config. ~9,700 lines of code.
+
+**Do NOT re-add signature functionality.** If signature integration is needed, build an adapter pattern that delegates to an external provider.
+
+## Custom Fonts for PDF Generation
+
+Admins can upload custom fonts (TTF, WOFF, WOFF2) via the Setup Wizard for use in PDF output.
+
+### How it works
+1. Admin uploads font file → stored as ContentVersion, tracked by `DocGen_Font__c` record (font family, weight, style, format, CV ID)
+2. At PDF generation time, `DocGenHtmlRenderer.buildFontFaceCss()` queries all `DocGen_Font__c` records
+3. For each font, loads the ContentVersion binary, base64-encodes it, and generates an `@font-face` CSS declaration with a data URI
+4. The `@font-face` CSS is injected into the `<style>` block before the base styles
+5. When the DOCX template uses a custom font (e.g., `<w:rFonts w:ascii="Montserrat"/>`), the existing `parseRunStyle()` emits `font-family:'Montserrat',sans-serif` — which now matches the embedded `@font-face`
+
+### Key files
+- `DocGen_Font__c` — Custom object: Font_Family__c, Font_Weight__c, Font_Style__c, Font_Format__c, Content_Version_Id__c
+- `DocGenHtmlRenderer.buildFontFaceCss()` — Queries fonts, loads binaries, returns `@font-face` CSS string
+- `DocGenHtmlRenderer.convertToHtml(xml, images, fontFaceCss)` — 3-arg overload that injects font CSS
+- `DocGenService.renderPdf()` / `renderDocumentHtml()` — Calls `buildFontFaceCss()` and passes to renderer
+- `DocGenSetupController.uploadFont()` / `deleteFont()` / `getFonts()` — Admin CRUD endpoints
+- `docGenSetupWizard` LWC — Font upload UI with table, file picker, weight/style/format selectors
+
+### Heap considerations
+Each font file is typically 50–200KB. Base64 encoding adds ~33%. With 4 variants of one font family (~800KB raw → ~1MB base64), this fits within the 6MB synchronous heap limit. For orgs using many custom fonts, consider keeping to 2–3 font families max.
 
 ## Scratch Org for Testing
 
