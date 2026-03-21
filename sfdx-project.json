@@ -1,12 +1,12 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v1.4.0 - Template-based signatures, no per-record DOCX",
-      "versionNumber": "1.4.0.NEXT",
+      "versionName": "v1.5.0 - Remove signatures and custom fonts, clean architecture",
+      "versionNumber": "1.5.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
-      "versionDescription": "Free, native document generation for Salesforce. Create DOCX, PPTX, and PDF documents from any record using merge tags, child loops, rich text with embedded images, and multi-signer electronic signatures. Includes bulk generation, Flow integration, and one-click credential provisioning."
+      "versionDescription": "Free, native document generation for Salesforce. Create DOCX, PPTX, and PDF documents from any record using merge tags, child loops, rich text with embedded images, and server-side PDF rendering. Includes bulk generation, Flow integration, and template versioning."
     }
   ],
   "name": "Document Generation",

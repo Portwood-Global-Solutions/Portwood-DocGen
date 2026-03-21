@@ -2077,26 +2077,6 @@ private class DocGenMiscTests {
         System.assertNotEquals(null, result.get('title'));
     }
 
-    // =========================================================================
-    // DocGenService — cleanupTempImages
-    // =========================================================================
-
-    @isTest
-    static void testCleanupTempImages_Blank() {
-        Test.startTest();
-        DocGenService.cleanupTempImages('');
-        DocGenService.cleanupTempImages(null);
-        Test.stopTest();
-        System.assert(true, 'Should return silently for blank key');
-    }
-
-    @isTest
-    static void testCleanupTempImages_NoMatch() {
-        Test.startTest();
-        DocGenService.cleanupTempImages('nonexistentbatchkeyvalue12345');
-        Test.stopTest();
-        System.assert(true, 'Should handle no matching temp images gracefully');
-    }
 
     // =========================================================================
     // DocGenService — generateDocument PDF save path

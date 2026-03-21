@@ -605,6 +605,7 @@ public with sharing class DocGenService {
             SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, newCvs);
             insert cvDecision.getRecords();
         }
+
     }
 
     /**
@@ -663,8 +664,7 @@ public with sharing class DocGenService {
         }
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-        String fontCss = DocGenHtmlRenderer.buildFontFaceCss();
-        String html = DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages, fontCss);
+        String html = DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages);
 
         // Blob.toPdf() with the Spring '26 Release Update resolves relative Salesforce
         // ContentVersion URLs (/sfc/servlet.shepherd/...) natively via the VF rendering engine.
@@ -695,8 +695,7 @@ public with sharing class DocGenService {
         }
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-        String fontCss = DocGenHtmlRenderer.buildFontFaceCss();
-        return DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages, fontCss);
+        return DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages);
     }
 
     /**

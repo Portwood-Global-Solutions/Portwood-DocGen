@@ -60,7 +60,7 @@
                         </div>
                         <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
                             <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
-                            <strong>Document Authenticator</strong> with SHA-256 verification
+                            <strong>DOCX and PDF</strong> output formats
                         </div>
                         <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
                             <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
@@ -485,150 +485,6 @@
                 </div>
             </template>
 
-            <!-- ==================== EMAIL BRANDING & COPY ==================== -->
-            <template if:true={isEmail}>
-                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Email Branding &amp; Copy</h2>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Overview</h3>
-                    <p class="slds-var-m-bottom_small">DocGen can send branded HTML emails. You can customize every visible element of these emails from the <strong>DocGen Setup</strong> tab.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Configurable Email Settings</h3>
-                    <p class="slds-var-m-bottom_small">Navigate to the <strong>DocGen Setup</strong> tab and go to <strong>Step 2: Email Branding</strong>. You can customize:</p>
-                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
-                        <thead>
-                            <tr class="slds-line-height_reset">
-                                <th scope="col">Setting</th>
-                                <th scope="col">Description</th>
-                                <th scope="col">Default</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Company Name</strong></td>
-                                <td>Displayed in the email header when no logo URL is provided.</td>
-                                <td>(blank)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Logo Image URL</strong></td>
-                                <td>URL to your company logo. Displayed in the email header bar. Recommended: 200x60px PNG with transparent background.</td>
-                                <td>(blank — company name shown instead)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Brand Color</strong></td>
-                                <td>Hex color used for the email header bar and CTA button.</td>
-                                <td>#0176D3 (Salesforce blue)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Email Subject Line</strong></td>
-                                <td>Subject of the outbound email. Supports merge fields.</td>
-                                <td>&#123;DocumentTitle&#125;</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Email Footer Text</strong></td>
-                                <td>Custom footer text at the bottom of the email.</td>
-                                <td>Powered by DocGen — Open-Source Document Generation for Salesforce</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Merge Fields</h3>
-                    <p class="slds-var-m-bottom_small">The following merge fields are available in the <strong>Email Subject Line</strong>:</p>
-                    <div class="slds-box slds-theme_shade">
-                        <code>&#123;RecipientName&#125;</code> — The name of the recipient receiving the email<br/>
-                        <code>&#123;DocumentTitle&#125;</code> — The title of the document<br/>
-                        <code>&#123;SenderName&#125;</code> — The name of the Salesforce user who sent the email
-                    </div>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Structure (Not Configurable)</h3>
-                    <p class="slds-var-m-bottom_small">The email body layout is fixed for consistency and deliverability. The structure includes:</p>
-                    <ul class="slds-list_dotted">
-                        <li><strong>Header bar</strong> — Brand color background with logo or company name.</li>
-                        <li><strong>Greeting</strong> — "Hi [Recipient Name],"</li>
-                        <li><strong>Message</strong> — "[Sender Name] has sent you a document."</li>
-                        <li><strong>Document info box</strong> — Shows document title.</li>
-                        <li><strong>CTA button</strong> — Links to the document.</li>
-                        <li><strong>Fallback URL</strong> — Plain text URL in case the button doesn't render.</li>
-                        <li><strong>Footer</strong> — Your custom footer text or the default.</li>
-                    </ul>
-                </div>
-
-                <div class="slds-box slds-theme_shade">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Deliverability Tips</h3>
-                    <ul class="slds-list_dotted">
-                        <li>Emails are sent from the Salesforce org's configured email address (via <code>Messaging.sendEmail</code>).</li>
-                        <li>If a recipient is linked to a Contact record, the email uses <code>setTargetObjectId</code> for proper activity tracking.</li>
-                        <li>Ensure your org's email deliverability setting is set to <strong>"All Email"</strong> (Setup &gt; Deliverability).</li>
-                        <li>In sandbox environments, emails are only sent to verified addresses by default.</li>
-                    </ul>
-                </div>
-            </template>
-
-            <!-- ==================== LOGO & IMAGES ==================== -->
-            <template if:true={isLogo}>
-                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Logo &amp; Images</h2>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Logo Setup</h3>
-                    <p class="slds-var-m-bottom_small">The logo appears at the top of every DocGen email. To configure it:</p>
-                    <ol class="slds-list_ordered">
-                        <li class="slds-var-p-bottom_x-small">Go to the <strong>DocGen Setup</strong> tab.</li>
-                        <li class="slds-var-p-bottom_x-small">In <strong>Step 2: Email Branding</strong>, enter the <strong>Logo Image URL</strong>.</li>
-                        <li class="slds-var-p-bottom_x-small">Recommended dimensions: <strong>200x60px</strong>, PNG with transparent background.</li>
-                        <li class="slds-var-p-bottom_x-small">Click <strong>Save Email Settings</strong>.</li>
-                    </ol>
-                </div>
-
-                <div class="slds-box slds-theme_warning slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Logo Hosting: Important Notes</h3>
-                    <p class="slds-var-m-bottom_small">The logo URL must be publicly accessible for email clients to render it. Here are your options:</p>
-
-                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 1: External Hosting (Recommended for Emails)</h4>
-                    <p class="slds-var-m-bottom_small">Host your logo on a public web server, CDN, or service like your company website. The image URL should start with <code>https://</code>. Email clients (Gmail, Outlook, etc.) will fetch and display the image directly.</p>
-                    <p class="slds-var-m-bottom_small"><strong>Example:</strong> <code>https://www.yourcompany.com/assets/logo.png</code></p>
-
-                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 2: Salesforce-Hosted (Static Resource or ContentVersion)</h4>
-                    <p class="slds-var-m-bottom_small">You can upload the logo as a Salesforce Static Resource or as a File (ContentVersion) and use its URL. However:</p>
-                    <ul class="slds-list_dotted slds-var-m-bottom_small">
-                        <li>Salesforce-hosted URLs require authentication — email clients <strong>will not render the image</strong> in the recipient's inbox.</li>
-                        <li>The image <strong>will still render</strong> if the recipient clicks through to the linked page (which runs in a browser with access).</li>
-                        <li>For the best email experience, use an externally hosted URL.</li>
-                    </ul>
-
-                    <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 3: Salesforce Site-Hosted</h4>
-                    <p class="slds-var-m-bottom_small">If you have a Salesforce Site configured, you can host the logo as a Static Resource and reference it via the Site URL:</p>
-                    <p class="slds-var-m-bottom_small"><code>https://yourdomain.my.salesforce-sites.com/resource/YourLogo</code></p>
-                    <p>This approach makes the image publicly accessible (via the Site) so email clients can render it. No Remote Site Setting is needed for this since it's on Salesforce's domain.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Remote Site Settings</h3>
-                    <p class="slds-var-m-bottom_small">If your logo is hosted on a domain <strong>outside of Salesforce</strong> and you want Salesforce server-side processes to fetch or validate the image, you need a Remote Site Setting:</p>
-                    <ol class="slds-list_ordered">
-                        <li>Go to <strong>Setup &gt; Remote Site Settings</strong>.</li>
-                        <li>Click <strong>New Remote Site</strong>.</li>
-                        <li>Enter a name (e.g., "Company Logo Host").</li>
-                        <li>Enter the Remote Site URL (e.g., <code>https://www.yourcompany.com</code>).</li>
-                        <li>Check <strong>Active</strong> and save.</li>
-                    </ol>
-                    <p class="slds-var-m-top_small slds-text-body_small slds-text-color_weak"><strong>Note:</strong> For email logos, a Remote Site Setting is typically <strong>not required</strong> because the email client (Gmail, Outlook) fetches the image directly — Salesforce never makes a server-side callout to the logo URL. Remote Site Settings are only needed if a future feature requires Salesforce to fetch the image server-side.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Images in Generated Documents</h3>
-                    <p class="slds-var-m-bottom_small">Images can appear in generated documents in several ways:</p>
-                    <ul class="slds-list_dotted">
-                        <li class="slds-var-p-bottom_x-small"><strong>Template images</strong> — Logos, watermarks, or other images placed directly in your .docx/.pptx file are preserved in the output. They are extracted and stored as ContentVersions linked to the template version for reliable rendering.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Rich Text field images</strong> — Images in Rich Text Area fields (e.g., a photo uploaded to a Description field) are automatically resolved and embedded. Salesforce-hosted image URLs are converted to absolute URLs for rendering.</li>
-                    </ul>
-                </div>
-            </template>
 
             <!-- ==================== SHARING & PERMISSIONS ==================== -->
             <template if:true={isSharing}>
@@ -684,7 +540,7 @@
                             <tr><td><strong>DocGen Template Version</strong></td><td><code>DocGen_Template_Version__c</code></td><td>Snapshot of a template at a point in time. Tracks the file (ContentVersion ID), query config, and active status. Only one version is active at a time.</td></tr>
                             <tr><td><strong>DocGen Job</strong></td><td><code>DocGen_Job__c</code></td><td>Tracks bulk generation jobs. Records the template, query condition, status (Processing/Completed/Failed), and success/error counts.</td></tr>
                             <tr><td><strong>Saved DocGen Query</strong></td><td><code>DocGen_Saved_Query__c</code></td><td>Reusable filter conditions for bulk generation. Linked to a template via master-detail.</td></tr>
-                            <tr><td><strong>DocGen Settings</strong></td><td><code>DocGen_Settings__c</code></td><td>Hierarchy custom setting for org/profile/user-level config: Experience Site URL, email branding (subject, logo, footer, brand color, message), and company name.</td></tr>
+                            <tr><td><strong>DocGen Settings</strong></td><td><code>DocGen_Settings__c</code></td><td>Hierarchy custom setting for org/profile/user-level config: Experience Site URL and company name.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -851,14 +707,6 @@ DocGen_Job__c
                         </ul>
                     </div>
 
-                    <div>
-                        <h4 class="slds-text-title_bold">Logo doesn't show in emails</h4>
-                        <ul class="slds-list_dotted">
-                            <li>If hosted on Salesforce, email clients cannot fetch authenticated URLs. See the <strong>Logo &amp; Images</strong> section for hosting options.</li>
-                            <li>Use a publicly accessible HTTPS URL for reliable rendering.</li>
-                            <li>Some email clients block images by default — recipients may need to click "Show images".</li>
-                        </ul>
-                    </div>
                 </div>
 
                 <div class="slds-box slds-theme_shade">
@@ -867,7 +715,6 @@ DocGen_Job__c
                         <li>Use the <strong>Generate Sample Document</strong> button in the Template Manager to test without navigating away.</li>
                         <li>Check Salesforce Debug Logs (Setup &gt; Debug Logs) for detailed error messages — look for entries starting with "DocGen:".</li>
                         <li>For bulk job failures, check the DocGen Job record for error counts and individual record errors.</li>
-                        <li>The Document Authenticator can verify document authenticity via SHA-256 hash comparison.</li>
                     </ul>
                 </div>
             </template>

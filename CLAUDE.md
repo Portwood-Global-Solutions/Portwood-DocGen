@@ -91,27 +91,21 @@ E-signature functionality was **intentionally removed** from DocGen. The rationa
 
 **Do NOT re-add signature functionality.** If signature integration is needed, build an adapter pattern that delegates to an external provider.
 
-## Custom Fonts for PDF Generation
+## Font Support
 
-Admins can upload custom fonts (TTF, WOFF, WOFF2) via the Setup Wizard for use in PDF output.
+### PDF output
+`Blob.toPdf()` uses Salesforce's Flying Saucer rendering engine which only supports 4 built-in font families:
+- **Helvetica** (`sans-serif`) — the default
+- **Times** (`serif`)
+- **Courier** (`monospace`)
+- **Arial Unicode MS** — for CJK/multibyte characters
 
-### How it works
-1. Admin uploads font file → stored as ContentVersion, tracked by `DocGen_Font__c` record (font family, weight, style, format, CV ID)
-2. At PDF generation time, `DocGenHtmlRenderer.buildFontFaceCss()` queries all `DocGen_Font__c` records
-3. For each font, loads the ContentVersion binary, base64-encodes it, and generates an `@font-face` CSS declaration with a data URI
-4. The `@font-face` CSS is injected into the `<style>` block before the base styles
-5. When the DOCX template uses a custom font (e.g., `<w:rFonts w:ascii="Montserrat"/>`), the existing `parseRunStyle()` emits `font-family:'Montserrat',sans-serif` — which now matches the embedded `@font-face`
+Custom fonts **cannot** be loaded into the PDF engine. CSS `@font-face` is not supported — not via data URIs, static resource URLs, or ContentVersion URLs. This is a Salesforce platform limitation, not a DocGen limitation. Paid tools like Nintex and Conga work around this by using their own rendering engines outside of Salesforce.
 
-### Key files
-- `DocGen_Font__c` — Custom object: Font_Family__c, Font_Weight__c, Font_Style__c, Font_Format__c, Content_Version_Id__c
-- `DocGenHtmlRenderer.buildFontFaceCss()` — Queries fonts, loads binaries, returns `@font-face` CSS string
-- `DocGenHtmlRenderer.convertToHtml(xml, images, fontFaceCss)` — 3-arg overload that injects font CSS
-- `DocGenService.renderPdf()` / `renderDocumentHtml()` — Calls `buildFontFaceCss()` and passes to renderer
-- `DocGenSetupController.uploadFont()` / `deleteFont()` / `getFonts()` — Admin CRUD endpoints
-- `docGenSetupWizard` LWC — Font upload UI with table, file picker, weight/style/format selectors
+**Do NOT re-add custom font upload for PDF.** It was built, tested exhaustively (base64 data URIs, static resource URLs, ContentVersion URLs), and confirmed not possible.
 
-### Heap considerations
-Each font file is typically 50–200KB. Base64 encoding adds ~33%. With 4 variants of one font family (~800KB raw → ~1MB base64), this fits within the 6MB synchronous heap limit. For orgs using many custom fonts, consider keeping to 2–3 font families max.
+### DOCX output
+DOCX output preserves whatever fonts are in the template file. If users need custom fonts (branded typefaces, barcode fonts, decorative scripts), they should generate as DOCX. The fonts render correctly when opened in Word or any compatible viewer.
 
 ## Scratch Org for Testing
 

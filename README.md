@@ -2,14 +2,14 @@
 
 **A free, native, production-ready document engine for Salesforce.**
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](#quick-install)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](#quick-install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![API Version](https://img.shields.io/badge/API-v66.0-orange.svg)](#)
 [![Dependencies](https://img.shields.io/badge/JS%20dependencies-zero-brightgreen.svg)](#)
 [![Buy Amanda a Coffee](https://img.shields.io/badge/Buy_Amanda_a_Coffee-%E2%98%95-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/davemoudya)
 
-Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields, loop over child records, inject images, collect legally-binding electronic signatures, and render PDFs -- all 100% server-side, without leaving Salesforce, and without paying a dime.
+Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields, loop over child records, inject images, and render PDFs -- all 100% server-side, without leaving Salesforce, and without paying a dime.
 
 ---
 
@@ -27,8 +27,6 @@ Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields,
 - [Getting Started](#getting-started)
   - [Permission Sets](#permission-sets)
   - [Adding Components to Record Pages](#adding-components-to-record-pages)
-  - [E-Signature Site Setup](#e-signature-site-setup)
-  - [Email Branding](#email-branding)
 - [Template Authoring Guide](#template-authoring-guide)
   - [How Merge Tags Work](#how-merge-tags-work)
   - [Tag Syntax Reference](#tag-syntax-reference)
@@ -36,10 +34,6 @@ Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields,
   - [Image Injection](#image-injection)
   - [Date Formatting](#date-formatting)
   - [Conditional Sections](#conditional-sections)
-  - [Signature Placeholders](#signature-placeholders)
-- [E-Signatures](#e-signatures)
-  - [Signature Roles](#signature-roles)
-  - [Signer Templates](#signer-templates)
 - [Bulk Generation](#bulk-generation)
 - [Flow Integration](#flow-integration)
 - [Architecture](#architecture)
@@ -54,7 +48,7 @@ Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields,
 
 Document generation in Salesforce is expensive. The market leaders charge per-user, per-month fees that quickly add up across an organization. We believe basic document needs should be accessible to everyone.
 
-This project gives you a professional-grade document engine -- template management, bulk generation, flow integration, server-side PDF rendering, image injection, and multi-signer electronic signatures -- entirely for free and fully open-source.
+This project gives you a professional-grade document engine -- template management, bulk generation, flow integration, server-side PDF rendering, and image injection -- entirely for free and fully open-source.
 
 ---
 
@@ -93,39 +87,22 @@ DocGen runs 100% on the Salesforce platform, which means it operates within [Ape
 
 ## What's New in v1.4.0
 
-### Template-Based Signature Flow
+### Font Support
 
-E-signatures no longer require a pre-generated DOCX per record. The admin selects a DocGen template directly, and the system merges it with live record data at signing time -- rendering straight to PDF with zero DOCX intermediate.
+**PDF output** uses Salesforce's built-in PDF rendering engine, which supports these fonts: **Helvetica** (sans-serif), **Times** (serif), **Courier** (monospace), and **Arial Unicode MS** (CJK/multibyte). Custom fonts cannot be loaded into the engine — this is a Salesforce platform limitation (`Blob.toPdf()` does not support CSS `@font-face`).
 
-**How it works under the hood:**
+**DOCX output** preserves whatever fonts are in your template. If you need custom fonts (branded typefaces, barcode fonts, decorative scripts), **generate as DOCX** — the fonts carry through from the template file and render correctly when opened in Word or any compatible viewer.
 
-When a template version is saved, DocGen deconstructs the DOCX ZIP file -- extracting each XML part (`document.xml`, `_rels`, headers, footers) and every embedded image into individual ContentVersion records. This pre-decomposition means PDF generation never needs to decompress a ZIP at runtime.
+### Signature Feature Removed
 
-When an admin creates a signature request, the system pre-computes the full image map (template images + dynamic images from record fields) and caches a preview with public download URLs. This solves Salesforce's content sharing restrictions -- guest users on the signing page see a fully rendered document preview with all images, even though they have no Salesforce session.
+E-signature functionality has been **intentionally removed** from DocGen. Electronic signatures carry jurisdiction-specific legal requirements (ESIGN Act, eIDAS, etc.) that a document generation tool should not attempt to implement. Dedicated e-signature providers (DocuSign, Adobe Sign, etc.) carry their own legal compliance certifications -- we don't, and shipping a signature implementation exposes both the product and its users to legal risk.
 
-When all signers complete their signatures, a single Queueable job:
-1. Loads the pre-decomposed template XML (no ZIP decompression)
-2. Merges it with live record data (field substitution, child loops, conditional sections)
-3. Stamps each signature as DrawingML directly into the merged XML -- pure string operations, no ZIP assembly
-4. Passes the result to `Blob.toPdf()` with relative ContentVersion URLs -- the PDF engine resolves images by URL with zero Apex heap cost
-
-The result: signed PDFs with 20+ embedded images (up to 30MB total image data) and 500+ child record rows generate successfully within Salesforce governor limits.
-
-**What changed for users:**
-- Signature Sender component now shows a **template picker** (primary) with legacy document picker as fallback
-- Templates auto-scan for `{#Signature_*}` placeholders and pre-populate signer roles
-- Document preview on the signing page shows the fully merged document with all record data and images
-- No need to generate a DOCX first -- go straight from template to signatures to signed PDF
+DocGen focuses on what it does best: **generating documents**. For signature workflows, generate your document with DocGen and hand it off to a dedicated e-signature provider. The architecture supports clean integration points for this approach.
 
 ### DOCX Output: Download Only
 - "Save to Record" option is now only available for PDF output
 - DOCX generation uses client-side ZIP assembly which exceeds the Aura 4MB payload limit for save operations
 - Download works for any size
-
-### Updated Page Layouts
-- Signature Request layout: added Template lookup field, reorganized sections
-- Signature Audit layout: streamlined verification and client details
-- Signer layout: removed internal Security section
 
 ---
 
@@ -175,26 +152,11 @@ The result: signed PDFs with 20+ embedded images (up to 30MB total image data) a
 
 ## What's New in v1.2.2
 
-### E-Signature PDF Fix
-- Signed PDFs now save correctly to the original record after all signers complete
-- Fixed `Related_Record_Id__c` lookup -- no longer relies on fragile ContentDocumentLink traversal
-- Fixed base64 `data:image/...` prefix not being stripped before signature image decoding
-- Signature images now render in the signed PDF via committed ContentVersion download URLs
-- Added `Database.AllowsCallouts` to the Stage 2 render Queueable
-
-### Automated Process User Compatibility
-- Signature PDF generation runs entirely through `Blob.toPdf()` -- no Visualforce page access required
-- Requires the Spring '26 Release Update: **"Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations"**
-- Added `DocGenPdfRendererController`, `DocGenSignatureController`, and `DocGenSignatureService` class access to Admin and User permission sets
-- Added VF page access (`DocGenPdfRenderer`, `DocGenSignature`) to Admin and User permission sets
-- Error audit logging: signature PDF failures now create a `DocGen_Signature_Audit__c` record with the error message instead of failing silently
-
 ### Admin Guide
-- New **Data Model** section with complete object reference tables, signature flow lifecycle, and relationship diagram
-- Signature placeholders now recommend always using `{#Signature_RoleName}` format
+- New **Data Model** section with complete object reference tables and relationship diagram
 
 ### Page Layouts
-- Added page layouts for all 9 custom objects
+- Added page layouts for all custom objects
 
 ---
 
@@ -245,7 +207,7 @@ The result: signed PDFs with 20+ embedded images (up to 30MB total image data) a
 
 ### In-App Admin Guide
 - Comprehensive admin guide accessible as the **first tab** in the DocGen app
-- 14 sections covering every feature: templates, merge tags, signatures, roles, email branding, logo hosting, permissions, versioning, flow automation, and troubleshooting
+- Sections covering every feature: templates, merge tags, permissions, versioning, flow automation, and troubleshooting
 - Documents the `{%ImageField:WxH}` image injection syntax with ContentVersion usage
 
 ### Template Version Preview
@@ -262,7 +224,6 @@ The result: signed PDFs with 20+ embedded images (up to 30MB total image data) a
 ### Security Hardening
 - All DML operations wrapped with `Security.stripInaccessible()` for CRUD/FLS enforcement
 - SOQL filter sanitization strengthened with whitespace normalization
-- Signature token generation upgraded from `Math.random()` to `Crypto.generateAesKey(256)`
 - Error messages genericized to prevent information disclosure
 - Debug logging levels reduced to prevent sensitive data exposure
 - Added explicit `WITH SYSTEM_MODE` to all system-context queries
@@ -284,11 +245,10 @@ The result: signed PDFs with 20+ embedded images (up to 30MB total image data) a
 | **PDF Generation** | Server-side DOCX-to-PDF via `Blob.toPdf()` with automatic VF fallback for image support |
 | **Bulk Generation** | Generate documents for hundreds of records with real-time progress tracking |
 | **Flow Integration** | Invocable actions for single-record and bulk generation in any Flow |
-| **Electronic Signatures** | Multi-signer, role-based signatures with branded emails and audit trails |
+| **Font Support** | PDF: Helvetica, Times, Courier, Arial Unicode MS. DOCX: any font from your template |
 | **Image Injection** | Embed images from ContentVersion files, rich text fields, or base64 data |
 | **Template Versioning** | Full version history with preview, download, restore, and sample generation |
 | **Admin Guide** | Built-in comprehensive guide as the first tab in the app |
-| **Document Authenticator** | SHA-256 hash verification of signed PDFs (client-side, no upload) |
 
 ---
 
@@ -301,8 +261,7 @@ After installing, assign these from **Setup > Permission Sets**:
 | Permission Set | Who Gets It | What It Grants |
 |---------------|-------------|----------------|
 | **DocGen Admin** | Admins, template managers | Full CRUD on all DocGen objects, setup wizard access, template sharing |
-| **DocGen User** | End users | Generate documents, view templates (read-only), manage own signature requests |
-| **DocGen Guest Signature** | Site guest user only | Signature submission via public VF pages (never assign to internal users) |
+| **DocGen User** | End users | Generate documents, view templates (read-only) |
 
 ### Adding Components to Record Pages
 
@@ -311,28 +270,9 @@ After installing, assign these from **Setup > Permission Sets**:
 2. Drag the **docGenRunner** component onto the layout
 3. Save and activate
 
-**Signature Sender** -- lets users send documents for e-signature:
-1. Same process, drag **docGenSignatureSender** onto the page
-2. Shows recently generated documents and tracks signature status
-
-### E-Signature Site Setup
-
-E-signatures require a Salesforce Site (not Experience Cloud):
-
-1. Go to **Setup > Sites** > click **New**
-2. Configure:
-   - Site Label: **DocGen Signatures**
-   - Active Site Home Page: **DocGenSignature**
-   - Check **Active**
-3. Click **Public Access Settings** > add **DocGenSignature** to Enabled Visualforce Page Access
-4. Assign the **DocGen Guest Signature** permission set to the Site Guest User
-5. Copy the Site URL and paste it in the **DocGen Setup** tab
-
-> Signature links are secured with SHA-256 tokens and expire after 30 days.
-
 ### Required: Enable Updated Blob.toPdf() (Spring '26)
 
-**This Release Update is required for all PDF generation**, not just signatures. The old `Blob.toPdf()` engine does not understand `<style>` blocks or `<img>` tags in HTML — it renders them as literal visible text in your PDF. The updated engine uses the same Visualforce PDF rendering service (Flying Saucer) that powers `renderAs="pdf"`, giving you proper CSS, image, and font support.
+**This Release Update is required for all PDF generation.** The old `Blob.toPdf()` engine does not understand `<style>` blocks or `<img>` tags in HTML — it renders them as literal visible text in your PDF. The updated engine uses the same Visualforce PDF rendering service (Flying Saucer) that powers `renderAs="pdf"`, giving you proper CSS, image, and font support.
 
 **To enable:**
 1. Go to [**Setup > Release Updates**](/lightning/setup/ReleaseUpdates/home)
@@ -341,42 +281,12 @@ E-signatures require a Salesforce Site (not Experience Cloud):
 
 **What this does:**
 - Upgrades `Blob.toPdf()` to use the same rendering engine as Visualforce `renderAs="pdf"`
-- Enables CSS parsing (`<style>` tags), image rendering (`<img>` with Salesforce URLs), and modern font support
-- Required for all PDF output — single-record, bulk, and signed PDFs
+- Enables CSS parsing (`<style>` tags), image rendering (`<img>` with Salesforce URLs), and custom font support
+- Required for all PDF output — single-record and bulk
 
 **Without this Release Update**, PDFs will contain raw CSS text instead of formatted content, and images will not render. This is the most common issue reported by new users.
 
 > **Note:** This Release Update is opt-in until Summer '26 when Salesforce enforces it for all orgs.
-
-**Why signatures are especially affected:** E-signature PDFs are generated by the Automated Process user via Platform Events and Queueable Apex. This system user cannot access Visualforce pages, so there is no fallback — `Blob.toPdf()` with the Release Update enabled is the only rendering path for signed documents.
-
-### How the Automated Process User Works
-
-When all signers complete their signatures, the following chain executes automatically:
-
-1. The last signer's completion publishes a **Platform Event** (`DocGen_Signature_PDF__e`)
-2. A **trigger** fires and enqueues a Queueable job (runs as the **Automated Process user**)
-3. The Queueable loads pre-decomposed template XML, merges with record data, stamps signatures into the XML, and renders PDF via `Blob.toPdf()` -- all in a single transaction with no DOCX intermediate
-4. The signed PDF is saved to the **original record** (Account, Opportunity, etc.) and an audit trail is created
-
-The Automated Process user has full data access via `SYSTEM_MODE` queries and `AccessLevel.SYSTEM_MODE` DML. It does **not** need permission sets for object access. However, it **does** require the Spring '26 `Blob.toPdf()` Release Update for proper PDF rendering since it cannot access Visualforce pages.
-
-### Email Branding
-
-Customize the emails sent to signers from the **DocGen Setup** tab (Step 2):
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Company Name** | Shown in email header when no logo is set | (blank) |
-| **Logo Image URL** | Company logo in email header (200x60px PNG recommended) | (blank) |
-| **Brand Color** | Header bar and CTA button color | `#0176D3` |
-| **Email Subject** | Supports merge fields: `{SignerName}`, `{DocumentTitle}`, `{SenderName}` | `Action Required: Please Sign {DocumentTitle}` |
-| **Footer Text** | Custom text at email bottom | `Powered by DocGen` |
-
-**Logo hosting tips:**
-- For the best email experience, host your logo on a **public URL** (your company website or CDN)
-- Salesforce-hosted images (ContentVersion, Static Resource) require authentication -- email clients won't render them
-- If you have a Salesforce Site, you can serve a Static Resource through the Site URL for public access
 
 ---
 
@@ -403,8 +313,6 @@ DocGen uses **plain text replacement**. Each tag in your template is swapped wit
 | `{Field:format}` | Date with format | `{CloseDate:MM/dd/yyyy}` |
 | `{%ImageField}` | Image (default 4"x3") | `{%Company_Logo__c}` |
 | `{%ImageField:WxH}` | Image with pixel size | `{%Photo__c:200x150}` |
-| `{#Signature}` | Single-signer placeholder | |
-| `{#Signature_Role}` | Multi-signer placeholder | `{#Signature_Client}` |
 
 ### Working with Child Records
 
@@ -483,48 +391,6 @@ SPECIAL TERMS: This agreement includes special provisions...
 
 Content appears only if the field is truthy (non-null, non-empty, non-false).
 
-### Signature Placeholders
-
-**Single signer:** `{#Signature}`
-
-**Multiple signers** (role-specific):
-- `{#Signature_Client}`
-- `{#Signature_Account_Executive}`
-- `{#Signature_Witness}`
-
-Role names use underscores for spaces. When signed, the placeholder is replaced with the drawn signature image plus a timestamp.
-
----
-
-## E-Signatures
-
-### How It Works
-
-1. **Create a template** with signature placeholders (`{#Signature_Buyer}`, `{#Signature_Seller}`, etc.)
-2. **Send for signature** from the Signature Sender component -- select the template, assign contacts to roles
-3. **Signers receive branded emails** with secure links
-4. **Signers review the merged document** and sign on a public page with a signature pad
-5. **Signed PDF is generated** -- template merged with record data, signatures stamped, all in one step
-6. **Audit trail** records signer name, email, IP, browser, timestamp, and SHA-256 hash
-
-### Signature Roles
-
-Roles map signers to specific locations in the document:
-
-```
-{#Signature_Client}       -- Where the client signs
-{#Signature_Witness}      -- Where the witness signs
-```
-
-The Signature Sender auto-detects roles by scanning the document for `{#Signature_*}` placeholders.
-
-### Signer Templates
-
-Save frequently used role configurations:
-1. Configure signers and roles in the Signature Sender
-2. Click **Save as Template**
-3. Load it next time from the dropdown -- roles are pre-populated
-
 ---
 
 ## Bulk Generation
@@ -558,11 +424,6 @@ Save frequently used filters with **Save Query** for reuse.
 | `queryCondition` | Input | SOQL WHERE clause |
 | `jobId` | Output | DocGen_Job__c record ID |
 
-**Signature Actions** (for Experience Cloud flows):
-- `DocGenSignatureValidator` -- Validates a signature token
-- `DocGenSignatureFinalizer` -- Processes signature submission in system context
-- `DocGenSignatureSubmitter` -- Handles signature from Flow context
-
 ---
 
 ## Architecture
@@ -591,8 +452,6 @@ Template (.docx/.pptx)
 | `DocGenHtmlRenderer` | DOCX XML to HTML conversion for `Blob.toPdf()` |
 | `DocGenController` | LWC controller -- template CRUD, generation, versioning |
 | `DocGenDataRetriever` | Dynamic SOQL with Schema validation |
-| `DocGenSignatureService` | Signature stamping -- XML string ops for template flow, OpenXML ZIP for legacy DOCX flow |
-| `DocGenSignatureEmailService` | Branded HTML email generation |
 | `DocGenBatch` | Batch Apex for bulk generation |
 
 ---
@@ -605,9 +464,6 @@ DocGen includes a comprehensive **Admin Guide** built directly into the app as t
 - Template creation and the visual query builder
 - Merge tag syntax with examples
 - Dynamic image injection with `{%}` tags and ContentVersion IDs
-- E-signature workflow, roles, and templates
-- Email branding configuration
-- Logo hosting options (external, Salesforce-hosted, Site-hosted)
 - Sharing and permissions architecture
 - Template versioning with preview, download, and rollback
 - Flow and automation actions
@@ -620,11 +476,9 @@ Open the **DocGen Admin Guide** tab in the DocGen app to access it.
 ## Changelog
 
 ### v1.4.0
-- **Template-Based Signatures** -- E-signatures use DocGen templates directly; no pre-generated DOCX needed. Single-stage Queueable: merge XML + stamp signatures + render PDF. Zero ZIP operations.
-- **Pre-Computed Preview** -- Fully merged document preview with public image URLs cached at request creation. Guest users see the real document on the signing page.
-- **Content Sharing Workaround** -- Image map pre-computed by admin and cached on the request record. Automated Process user reads cached data instead of querying template CVs.
+- **Font Documentation** -- PDF output supports Helvetica, Times, Courier, and Arial Unicode MS (platform limitation). DOCX output preserves all template fonts.
+- **Signature Feature Removed** -- E-signature functionality removed. Electronic signatures carry legal requirements that a document generator should not implement; use dedicated providers (DocuSign, Adobe Sign, etc.)
 - **DOCX Download Only** -- Save to Record removed for DOCX output (Aura 4MB payload limit). Download works for any size.
-- **Stress Tested** -- 20 unique 1.3MB images + 500 child records + multi-signer signatures. Signed PDF generated within governor limits.
 
 ### v1.3.4
 - **Zero-Heap PDF Images** -- `{%ImageField}` tags skip blob loading for PDF; images resolved by URL with zero heap cost
@@ -634,23 +488,20 @@ Open the **DocGen Admin Guide** tab in the DocGen app to access it.
 - **Encoding Fix** -- `&` no longer double-encoded in PDF output
 
 ### v1.1.1
-- **Signature Fix** (#28) -- Single-signer flow no longer fails; uses `isSignerToken` flag for correct routing
 - **PDF Renderer** (#27) -- Full DOCX style conversion: headings, lists, line spacing, page breaks, borders, shading, hyperlinks, superscript/subscript, table enhancements
 - **Merge Fields** -- `{!Field}` Salesforce-style syntax and base object prefix stripping now supported
 - **Query Parser** -- Auto-splits fields from adjacent subqueries when comma is missing
 
 ### v1.1.0
-- **Admin Guide** -- In-app admin guide as the first tab with 14 sections covering all features
+- **Admin Guide** -- In-app admin guide as the first tab covering all features
 - **Version Preview** -- Redesigned with query display, template download, and sample generation
-- **Email Branding** -- Configurable subject, footer, logo, and brand color for signature emails
-- **Security** -- `Security.stripInaccessible()` on all DML, `Crypto.generateAesKey()` for tokens, sanitization hardening, error message genericization
+- **Security** -- `Security.stripInaccessible()` on all DML, sanitization hardening, error message genericization
 - **Image Documentation** -- `{%ImageField:WxH}` syntax with ContentVersion usage documented in-app
 
 ### v1.0.0
 - **Server-Side PDF** -- All PDF generation uses `DocGenHtmlRenderer` + `Blob.toPdf()`. Zero client-side JavaScript.
 - **Removed** -- All third-party JS libraries, client-side rendering pipeline
 - **Security** -- API version 66.0, CRUD/FLS enforcement, verbose debug logging removed
-- **Signature** -- Server-side document preview and PDF generation for the signing portal
 
 ### v0.9.x
 - PKCE Auth Fix, wizard UX improvements, credential provisioning
