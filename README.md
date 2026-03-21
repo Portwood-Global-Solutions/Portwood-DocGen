@@ -17,6 +17,7 @@ Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields,
 
 - [Why This Exists](#why-this-exists)
 - [Quick Install](#quick-install)
+- [What's New in v1.5.0](#whats-new-in-v150)
 - [What's New in v1.4.0](#whats-new-in-v140)
 - [What's New in v1.3.4](#whats-new-in-v134)
 - [What's New in v1.2.2](#whats-new-in-v122)
@@ -85,7 +86,7 @@ DocGen runs 100% on the Salesforce platform, which means it operates within [Ape
 
 **Is this right for you?** — If your use case consistently requires documents or image data larger than these limits, this tool may not be the right fit in its current state. For very large documents, consider the [client-side generation option](https://github.com/DaveMoudy/SalesforceDocGen/issues/23) which offloads assembly to the browser.
 
-## What's New in v1.4.0
+## What's New in v1.5.0
 
 ### Font Support
 
@@ -98,6 +99,10 @@ DocGen runs 100% on the Salesforce platform, which means it operates within [Ape
 E-signature functionality has been **intentionally removed** from DocGen. Electronic signatures carry jurisdiction-specific legal requirements (ESIGN Act, eIDAS, etc.) that a document generation tool should not attempt to implement. Dedicated e-signature providers (DocuSign, Adobe Sign, etc.) carry their own legal compliance certifications -- we don't, and shipping a signature implementation exposes both the product and its users to legal risk.
 
 DocGen focuses on what it does best: **generating documents**. For signature workflows, generate your document with DocGen and hand it off to a dedicated e-signature provider. The architecture supports clean integration points for this approach.
+
+---
+
+## What's New in v1.4.0
 
 ### DOCX Output: Download Only
 - "Save to Record" option is now only available for PDF output
