@@ -14,25 +14,42 @@
             <!-- Step 1: Configuration -->
             <div class="slds-grid slds-gutters">
                 <div class="slds-col slds-size_1-of-2">
-                    <div class="slds-grid slds-grid_vertical-align-end" style="gap: 0.5rem;">
-                        <div class="slds-col slds-grow">
-                            <lightning-combobox
-                                label="Select Template"
-                                placeholder="Search or choose a template..."
-                                value={selectedTemplateId}
-                                options={filteredTemplates}
-                                onchange={handleTemplateChange}
-                                disabled={isProcessing}>
-                            </lightning-combobox>
+                    <div style="position: relative;">
+                        <div class="slds-grid slds-grid_vertical-align-end" style="gap: 0.5rem;">
+                            <div class="slds-col slds-grow">
+                                <lightning-input type="search" label="Template" placeholder="Start typing to find a template..." value={templateSearchTerm} onchange={handleTemplateSearch} onfocus={handleTemplateSearchFocus} disabled={isProcessing}></lightning-input>
+                            </div>
+                            <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Refresh templates" onclick={handleRefreshTemplates}></lightning-button-icon>
                         </div>
-                        <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Refresh templates" onclick={handleRefreshTemplates}></lightning-button-icon>
+                        <template if:true={showTemplateDropdown}>
+                            <div class="slds-dropdown slds-dropdown_fluid" style="position: absolute; z-index: 100; max-height: 250px; overflow-y: auto; margin-top: 2px;">
+                                <ul class="slds-listbox slds-listbox_vertical">
+                                    <template for:each={filteredTemplates} for:item="tmpl">
+                                        <li key={tmpl.value} class="slds-listbox__item">
+                                            <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" style="cursor: pointer;" data-id={tmpl.value} onclick={handleTemplateSelect}>
+                                                <span class="slds-media__figure"><lightning-icon icon-name="standard:template" size="x-small"></lightning-icon></span>
+                                                <span class="slds-media__body"><span class="slds-truncate">{tmpl.label}</span></span>
+                                            </div>
+                                        </li>
+                                    </template>
+                                    <template if:false={filteredTemplates.length}>
+                                        <li class="slds-listbox__item"><div class="slds-var-p-around_small slds-text-color_weak slds-text-align_center">No templates found</div></li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
                     </div>
-                    <lightning-input type="search" variant="label-hidden" placeholder="Filter templates..." onchange={handleTemplateSearch} class="slds-var-m-top_x-small"></lightning-input>
 
-                    <template if:true={baseObject}>
-                        <div class="slds-text-color_weak slds-var-m-top_x-small">
-                            Target Object: <strong>{baseObject}</strong>
+                    <template if:true={selectedTemplateName}>
+                        <div class="slds-var-m-top_x-small" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <lightning-icon icon-name="utility:check" size="xx-small" variant="success"></lightning-icon>
+                            <span class="slds-text-body_small"><strong>{selectedTemplateName}</strong> — {baseObject}</span>
                         </div>
+                    </template>
+
+                    <!-- Preview button -->
+                    <template if:true={canPreview}>
+                        <lightning-button label="Preview Sample Document" variant="neutral" icon-name="utility:preview" size="small" onclick={handlePreviewSample} class="slds-var-m-top_small"></lightning-button>
                     </template>
                 </div>
 
@@ -206,6 +223,40 @@
                 <footer class="slds-modal__footer">
                     <lightning-button label="Cancel" onclick={closeSaveModal} class="slds-var-m-right_small"></lightning-button>
                     <lightning-button label="Save" variant="brand" onclick={handleSaveQuery}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Preview Modal -->
+    <template if:true={showPreviewModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare-inverse" class="slds-modal__close" onclick={handleClosePreview}></lightning-button-icon>
+                    <h2 class="slds-text-heading_medium">Sample Document Preview</h2>
+                    <p class="slds-text-body_small slds-text-color_weak">This is what each document will look like when generated.</p>
+                </header>
+                <div class="slds-modal__content slds-var-p-around_medium">
+                    <template if:true={isGeneratingPreview}>
+                        <div class="slds-align_absolute-center" style="padding: 3rem;">
+                            <lightning-spinner alternative-text="Generating preview..." size="medium"></lightning-spinner>
+                        </div>
+                    </template>
+                    <template if:true={previewHtml}>
+                        <div style="border: 1px solid #e5e5e5; border-radius: 4px; padding: 1rem; background: #fff; max-height: 500px; overflow-y: auto;">
+                            <lightning-formatted-rich-text value={previewHtml}></lightning-formatted-rich-text>
+                        </div>
+                    </template>
+                    <template if:true={previewError}>
+                        <div class="slds-box slds-theme_error" style="border-radius: 6px;">
+                            <p>{previewError}</p>
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Close" onclick={handleClosePreview}></lightning-button>
                 </footer>
             </div>
         </section>

@@ -8,6 +8,7 @@ import getJobStatus from '@salesforce/apex/DocGenBulkController.getJobStatus';
 import getSavedQueries from '@salesforce/apex/DocGenBulkController.getSavedQueries';
 import saveQuery from '@salesforce/apex/DocGenBulkController.saveQuery';
 import deleteQuery from '@salesforce/apex/DocGenBulkController.deleteQuery';
+import generateDocumentData from '@salesforce/apex/DocGenController.generateDocumentData';
 
 const POLL_INTERVAL_MS = 5000;
 const TERMINAL_STATUSES = ['Completed', 'Failed', 'Completed with Errors'];
@@ -60,19 +61,131 @@ export default class DocGenBulkRunner extends LightningElement {
     }
 
     @track templateSearchTerm = '';
+    @track showTemplateDropdown = false;
+    @track selectedTemplateName = '';
+
+    // Preview state
+    @track showPreviewModal = false;
+    @track isGeneratingPreview = false;
+    @track previewHtml = '';
+    @track previewError = '';
 
     get filteredTemplates() {
-        if (!this.templateSearchTerm) return this.templates;
-        const term = this.templateSearchTerm.toLowerCase();
+        const term = (this.templateSearchTerm || '').toLowerCase();
+        if (!term) return this.templates;
         return this.templates.filter(t => t.label.toLowerCase().includes(term));
+    }
+
+    get canPreview() {
+        if (!this.selectedTemplateId) return false;
+        const tmplData = this._templateDataMap[this.selectedTemplateId];
+        return tmplData && tmplData.Test_Record_Id__c;
     }
 
     handleTemplateSearch(event) {
         this.templateSearchTerm = event.detail.value || event.target.value || '';
+        this.showTemplateDropdown = this.templateSearchTerm.length > 0 || this.templates.length <= 20;
+    }
+
+    handleTemplateSearchFocus() {
+        this.showTemplateDropdown = true;
+    }
+
+    handleTemplateSelect(event) {
+        const templateId = event.currentTarget.dataset.id;
+        this.selectedTemplateId = templateId;
+        this.showTemplateDropdown = false;
+
+        const selected = this.templates.find(t => t.value === templateId);
+        if (selected) {
+            this.baseObject = selected.baseObject;
+            this.selectedTemplateName = selected.label;
+            this.templateSearchTerm = '';
+            this.recordCount = null;
+            this.loadSavedQueries();
+
+            // Auto-load report filter
+            const tmplData = this._templateDataMap[this.selectedTemplateId];
+            if (tmplData && tmplData.Query_Config__c) {
+                try {
+                    const config = JSON.parse(tmplData.Query_Config__c);
+                    let autoFilter = null;
+                    if (config.bulkWhereClause) {
+                        autoFilter = config.bulkWhereClause;
+                    } else if (config.reportFilters && config.reportFilters.length > 0) {
+                        const parts = config.reportFilters.map(f => {
+                            if (f.operator === 'LIKE') return f.field + " LIKE '%" + f.value + "%'";
+                            if (f.operator === 'IN' || f.operator === 'NOT IN') {
+                                const vals = f.value.split(',').map(v => "'" + v.trim() + "'").join(', ');
+                                return f.field + ' ' + f.operator + ' (' + vals + ')';
+                            }
+                            const v = f.value.trim();
+                            const dateLiterals = ['TODAY','YESTERDAY','TOMORROW','LAST_WEEK','THIS_WEEK','NEXT_WEEK','LAST_MONTH','THIS_MONTH','NEXT_MONTH','LAST_QUARTER','THIS_QUARTER','NEXT_QUARTER','LAST_YEAR','THIS_YEAR','NEXT_YEAR','LAST_90_DAYS','NEXT_90_DAYS'];
+                            const upper = v.toUpperCase();
+                            if (dateLiterals.includes(upper) || upper.startsWith('LAST_N_') || upper.startsWith('NEXT_N_') || /^\d+\.?\d*$/.test(v) || /^\d{4}-\d{2}-\d{2}/.test(v) || upper === 'TRUE' || upper === 'FALSE' || upper === 'NULL') {
+                                return f.field + ' ' + f.operator + ' ' + v;
+                            }
+                            return f.field + " " + f.operator + " '" + f.value + "'";
+                        });
+                        autoFilter = parts.join(' AND ');
+                    }
+                    if (autoFilter) {
+                        this.condition = autoFilter;
+                        this.showToast('Filter Applied', 'Report filter loaded', 'info');
+                        const existingMatch = this.savedQueries.find(q => q.Query_Condition__c === autoFilter);
+                        if (!existingMatch) {
+                            saveQuery({ templateId: this.selectedTemplateId, label: 'From Report', description: 'Auto-saved from report import', condition: autoFilter })
+                                .then(() => this.loadSavedQueries()).catch(() => {});
+                        }
+                    }
+                } catch (e) { /* not JSON */ }
+            }
+        }
     }
 
     handleRefreshTemplates() {
         refreshApex(this._wiredTemplateResult);
+    }
+
+    // Preview
+    handlePreviewSample() {
+        const tmplData = this._templateDataMap[this.selectedTemplateId];
+        if (!tmplData || !tmplData.Test_Record_Id__c) return;
+
+        this.showPreviewModal = true;
+        this.isGeneratingPreview = true;
+        this.previewHtml = '';
+        this.previewError = '';
+
+        generateDocumentData({ templateId: this.selectedTemplateId, recordId: tmplData.Test_Record_Id__c })
+            .then(result => {
+                // The result contains merged data — show a simple text preview
+                const data = result.data;
+                let preview = '<h3>Sample Data Preview</h3>';
+                preview += '<p>This is the data that will be merged into each document:</p>';
+                preview += '<table style="width:100%;border-collapse:collapse;">';
+                for (const key of Object.keys(data)) {
+                    const val = data[key];
+                    if (val && typeof val === 'object' && val.records) {
+                        preview += '<tr><td style="padding:4px;border:1px solid #e5e5e5;font-weight:bold;">' + key + '</td><td style="padding:4px;border:1px solid #e5e5e5;">' + val.records.length + ' records</td></tr>';
+                    } else if (val && typeof val === 'object') {
+                        preview += '<tr><td style="padding:4px;border:1px solid #e5e5e5;font-weight:bold;">' + key + '</td><td style="padding:4px;border:1px solid #e5e5e5;">(related record)</td></tr>';
+                    } else {
+                        preview += '<tr><td style="padding:4px;border:1px solid #e5e5e5;font-weight:bold;">' + key + '</td><td style="padding:4px;border:1px solid #e5e5e5;">' + (val != null ? val : '') + '</td></tr>';
+                    }
+                }
+                preview += '</table>';
+                this.previewHtml = preview;
+                this.isGeneratingPreview = false;
+            })
+            .catch(error => {
+                this.previewError = error.body ? error.body.message : 'Could not generate preview.';
+                this.isGeneratingPreview = false;
+            });
+    }
+
+    handleClosePreview() {
+        this.showPreviewModal = false;
     }
 
     disconnectedCallback() {
