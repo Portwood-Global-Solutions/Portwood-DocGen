@@ -35,7 +35,7 @@
         <!-- Relationship Map (always visible) -->
         <div class="slds-box slds-var-m-bottom_small" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e5e5e5; padding: 0.75rem 1rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                <span style="font-size: 0.75rem; font-weight: 600; color: #706e6b; text-transform: uppercase; letter-spacing: 0.5px;">Document Data Map</span>
+                <span style="font-size: 0.75rem; font-weight: 600; color: #706e6b; text-transform: uppercase; letter-spacing: 0.5px;">Your Document Structure</span>
                 <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" size="small" onclick={handleOpenReportImport}></lightning-button>
             </div>
             <div style="font-size: 0.8125rem; font-family: monospace;">
@@ -80,7 +80,7 @@
                             <a href="javascript:void(0)" style="font-size: 0.75rem; color: #706e6b; text-decoration: none;" onclick={handleChangeRoot}>Change root object</a>
                         </template>
                         <template if:true={activeNode.isNotRoot}>
-                            <p class="slds-text-body_small slds-text-color_weak" style="margin: 2px 0 0 0;">Connected via {activeNode.lookupField}</p>
+                            <p class="slds-text-body_small slds-text-color_weak" style="margin: 2px 0 0 0;">These records are linked to the main record above</p>
                         </template>
                     </div>
                     <template if:true={activeNode.isNotRoot}>
@@ -90,7 +90,7 @@
 
                 <!-- Per-Object Relationship Actions -->
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e5e5;">
-                    <lightning-button label="Add child records" variant="neutral" icon-name="utility:add" size="small" onclick={handleAddNode}></lightning-button>
+                    <lightning-button label="Add related records" variant="neutral" icon-name="utility:add" size="small" onclick={handleAddNode}></lightning-button>
                     <lightning-button label="Include parent fields" variant="neutral" icon-name="utility:record_lookup" size="small" onclick={handleShowParentFieldPicker}></lightning-button>
                 </div>
 
@@ -201,7 +201,7 @@
 
         <!-- SOQL Preview -->
         <div class="slds-box slds-theme_shade slds-var-m-top_small" style="border-radius: 6px;">
-            <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem;">Generated Queries</p>
+            <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem;">How DocGen will fetch your data</p>
             <pre style="font-size: 0.75rem; white-space: pre-wrap; color: #181818; margin: 0;">{soqlPreview}</pre>
         </div>
     </template>

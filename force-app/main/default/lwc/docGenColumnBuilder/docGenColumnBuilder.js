@@ -106,7 +106,7 @@ export default class DocGenColumnBuilder extends LightningElement {
             indent: 'padding-left: ' + (depth * 24) + 'px',
             badgeClass: node.isRoot ? 'badge-base badge-main' :
                         node.isJunction ? 'badge-base badge-linked' : 'badge-base badge-related',
-            badgeLabel: node.isRoot ? 'Root' : node.isJunction ? 'Linked' : 'Related',
+            badgeLabel: node.isRoot ? 'Main' : node.isJunction ? 'Linked' : 'Child',
             connector: depth > 0 ? '└─' : '',
             treeItemClass: node.id === this.activeNodeId ? 'slds-theme_shade' : ''
         }];
@@ -409,10 +409,26 @@ export default class DocGenColumnBuilder extends LightningElement {
     }
 
     _createNode(objectApiName, label, isRoot, parentNodeId, lookupField, relationshipName, junctionConfig) {
+        // Clean up label — strip API name in parens, use friendly names
+        let friendlyLabel = label || objectApiName;
+        // "OpportunityLineItems (Opportunity Product)" → "Opportunity Products"
+        if (friendlyLabel.includes('(') && friendlyLabel.includes(')')) {
+            friendlyLabel = friendlyLabel.substring(friendlyLabel.indexOf('(') + 1, friendlyLabel.indexOf(')'));
+            // Pluralize if it doesn't end in 's'
+            if (!friendlyLabel.endsWith('s')) friendlyLabel += 's';
+        }
+        // "Contact (via OpportunityContactRoles)" → "Contacts"
+        if (friendlyLabel.includes(' (via ')) {
+            friendlyLabel = friendlyLabel.substring(0, friendlyLabel.indexOf(' (via '));
+            if (!friendlyLabel.endsWith('s')) friendlyLabel += 's';
+        }
+        // Strip "(linked)" suffix
+        friendlyLabel = friendlyLabel.replace(' (linked)', '');
+
         return {
             id: nextNodeId(),
             objectApiName,
-            label: label || objectApiName,
+            label: friendlyLabel,
             isRoot,
             isNotRoot: !isRoot,
             isJunction: !!junctionConfig,
