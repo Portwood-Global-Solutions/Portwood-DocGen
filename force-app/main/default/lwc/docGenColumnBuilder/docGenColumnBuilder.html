@@ -6,11 +6,11 @@
             <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-m-bottom_small">
                 <div>
                     <h3 class="slds-text-heading_small" style="font-weight: 700; margin: 0;">What kind of record is this document for?</h3>
-                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">For example, pick "Account" for a company overview, "Opportunity" for a proposal, or "Contact" for a letter.</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">Pick "Account" for a company overview, "Opportunity" for a proposal, "Contact" for a letter.</p>
                 </div>
                 <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" onclick={handleOpenReportImport}></lightning-button>
             </div>
-            <div class="slds-form-element" style="position: relative;">
+            <div style="position: relative;">
                 <lightning-input type="search" label="Search for an object" placeholder="Type to search... (Account, Contact, Opportunity)" value={objectSearchTerm} oninput={handleObjectSearch} onfocus={handleObjectFocus}></lightning-input>
                 <template if:true={showObjectPicker}>
                     <div class="slds-dropdown slds-dropdown_length-7 slds-dropdown_fluid" style="position: absolute; z-index: 100;">
@@ -33,29 +33,32 @@
     <!-- ==================== COLUMN BUILDER ==================== -->
     <template if:true={hasColumns}>
 
-        <!-- Header bar -->
+        <!-- Header -->
         <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-m-bottom_small">
             <div>
                 <h3 class="slds-text-heading_small" style="font-weight: 700; margin: 0;">Choose the fields for your document</h3>
-                <p class="slds-text-body_small slds-text-color_weak">Check the fields you want. Each column is a different set of records.</p>
+                <p class="slds-text-body_small slds-text-color_weak">Each card is a different set of records. Check the fields you want included.</p>
             </div>
-            <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" onclick={handleOpenReportImport}></lightning-button>
+            <div class="slds-grid" style="gap: 0.5rem;">
+                <lightning-button label="Add Related Records" variant="neutral" icon-name="utility:add" onclick={handleAddColumn}></lightning-button>
+                <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" onclick={handleOpenReportImport}></lightning-button>
+            </div>
         </div>
 
-        <!-- Columns -->
-        <div class="columns-container">
+        <!-- Columns — forced horizontal flex with inline styles -->
+        <div style="display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; max-width: 100%;">
             <template for:each={objectColumns} for:item="col">
-                <div key={col.id} class="object-column">
+                <div key={col.id} style="min-width: 300px; max-width: 380px; flex-shrink: 0; border: 1px solid #e5e5e5; border-radius: 8px; background: #fff; display: flex; flex-direction: column;">
 
-                    <!-- Column Header -->
-                    <div class="column-header">
+                    <!-- Header -->
+                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e5e5; display: flex; align-items: flex-start; justify-content: space-between;">
                         <div style="flex: 1; min-width: 0;">
-                            <div class="slds-grid slds-grid_vertical-align-center slds-var-m-bottom_xx-small" style="gap: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2px;">
                                 <span class={col.badgeClass}>{col.badgeLabel}</span>
-                                <h3>{col.label}</h3>
+                                <strong style="font-size: 0.9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{col.label}</strong>
                             </div>
                             <template if:true={col.hasSubtitle}>
-                                <p class="slds-text-body_small slds-text-color_weak" style="margin: 0;">{col.subtitle}</p>
+                                <p style="font-size: 0.75rem; color: #706e6b; margin: 0;">{col.subtitle}</p>
                             </template>
                         </div>
                         <template if:true={col.isNotBase}>
@@ -63,19 +66,16 @@
                         </template>
                     </div>
 
-                    <!-- Column Body -->
-                    <div class="column-body">
-                        <!-- Field search -->
-                        <lightning-input type="search" variant="label-hidden" placeholder="Search fields..." data-col-id={col.id} onchange={handleFieldSearch} class="slds-var-m-bottom_x-small"></lightning-input>
+                    <!-- Body -->
+                    <div style="padding: 0.75rem 1rem; flex: 1; overflow-y: auto; max-height: 350px;">
+                        <lightning-input type="search" variant="label-hidden" placeholder="Search fields..." data-col-id={col.id} onchange={handleFieldSearch} style="margin-bottom: 0.5rem;"></lightning-input>
 
-                        <!-- Select All -->
-                        <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_x-small">
-                            <span class="slds-text-body_small slds-text-color_weak">{col.selectedFields.length} selected</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <span style="font-size: 0.75rem; color: #706e6b;">{col.selectedFields.length} selected</span>
                             <lightning-button label="Select All" variant="base" size="small" data-col-id={col.id} onclick={handleSelectAll}></lightning-button>
                         </div>
 
-                        <!-- Field checkboxes -->
-                        <div class="field-list">
+                        <div style="max-height: 180px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 4px; padding: 0.5rem;">
                             <lightning-checkbox-group
                                 name={col.id}
                                 label="Fields"
@@ -87,14 +87,14 @@
                             </lightning-checkbox-group>
                         </div>
 
-                        <!-- Parent fields (base column only) -->
+                        <!-- Parent fields (base only) -->
                         <template if:true={col.isBase}>
                             <template if:true={col.parentGroups}>
                                 <template for:each={col.parentGroups} for:item="pg">
-                                    <div key={pg.relationshipName} class="parent-group">
-                                        <div class="parent-group-label">From: {pg.relationshipName}</div>
+                                    <div key={pg.relationshipName} style="background: #f3f2f2; border-radius: 6px; padding: 0.5rem 0.75rem; margin-top: 0.5rem;">
+                                        <div style="font-size: 0.6875rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem;">From: {pg.relationshipName}</div>
                                         <template for:each={pg.fields} for:item="pf">
-                                            <span key={pf} class="slds-badge slds-badge_lightest slds-var-m-right_xx-small">{pg.relationshipName}.{pf}</span>
+                                            <span key={pf} class="slds-badge slds-badge_lightest" style="margin-right: 4px; margin-bottom: 2px;">{pg.relationshipName}.{pf}</span>
                                         </template>
                                     </div>
                                 </template>
@@ -102,57 +102,53 @@
                         </template>
                     </div>
 
-                    <!-- Column Footer (WHERE/ORDER/LIMIT for non-base) -->
+                    <!-- Footer: WHERE/ORDER/LIMIT (non-base only) -->
                     <template if:true={col.isNotBase}>
-                        <div class="column-footer">
-                            <p class="section-label">Filters</p>
-                            <lightning-input label="WHERE" variant="label-inline" placeholder="e.g. StageName = 'Closed Won'" value={col.whereClause} data-col-id={col.id} onchange={handleWhereChange}></lightning-input>
-                            <lightning-input label="Sort by" variant="label-inline" placeholder="e.g. CreatedDate DESC" value={col.orderBy} data-col-id={col.id} onchange={handleOrderChange} class="slds-var-m-top_xx-small"></lightning-input>
-                            <lightning-input label="Limit" variant="label-inline" type="number" value={col.limitAmount} data-col-id={col.id} onchange={handleLimitChange} min="1" max="2000" class="slds-var-m-top_xx-small"></lightning-input>
+                        <div style="padding: 0.5rem 1rem; border-top: 1px solid #e5e5e5; background: #fafaf9; border-radius: 0 0 8px 8px;">
+                            <lightning-input label="Filter (WHERE)" variant="label-inline" placeholder="e.g. StageName = 'Closed Won'" value={col.whereClause} data-col-id={col.id} onchange={handleWhereChange}></lightning-input>
+                            <lightning-input label="Sort by" variant="label-inline" placeholder="e.g. CreatedDate DESC" value={col.orderBy} data-col-id={col.id} onchange={handleOrderChange} style="margin-top: 4px;"></lightning-input>
+                            <lightning-input label="Limit" variant="label-inline" type="number" value={col.limitAmount} data-col-id={col.id} onchange={handleLimitChange} min="1" max="2000" style="margin-top: 4px;"></lightning-input>
                         </div>
                     </template>
                 </div>
             </template>
-
-            <!-- Add Column Card -->
-            <div class="add-column-card" onclick={handleAddColumn}>
-                <div class="add-column-content">
-                    <div class="icon">+</div>
-                    <p class="slds-text-body_small" style="font-weight: 600;">Add Related Records</p>
-                    <p class="slds-text-body_small slds-text-color_weak">Line items, contacts, etc.</p>
-                </div>
-            </div>
         </div>
+    </template>
 
-        <!-- Add Column Picker Dropdown -->
-        <template if:true={showAddPicker}>
-            <div class="slds-box slds-theme_default slds-var-m-top_small" style="border-radius: 8px; max-width: 400px;">
-                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-m-bottom_small">
-                    <h4 class="slds-text-heading_small" style="font-weight: 600; margin: 0;">Add related records</h4>
-                    <lightning-button-icon icon-name="utility:close" variant="bare" alternative-text="Close" onclick={handleCloseAddPicker}></lightning-button-icon>
-                </div>
-                <lightning-input type="search" placeholder="Search related lists..." value={addPickerSearch} onchange={handleAddPickerSearch} class="slds-var-m-bottom_small"></lightning-input>
-                <div class="slds-scrollable_y" style="max-height: 250px;">
-                    <template if:true={filteredAddOptions.length}>
-                        <ul class="slds-listbox slds-listbox_vertical slds-has-dividers_bottom-space">
-                            <template for:each={filteredAddOptions} for:item="opt">
-                                <li key={opt.value} class="slds-listbox__item">
-                                    <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-value={opt.value} onclick={handleAddPickerSelect}>
-                                        <span class="slds-media__figure">
-                                            <lightning-icon icon-name="standard:related_list" size="small"></lightning-icon>
-                                        </span>
-                                        <span class="slds-media__body"><span class="slds-truncate">{opt.label}</span></span>
-                                    </div>
-                                </li>
-                            </template>
-                        </ul>
-                    </template>
-                    <template if:false={filteredAddOptions.length}>
-                        <p class="slds-text-body_small slds-text-color_weak slds-var-p-around_medium slds-text-align_center">No related lists found.</p>
-                    </template>
+    <!-- ==================== ADD RELATED RECORDS MODAL ==================== -->
+    <template if:true={showAddPicker}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container" style="max-width: 480px;">
+                <header class="slds-modal__header">
+                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare-inverse" class="slds-modal__close" onclick={handleCloseAddPicker}></lightning-button-icon>
+                    <h2 class="slds-text-heading_medium">Add Related Records</h2>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Choose a related list to add as a new column in your document.</p>
+                </header>
+                <div class="slds-modal__content slds-var-p-around_medium">
+                    <lightning-input type="search" placeholder="Search related lists..." value={addPickerSearch} onchange={handleAddPickerSearch} class="slds-var-m-bottom_small"></lightning-input>
+                    <div class="slds-scrollable_y" style="max-height: 300px;">
+                        <template if:true={filteredAddOptions.length}>
+                            <ul class="slds-listbox slds-listbox_vertical slds-has-dividers_bottom-space">
+                                <template for:each={filteredAddOptions} for:item="opt">
+                                    <li key={opt.value} class="slds-listbox__item">
+                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-value={opt.value} onclick={handleAddPickerSelect}>
+                                            <span class="slds-media__figure">
+                                                <lightning-icon icon-name="standard:related_list" size="small"></lightning-icon>
+                                            </span>
+                                            <span class="slds-media__body"><span class="slds-truncate">{opt.label}</span></span>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
+                        <template if:false={filteredAddOptions.length}>
+                            <p class="slds-text-body_small slds-text-color_weak slds-var-p-around_medium slds-text-align_center">No related lists found.</p>
+                        </template>
+                    </div>
                 </div>
             </div>
-        </template>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
 
     <!-- ==================== REPORT IMPORT MODAL ==================== -->
@@ -166,7 +162,6 @@
                 </header>
                 <div class="slds-modal__content slds-var-p-around_medium">
                     <template if:false={showImportPreview}>
-                        <!-- Step 1: Select report -->
                         <lightning-input type="search" label="Search reports" placeholder="Type a report name..." value={reportSearchTerm} onchange={handleReportSearch}></lightning-input>
                         <div class="slds-scrollable_y slds-var-m-top_small" style="max-height: 300px;">
                             <template if:true={reportSearchResults.length}>
@@ -190,13 +185,11 @@
                             </template>
                         </div>
                     </template>
-
                     <template if:true={showImportPreview}>
-                        <!-- Step 2: Preview import -->
                         <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 6px;">
                             <p class="slds-text-body_regular"><strong>Report:</strong> {importPreviewData.reportName}</p>
                             <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
-                                {importPreviewData.fieldCount} fields detected. Click "Apply" to set up your template.
+                                {importPreviewData.fieldCount} fields detected. Click "Apply" to set up your columns.
                             </p>
                         </div>
                     </template>
