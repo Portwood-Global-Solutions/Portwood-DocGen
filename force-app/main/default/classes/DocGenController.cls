@@ -707,7 +707,9 @@ public with sharing class DocGenController {
             'AccountContact' => 'Contact',
             'AccountCase' => 'Case',
             'CaseContact' => 'Contact',
-            'CampaignMember' => 'Contact,Lead'
+            'CampaignMember' => 'Contact,Lead',
+            'QuoteProduct' => 'Quote,QuoteLineItem',
+            'QuoteList' => 'Quote'
         };
 
         if (reportTypeChildObjects.containsKey(reportTypeName)) {
@@ -781,11 +783,20 @@ public with sharing class DocGenController {
 
         // Hardcoded report column key → {object, fieldApiName} for columns that
         // don't match by label (report labels differ from field labels)
+        // Report column abbreviation prefixes → target object
+        Map<String, String> reportPrefixToObject = new Map<String, String>{
+            'QLI' => 'QuoteLineItem',
+            'Q' => 'Quote',
+            'OLI' => 'OpportunityLineItem',
+            'CM' => 'CampaignMember'
+        };
+
         Map<String, Map<String, String>> reportKeyOverrides = new Map<String, Map<String, String>>{
             'PRODUCT_NAME' => new Map<String, String>{ 'object' => 'OpportunityLineItem', 'field' => 'Name' },
             'QUANTITY' => new Map<String, String>{ 'object' => 'OpportunityLineItem', 'field' => 'Quantity' },
             'TOTAL_PRICE' => new Map<String, String>{ 'object' => 'OpportunityLineItem', 'field' => 'TotalPrice' },
             'UNIT_PRICE' => new Map<String, String>{ 'object' => 'OpportunityLineItem', 'field' => 'UnitPrice' },
+            'QUOTE_LINEITEM_NAME' => new Map<String, String>{ 'object' => 'QuoteLineItem', 'field' => 'Name' },
             'PHONE1' => new Map<String, String>{ 'object' => 'Contact', 'field' => 'Phone' },
             'PHONE2' => new Map<String, String>{ 'object' => 'Contact', 'field' => 'HomePhone' },
             'PHONE3' => new Map<String, String>{ 'object' => 'Contact', 'field' => 'MobilePhone' }
@@ -803,8 +814,40 @@ public with sharing class DocGenController {
             String colLabel = (col != null) ? col.getLabel() : null;
             Boolean mapped = false;
 
-            // 0. Check hardcoded overrides for columns with mismatched labels
-            if (reportKeyOverrides.containsKey(colKey)) {
+            // 0a. Dynamic label matching against ALL child objects
+            // If the column label matches a field label on ANY known child object,
+            // route it there. This works for any report type without hardcoding.
+            if (!mapped && String.isNotBlank(colLabel) && !childFieldMaps.isEmpty()) {
+                String labelLower = colLabel.toLowerCase();
+                // Strip common label prefixes like "Quote Line Item: " or "Product: "
+                String cleanLabel = labelLower;
+                if (cleanLabel.contains(': ')) {
+                    cleanLabel = cleanLabel.substringAfter(': ');
+                }
+
+                for (String childObjName : childLabelMaps.keySet()) {
+                    Map<String, String> clm = childLabelMaps.get(childObjName);
+                    String relName = childRelNameByObject.get(childObjName);
+                    if (relName == null) continue;
+
+                    // Try full label first, then cleaned label
+                    String childFieldName = clm.get(labelLower);
+                    if (childFieldName == null) childFieldName = clm.get(cleanLabel);
+
+                    if (childFieldName != null) {
+                        // Make sure it's NOT also a base object field (avoid stealing base fields)
+                        if (!labelToApiName.containsKey(labelLower) || colKey.contains('.')) {
+                            if (!childFields.containsKey(relName)) childFields.put(relName, new List<String>());
+                            if (!childFields.get(relName).contains(childFieldName)) childFields.get(relName).add(childFieldName);
+                            mapped = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 0b. Check hardcoded overrides for remaining unmapped columns
+            if (!mapped && reportKeyOverrides.containsKey(colKey)) {
                 Map<String, String> override_info = reportKeyOverrides.get(colKey);
                 String targetObj = override_info.get('object');
                 String targetField = override_info.get('field');
