@@ -76,6 +76,9 @@
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                     <div>
                         <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">{activeNode.label}</h3>
+                        <template if:true={activeNode.isRoot}>
+                            <a href="javascript:void(0)" style="font-size: 0.75rem; color: #706e6b; text-decoration: none;" onclick={handleChangeRoot}>Change root object</a>
+                        </template>
                         <template if:true={activeNode.isNotRoot}>
                             <p class="slds-text-body_small slds-text-color_weak" style="margin: 2px 0 0 0;">Connected via {activeNode.lookupField}</p>
                         </template>
