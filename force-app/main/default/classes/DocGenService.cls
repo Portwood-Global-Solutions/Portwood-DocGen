@@ -1728,4 +1728,16 @@ public with sharing class DocGenService {
         }
         return result;
     }
+
+    // =========================================================================
+    // Backward-compatibility stubs for removed signature classes.
+    // Old orgs may still have DocGenSignatureSenderController and
+    // DocGenSignatureService which reference these methods. The stubs
+    // exist solely so those old classes compile during package upgrade.
+    // They do nothing — signatures have been removed from DocGen.
+    // =========================================================================
+
+    public static Map<String, Object> mergeTemplateForSignature(Id templateId, String recordIdStr) {
+        throw new DocGenException('Signatures have been removed from DocGen. Please delete the old signature classes from your org.');
+    }
 }
