@@ -120,18 +120,23 @@
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <span class="slds-badge slds-badge_lightest">{parentPickerRelName}</span>
                                 <lightning-button label="Change" variant="base" size="small" onclick={handleParentPickerBack}></lightning-button>
+                                <span class="slds-text-body_small slds-text-color_weak">{parentPickerSelectedFields.length} selected</span>
                             </div>
+                            <lightning-input type="search" variant="label-hidden" placeholder="Search fields..." onchange={handleParentPickerFieldSearch} style="margin-bottom: 0.5rem;"></lightning-input>
                             <div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 4px; padding: 0.5rem;">
                                 <lightning-checkbox-group
                                     name="parentFields"
                                     label="Fields"
                                     variant="label-hidden"
-                                    options={parentPickerFieldOptions}
+                                    options={filteredParentPickerFieldOptions}
                                     value={parentPickerSelectedFields}
                                     onchange={handleParentPickerFieldChange}>
                                 </lightning-checkbox-group>
                             </div>
-                            <lightning-button label="Add Selected Fields" variant="brand" size="small" onclick={handleParentPickerApply} class="slds-var-m-top_small"></lightning-button>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                <lightning-button label="Add Selected Fields" variant="brand" size="small" onclick={handleParentPickerApply}></lightning-button>
+                                <lightning-button label="Add Common Fields" variant="neutral" size="small" onclick={handleParentPickerAddCommon}></lightning-button>
+                            </div>
                         </template>
                     </div>
                 </template>

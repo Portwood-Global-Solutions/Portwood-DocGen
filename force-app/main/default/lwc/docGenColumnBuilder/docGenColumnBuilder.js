@@ -269,6 +269,7 @@ export default class DocGenColumnBuilder extends LightningElement {
         this.parentPickerRelName = relName;
         this.parentPickerTargetObject = targetObj;
         this.parentPickerSelectedFields = [];
+        this.parentPickerFieldSearch = '';
 
         getObjectFields({ objectName: targetObj })
             .then(data => {
@@ -281,8 +282,35 @@ export default class DocGenColumnBuilder extends LightningElement {
         this.parentPickerRelSelected = false;
     }
 
+    @track parentPickerFieldSearch = '';
+
+    handleParentPickerFieldSearch(event) {
+        this.parentPickerFieldSearch = event.target.value;
+    }
+
+    get filteredParentPickerFieldOptions() {
+        const term = (this.parentPickerFieldSearch || '').toLowerCase();
+        if (!term) return this.parentPickerFieldOptions.slice(0, 50);
+        return this.parentPickerFieldOptions.filter(f =>
+            f.label.toLowerCase().includes(term)
+        ).slice(0, 50);
+    }
+
     handleParentPickerFieldChange(event) {
         this.parentPickerSelectedFields = event.detail.value;
+    }
+
+    handleParentPickerAddCommon() {
+        // Auto-select the most commonly useful fields: Name, Email, Phone, Title
+        const commonNames = ['name', 'email', 'phone', 'title', 'firstname', 'lastname',
+            'mailingstreet', 'mailingcity', 'mailingstate', 'mailingpostalcode',
+            'billingstreet', 'billingcity', 'billingstate', 'billingpostalcode',
+            'industry', 'type', 'website', 'description'];
+        const common = this.parentPickerFieldOptions
+            .filter(f => commonNames.includes(f.value.toLowerCase()))
+            .map(f => f.value);
+        const merged = new Set([...this.parentPickerSelectedFields, ...common]);
+        this.parentPickerSelectedFields = Array.from(merged);
     }
 
     handleParentPickerApply() {
