@@ -11,13 +11,13 @@ Turn any Word template into a merged PDF or DOCX, straight from your Salesforce 
 
 ## Install (2 minutes)
 
-**Package Version ID**: `04tdL000000RnO1QAK`
+**Package Version ID**: `04tdL000000RnPdQAK`
 
 ```bash
-sf package install --package 04tdL000000RnO1QAK --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000RnPdQAK --wait 10 --installation-key-bypass
 ```
 
-Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RnO1QAK) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RnO1QAK)
+Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RnPdQAK) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RnPdQAK)
 
 **After install:**
 1. Assign the **DocGen Admin** permission set to yourself (Setup > Permission Sets)
