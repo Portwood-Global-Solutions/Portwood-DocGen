@@ -684,62 +684,94 @@ export default class DocGenColumnBuilder extends LightningElement {
             this._notifyChange();
         });
 
-        // Add child nodes from import (direct children AND junction objects)
-        if (result.childFields) {
-            getChildRelationships({ objectName: result.baseObject }).then(rels => {
-                for (const relName of Object.keys(result.childFields)) {
-                    const fields = result.childFields[relName];
+        // Add child nodes from import using hierarchy info
+        if (result.childFields && result.childHierarchy) {
+            const hierarchy = result.childHierarchy;
+            const nodesByObject = { [result.baseObject]: rootNode };
 
-                    if (relName.startsWith('__junction_')) {
-                        // Junction object — create a tab for the TARGET object
-                        // e.g., __junction_Contact → Contact via OpportunityContactRoles
-                        const targetObjName = relName.replace('__junction_', '');
-
-                        // Find junction metadata from the import result
-                        let junctionRel = '';
-                        let junctionLabel = targetObjName + ' (linked)';
-                        if (result.junctions) {
-                            const jInfo = result.junctions.find(j => j.targetObject === targetObjName);
-                            if (jInfo) {
-                                junctionRel = jInfo.junctionRel || '';
-                                if (junctionRel) {
-                                    junctionLabel = targetObjName + ' (via ' + junctionRel + ')';
-                                }
-                            }
-                        }
-
-                        const junctionNode = this._createNode(targetObjName,
-                            junctionLabel, false, rootNode.id,
-                            null, null,
-                            { junctionRel: junctionRel, targetObject: targetObjName, targetIdField: 'ContactId', targetFields: fields }
-                        );
-                        // Load target object fields and auto-check
-                        getObjectFields({ objectName: targetObjName }).then(fieldData => {
-                            junctionNode.availableFields = fieldData;
-                            junctionNode.filteredFields = fieldData.slice(0, 200);
-                            const validFields = new Set(fieldData.map(f => f.value));
-                            junctionNode.selectedFields = fields.filter(f => validFields.has(f));
-                            this.treeNodes = [...this.treeNodes, junctionNode];
-                            this._notifyChange();
-                        }).catch(() => {});
-                    } else {
-                        // Direct child relationship
-                        const rel = rels.find(r => r.value === relName);
-                        if (rel) {
-                            const childNode = this._createNode(rel.childObjectApiName, rel.label, false,
-                                rootNode.id, this._guessLookupField(result.baseObject, relName), relName);
-                            getObjectFields({ objectName: rel.childObjectApiName }).then(fieldData => {
-                                childNode.availableFields = fieldData;
-                                childNode.filteredFields = fieldData.slice(0, 200);
-                                const validChild = new Set(fieldData.map(f => f.value));
-                                childNode.selectedFields = fields.filter(f => validChild.has(f));
-                                this.treeNodes = [...this.treeNodes, childNode];
-                                this._notifyChange();
-                            }).catch(() => {});
-                        }
-                    }
-                }
+            // Sort: process parents before children (direct children first, then grandchildren)
+            const sortedRels = Object.keys(result.childFields).sort((a, b) => {
+                const aParent = hierarchy[a] ? hierarchy[a].parentObject : result.baseObject;
+                const bParent = hierarchy[b] ? hierarchy[b].parentObject : result.baseObject;
+                // Base-level children first
+                if (aParent === result.baseObject && bParent !== result.baseObject) return -1;
+                if (bParent === result.baseObject && aParent !== result.baseObject) return 1;
+                return 0;
             });
+
+            // Process each relationship in order
+            const processRel = (relIdx) => {
+                if (relIdx >= sortedRels.length) {
+                    this._notifyChange();
+                    return;
+                }
+
+                const relName = sortedRels[relIdx];
+                const fields = result.childFields[relName];
+
+                if (relName.startsWith('__junction_')) {
+                    // Junction — same as before
+                    const targetObjName = relName.replace('__junction_', '').split(':')[0];
+                    let junctionRel = '';
+                    if (result.junctions) {
+                        const jInfo = result.junctions.find(j => j.targetObject === targetObjName);
+                        if (jInfo) junctionRel = jInfo.junctionRel || '';
+                    }
+                    const junctionNode = this._createNode(targetObjName,
+                        targetObjName + (junctionRel ? ' (via ' + junctionRel + ')' : ' (linked)'),
+                        false, rootNode.id, null, null,
+                        { junctionRel, targetObject: targetObjName, targetIdField: 'ContactId', targetFields: fields });
+                    getObjectFields({ objectName: targetObjName }).then(fieldData => {
+                        junctionNode.availableFields = fieldData;
+                        junctionNode.filteredFields = fieldData.slice(0, 200);
+                        const valid = new Set(fieldData.map(f => f.value));
+                        junctionNode.selectedFields = fields.filter(f => valid.has(f));
+                        this.treeNodes = [...this.treeNodes, junctionNode];
+                        processRel(relIdx + 1);
+                    }).catch(() => processRel(relIdx + 1));
+                    return;
+                }
+
+                // Use hierarchy to find the correct parent and lookup field
+                const hInfo = hierarchy[relName];
+                const objName = hInfo ? hInfo.objectName : relName;
+                const parentObjName = hInfo ? hInfo.parentObject : result.baseObject;
+                const lookupField = hInfo ? hInfo.lookupField : this._guessLookupField(result.baseObject, relName);
+
+                // Find the parent node (might be the root or another child)
+                const parentNode = nodesByObject[parentObjName] || rootNode;
+
+                const childNode = this._createNode(objName, objName, false,
+                    parentNode.id, lookupField, relName);
+                nodesByObject[objName] = childNode;
+
+                getObjectFields({ objectName: objName }).then(fieldData => {
+                    childNode.availableFields = fieldData;
+                    childNode.filteredFields = fieldData.slice(0, 200);
+                    const valid = new Set(fieldData.map(f => f.value));
+                    childNode.selectedFields = fields.filter(f => valid.has(f));
+                    this.treeNodes = [...this.treeNodes, childNode];
+                    processRel(relIdx + 1);
+                }).catch(() => processRel(relIdx + 1));
+            };
+
+            processRel(0);
+        } else if (result.childFields) {
+            // Fallback: no hierarchy info, treat all as direct children
+            for (const relName of Object.keys(result.childFields)) {
+                if (relName.startsWith('__junction_')) continue;
+                const fields = result.childFields[relName];
+                const childNode = this._createNode(relName, relName, false,
+                    rootNode.id, this._guessLookupField(result.baseObject, relName), relName);
+                getObjectFields({ objectName: relName }).then(fieldData => {
+                    childNode.availableFields = fieldData;
+                    childNode.filteredFields = fieldData.slice(0, 200);
+                    const valid = new Set(fieldData.map(f => f.value));
+                    childNode.selectedFields = fields.filter(f => valid.has(f));
+                    this.treeNodes = [...this.treeNodes, childNode];
+                    this._notifyChange();
+                }).catch(() => {});
+            }
         }
 
         // Save report filters for bulk generation

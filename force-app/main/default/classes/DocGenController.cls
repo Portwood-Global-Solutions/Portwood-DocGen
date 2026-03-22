@@ -1058,12 +1058,50 @@ public with sharing class DocGenController {
             totalChildFields += childFields.get(relKey).size();
         }
 
+        // Build hierarchy map: relationship name → parent object
+        // So LWC knows QuoteLineItems belongs under Quote, not Opportunity
+        Map<String, Map<String, String>> childHierarchy = new Map<String, Map<String, String>>();
+        for (String childObjName : childRelNameByObject.keySet()) {
+            String relName = childRelNameByObject.get(childObjName);
+            if (relName.startsWith('__junction_')) continue;
+            if (!childFields.containsKey(relName)) continue; // Only include objects with matched fields
+
+            // Find which parent this child belongs to
+            String parentObj = baseObject; // Default to base
+            // Check if this is a grandchild by seeing if its parent is a child object
+            SObjectType childSobjType = Schema.getGlobalDescribe().get(childObjName);
+            if (childSobjType != null) {
+                // Find the lookup field to determine parent
+                for (Schema.SObjectField sof : childSobjType.getDescribe().fields.getMap().values()) {
+                    Schema.DescribeFieldResult dfr = sof.getDescribe();
+                    if (dfr.getType() == Schema.DisplayType.REFERENCE && dfr.getReferenceTo() != null) {
+                        for (Schema.SObjectType ref : dfr.getReferenceTo()) {
+                            String refName = ref.getDescribe().getName();
+                            // If the lookup points to another child object, it's a grandchild
+                            if (childRelNameByObject.containsKey(refName) && refName != baseObject) {
+                                parentObj = refName;
+                                break;
+                            }
+                        }
+                    }
+                    if (parentObj != baseObject) break;
+                }
+            }
+
+            childHierarchy.put(relName, new Map<String, String>{
+                'objectName' => childObjName,
+                'parentObject' => parentObj,
+                'lookupField' => parentObj + 'Id'
+            });
+        }
+
         return new Map<String, Object>{
             'baseObject' => baseObject,
             'fields' => normalizedFields,
             'parentFields' => parentFields,
             'childSubqueries' => childSubqueries,
             'childFields' => childFields,
+            'childHierarchy' => childHierarchy,
             'junctions' => junctionInfo,
             'filters' => filters,
             'bulkWhereClause' => bulkWhereClause,
