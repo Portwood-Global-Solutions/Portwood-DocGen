@@ -219,6 +219,100 @@ export default class DocGenColumnBuilder extends LightningElement {
         this._initRootNode(value, label);
     }
 
+    // === ADD PARENT ABOVE ROOT ===
+    @track showAddParentModal = false;
+    @track parentLookupOptions = [];
+    @track addParentSearch = '';
+
+    handleAddParentNode() {
+        const root = this.rootNode;
+        if (!root) return;
+        this.addParentSearch = '';
+
+        // Get parent relationships for the current root object
+        getParentRelationships({ objectName: root.objectApiName })
+            .then(data => {
+                this.parentLookupOptions = data;
+                this.showAddParentModal = true;
+            });
+    }
+
+    handleParentSearch(event) { this.addParentSearch = event.target.value; }
+    handleCloseAddParent() { this.showAddParentModal = false; }
+
+    get filteredParentOptions() {
+        const term = (this.addParentSearch || '').toLowerCase();
+        return this.parentLookupOptions.filter(o => o.label.toLowerCase().includes(term));
+    }
+
+    handleAddParentSelect(event) {
+        const relName = event.currentTarget.dataset.value;
+        const opt = this.parentLookupOptions.find(o => o.value === relName);
+        if (!opt) return;
+
+        this.showAddParentModal = false;
+
+        const oldRoot = this.rootNode;
+        const parentObjectName = opt.targetObject; // e.g., 'Account'
+        const parentLabel = parentObjectName;
+
+        // Create new root node
+        const newRoot = this._createNode(parentObjectName, parentLabel, true, null, null, null);
+
+        // Demote old root to child of the new root
+        // The lookup field is on the OLD root: e.g., Opportunity.AccountId
+        // relName is the relationship name: e.g., 'Account'
+        oldRoot.isRoot = false;
+        oldRoot.isNotRoot = true;
+        oldRoot.parentNodeId = newRoot.id;
+        oldRoot.lookupField = relName + 'Id'; // e.g., AccountId
+
+        // Determine the relationship name from the new parent's perspective
+        // (what the parent calls its children of this type)
+        getChildRelationships({ objectName: parentObjectName })
+            .then(rels => {
+                const match = rels.find(r => r.childObjectApiName === oldRoot.objectApiName);
+                if (match) {
+                    oldRoot.relationshipName = match.value; // e.g., 'Opportunities'
+                } else {
+                    oldRoot.relationshipName = oldRoot.objectApiName + 's'; // fallback
+                }
+                this.treeNodes = [...this.treeNodes];
+                this._notifyChange();
+            });
+
+        this.treeNodes = [newRoot, ...this.treeNodes];
+        this.activeNodeId = newRoot.id;
+        this.selectedObject = parentObjectName;
+        this.selectedObjectLabel = parentLabel;
+        this._loadNodeFields(newRoot);
+
+        this.dispatchEvent(new ShowToastEvent({
+            title: 'Parent Added',
+            message: parentLabel + ' is now the root. ' + oldRoot.label + ' is connected below it.',
+            variant: 'success'
+        }));
+    }
+
+    _guessRelationshipName(parentObjectName, childObjectName) {
+        // Common patterns: Account → Opportunities, Contact → Cases
+        // This is a rough guess — ideally we'd use Schema to look it up
+        // For now, pluralize the child object name
+        if (childObjectName.endsWith('y')) return childObjectName.substring(0, childObjectName.length - 1) + 'ies';
+        if (childObjectName.endsWith('__c')) return childObjectName.replace('__c', '__r');
+        return childObjectName + 's';
+    }
+
+    handleChangeRoot() {
+        // Reset everything — go back to object selector
+        this.treeNodes = [];
+        this.activeNodeId = null;
+        this.selectedObject = '';
+        this.selectedObjectLabel = '';
+        this.objectSearchTerm = '';
+        this._notifyChange();
+    }
+
     // === NODE MANAGEMENT ===
     _initRootNode(objectApiName, label) {
         const node = this._createNode(objectApiName, label, true, null, null, null);

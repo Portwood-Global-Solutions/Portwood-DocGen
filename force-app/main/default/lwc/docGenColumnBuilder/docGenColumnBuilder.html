@@ -35,11 +35,11 @@
         <!-- Relationship Map (always visible) -->
         <div class="slds-box slds-var-m-bottom_small" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e5e5e5; padding: 0.75rem 1rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                <span style="font-size: 0.75rem; font-weight: 600; color: #706e6b; text-transform: uppercase; letter-spacing: 0.5px;">Relationship Map</span>
-                <div style="display: flex; gap: 0.5rem;">
-                    <lightning-button label="Add Related Records" variant="neutral" icon-name="utility:add" size="small" onclick={handleAddNode}></lightning-button>
-                    <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" size="small" onclick={handleOpenReportImport}></lightning-button>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #706e6b; text-transform: uppercase; letter-spacing: 0.5px;">Relationship Map</span>
+                    <lightning-button label="Change Root Object" variant="base" size="small" icon-name="utility:refresh" onclick={handleChangeRoot}></lightning-button>
                 </div>
+                <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" size="small" onclick={handleOpenReportImport}></lightning-button>
             </div>
             <div style="font-size: 0.8125rem; font-family: monospace;">
                 <template for:each={relationshipTree} for:item="item">
@@ -85,6 +85,14 @@
                     </div>
                     <template if:true={activeNode.isNotRoot}>
                         <lightning-button-icon icon-name="utility:delete" variant="bare" size="small" alternative-text="Remove" data-node-id={activeNode.id} onclick={handleRemoveNode}></lightning-button-icon>
+                    </template>
+                </div>
+
+                <!-- Per-Object Relationship Actions -->
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e5e5;">
+                    <lightning-button label="Add child records" variant="neutral" icon-name="utility:add" size="small" onclick={handleAddNode}></lightning-button>
+                    <template if:true={activeNode.isRoot}>
+                        <lightning-button label="Add parent above" variant="neutral" icon-name="utility:level_up" size="small" onclick={handleAddParentNode}></lightning-button>
                     </template>
                 </div>
 
@@ -176,6 +184,40 @@
                                     </li>
                                 </template>
                             </ul>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- ==================== ADD PARENT MODAL ==================== -->
+    <template if:true={showAddParentModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container" style="max-width: 480px;">
+                <header class="slds-modal__header">
+                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare-inverse" class="slds-modal__close" onclick={handleCloseAddParent}></lightning-button-icon>
+                    <h2 class="slds-text-heading_medium">Add Parent Object</h2>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Which object does this record belong to? It will become the new root of your document.</p>
+                </header>
+                <div class="slds-modal__content slds-var-p-around_medium">
+                    <lightning-input type="search" placeholder="Search..." value={addParentSearch} onchange={handleParentSearch} class="slds-var-m-bottom_small"></lightning-input>
+                    <div class="slds-scrollable_y" style="max-height: 300px;">
+                        <template if:true={filteredParentOptions.length}>
+                            <ul class="slds-listbox slds-listbox_vertical slds-has-dividers_bottom-space">
+                                <template for:each={filteredParentOptions} for:item="opt">
+                                    <li key={opt.value} class="slds-listbox__item">
+                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-value={opt.value} onclick={handleAddParentSelect}>
+                                            <span class="slds-media__figure"><lightning-icon icon-name="utility:level_up" size="small"></lightning-icon></span>
+                                            <span class="slds-media__body"><span class="slds-truncate">{opt.label}</span></span>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
+                        <template if:false={filteredParentOptions.length}>
+                            <p class="slds-text-body_small slds-text-color_weak slds-var-p-around_medium slds-text-align_center">No parent objects found.</p>
                         </template>
                     </div>
                 </div>
