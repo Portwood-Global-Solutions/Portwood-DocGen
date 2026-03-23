@@ -43,7 +43,7 @@
                 <div class={helpTabClass} onclick={handleShowHelp} style="flex: 1; cursor: pointer; padding: 0.75rem 1rem; border-radius: 8px; text-align: center;">
                     <lightning-icon icon-name="standard:question_best" size="small" class="slds-var-m-bottom_xx-small"></lightning-icon>
                     <div style="font-weight: 700; font-size: 0.875rem;">How It Works</div>
-                    <div style="font-size: 0.75rem; color: #706e6b;">Tags, images, Flows</div>
+                    <div style="font-size: 0.75rem; color: #706e6b;">Step-by-step guide</div>
                 </div>
             </div>
 
@@ -60,19 +60,113 @@
             <!-- HELP -->
             <template if:true={isHelp}>
                 <div class="slds-box slds-theme_default" style="border-radius: 8px;">
-                    <div class="slds-grid slds-wrap slds-gutters_small slds-var-m-bottom_small">
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{Name}" onclick={handleCopyTag}>&#123;Name&#125;</code><p class="tag-desc">Simple field</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{Account.Name}" onclick={handleCopyTag}>&#123;Account.Name&#125;</code><p class="tag-desc">Parent field</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="loop-contacts" onclick={handleCopyTag}>&#123;#Contacts&#125;...&#123;/Contacts&#125;</code><p class="tag-desc">Child loop</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{%Logo__c:200x60}" onclick={handleCopyTag}>&#123;%ImageField:WxH&#125;</code><p class="tag-desc">Image from ContentVersion</p></div></div>
+                    <!-- STEP 1: CREATE A TEMPLATE -->
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 8px;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Step 1: Create a Template</h3>
+                        <p style="margin-bottom: 0.5rem;">Click <strong>Templates</strong> above, then <strong>New Template</strong>. Give it a name, pick your Salesforce object (Account, Opportunity, Quote, etc.), and choose a file type:</p>
+                        <ul class="slds-list_dotted" style="margin-bottom: 0.5rem;">
+                            <li><strong>Word (.docx)</strong> — Best for letters, proposals, contracts. Can output as PDF or Word. Supports images and barcodes.</li>
+                            <li><strong>Excel (.xlsx)</strong> — Best for data exports, invoices, reports. Tags go directly in cells. Output is Excel only.</li>
+                            <li><strong>PowerPoint (.pptx)</strong> — Best for presentations. Tags go in text boxes. Output is PowerPoint only.</li>
+                        </ul>
                     </div>
-                    <div class="slds-grid slds-wrap slds-gutters_small">
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="info-card"><strong>Template images</strong><p class="tag-desc">Embedded in .docx — auto-extracted, zero heap.</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="info-card"><strong>Rich Text</strong><p class="tag-desc">&#123;FieldName&#125; on a Rich Text field renders bold, italic, images.</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="info-card"><strong>Sample Record</strong><p class="tag-desc">Set a Test Record ID on your template (Settings tab) to preview before bulk runs.</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="info-card"><strong>Report Filters</strong><p class="tag-desc">Import from a report — filters auto-save as a bulk WHERE clause.</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="info-card"><strong>Record Page</strong><p class="tag-desc">Edit Page → drag docGenRunner → Save.</p></div></div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="info-card"><strong>Flows</strong><p class="tag-desc">DocGenFlowAction (single) or DocGenBulkFlowAction (bulk).</p></div></div>
+
+                    <!-- STEP 2: PICK YOUR DATA -->
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 8px;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Step 2: Pick Your Data</h3>
+                        <p style="margin-bottom: 0.5rem;">Use the query builder to check the fields you want in your document. You can add:</p>
+                        <ul class="slds-list_dotted" style="margin-bottom: 0.5rem;">
+                            <li><strong>Fields</strong> from the main object (Name, Phone, Amount, etc.)</li>
+                            <li><strong>Parent fields</strong> from related records (Account.Name, Owner.Email)</li>
+                            <li><strong>Child records</strong> like Contacts, Line Items, or any related list</li>
+                        </ul>
+                        <p style="font-size: 0.8125rem; color: #706e6b;">Tip: Use <strong>Show Selected</strong> to see only the fields you've already picked.</p>
+                    </div>
+
+                    <!-- STEP 3: ADD TAGS TO YOUR FILE -->
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 8px;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Step 3: Add Tags to Your File</h3>
+                        <p style="margin-bottom: 0.5rem;">Open your Word, Excel, or PowerPoint file and type these tags where you want data to appear:</p>
+
+                        <div class="slds-grid slds-wrap slds-gutters_small slds-var-m-bottom_small">
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{Name}" onclick={handleCopyTag}>&#123;Name&#125;</code><p class="tag-desc">Insert a field value</p></div></div>
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{Account.Name}" onclick={handleCopyTag}>&#123;Account.Name&#125;</code><p class="tag-desc">Insert a parent field</p></div></div>
+                        </div>
+
+                        <p style="margin-bottom: 0.5rem;"><strong>Repeating rows</strong> — for child records like line items or contacts:</p>
+                        <div class="slds-box slds-theme_default slds-var-m-bottom_small" style="border-radius: 6px; padding: 0.75rem; font-family: monospace; font-size: 0.8125rem; line-height: 1.6;">
+                            &#123;#Contacts&#125;<br/>
+                            &nbsp;&nbsp;&#123;FirstName&#125; &#123;LastName&#125; — &#123;Email&#125;<br/>
+                            &#123;/Contacts&#125;
+                        </div>
+                        <p style="font-size: 0.8125rem; color: #706e6b; margin-bottom: 0.5rem;">Everything between the start and end tags repeats once for each record. In Word tables, each child gets its own row.</p>
+
+                        <p style="margin-bottom: 0.5rem;"><strong>Totals and counts</strong> — place these outside the loop:</p>
+                        <div class="slds-grid slds-wrap slds-gutters_small slds-var-m-bottom_small">
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{SUM:QuoteLineItems.TotalPrice}" onclick={handleCopyTag}>&#123;SUM:List.Field&#125;</code><p class="tag-desc">Add up a column</p></div></div>
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{COUNT:Contacts}" onclick={handleCopyTag}>&#123;COUNT:List&#125;</code><p class="tag-desc">Count the records</p></div></div>
+                        </div>
+                        <p style="font-size: 0.8125rem; color: #706e6b; margin-bottom: 0.5rem;">Also available: AVG, MIN, MAX. Example: <code>&#123;AVG:QuoteLineItems.UnitPrice&#125;</code></p>
+
+                        <p style="margin-bottom: 0.5rem;"><strong>More tag types</strong> (click to copy):</p>
+                        <div class="slds-grid slds-wrap slds-gutters_small">
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{%Logo__c:200x60}" onclick={handleCopyTag}>&#123;%ImageField:WxH&#125;</code><p class="tag-desc">Insert an image (Word/PDF only)</p></div></div>
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{*ProductCode}" onclick={handleCopyTag}>&#123;*FieldName&#125;</code><p class="tag-desc">Insert a barcode (PDF only)</p></div></div>
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{CloseDate:MM/dd/yyyy}" onclick={handleCopyTag}>&#123;Date:MM/dd/yyyy&#125;</code><p class="tag-desc">Format a date</p></div></div>
+                            <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small"><div class="tag-card"><code class="tag-code" data-tag="\{#IsActive}...{/IsActive}" onclick={handleCopyTag}>&#123;#BoolField&#125;...&#123;/BoolField&#125;</code><p class="tag-desc">Show/hide content</p></div></div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4: UPLOAD AND GENERATE -->
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 8px;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Step 4: Upload and Generate</h3>
+                        <p style="margin-bottom: 0.5rem;">Upload your file to the template, then go to any record page and use the <strong>Document Generator</strong> component to create your document. You can:</p>
+                        <ul class="slds-list_dotted" style="margin-bottom: 0.5rem;">
+                            <li><strong>Download</strong> the file directly</li>
+                            <li><strong>Save to Record</strong> to attach it as a file on the record</li>
+                        </ul>
+                        <p style="font-size: 0.8125rem; color: #706e6b;">Don't see the component? Edit the Lightning Record Page and drag <strong>docGenRunner</strong> onto it.</p>
+                    </div>
+
+                    <!-- PDF MERGER -->
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 8px;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Merging PDFs</h3>
+                        <p style="margin-bottom: 0.5rem;">The Document Generator on the record page has three modes:</p>
+                        <ul class="slds-list_dotted" style="margin-bottom: 0.5rem;">
+                            <li><strong>Generate</strong> — create a document from a template. Check "Merge with existing PDFs" to combine it with files already on the record.</li>
+                            <li><strong>Document Packet</strong> — pick multiple templates, generate them all for this record, and combine into one PDF.</li>
+                            <li><strong>Merge PDFs</strong> — no template needed. Just select existing PDFs on the record, arrange the order, and merge.</li>
+                        </ul>
+                    </div>
+
+                    <!-- BULK + FLOWS -->
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="border-radius: 8px;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Bulk Generation &amp; Flows</h3>
+                        <p style="margin-bottom: 0.5rem;">Use the <strong>Bulk Generate</strong> tab above to generate documents for many records at once. Enter a filter (like <code>Industry = 'Technology'</code>) and click Submit.</p>
+                        <p>For automation, use the Flow actions: <strong>DocGenFlowAction</strong> (one record) or <strong>DocGenBulkFlowAction</strong> (many records). Both work in Record-Triggered Flows, Screen Flows, and Subflows.</p>
+                    </div>
+
+                    <!-- LIMITATIONS -->
+                    <div class="slds-box slds-theme_default slds-var-m-bottom_small" style="border-radius: 8px; border: 1px solid #c9c7c5;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Good to Know — Limitations</h3>
+
+                        <p style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem;">PDF Fonts</p>
+                        <p style="font-size: 0.8125rem; margin-bottom: 0.75rem;">PDF output supports <strong>4 fonts only</strong>: Helvetica, Times, Courier, and Arial Unicode MS. This is a Salesforce platform limitation — <code>Blob.toPdf()</code> does not support custom fonts. If you need branded fonts, generate as DOCX instead — Word preserves whatever fonts are in the template.</p>
+
+                        <p style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem;">File Sizes</p>
+                        <p style="font-size: 0.8125rem; margin-bottom: 0.75rem;">Each individual PDF fetched for merging must be under ~3 MB (Apex 6 MB heap, base64 overhead). Save to Record is limited to ~3 MB total (Aura 4 MB payload). Download has no size limit. For most business documents (contracts, quotes, invoices), this is plenty.</p>
+
+                        <p style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem;">Images</p>
+                        <p style="font-size: 0.8125rem; margin-bottom: 0.75rem;">Dynamic images (<code>&#123;%Field&#125;</code>) only work in <strong>Word templates</strong> output as PDF or DOCX. They are not supported in Excel or PowerPoint. Static images placed directly in any template file are always preserved.</p>
+
+                        <p style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem;">Barcodes</p>
+                        <p style="font-size: 0.8125rem; margin-bottom: 0.75rem;">Barcode tags (<code>&#123;*Field&#125;</code>) render in <strong>PDF output only</strong>. They appear as CSS-rendered bars — no barcode fonts needed. Not supported in DOCX, XLSX, or PPTX output.</p>
+
+                        <p style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem;">Excel &amp; PowerPoint</p>
+                        <p style="font-size: 0.8125rem; margin-bottom: 0.75rem;">Excel and PowerPoint templates can only output their native format (.xlsx / .pptx). They cannot be converted to PDF. Rich text fields render as plain text in both formats.</p>
+
+                        <p style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 0.25rem;">Salesforce Limits</p>
+                        <p style="font-size: 0.8125rem; margin-bottom: 0;">DocGen runs inside Salesforce governor limits: 6 MB heap (single record), 12 MB heap (bulk), 100 SOQL queries, 50,000 query rows. The zero-heap architecture handles most scenarios, but extremely complex templates with many large images may approach limits. When in doubt, generate as DOCX — client-side assembly has no server limits.</p>
                     </div>
                 </div>
             </template>
