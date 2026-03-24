@@ -1,28 +1,27 @@
 <template>
-    <lightning-card title="Bulk Document Generation" icon-name="standard:record_create">
-        <div class="slds-var-p-around_medium">
-            <div class="slds-var-m-bottom_medium slds-var-p-around_small slds-theme_info slds-box">
-                <h3 class="slds-text-heading_small slds-var-m-bottom_xx-small">
-                    <lightning-icon icon-name="utility:info" size="x-small" class="slds-var-m-right_x-small" variant="info"></lightning-icon>
-                    How Bulk Generation Works
-                </h3>
-                <p class="slds-text-body_small">
-                    Select a template and define a filter to identify the records you want to process.
-                    When you run the generation, documents will be created in the background and attached to the <strong>Files</strong> related list of each record.
-                </p>
+    <div class="app-workspace">
+        <div class="workspace-header">
+            <div>
+                <h2>Bulk Document Generation</h2>
+                <p>Automate thousands of documents in the background based on a template and a filter.</p>
             </div>
+            <lightning-icon icon-name="standard:record_create" size="medium"></lightning-icon>
+        </div>
+
+        <div class="workspace-content">
             <!-- Step 1: Configuration -->
-            <div class="slds-grid slds-gutters">
+            <div class="slds-grid slds-gutters_large">
                 <div class="slds-col slds-size_1-of-2">
+                    <h3 class="section-title">Step 1: Select Template</h3>
                     <div style="position: relative;">
                         <div class="slds-grid slds-grid_vertical-align-end" style="gap: 0.5rem;">
                             <div class="slds-col slds-grow">
-                                <lightning-input type="search" label="Template" placeholder="Start typing to find a template..." value={templateSearchTerm} onchange={handleTemplateSearch} onfocus={handleTemplateSearchFocus} disabled={isProcessing}></lightning-input>
+                                <lightning-input type="search" label="Search Templates" variant="label-hidden" placeholder="Start typing to find a template..." value={templateSearchTerm} onchange={handleTemplateSearch} onfocus={handleTemplateSearchFocus} disabled={isProcessing}></lightning-input>
                             </div>
                             <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Refresh templates" onclick={handleRefreshTemplates}></lightning-button-icon>
                         </div>
                         <template if:true={showTemplateDropdown}>
-                            <div class="slds-dropdown slds-dropdown_fluid" style="position: absolute; z-index: 100; max-height: 250px; overflow-y: auto; margin-top: 2px;">
+                            <div class="slds-dropdown slds-dropdown_fluid custom-dropdown">
                                 <ul class="slds-listbox slds-listbox_vertical">
                                     <template for:each={filteredTemplates} for:item="tmpl">
                                         <li key={tmpl.value} class="slds-listbox__item">
@@ -41,9 +40,9 @@
                     </div>
 
                     <template if:true={selectedTemplateName}>
-                        <div class="slds-var-m-top_x-small" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="selection-badge slds-var-m-top_small">
                             <lightning-icon icon-name="utility:check" size="xx-small" variant="success"></lightning-icon>
-                            <span class="slds-text-body_small"><strong>{selectedTemplateName}</strong> — {baseObject}</span>
+                            <span><strong>{selectedTemplateName}</strong> — {baseObject}</span>
                         </div>
                     </template>
 
@@ -53,8 +52,8 @@
                      <!-- Sample Record (when template selected and no active job) -->
                      <template if:true={selectedTemplateId}>
                          <template if:false={jobId}>
-                             <div class="slds-box slds-theme_shade" style="border-radius: 6px;">
-                                 <h4 class="slds-text-title_bold slds-var-m-bottom_x-small">Sample Record</h4>
+                             <div class="info-card">
+                                 <h4 class="slds-text-title_bold slds-var-m-bottom_x-small">Preview Sample Record</h4>
                                  <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_small">Pick a record to preview what your document will look like before running the bulk job.</p>
                                  <template if:true={baseObject}>
                                      <lightning-record-picker
@@ -67,7 +66,7 @@
                                      </lightning-record-picker>
                                  </template>
                                  <template if:true={sampleRecordId}>
-                                     <lightning-button label="Preview Sample PDF" variant="brand" icon-name="utility:download" size="small" onclick={handlePreviewSample} disabled={isGeneratingPreview} class="slds-var-m-top_small"></lightning-button>
+                                     <lightning-button label="Preview Sample PDF" variant="brand" icon-name="utility:download" size="small" onclick={handlePreviewSample} disabled={isGeneratingPreview} class="slds-var-m-top_small slds-show"></lightning-button>
                                      <template if:true={isGeneratingPreview}>
                                          <lightning-spinner alternative-text="Generating..." size="small" class="slds-var-m-left_small"></lightning-spinner>
                                      </template>
@@ -78,19 +77,19 @@
 
                      <!-- Job Status Monitor -->
                      <template if:true={jobId}>
-                        <div class="slds-box slds-theme_shade">
+                        <div class="status-card">
                             <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_small">
-                                <h3 class="slds-text-heading_small">Batch Job Status</h3>
+                                <h3 class="slds-text-heading_small slds-text-color_inverse">Batch Job Status</h3>
                                 <lightning-badge label={jobStatus} class={jobStatusVariant}></lightning-badge>
                             </div>
-                            <div class="slds-var-m-bottom_small">
+                            <div class="slds-var-m-bottom_small slds-text-color_inverse">
                                 <div class="slds-grid slds-grid_align-spread">
                                     <span>Success:</span>
-                                    <span class="slds-text-color_success"><strong>{jobProgress.success}</strong></span>
+                                    <span><strong>{jobProgress.success}</strong></span>
                                 </div>
                                 <div class="slds-grid slds-grid_align-spread">
                                     <span>Errors:</span>
-                                    <span class="slds-text-color_error"><strong>{jobProgress.error}</strong></span>
+                                    <span><strong>{jobProgress.error}</strong></span>
                                 </div>
                                 <div class="slds-grid slds-grid_align-spread">
                                     <span>Total:</span>
@@ -99,17 +98,11 @@
                             </div>
 
                             <template if:true={isProcessing}>
-                                <div class="slds-var-m-top_x-small">
+                                <div class="slds-var-m-top_small">
                                     <lightning-progress-bar value={jobProgress.percent} variant="circular"></lightning-progress-bar>
-                                    <div class="slds-grid slds-grid_align-spread slds-var-m-top_xx-small">
-                                        <p class="slds-text-body_small">Auto-refreshing every 5s...</p>
-                                        <lightning-button
-                                            icon-name="utility:refresh"
-                                            variant="neutral"
-                                            onclick={pollJob}
-                                            label="Refresh Now"
-                                            title="Refresh Status Now">
-                                        </lightning-button>
+                                    <div class="slds-grid slds-grid_align-spread slds-var-m-top_x-small slds-text-color_inverse">
+                                        <p class="slds-text-body_small" style="opacity: 0.8;">Auto-refreshing every 5s...</p>
+                                        <button class="transparent-btn" onclick={pollJob}>Refresh Now</button>
                                     </div>
                                 </div>
                             </template>
@@ -120,244 +113,231 @@
                                         <lightning-button
                                             label="Start New Job"
                                             icon-name="utility:add"
-                                            variant="brand"
+                                            variant="inverse"
                                             onclick={handleNewJob}
                                             class="slds-size_full">
                                         </lightning-button>
                                     </div>
-                                    <template lwc:if={showMergeAllButton}>
-                                        <div class="slds-col">
-                                            <lightning-button
-                                                label={mergeAllButtonLabel}
-                                                icon-name="utility:merge"
-                                                variant="neutral"
-                                                onclick={handleMergeAllJobPdfs}
-                                                disabled={isMerging}
-                                                class="slds-size_full">
-                                            </lightning-button>
-                                        </div>
-                                    </template>
+                                    <div class="slds-col">
+                                        <lightning-button
+                                            label="View Job"
+                                            icon-name="utility:open"
+                                            variant="base"
+                                            data-jobid={jobId}
+                                            onclick={handleViewJob}
+                                            class="slds-size_full"
+                                            style="color: white;">
+                                        </lightning-button>
+                                    </div>
                                 </div>
                             </template>
                         </div>
-                     </template>
-
-                     <!-- Completed Jobs History -->
-                     <template if:true={hasCompletedJobs}>
-                         <div class="slds-var-m-top_small">
-                             <p class="slds-text-title_caps slds-var-m-bottom_xx-small">Recent Jobs</p>
-                             <template for:each={completedJobs} for:item="cj">
-                                 <div key={cj.id} class="slds-text-body_small slds-var-m-bottom_xx-small">
-                                     <lightning-badge label={cj.status}></lightning-badge>
-                                     &nbsp;{cj.success}/{cj.total} succeeded
-                                     <template if:true={cj.error}>, {cj.error} errors</template>
-                                 </div>
-                             </template>
-                         </div>
                      </template>
                 </div>
             </div>
 
             <template if:true={baseObject}>
-                <div class="slds-var-m-top_medium slds-box slds-theme_default">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Record Filter (SOQL)</h3>
-                    <p class="slds-var-m-bottom_small">Define a SOQL WHERE clause to select records. Leave empty to process ALL records.</p>
+                <div class="divider"></div>
+                <h3 class="section-title">Step 2: Record Filter (SOQL)</h3>
+                <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_medium">Define a SOQL WHERE clause to select records. Leave empty to process ALL records.</p>
 
-                    <lightning-textarea
-                        label="SOQL Condition"
-                        value={condition}
-                        onchange={handleConditionChange}
-                        placeholder="e.g. StageName = 'Closed Won'"
-                        disabled={isProcessing}>
-                    </lightning-textarea>
+                <lightning-textarea
+                    label="SOQL Condition"
+                    variant="label-hidden"
+                    value={condition}
+                    onchange={handleConditionChange}
+                    placeholder="e.g. StageName = 'Closed Won'"
+                    disabled={isProcessing}
+                    class="code-textarea">
+                </lightning-textarea>
 
-                    <div class="slds-grid slds-gutters slds-var-m-top_small">
-                        <!-- Left: Examples -->
-                        <div class="slds-col slds-size_1-of-2">
-                             <div class="slds-box slds-box_x-small slds-theme_shade">
-                                <p class="slds-var-m-bottom_x-small"><strong>Examples:</strong></p>
-                                <ul class="slds-list_dotted slds-text-body_small">
-                                    <li>Simple: <code>StageName = 'Closed Won'</code></li>
-                                    <li>Grouped: <code>(Type = 'Customer' OR Industry = 'Energy') AND AnnualRevenue > 1000000</code></li>
-                                    <li>Subquery: <code>AccountId IN (SELECT Id FROM Account WHERE BillingState = 'CA')</code></li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Right: Saved Queries -->
-                        <div class="slds-col slds-size_1-of-2">
-                            <div class="slds-box slds-box_x-small slds-theme_default">
-                                <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_x-small">
-                                    <h3 class="slds-text-heading_small">Saved Queries</h3>
-                                    <lightning-button icon-name="utility:add" onclick={openSaveModal} label="Save" title="Save Current Query" variant="neutral"></lightning-button>
-                                </div>
-                                <template if:false={savedQueries.length}>
-                                    <p class="slds-text-color_weak slds-text-body_small">No saved queries for this template.</p>
-                                </template>
-                                <ul class="slds-has-dividers_around-space">
-                                    <template for:each={savedQueries} for:item="q">
-                                        <li class="slds-item" key={q.Id}>
-                                            <div class="slds-grid slds-grid_align-spread">
-                                                <div class="slds-truncate" title={q.Description__c}>
-                                                    <a onclick={handleLoadQuery} data-id={q.Id}>{q.Name}</a>
-                                                </div>
-                                                <lightning-button icon-name="utility:delete" variant="destructive-text" label="Delete" onclick={handleDeleteQuery} data-id={q.Id} title="Delete query"></lightning-button>
-                                            </div>
-                                        </li>
-                                    </template>
-                                </ul>
-                            </div>
+                <div class="slds-grid slds-gutters_large slds-var-m-top_medium">
+                    <!-- Left: Examples -->
+                    <div class="slds-col slds-size_1-of-2">
+                         <div class="info-card">
+                            <p class="slds-text-title_bold slds-var-m-bottom_x-small">Quick Examples</p>
+                            <ul class="slds-list_dotted slds-text-body_small slds-text-color_weak">
+                                <li>Simple: <code class="inline-code">StageName = 'Closed Won'</code></li>
+                                <li>Grouped: <code class="inline-code">(Type = 'Customer' OR Industry = 'Energy') AND AnnualRevenue > 1000000</code></li>
+                                <li>Subquery: <code class="inline-code">AccountId IN (SELECT Id FROM Account WHERE BillingState = 'CA')</code></li>
+                            </ul>
                         </div>
                     </div>
 
-                    <div class="slds-var-m-top_small">
-                        <lightning-button
-                            label="Validate Filter"
-                            onclick={handleValidate}
-                            disabled={isProcessing}
-                            variant="neutral"
-                            class="slds-var-m-right_small">
-                        </lightning-button>
+                    <!-- Right: Saved Queries -->
+                    <div class="slds-col slds-size_1-of-2">
+                        <div class="info-card bg-white">
+                            <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_small">
+                                <h4 class="slds-text-title_bold">Saved Queries</h4>
+                                <button class="text-link" onclick={openSaveModal}>Save Current</button>
+                            </div>
+                            <template if:false={savedQueries.length}>
+                                <p class="slds-text-color_weak slds-text-body_small">No saved queries for this template.</p>
+                            </template>
+                            <ul class="query-list">
+                                <template for:each={savedQueries} for:item="q">
+                                    <li key={q.Id}>
+                                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                            <div class="slds-truncate" title={q.Description__c}>
+                                                <a onclick={handleLoadQuery} data-id={q.Id} class="text-link">{q.Name}</a>
+                                            </div>
+                                            <button class="delete-icon" onclick={handleDeleteQuery} data-id={q.Id} title="Delete query">&times;</button>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
 
-                        <template if:true={recordCount}>
-                             <lightning-badge label={recordCount}></lightning-badge> Records Found
-                        </template>
-                        <template if:false={recordCount}>
-                             <template if:true={isValidating}>Validating...</template>
-                        </template>
+                <div class="slds-var-m-top_medium slds-grid slds-grid_vertical-align-center" style="gap: 1rem;">
+                    <lightning-button
+                        label="Validate Filter"
+                        onclick={handleValidate}
+                        disabled={isProcessing}
+                        variant="neutral">
+                    </lightning-button>
+
+                    <template if:true={recordCount}>
+                         <div class="record-count-badge">
+                            <lightning-icon icon-name="utility:success" size="xx-small" variant="inverse" class="slds-var-m-right_xx-small"></lightning-icon>
+                            {recordCount} Records Found
+                         </div>
+                    </template>
+                    <template if:false={recordCount}>
+                         <template if:true={isValidating}>
+                             <span class="slds-text-color_weak slds-text-body_small">Validating...</span>
+                         </template>
+                    </template>
+                </div>
+
+                <div class="divider"></div>
+                <h3 class="section-title">Step 3: Run Generation</h3>
+                <div class="run-bar slds-var-m-top_medium slds-grid slds-grid_align-center slds-grid_vertical-align-end slds-gutters_small">
+                    <div class="slds-col slds-size_1-of-3">
+                        <lightning-input
+                            label="Job Name (optional)"
+                            value={jobLabel}
+                            onchange={handleJobLabelChange}
+                            placeholder="e.g. March Receipts"
+                            disabled={isProcessing}>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-size_1-of-6">
+                        <lightning-input
+                            type="number"
+                            label="Batch Size"
+                            value={batchSize}
+                            onchange={handleBatchSizeChange}
+                            min="1"
+                            max="200"
+                            disabled={isProcessing}
+                            field-level-help="Records per transaction. Use 1 for complex templates. Higher values (10-50) for simple text-only templates.">
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-var-p-top_large">
+                        <lightning-input
+                            type="checkbox"
+                            label="Merge PDFs"
+                            checked={mergePdf}
+                            onchange={handleMergePdfChange}
+                            disabled={isProcessing}>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-var-p-top_large">
+                        <lightning-input
+                            type="checkbox"
+                            label="Merge Only"
+                            checked={mergeOnly}
+                            onchange={handleMergeOnlyChange}
+                            disabled={isProcessing}>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-button
+                            label="Run Bulk Generation"
+                            variant="brand"
+                            onclick={handleRun}
+                            disabled={isRunDisabled}>
+                        </lightning-button>
                     </div>
                 </div>
             </template>
-
-            <div class="slds-var-m-top_medium slds-grid slds-grid_align-center slds-grid_vertical-align-end slds-gutters_small">
-                <div class="slds-col slds-size_1-of-3">
-                    <lightning-input
-                        label="Job Name (optional)"
-                        value={jobLabel}
-                        onchange={handleJobLabelChange}
-                        placeholder="e.g. March Receipts"
-                        disabled={isProcessing}>
-                    </lightning-input>
-                </div>
-                <div class="slds-col slds-size_1-of-6">
-                    <lightning-input
-                        type="number"
-                        label="Batch Size"
-                        value={batchSize}
-                        onchange={handleBatchSizeChange}
-                        min="1"
-                        max="200"
-                        disabled={isProcessing}
-                        field-level-help="Records per transaction. Use 1 for complex templates with images. Higher values (10-50) for simple text-only templates.">
-                    </lightning-input>
-                </div>
-                <div class="slds-col slds-var-p-top_large">
-                    <lightning-input
-                        type="checkbox"
-                        label="Merge PDFs"
-                        checked={mergePdf}
-                        onchange={handleMergePdfChange}
-                        disabled={isProcessing}
-                        field-level-help="Generate individual PDFs per record AND produce a single merged PDF at the end.">
-                    </lightning-input>
-                </div>
-                <div class="slds-col slds-var-p-top_large">
-                    <lightning-input
-                        type="checkbox"
-                        label="Merge Only"
-                        checked={mergeOnly}
-                        onchange={handleMergeOnlyChange}
-                        disabled={isProcessing}
-                        field-level-help="Skip individual PDFs entirely. Only produces the merged PDF. Much faster for large batches.">
-                    </lightning-input>
-                </div>
-                <div class="slds-col">
-                    <lightning-button
-                        label="Run Bulk Generation"
-                        variant="brand"
-                        onclick={handleRun}
-                        disabled={isRunDisabled}
-                        class="slds-var-p-horizontal_medium">
-                    </lightning-button>
-                </div>
-            </div>
 
             <!-- Recent Jobs History -->
             <template lwc:if={recentJobs.length}>
-                <div class="slds-var-m-top_medium">
-                    <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end slds-var-m-bottom_x-small">
-                        <h3 class="slds-text-heading_small">Recent Jobs</h3>
-                        <div class="slds-size_1-of-3">
-                            <lightning-input
-                                type="search"
-                                label="Search Jobs"
-                                variant="label-hidden"
-                                placeholder="Search by name..."
-                                value={jobSearchTerm}
-                                onchange={handleJobSearchChange}>
-                            </lightning-input>
-                        </div>
+                <div class="divider"></div>
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-end slds-var-m-bottom_medium">
+                    <h3 class="section-title" style="margin: 0;">Recent Jobs</h3>
+                    <div class="slds-size_1-of-4">
+                        <lightning-input
+                            type="search"
+                            label="Search Jobs"
+                            variant="label-hidden"
+                            placeholder="Search jobs..."
+                            value={jobSearchTerm}
+                            onchange={handleJobSearchChange}>
+                        </lightning-input>
                     </div>
-                    <div class="slds-box slds-box_x-small slds-theme_default" style="border-radius: 6px;">
-                        <template for:each={filteredRecentJobs} for:item="rj">
-                            <div key={rj.id} class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-p-vertical_xx-small" style="border-bottom: 1px solid #e5e5e5;">
-                                <div class="slds-col slds-size_5-of-12">
-                                    <lightning-badge label={rj.status}></lightning-badge>
-                                    <span class="slds-text-body_small slds-var-m-left_x-small"><strong>{rj.displayName}</strong></span>
-                                    <template lwc:if={rj.label}>
-                                        <span class="slds-text-body_small slds-text-color_weak slds-var-m-left_xx-small">({rj.templateName})</span>
-                                    </template>
-                                </div>
-                                <div class="slds-col slds-text-align_right slds-text-body_small">
-                                    <span class="slds-text-color_success">{rj.success}</span> / {rj.total}
-                                    <template lwc:if={rj.error}><span class="slds-text-color_error slds-var-m-left_xx-small">({rj.error} errors)</span></template>
-                                    <span class="slds-text-color_weak slds-var-m-left_x-small">{rj.date}</span>
-                                    <template lwc:if={rj.showMerge}>
-                                        <lightning-button-icon
-                                            icon-name="utility:merge"
-                                            alternative-text="Merge All PDFs"
-                                            title="Download Merged PDF"
-                                            variant="bare"
-                                            size="small"
-                                            data-jobid={rj.id}
-                                            onclick={handleMergeJobPdfs}
-                                            class="slds-var-m-left_x-small">
-                                        </lightning-button-icon>
-                                    </template>
-                                </div>
+                </div>
+                <div class="history-container">
+                    <template for:each={filteredRecentJobs} for:item="rj">
+                        <div key={rj.id} class="history-row clickable-row" data-jobid={rj.id} onclick={handleViewJob}>
+                            <div class="slds-col slds-size_5-of-12">
+                                <lightning-badge label={rj.status}></lightning-badge>
+                                <span class="slds-text-body_small slds-var-m-left_small"><strong>{rj.displayName}</strong></span>
+                                <template lwc:if={rj.label}>
+                                    <span class="slds-text-body_small slds-text-color_weak slds-var-m-left_x-small">({rj.templateName})</span>
+                                </template>
+                                <template lwc:if={rj.isRunning}>
+                                    <lightning-spinner alternative-text="Running" size="xx-small" class="slds-var-m-left_small"></lightning-spinner>
+                                </template>
                             </div>
-                        </template>
-                        <template lwc:if={hasNoSearchResults}>
-                            <p class="slds-text-body_small slds-text-color_weak slds-var-p-around_small">No jobs match your search.</p>
-                        </template>
-                    </div>
+                            <div class="slds-col slds-text-align_right slds-text-body_small">
+                                <span class="slds-text-color_success">{rj.success}</span> / {rj.total}
+                                <template lwc:if={rj.error}><span class="slds-text-color_error slds-var-m-left_x-small">({rj.error} errors)</span></template>
+                                <span class="slds-text-color_weak slds-var-m-left_medium">{rj.date}</span>
+                                <lightning-button-icon
+                                    icon-name="utility:open"
+                                    alternative-text="View Job"
+                                    title="View Job Record"
+                                    variant="bare"
+                                    size="small"
+                                    class="slds-var-m-left_medium">
+                                </lightning-button-icon>
+                            </div>
+                        </div>
+                    </template>
+                    <template lwc:if={hasNoSearchResults}>
+                        <p class="slds-text-body_small slds-text-color_weak slds-var-p-around_medium">No jobs match your search.</p>
+                    </template>
                 </div>
             </template>
         </div>
-    </lightning-card>
+    </div>
 
     <!-- Save Query Modal -->
     <template if:true={isSaveModalOpen}>
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-            <div class="slds-modal__container">
+            <div class="slds-modal__container modern-modal">
                 <header class="slds-modal__header">
                     <lightning-button-icon icon-name="utility:close" alternative-text="Close" title="Close" variant="bare-inverse" class="slds-modal__close" onclick={closeSaveModal}></lightning-button-icon>
-                    <h2 class="slds-text-heading_medium slds-hyphenate">Save Query</h2>
+                    <h2 class="slds-text-heading_medium slds-hyphenate">Save Query Filter</h2>
                 </header>
-                <div class="slds-modal__content slds-var-p-around_medium">
-                    <lightning-input label="Query Name" value={newQueryName} onchange={handleNewQueryNameChange} required></lightning-input>
-                    <lightning-input label="Description" value={newQueryDesc} onchange={handleNewQueryDescChange}></lightning-input>
-                    <div class="slds-var-m-top_medium p-around_small slds-box slds-theme_shade">
-                        <p><strong>Condition:</strong> {condition}</p>
+                <div class="slds-modal__content slds-var-p-around_large">
+                    <lightning-input label="Filter Name" value={newQueryName} onchange={handleNewQueryNameChange} required></lightning-input>
+                    <lightning-input label="Description" value={newQueryDesc} onchange={handleNewQueryDescChange} class="slds-var-m-top_small"></lightning-input>
+                    <div class="info-card slds-var-m-top_large">
+                        <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_xx-small">Condition to save:</p>
+                        <code class="inline-code">{condition}</code>
                     </div>
                 </div>
                 <footer class="slds-modal__footer">
-                    <lightning-button label="Cancel" onclick={closeSaveModal} class="slds-var-m-right_small"></lightning-button>
-                    <lightning-button label="Save" variant="brand" onclick={handleSaveQuery}></lightning-button>
+                    <lightning-button label="Cancel" onclick={closeSaveModal} class="slds-var-m-right_small" variant="neutral"></lightning-button>
+                    <lightning-button label="Save Filter" variant="brand" onclick={handleSaveQuery}></lightning-button>
                 </footer>
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
-
 </template>

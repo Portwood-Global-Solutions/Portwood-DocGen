@@ -307,6 +307,7 @@ System.debug('  T7 Description CV, T8 Legacy V1, T9 Image CV format,');
 System.debug('  T10 Image CV access, T11 Doc generation, T12 Doc not empty,');
 System.debug('  T13 Junction stitching, T14 COUNT, T15 SUM,');
 System.debug('  T16 SUM:currency, T17 AVG, T18 MIN, T19 MAX');
+System.debug('  (Sample template tests: run scripts/e2e-sample-templates.apex)');
 
 // =====================================================================
 // CLEANUP — delete everything we created

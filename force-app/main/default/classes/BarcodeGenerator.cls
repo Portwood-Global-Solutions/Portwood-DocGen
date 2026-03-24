@@ -147,16 +147,32 @@ public class BarcodeGenerator {
     }
 
     // ---------------------------------------------------------------------------
-    // QR Code — Version 1-4, Error Correction Level M, Byte mode
+    // QR Code — Version 1-14, Error Correction Level M, Byte mode
     // ---------------------------------------------------------------------------
 
-    // EC codeword counts per version, Level M (versions 1-14)
-    private static final List<Integer> QR_EC_CODEWORDS = new List<Integer>{
-        0, 10, 16, 26, 36, 48, 64, 72, 88, 110, 130, 150, 176, 198, 216
-    };
     // Total data codewords per version, Level M (versions 1-14)
     private static final List<Integer> QR_DATA_CAPACITY = new List<Integer>{
         0, 16, 28, 44, 64, 86, 108, 124, 154, 182, 216, 254, 290, 334, 365
+    };
+
+    // EC block structure per version, ECL M: {ecPerBlock, grp1Count, grp1DataCW [, grp2Count, grp2DataCW]}
+    // Derived from ISO 18004 Table 9 / qrcode-generator RS_BLOCK_TABLE.
+    private static final List<List<Integer>> QR_EC_BLOCKS = new List<List<Integer>>{
+        new List<Integer>(),                // v0 unused
+        new List<Integer>{10, 1, 16},       // v1: 1×16, total=26
+        new List<Integer>{16, 1, 28},       // v2: 1×28, total=44
+        new List<Integer>{26, 1, 44},       // v3: 1×44, total=70
+        new List<Integer>{18, 2, 32},       // v4: 2×32, total=100
+        new List<Integer>{24, 2, 43},       // v5: 2×43, total=134
+        new List<Integer>{16, 4, 27},       // v6: 4×27, total=172
+        new List<Integer>{18, 4, 31},       // v7: 4×31, total=196
+        new List<Integer>{22, 2, 38, 2, 39},// v8: 2×38 + 2×39, total=242
+        new List<Integer>{22, 3, 36, 2, 37},// v9: 3×36 + 2×37, total=292
+        new List<Integer>{26, 4, 43, 1, 44},// v10: 4×43 + 1×44, total=346
+        new List<Integer>{30, 1, 50, 4, 51},// v11: 1×50 + 4×51, total=404
+        new List<Integer>{22, 6, 36, 2, 37},// v12: 6×36 + 2×37, total=466
+        new List<Integer>{22, 8, 37, 1, 38},// v13: 8×37 + 1×38, total=532
+        new List<Integer>{24, 4, 40, 5, 41} // v14: 4×40 + 5×41, total=581
     };
     // Alignment pattern center positions per version (0 = none)
     private static final List<List<Integer>> QR_ALIGN_POS = new List<List<Integer>>{
@@ -202,7 +218,8 @@ public class BarcodeGenerator {
 
         Integer size = 4 * version + 17;
         Integer totalDataCW = QR_DATA_CAPACITY[version];
-        Integer ecCW = QR_EC_CODEWORDS[version];
+        List<Integer> blockInfo = QR_EC_BLOCKS[version];
+        Integer ecPerBlock = blockInfo[0];
 
         // Build data bit stream: mode(4) + count(8) + data(8*n) + terminator + padding
         List<Integer> bits = new List<Integer>();
@@ -241,13 +258,43 @@ public class BarcodeGenerator {
             dataCodewords.add(cw);
         }
 
-        // Generate EC codewords using Reed-Solomon
-        List<Integer> ecCodewords = generateReedSolomon(dataCodewords, ecCW);
+        // Split data into blocks and generate EC per block (ISO 18004 interleaving)
+        List<List<Integer>> dataBlocks = new List<List<Integer>>();
+        List<List<Integer>> ecBlocks = new List<List<Integer>>();
+        Integer cwIdx = 0;
 
-        // Combine data + EC codewords into bit stream
+        // blockInfo format: {ecPerBlock, grp1Count, grp1DataCW [, grp2Count, grp2DataCW]}
+        Integer numGroups = blockInfo.size() > 3 ? 2 : 1;
+        for (Integer g = 0; g < numGroups; g++) {
+            Integer bCount = blockInfo[1 + g * 2];
+            Integer bDataCW = blockInfo[2 + g * 2];
+            for (Integer b = 0; b < bCount; b++) {
+                List<Integer> block = new List<Integer>();
+                for (Integer i = 0; i < bDataCW && cwIdx < dataCodewords.size(); i++) {
+                    block.add(dataCodewords[cwIdx++]);
+                }
+                dataBlocks.add(block);
+                ecBlocks.add(generateReedSolomon(block, ecPerBlock));
+            }
+        }
+
+        // Interleave data codewords: round-robin across blocks
+        Integer maxDataLen = 0;
+        for (List<Integer> db : dataBlocks) {
+            if (db.size() > maxDataLen) maxDataLen = db.size();
+        }
         List<Integer> finalBits = new List<Integer>();
-        for (Integer cw : dataCodewords) addBits(finalBits, cw, 8);
-        for (Integer cw : ecCodewords) addBits(finalBits, cw, 8);
+        for (Integer i = 0; i < maxDataLen; i++) {
+            for (List<Integer> db : dataBlocks) {
+                if (i < db.size()) addBits(finalBits, db[i], 8);
+            }
+        }
+        // Interleave EC codewords
+        for (Integer i = 0; i < ecPerBlock; i++) {
+            for (List<Integer> eb : ecBlocks) {
+                if (i < eb.size()) addBits(finalBits, eb[i], 8);
+            }
+        }
 
         // Create the QR matrix
         List<List<Integer>> matrix = new List<List<Integer>>();
@@ -277,12 +324,15 @@ public class BarcodeGenerator {
 
         // Reserve format info areas
         for (Integer i = 0; i < 8; i++) {
+            // First copy: row 8 cols 0-7, col 8 rows 0-7
             if (!reserved[8][i]) reserved[8][i] = true;
             if (!reserved[i][8]) reserved[i][8] = true;
+            // Second copy vertical: col 8, rows size-1 to size-7 (bits 0-6)
             if (i < 7) {
-                if (!reserved[8][size - 1 - i]) reserved[8][size - 1 - i] = true;
                 if (!reserved[size - 1 - i][8]) reserved[size - 1 - i][8] = true;
             }
+            // Second copy horizontal: row 8, cols size-1 to size-8 (bits 7-14)
+            if (!reserved[8][size - 1 - i]) reserved[8][size - 1 - i] = true;
         }
         reserved[8][8] = true;
         // Dark module
@@ -338,8 +388,8 @@ public class BarcodeGenerator {
             else if (i == 7) { matrix[8][8] = fb; }
             else if (i == 8) { matrix[7][8] = fb; }
             else { matrix[14 - i][8] = fb; }
-            // Around other finders
-            if (i < 8) { matrix[size - 1 - i][8] = fb; }
+            // Around other finders: bits 0-6 vertical, bits 7-14 horizontal
+            if (i < 7) { matrix[size - 1 - i][8] = fb; }
             else { matrix[8][size - 15 + i] = fb; }
         }
 
@@ -434,6 +484,14 @@ public class BarcodeGenerator {
             gen = newGen;
         }
 
+        // Reverse gen to descending degree order for polynomial long division
+        // gen was built ascending (gen[0]=constant, gen[n]=leading=1),
+        // but division needs gen[0]=leading coefficient first
+        List<Integer> genDesc = new List<Integer>();
+        for (Integer i = gen.size() - 1; i >= 0; i--) {
+            genDesc.add(gen[i]);
+        }
+
         // Polynomial division
         List<Integer> result = new List<Integer>();
         for (Integer d : data) result.add(d);
@@ -442,8 +500,8 @@ public class BarcodeGenerator {
         for (Integer i = 0; i < data.size(); i++) {
             Integer coef = result[i];
             if (coef != 0) {
-                for (Integer j = 0; j < gen.size(); j++) {
-                    result[i + j] = result[i + j] ^ gfMultiply(gen[j], coef, gfExp, gfLog);
+                for (Integer j = 0; j < genDesc.size(); j++) {
+                    result[i + j] = result[i + j] ^ gfMultiply(genDesc[j], coef, gfExp, gfLog);
                 }
             }
         }

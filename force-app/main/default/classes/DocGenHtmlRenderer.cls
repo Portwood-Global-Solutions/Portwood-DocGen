@@ -1172,28 +1172,51 @@ public with sharing class DocGenHtmlRenderer {
         return html;
     }
 
-    /** Renders QR code as a CSS grid table. */
+    /** Renders QR code with absolute positioning — zero-gap guarantee in Flying Saucer. */
     private static String renderQrHtml(String pattern, String sizeSpec) {
         List<String> rows = pattern.split('\n');
         Integer modules = rows.size();
 
-        // Parse size: single number = total px, default 150
-        Integer totalPx = 150;
+        // Parse size: single number = total px, default 250 (square)
+        Integer totalPx = 250;
         if (String.isNotBlank(sizeSpec) && sizeSpec.trim().isNumeric()) {
             totalPx = Integer.valueOf(sizeSpec.trim());
         }
-        Integer cellPx = Math.max(1, totalPx / modules);
 
-        String html = '<table style="border-collapse:collapse;display:inline-table;line-height:0;">';
-        for (String row : rows) {
-            html += '<tr>';
-            for (Integer c = 0; c < row.length(); c++) {
-                String color = row.substring(c, c + 1) == '1' ? '#000' : '#fff';
-                html += '<td style="width:' + cellPx + 'px;height:' + cellPx + 'px;background:' + color + ';padding:0;"></td>';
+        // QR spec requires 4-module quiet zone on each side
+        Integer quietZone = 4;
+        Integer totalModules = modules + (quietZone * 2);
+        Integer cellPx = Math.max(3, totalPx / totalModules);
+        Integer quietPx = cellPx * quietZone;
+        Integer totalSizePx = cellPx * totalModules;
+
+        // Relative container with white background; only black modules are emitted
+        // as absolutely positioned spans. No layout engine gaps possible.
+        String html = '<div style="position:relative;display:inline-block;width:' + totalSizePx
+            + 'px;height:' + totalSizePx + 'px;background:#fff;">';
+
+        Integer yPx = quietPx;
+        for (Integer r = 0; r < rows.size(); r++) {
+            String row = rows[r];
+            Integer c = 0;
+            while (c < row.length()) {
+                String bit = row.substring(c, c + 1);
+                Integer run = 1;
+                while (c + run < row.length() && row.substring(c + run, c + run + 1) == bit) {
+                    run++;
+                }
+                // Only emit black modules; white is the container background
+                if (bit == '1') {
+                    Integer xPx = quietPx + (c * cellPx);
+                    html += '<span style="position:absolute;left:' + xPx + 'px;top:' + yPx
+                        + 'px;width:' + (cellPx * run) + 'px;height:' + cellPx + 'px;background:#000;"></span>';
+                }
+                c += run;
             }
-            html += '</tr>';
+            yPx += cellPx;
         }
-        html += '</table>';
+
+        html += '</div>';
         return html;
     }
 }

@@ -1,5 +1,6 @@
 import { LightningElement, track, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { NavigationMixin } from 'lightning/navigation';
 import { refreshApex } from '@salesforce/apex';
 import getBulkTemplates from '@salesforce/apex/DocGenBulkController.getBulkTemplates';
 import validateFilter from '@salesforce/apex/DocGenBulkController.validateFilter';
@@ -10,14 +11,11 @@ import saveQuery from '@salesforce/apex/DocGenBulkController.saveQuery';
 import deleteQuery from '@salesforce/apex/DocGenBulkController.deleteQuery';
 import getRecentJobs from '@salesforce/apex/DocGenBulkController.getRecentJobs';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
-import getJobGeneratedPdfs from '@salesforce/apex/DocGenBulkController.getJobGeneratedPdfs';
-import getContentVersionBase64 from '@salesforce/apex/DocGenController.getContentVersionBase64';
-import { mergePdfs } from './docGenPdfMerger';
 
 const POLL_INTERVAL_MS = 5000;
 const TERMINAL_STATUSES = ['Completed', 'Failed', 'Completed with Errors'];
 
-export default class DocGenBulkRunner extends LightningElement {
+export default class DocGenBulkRunner extends NavigationMixin(LightningElement) {
     @track templates = [];
     @track selectedTemplateId;
     @track baseObject;
@@ -41,8 +39,6 @@ export default class DocGenBulkRunner extends LightningElement {
 
     _pollTimer;
 
-    // Merge state
-    @track isMerging = false;
 
     // Wire Templates
     _wiredTemplateResult;
@@ -81,7 +77,6 @@ export default class DocGenBulkRunner extends LightningElement {
     @track mergePdf = false;
     @track mergeOnly = false;
     @track jobSearchTerm = '';
-    @track mergingJobId = null;
 
     get filteredTemplates() {
         const term = (this.templateSearchTerm || '').toLowerCase();
@@ -233,11 +228,7 @@ export default class DocGenBulkRunner extends LightningElement {
                     error: j.Error_Count__c || 0,
                     total: j.Total_Records__c || 0,
                     date: new Date(j.CreatedDate).toLocaleDateString(),
-                    isPdf: j.Template__r && j.Template__r.Output_Format__c === 'PDF',
-                    isCompleted: j.Status__c === 'Completed' || j.Status__c === 'Completed with Errors',
-                    showMerge: j.Template__r && j.Template__r.Output_Format__c === 'PDF' &&
-                        (j.Status__c === 'Completed' || j.Status__c === 'Completed with Errors') &&
-                        (j.Success_Count__c || 0) > 0,
+                    isRunning: !['Completed', 'Failed', 'Completed with Errors'].includes(j.Status__c),
                     displayName: j.Label__c || (j.Template__r ? j.Template__r.Name : j.Name)
                 }));
             })
@@ -287,50 +278,17 @@ export default class DocGenBulkRunner extends LightningElement {
         );
     }
 
-    async handleMergeJobPdfs(event) {
-        const jobId = event.target.dataset.jobid;
-        const job = this.recentJobs.find(j => j.id === jobId);
-        if (!job) return;
-
-        this.mergingJobId = jobId;
-        try {
-            this.showToast('Info', 'Loading generated PDFs...', 'info');
-            const pdfs = await getJobGeneratedPdfs({ jobId });
-            if (!pdfs || pdfs.length === 0) {
-                this.showToast('Warning', 'No generated PDFs found for this job.', 'warning');
-                return;
+    handleViewJob(event) {
+        const jobId = event.currentTarget.dataset.jobid;
+        if (!jobId) return;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: jobId,
+                objectApiName: 'DocGen_Job__c',
+                actionName: 'view'
             }
-
-            this.showToast('Info', `Merging ${pdfs.length} PDFs...`, 'info');
-            const pdfBytesArray = [];
-            for (const pdf of pdfs) {
-                const b64 = await getContentVersionBase64({ contentVersionId: pdf.value });
-                if (b64) {
-                    pdfBytesArray.push(this._base64ToUint8Array(b64));
-                }
-            }
-
-            if (pdfBytesArray.length === 0) {
-                throw new Error('No PDFs could be loaded.');
-            }
-
-            let finalBytes;
-            if (pdfBytesArray.length === 1) {
-                finalBytes = pdfBytesArray[0];
-            } else {
-                finalBytes = mergePdfs(pdfBytesArray);
-            }
-
-            const fileName = (job.label || job.templateName || 'Bulk Merged') + '.pdf';
-            const finalBase64 = this._uint8ArrayToBase64(finalBytes);
-            this._downloadBase64(finalBase64, fileName, 'application/pdf');
-            this.showToast('Success', `Merged ${pdfBytesArray.length} PDFs and downloaded.`, 'success');
-        } catch (e) {
-            const msg = e.body ? e.body.message : (e.message || 'Unknown error');
-            this.showToast('Error', 'Merge failed: ' + msg, 'error');
-        } finally {
-            this.mergingJobId = null;
-        }
+        });
     }
 
     handleTemplateChange(event) {
@@ -591,98 +549,6 @@ export default class DocGenBulkRunner extends LightningElement {
         if (this.jobStatus === 'Failed') return 'error';
         if (this.jobStatus === 'Completed with Errors') return 'warning';
         return 'inverse';
-    }
-
-    // --- Merge All Generated PDFs ---
-
-    get showMergeAllButton() {
-        if (!this.jobId || !this.jobStatus) return false;
-        if (this.jobStatus === 'Failed') return false;
-        // Only for PDF templates
-        const tmpl = this._templateDataMap[this.selectedTemplateId];
-        return tmpl && tmpl.Output_Format__c === 'PDF' &&
-               (this.jobStatus === 'Completed' || this.jobStatus === 'Completed with Errors');
-    }
-
-    get mergeAllButtonLabel() {
-        return this.isMerging ? 'Merging...' : 'Merge All PDFs';
-    }
-
-    async handleMergeAllJobPdfs() {
-        this.isMerging = true;
-        try {
-            this.showToast('Info', 'Loading generated PDFs...', 'info');
-
-            const pdfs = await getJobGeneratedPdfs({ jobId: this.jobId });
-            if (!pdfs || pdfs.length === 0) {
-                this.showToast('Warning', 'No generated PDFs found for this job.', 'warning');
-                return;
-            }
-
-            this.showToast('Info', `Merging ${pdfs.length} PDFs...`, 'info');
-
-            const pdfBytesArray = [];
-            for (const pdf of pdfs) {
-                const b64 = await getContentVersionBase64({ contentVersionId: pdf.value });
-                if (b64) {
-                    pdfBytesArray.push(this._base64ToUint8Array(b64));
-                }
-            }
-
-            if (pdfBytesArray.length === 0) {
-                throw new Error('No PDFs could be loaded.');
-            }
-
-            let finalBytes;
-            if (pdfBytesArray.length === 1) {
-                finalBytes = pdfBytesArray[0];
-            } else {
-                finalBytes = mergePdfs(pdfBytesArray);
-            }
-
-            const finalBase64 = this._uint8ArrayToBase64(finalBytes);
-            this._downloadBase64(finalBase64, 'Bulk Merged.pdf', 'application/pdf');
-            this.showToast('Success', `Merged ${pdfBytesArray.length} PDFs and downloaded.`, 'success');
-        } catch (e) {
-            const msg = e.body ? e.body.message : (e.message || 'Unknown error');
-            this.showToast('Error', 'Merge failed: ' + msg, 'error');
-        } finally {
-            this.isMerging = false;
-        }
-    }
-
-    _base64ToUint8Array(base64) {
-        const binaryStr = atob(base64);
-        const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
-        }
-        return bytes;
-    }
-
-    _uint8ArrayToBase64(bytes) {
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return btoa(binary);
-    }
-
-    _downloadBase64(base64Data, fileName, mimeType) {
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
     }
 
     showToast(title, message, variant) {

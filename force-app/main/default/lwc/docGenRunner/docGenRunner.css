@@ -1,37 +1,195 @@
-@media print {
-    /* Hide everything by default */
-    body * {
-        visibility: hidden;
-    }
-
-    /* Only show the preview container and its children */
-    .debug-container, .debug-container * {
-        visibility: visible;
-    }
-
-    /* Position the preview container at the top left */
-    .debug-container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        border: none !important;
-    }
-
-    /* Hide the parent card/container styling if needed */
-    lightning-card, .slds-card {
-        display: none;
-    }
+.runner-widget {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #111827;
+    overflow: hidden;
 }
 
-/* UI Styling for Preview Box */
-.debug-container {
-    background: var(--lwc-colorBackground, white);
-    padding: var(--lwc-spacingMedium, 2rem);
-    border: var(--lwc-borderWidthThin, 1px) solid var(--lwc-colorBorder, #c9c9c9);
-    min-height: 200px;
-    margin-top: var(--lwc-spacingSmall, 1rem);
-    box-shadow: 0 2px 4px 0 rgba(0,0,0,0.16);
+.widget-header {
+    background: #f9fafb;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.25rem;
+}
+
+.header-title h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.header-subtitle {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.widget-body {
+    padding: 1.5rem;
+}
+
+/* Custom Segmented Control (Replacing Radio Buttons) */
+.custom-segmented-control {
+    display: flex;
+    background: #f3f4f6;
+    padding: 4px;
+    border-radius: 8px;
+    gap: 2px;
+}
+
+.seg-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 8px 4px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.seg-btn:hover {
+    color: #111827;
+}
+
+.seg-btn.active {
+    background: #ffffff;
+    color: #1d4ed8;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Custom Mini Pills for Output */
+.custom-mini-pills {
+    display: flex;
+    gap: 8px;
+}
+
+.pill-btn {
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pill-btn:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.pill-btn.active {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+}
+
+/* Custom Select */
+.custom-select {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* Merge Box */
+.merge-box {
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.checkbox-list {
+    margin-top: 0.5rem;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.85rem;
+}
+
+/* Cool Brand Button */
+.cool-brand-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cool-brand-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.cool-brand-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #9ca3af;
+    box-shadow: none;
+}
+
+/* Action Buttons */
+.pill-action-btn {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 6px 16px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pill-action-btn:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+/* Loading & Alerts */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+}
+
+.error-alert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
 }

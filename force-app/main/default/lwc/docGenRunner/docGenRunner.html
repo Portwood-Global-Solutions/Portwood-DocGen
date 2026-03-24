@@ -1,297 +1,265 @@
 <template>
-    <lightning-card title="Document Generator" icon-name="custom:custom18">
-        <div class="slds-var-p-around_medium">
+    <div class="runner-widget">
+        <div class="widget-header">
+            <div class="header-title">
+                <lightning-icon icon-name="standard:document" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                <h2>Generate Document</h2>
+            </div>
+            <p class="header-subtitle">Create or combine documents for this record.</p>
+        </div>
+
+        <div class="widget-body">
             <template lwc:if={error}>
-                <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error" role="alert">
-                    <span class="slds-assistive-text">error</span>
-                    <h2>{error}</h2>
+                <div class="error-alert">
+                    <strong>Error:</strong> {error}
                 </div>
             </template>
 
             <template lwc:if={isLoading}>
-                 <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                 <div class="loading-state">
+                     <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                 </div>
             </template>
 
             <template lwc:else>
-                <!-- Mode toggle -->
-                <div class="slds-var-m-bottom_medium">
-                    <lightning-radio-group
-                        name="appMode"
-                        label="Mode"
-                        options={modeOptions}
-                        value={appMode}
-                        onchange={handleModeChange}
-                        type="button">
-                    </lightning-radio-group>
+                <!-- Custom Mode Selector (Segmented Control) -->
+                <div class="custom-segmented-control slds-var-m-bottom_medium">
+                    <template for:each={modernModeOptions} for:item="opt">
+                        <button 
+                            key={opt.value} 
+                            class={opt.class} 
+                            data-value={opt.value} 
+                            onclick={handleModeChangeInternal}>
+                            {opt.label}
+                        </button>
+                    </template>
                 </div>
 
                 <!-- GENERATE MODE -->
                 <template lwc:if={isGenerateMode}>
-                    <lightning-combobox
-                        name="template"
-                        label="Select Template"
-                        value={selectedTemplateId}
-                        placeholder="Choose a template..."
-                        options={templateOptions}
-                        onchange={handleTemplateChange}
-                        class="slds-var-m-bottom_medium">
-                    </lightning-combobox>
-
-                    <div class="slds-var-m-bottom_medium">
-                        <lightning-radio-group
-                            name="outputMode"
-                            label="Action"
-                            options={outputOptions}
-                            value={outputMode}
-                            onchange={handleOutputModeChange}
-                            type="button">
-                        </lightning-radio-group>
+                    <div class="slds-form-element slds-var-m-bottom_medium">
+                        <label class="slds-form-element__label">Select Template</label>
+                        <div class="slds-form-element__control">
+                            <select class="custom-select" onchange={handleTemplateChangeInternal}>
+                                <option value="">Choose a template...</option>
+                                <template for:each={templateOptions} for:item="tmpl">
+                                    <option key={tmpl.value} value={tmpl.value}>{tmpl.label}</option>
+                                </template>
+                            </select>
+                        </div>
                     </div>
 
-                    <!-- PDF Merge Toggle — only visible for PDF templates -->
+                    <!-- Custom Output Selector -->
+                    <div class="slds-form-element slds-var-m-bottom_medium">
+                        <label class="slds-form-element__label">Output Destination</label>
+                        <div class="custom-mini-pills">
+                            <template for:each={modernOutputOptions} for:item="out">
+                                <button 
+                                    key={out.value} 
+                                    class={out.class} 
+                                    data-value={out.value} 
+                                    onclick={handleOutputModeChangeInternal}>
+                                    {out.label}
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- PDF Merge Toggle -->
                     <template lwc:if={showMergeOption}>
                         <div class="slds-var-m-bottom_medium">
                             <lightning-input
                                 type="checkbox"
-                                label="Merge with existing PDFs on this record"
+                                label="Combine with existing PDFs on this record"
                                 checked={mergeEnabled}
-                                onchange={handleMergeToggle}>
+                                onchange={handleMergeToggle}
+                                class="custom-checkbox">
                             </lightning-input>
                         </div>
 
                         <template lwc:if={mergeEnabled}>
-                            <div class="slds-var-m-bottom_medium slds-box slds-theme_shade slds-var-p-around_small">
+                            <div class="merge-box">
                                 <template lwc:if={hasRecordPdfs}>
-                                    <p class="slds-text-body_small slds-var-m-bottom_x-small">
-                                        Select PDFs to append after the generated document:
-                                    </p>
-                                    <lightning-checkbox-group
-                                        name="pdfSelection"
-                                        label="Available PDFs"
-                                        options={recordPdfOptions}
-                                        value={selectedPdfCvIds}
-                                        onchange={handlePdfSelection}
-                                        variant="label-hidden">
-                                    </lightning-checkbox-group>
+                                    <p class="slds-text-body_small slds-var-m-bottom_x-small">Select PDFs to append:</p>
+                                    <div class="checkbox-list">
+                                        <template for:each={recordPdfOptions} for:item="pdf">
+                                            <div key={pdf.value} class="checkbox-item">
+                                                <input type="checkbox" value={pdf.value} onchange={handlePdfSelectionInternal} />
+                                                <span>{pdf.label}</span>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </template>
                                 <template lwc:else>
-                                    <p class="slds-text-body_small slds-text-color_weak">
-                                        No PDF files found on this record.
-                                    </p>
+                                    <p class="slds-text-body_small slds-text-color_weak">No other PDFs found here.</p>
                                 </template>
                             </div>
                         </template>
                     </template>
 
-                    <lightning-button
-                        variant="brand"
-                        label={generateButtonLabel}
-                        onclick={generateDocument}
-                        disabled={isGenerateDisabled}
-                        class="slds-var-m-top_medium">
-                    </lightning-button>
+                    <button class="cool-brand-btn" onclick={generateDocument} disabled={isGenerateDisabled}>
+                        {generateButtonLabel}
+                    </button>
                 </template>
 
-                <!-- DOCUMENT PACKET MODE -->
+                <!-- PACKET MODE -->
                 <template lwc:if={isPacketMode}>
                     <div class="slds-var-m-bottom_medium">
                         <lightning-dual-listbox
                             name="packetTemplates"
-                            label="Select and order templates for the packet"
-                            source-label="Available Templates"
-                            selected-label="Packet Order"
+                            label="Packet Templates"
+                            source-label="Available"
+                            selected-label="In Packet"
                             options={pdfTemplateOptions}
                             value={packetTemplateIds}
-                            onchange={handlePacketTemplateSelection}>
+                            onchange={handlePacketTemplateSelection}
+                            variant="label-hidden">
                         </lightning-dual-listbox>
                     </div>
 
-                    <!-- Optionally append existing PDFs -->
                     <div class="slds-var-m-bottom_medium">
                         <lightning-input
                             type="checkbox"
-                            label="Also include existing PDFs from this record"
+                            label="Include other PDFs from this record"
                             checked={packetIncludeExisting}
-                            onchange={handlePacketIncludeToggle}>
+                            onchange={handlePacketIncludeToggle}
+                            class="custom-checkbox">
                         </lightning-input>
                     </div>
 
-                    <template lwc:if={packetIncludeExisting}>
-                        <div class="slds-var-m-bottom_medium slds-box slds-theme_shade slds-var-p-around_small">
-                            <template lwc:if={hasRecordPdfs}>
-                                <lightning-checkbox-group
-                                    name="packetPdfSelection"
-                                    label="Existing PDFs to append"
-                                    options={recordPdfOptions}
-                                    value={packetExistingPdfIds}
-                                    onchange={handlePacketPdfSelection}
-                                    variant="label-hidden">
-                                </lightning-checkbox-group>
-                            </template>
-                            <template lwc:else>
-                                <p class="slds-text-body_small slds-text-color_weak">
-                                    No PDF files found on this record.
-                                </p>
+                    <div class="slds-form-element slds-var-m-bottom_medium">
+                        <label class="slds-form-element__label">Output Destination</label>
+                        <div class="custom-mini-pills">
+                            <template for:each={modernOutputOptions} for:item="out">
+                                <button 
+                                    key={out.value} 
+                                    class={out.class} 
+                                    data-value={out.value} 
+                                    onclick={handleOutputModeChangeInternal}>
+                                    {out.label}
+                                </button>
                             </template>
                         </div>
-                    </template>
-
-                    <div class="slds-var-m-bottom_medium">
-                        <lightning-radio-group
-                            name="packetOutput"
-                            label="Action"
-                            options={mergeOnlyOutputOptions}
-                            value={outputMode}
-                            onchange={handleOutputModeChange}
-                            type="button">
-                        </lightning-radio-group>
                     </div>
 
-                    <lightning-button
-                        variant="brand"
-                        label={packetButtonLabel}
-                        onclick={generatePacket}
-                        disabled={isPacketDisabled}
-                        class="slds-var-m-top_medium">
-                    </lightning-button>
+                    <button class="cool-brand-btn" onclick={generatePacket} disabled={isPacketDisabled}>
+                        {packetButtonLabel}
+                    </button>
                 </template>
 
                 <!-- MERGE ONLY MODE -->
                 <template lwc:if={isMergeOnlyMode}>
-                    <div class="slds-var-m-bottom_medium slds-box slds-theme_shade slds-var-p-around_small">
+                    <div class="merge-box">
                         <template lwc:if={hasRecordPdfs}>
                             <lightning-dual-listbox
                                 name="mergeOnlySelection"
-                                label="Select and order PDFs to merge"
+                                label="Merge Order"
                                 source-label="Available"
-                                selected-label="Merge Order"
+                                selected-label="Combine"
                                 options={recordPdfOptions}
                                 value={mergeOnlyCvIds}
-                                onchange={handleMergeOnlySelection}>
+                                onchange={handleMergeOnlySelection}
+                                variant="label-hidden">
                             </lightning-dual-listbox>
                         </template>
                         <template lwc:else>
-                            <p class="slds-text-body_small slds-text-color_weak">
-                                No PDF files found on this record.
-                            </p>
+                            <p class="slds-text-body_small slds-text-color_weak">No PDF files found to combine.</p>
                         </template>
                     </div>
 
-                    <div class="slds-var-m-bottom_medium">
-                        <lightning-radio-group
-                            name="mergeOnlyOutput"
-                            label="Action"
-                            options={mergeOnlyOutputOptions}
-                            value={outputMode}
-                            onchange={handleOutputModeChange}
-                            type="button">
-                        </lightning-radio-group>
+                    <div class="slds-form-element slds-var-m-bottom_medium">
+                        <label class="slds-form-element__label">Output Destination</label>
+                        <div class="custom-mini-pills">
+                            <template for:each={modernOutputOptions} for:item="out">
+                                <button 
+                                    key={out.value} 
+                                    class={out.class} 
+                                    data-value={out.value} 
+                                    onclick={handleOutputModeChangeInternal}>
+                                    {out.label}
+                                </button>
+                            </template>
+                        </div>
                     </div>
 
-                    <lightning-button
-                        variant="brand"
-                        label={mergeOnlyButtonLabel}
-                        onclick={mergeOnlyDocument}
-                        disabled={isMergeOnlyDisabled}
-                        class="slds-var-m-top_medium">
-                    </lightning-button>
+                    <button class="cool-brand-btn" onclick={mergeOnlyDocument} disabled={isMergeOnlyDisabled}>
+                        {mergeOnlyButtonLabel}
+                    </button>
                 </template>
 
                 <!-- MERGE CHILD RECORD PDFs MODE -->
                 <template lwc:if={isMergeChildrenMode}>
-                    <lightning-combobox
-                        name="childRelationship"
-                        label="Child Relationship"
-                        placeholder="Select a child object..."
-                        options={childRelComboboxOptions}
-                        onchange={handleChildRelChange}
-                        class="slds-var-m-bottom_medium">
-                    </lightning-combobox>
+                    <div class="slds-form-element slds-var-m-bottom_medium">
+                        <label class="slds-form-element__label">Source List</label>
+                        <div class="slds-form-element__control">
+                            <select class="custom-select" onchange={handleChildRelChangeInternal}>
+                                <option value="">Select a child list...</option>
+                                <template for:each={childRelComboboxOptions} for:item="rel">
+                                    <option key={rel.value} value={rel.value}>{rel.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
 
                     <template lwc:if={selectedChildRel}>
-                        <lightning-input
-                            label="Filter (optional WHERE clause)"
-                            placeholder="e.g. StageName = 'Closed Won' AND CloseDate = THIS_MONTH"
-                            value={childFilterClause}
-                            onchange={handleChildFilterChange}
-                            class="slds-var-m-bottom_small">
-                        </lightning-input>
-
-                        <lightning-button
-                            label="Load Child PDFs"
-                            onclick={handleLoadChildPdfs}
-                            class="slds-var-m-bottom_medium">
-                        </lightning-button>
+                        <div class="slds-grid slds-grid_vertical-align-end slds-gutters_x-small slds-var-m-bottom_medium">
+                            <div class="slds-col slds-grow">
+                                <lightning-input
+                                    label="Filter Records"
+                                    placeholder="e.g. StageName = 'Closed Won'"
+                                    value={childFilterClause}
+                                    onchange={handleChildFilterChangeInternal}
+                                    variant="label-hidden">
+                                </lightning-input>
+                            </div>
+                            <div class="slds-col">
+                                <button class="pill-action-btn" onclick={handleLoadChildPdfs}>Find Files</button>
+                            </div>
+                        </div>
                     </template>
 
                     <template lwc:if={childPdfsLoaded}>
-                        <div class="slds-var-m-bottom_medium slds-box slds-theme_shade slds-var-p-around_small">
+                        <div class="merge-box" style="max-height: 250px; overflow-y: auto;">
                             <template lwc:if={hasChildRecordGroups}>
-                                <div class="slds-var-m-bottom_small">
-                                    <lightning-input
-                                        type="checkbox"
-                                        label="Select All"
-                                        checked={allChildPdfsSelected}
-                                        onchange={handleSelectAllChildPdfs}>
-                                    </lightning-input>
-                                </div>
-
                                 <template for:each={childRecordGroupsWithState} for:item="group">
                                     <div key={group.childRecordId} class="slds-var-m-bottom_small">
-                                        <p class="slds-text-title_bold slds-var-m-bottom_xx-small">
-                                            {group.childRecordName}
-                                        </p>
-                                        <template lwc:if={group.hasPdfs}>
-                                            <template for:each={group.pdfs} for:item="pdf">
-                                                <div key={pdf.value} class="slds-var-p-left_medium">
-                                                    <lightning-input
-                                                        type="checkbox"
-                                                        label={pdf.label}
-                                                        checked={pdf.checked}
-                                                        data-cvid={pdf.value}
-                                                        onchange={handleChildPdfCheckbox}>
-                                                    </lightning-input>
-                                                </div>
-                                            </template>
-                                        </template>
-                                        <template lwc:else>
-                                            <p class="slds-text-body_small slds-text-color_weak slds-var-p-left_medium">
-                                                No PDFs attached
-                                            </p>
+                                        <p class="slds-text-title_bold">{group.childRecordName}</p>
+                                        <template for:each={group.pdfs} for:item="pdf">
+                                            <div key={pdf.value} class="checkbox-item slds-var-m-left_small">
+                                                <input type="checkbox" checked={pdf.checked} data-cvid={pdf.value} onchange={handleChildPdfCheckbox} />
+                                                <span>{pdf.label}</span>
+                                            </div>
                                         </template>
                                     </div>
                                 </template>
                             </template>
                             <template lwc:else>
-                                <p class="slds-text-body_small slds-text-color_weak">
-                                    No child records found matching your criteria.
-                                </p>
+                                <p class="slds-text-body_small slds-text-color_weak">No matching files found.</p>
                             </template>
                         </div>
 
-                        <div class="slds-var-m-bottom_medium">
-                            <lightning-radio-group
-                                name="childMergeOutput"
-                                label="Action"
-                                options={mergeOnlyOutputOptions}
-                                value={outputMode}
-                                onchange={handleOutputModeChange}
-                                type="button">
-                            </lightning-radio-group>
+                        <div class="slds-form-element slds-var-m-bottom_medium">
+                            <label class="slds-form-element__label">Output Destination</label>
+                            <div class="custom-mini-pills">
+                                <template for:each={modernOutputOptions} for:item="out">
+                                    <button 
+                                        key={out.value} 
+                                        class={out.class} 
+                                        data-value={out.value} 
+                                        onclick={handleOutputModeChangeInternal}>
+                                        {out.label}
+                                    </button>
+                                </template>
+                            </div>
                         </div>
 
-                        <lightning-button
-                            variant="brand"
-                            label={mergeChildrenButtonLabel}
-                            onclick={mergeChildrenDocument}
-                            disabled={isMergeChildrenDisabled}
-                            class="slds-var-m-top_medium">
-                        </lightning-button>
+                        <button class="cool-brand-btn" onclick={mergeChildrenDocument} disabled={isMergeChildrenDisabled}>
+                            {mergeChildrenButtonLabel}
+                        </button>
                     </template>
                 </template>
 
             </template>
-
         </div>
-    </lightning-card>
+    </div>
 </template>

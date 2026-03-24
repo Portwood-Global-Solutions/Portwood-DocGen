@@ -5,8 +5,6 @@ Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from 
 [![Version](https://img.shields.io/badge/version-2.6.0_Apollo+-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
-[![Buy Amanda a Coffee](https://img.shields.io/badge/Buy_Amanda_a_Coffee-%E2%98%95-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/davemoudya)
-
 ---
 
 ## Install
@@ -241,8 +239,6 @@ Open-source under Apache 2.0. Contributions welcome:
 3. Submit a PR with a clear description
 
 Report bugs via [GitHub Issues](https://github.com/DaveMoudy/SalesforceDocGen/issues).
-
-[![Buy Amanda a Coffee](https://img.shields.io/badge/Buy_Amanda_a_Coffee-%E2%98%95-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/davemoudya)
 
 ---
 

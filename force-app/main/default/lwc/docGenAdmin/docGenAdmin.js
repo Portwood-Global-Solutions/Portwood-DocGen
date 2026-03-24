@@ -12,6 +12,7 @@ import getTemplateVersions from '@salesforce/apex/DocGenController.getTemplateVe
 import processAndReturnDocument from '@salesforce/apex/DocGenController.processAndReturnDocument';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
 import activateVersion from '@salesforce/apex/DocGenController.activateVersion';
+import createSampleTemplates from '@salesforce/apex/DocGenController.createSampleTemplates';
 
 // Schema
 import DOCGEN_TEMPLATE_OBJECT from '@salesforce/schema/DocGen_Template__c';
@@ -110,6 +111,9 @@ const VERSION_COLUMNS = [
     // Filter State
     searchKey = '';
 
+    @track isInstallingSamples = false;
+    _samplesChecked = false;
+
     @wire(getAllTemplates)
     wiredTemplates(result) {
         this.wiredTemplatesResult = result;
@@ -119,6 +123,11 @@ const VERSION_COLUMNS = [
                 defaultLabel: t.Is_Default__c ? '★' : '',
                 defaultClass: t.Is_Default__c ? 'slds-text-color_success slds-text-title_bold' : ''
             }));
+            // Auto-install sample templates on first load if org has none
+            if (this.templates.length === 0 && !this._samplesChecked && !this.isInstallingSamples) {
+                this._samplesChecked = true;
+                this.installSampleTemplates();
+            }
         } else if (result.error) {
            this.showToast('Error', 'Error loading templates', 'error');
         }
@@ -146,8 +155,19 @@ const VERSION_COLUMNS = [
         this.searchKey = event.detail.value;
     }
 
-    get showInstallSample() {
-        return false;
+    async installSampleTemplates() {
+        this.isInstallingSamples = true;
+        try {
+            const count = await createSampleTemplates();
+            this.showToast('Welcome to DocGen!', count + ' sample templates installed. Open any template to see how merge tags work.', 'success');
+            await refreshApex(this.wiredTemplatesResult);
+            this.activeMainTab = 'list';
+        } catch (error) {
+            const msg = error.body ? error.body.message : error.message;
+            this.showToast('Error', 'Failed to create sample templates: ' + msg, 'error');
+        } finally {
+            this.isInstallingSamples = false;
+        }
     }
 
     // --- Wizard Logic ---
