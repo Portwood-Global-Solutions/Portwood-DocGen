@@ -118,23 +118,57 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     /**
-     * Extracts content between <w:body> and </w:body> tags.
+     * Extracts content from <w:hdr>, <w:body>, and <w:ftr> tags.
      */
     private static String extractBodyContent(String xml) {
-        Integer bodyStart = xml.indexOf('<w:body');
-                if (bodyStart == -1) { return xml; }
-
-        Integer bodyContentStart = xml.indexOf('>', bodyStart) + 1;
-        Integer bodyEnd = xml.lastIndexOf('</w:body>');
-                if (bodyEnd == -1) { return xml.substring(bodyContentStart); }
-
-        // Strip <w:sectPr> (section properties) from end of body
-        String content = xml.substring(bodyContentStart, bodyEnd);
-        Integer sectStart = content.lastIndexOf('<w:sectPr');
-        if (sectStart != -1) {
-            content = content.substring(0, sectStart);
+        String combinedContent = '';
+        
+        // 1. Extract all headers
+        Integer cursor = 0;
+        while ((cursor = xml.indexOf('<w:hdr', cursor)) != -1) {
+            Integer tagEnd = xml.indexOf('>', cursor);
+            if (tagEnd == -1) break;
+            Integer hdrEnd = findClosingTag(xml, cursor, 'w:hdr');
+            if (hdrEnd != -1) {
+                combinedContent += xml.substring(tagEnd + 1, hdrEnd);
+                cursor = hdrEnd;
+            } else { cursor = tagEnd + 1; }
         }
-        return content;
+        
+        // 2. Extract main body
+        Integer bodyStart = xml.indexOf('<w:body');
+        if (bodyStart != -1) {
+            Integer bodyContentStart = xml.indexOf('>', bodyStart) + 1;
+            Integer bodyEnd = xml.lastIndexOf('</w:body>');
+            if (bodyEnd != -1) {
+                String content = xml.substring(bodyContentStart, bodyEnd);
+                // Strip <w:sectPr> (section properties) from end of body
+                Integer sectStart = content.lastIndexOf('<w:sectPr');
+                if (sectStart != -1) {
+                    content = content.substring(0, sectStart);
+                }
+                combinedContent += content;
+            } else {
+                combinedContent += xml.substring(bodyContentStart);
+            }
+        } else if (!xml.contains('<w:hdr') && !xml.contains('<w:ftr')) {
+            // Fallback for raw content
+            combinedContent = xml;
+        }
+        
+        // 3. Extract all footers
+        cursor = 0;
+        while ((cursor = xml.indexOf('<w:ftr', cursor)) != -1) {
+            Integer tagEnd = xml.indexOf('>', cursor);
+            if (tagEnd == -1) break;
+            Integer ftrEnd = findClosingTag(xml, cursor, 'w:ftr');
+            if (ftrEnd != -1) {
+                combinedContent += xml.substring(tagEnd + 1, ftrEnd);
+                cursor = ftrEnd;
+            } else { cursor = tagEnd + 1; }
+        }
+        
+        return combinedContent;
     }
 
     /**
@@ -455,7 +489,7 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     /**
-     * Parses a single border side element into a CSS border shorthand.
+     * Parses a single border shorthand from a tcBorders element.
      * E.g., <w:top w:val="single" w:sz="4" w:color="000000"/> → "1pt solid #000000"
      */
     private static String parseBorderSide(String bdrXml, String side) {
@@ -595,100 +629,118 @@ public with sharing class DocGenHtmlRenderer {
      * Processes a single <w:r> (run) element into an HTML <span>.
      */
     private static String processRun(String rXml, Map<String, String> images) {
-        // Check for page break: <w:br w:type="page"/>
-        if (rXml.contains('<w:br') && rXml.contains('w:type="page"')) {
-            return '<div style="page-break-before:always"></div>';
-        }
-
-        // Check for column break
-        if (rXml.contains('<w:br') && rXml.contains('w:type="column"')) {
-            return '<br/>';
-        }
-
-        // Check for regular break
-        if (rXml.contains('<w:br')) {
-            // Only treat as line break if it's not a page/column break
-            if (!rXml.contains('w:type=')) {
-                return '<br/>';
-            }
-        }
-
-        // Check for tab character
-        if (rXml.contains('<w:tab/>') || rXml.contains('<w:tab ')) {
-            return processTabRun(rXml);
-        }
-
-        // Check for drawing (image)
-        if (rXml.contains('<w:drawing')) {
-            Integer drawStart = rXml.indexOf('<w:drawing');
-            Integer drawEnd = findClosingTag(rXml, drawStart, 'w:drawing');
-            if (drawEnd != -1) {
-                return processDrawing(rXml.substring(drawStart, drawEnd), images);
-            }
-        }
-
-        // Extract text (use isEmpty, not isBlank — preserve whitespace-only runs like spaces between bold merge fields)
-        String text = extractTextContent(rXml);
-                if (String.isEmpty(text)) { return ''; }
-
-        // Barcode marker — render as CSS bars instead of text
-        if (text.contains('##BARCODE:')) {
-            return renderBarcodeHtml(text);
-        }
-
         // Extract run properties
         String rPr = extractElement(rXml, 'w:rPr');
-        if (String.isBlank(rPr)) {
-            return text.escapeHtml4();
-        }
-
-        String style = parseRunStyle(rPr);
+        String style = (String.isNotBlank(rPr)) ? parseRunStyle(rPr) : '';
+        
         String openTags = '';
         String closeTags = '';
+        if (String.isNotBlank(rPr)) {
+            // Bold
+            if (rPr.contains('<w:b/>') || rPr.contains('<w:b ')) {
+                openTags += '<b>';
+                closeTags = '</b>' + closeTags;
+            }
+            // Italic
+            if (rPr.contains('<w:i/>') || rPr.contains('<w:i ')) {
+                openTags += '<i>';
+                closeTags = '</i>' + closeTags;
+            }
+            // Underline
+            if (rPr.contains('<w:u ')) {
+                openTags += '<u>';
+                closeTags = '</u>' + closeTags;
+            }
+            // Strikethrough
+            if (rPr.contains('<w:strike/>') || rPr.contains('<w:strike ')) {
+                openTags += '<s>';
+                closeTags = '</s>' + closeTags;
+            }
+            // Superscript / Subscript
+            String vertAlign = extractAttr(rPr, 'w:vertAlign', 'w:val');
+            if (vertAlign == 'superscript') {
+                openTags += '<sup>';
+                closeTags = '</sup>' + closeTags;
+            } else if (vertAlign == 'subscript') {
+                openTags += '<sub>';
+                closeTags = '</sub>' + closeTags;
+            }
+        }
 
-        // Bold
-        if (rPr.contains('<w:b/>') || rPr.contains('<w:b ')) {
-            openTags += '<b>';
-            closeTags = '</b>' + closeTags;
+        String runContent = '';
+        Integer cursor = 0;
+        
+        // Walk through the run elements in order
+        while (cursor < rXml.length()) {
+            Integer nextT = rXml.indexOf('<w:t', cursor);
+            Integer nextBr = rXml.indexOf('<w:br', cursor);
+            Integer nextTab = rXml.indexOf('<w:tab', cursor);
+            Integer nextDrawing = rXml.indexOf('<w:drawing', cursor);
+            
+            // Find the earliest element
+            Integer nextPos = -1;
+            String type = '';
+            
+            if (nextT != -1 && (nextPos == -1 || nextT < nextPos)) { nextPos = nextT; type = 't'; }
+            if (nextBr != -1 && (nextPos == -1 || nextBr < nextPos)) { nextPos = nextBr; type = 'br'; }
+            if (nextTab != -1 && (nextPos == -1 || nextTab < nextPos)) { nextPos = nextTab; type = 'tab'; }
+            if (nextDrawing != -1 && (nextPos == -1 || nextDrawing < nextPos)) { nextPos = nextDrawing; type = 'drawing'; }
+            
+            if (nextPos == -1) break;
+            
+            if (type == 't') {
+                Integer tagEnd = rXml.indexOf('>', nextPos);
+                if (tagEnd != -1 && rXml.substring(tagEnd - 1, tagEnd) != '/') {
+                    Integer tEnd = rXml.indexOf('</w:t>', tagEnd);
+                    if (tEnd != -1) {
+                        String text = rXml.substring(tagEnd + 1, tEnd);
+                        if (text.contains('##BARCODE:')) {
+                            runContent += renderBarcodeHtml(text);
+                        } else {
+                            // Check for caps in rPr
+                            if (String.isNotBlank(rPr)) {
+                                if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) text = text.toUpperCase();
+                                if (rPr.contains('<w:smallCaps/>') || rPr.contains('<w:smallCaps ')) {
+                                    text = text.toUpperCase();
+                                    if (!style.contains('font-variant:small-caps')) {
+                                        style += (String.isNotBlank(style) ? ';' : '') + 'font-variant:small-caps';
+                                    }
+                                }
+                            }
+                            runContent += text.escapeHtml4();
+                        }
+                        cursor = tEnd + 6;
+                    } else { cursor = tagEnd + 1; }
+                } else { cursor = (tagEnd != -1) ? tagEnd + 1 : nextPos + 1; }
+            } else if (type == 'br') {
+                if (rXml.substring(nextPos).contains('w:type="page"')) {
+                    runContent += '<div style="page-break-before:always"></div>';
+                } else if (rXml.substring(nextPos).contains('w:type="column"')) {
+                    runContent += '<br/>';
+                } else {
+                    runContent += '<br/>';
+                }
+                Integer tagEnd = rXml.indexOf('>', nextPos);
+                cursor = (tagEnd != -1) ? tagEnd + 1 : nextPos + 1;
+            } else if (type == 'tab') {
+                runContent += '<span style="display:inline-block;width:36pt"></span>';
+                Integer tagEnd = rXml.indexOf('>', nextPos);
+                cursor = (tagEnd != -1) ? tagEnd + 1 : nextPos + 1;
+            } else if (type == 'drawing') {
+                Integer drawEnd = findClosingTag(rXml, nextDrawing, 'w:drawing');
+                if (drawEnd != -1) {
+                    runContent += processDrawing(rXml.substring(nextDrawing, drawEnd), images);
+                    cursor = drawEnd;
+                } else { cursor = nextDrawing + 1; }
+            }
         }
-        // Italic
-        if (rPr.contains('<w:i/>') || rPr.contains('<w:i ')) {
-            openTags += '<i>';
-            closeTags = '</i>' + closeTags;
-        }
-        // Underline
-        if (rPr.contains('<w:u ')) {
-            openTags += '<u>';
-            closeTags = '</u>' + closeTags;
-        }
-        // Strikethrough
-        if (rPr.contains('<w:strike/>') || rPr.contains('<w:strike ')) {
-            openTags += '<s>';
-            closeTags = '</s>' + closeTags;
-        }
-        // Superscript / Subscript
-        String vertAlign = extractAttr(rPr, 'w:vertAlign', 'w:val');
-        if (vertAlign == 'superscript') {
-            openTags += '<sup>';
-            closeTags = '</sup>' + closeTags;
-        } else if (vertAlign == 'subscript') {
-            openTags += '<sub>';
-            closeTags = '</sub>' + closeTags;
-        }
-        // All caps
-        if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) {
-            text = text.toUpperCase();
-        }
-        // Small caps — approximate with uppercase + smaller font
-        if (rPr.contains('<w:smallCaps/>') || rPr.contains('<w:smallCaps ')) {
-            text = text.toUpperCase();
-            style += (String.isNotBlank(style) ? ';' : '') + 'font-variant:small-caps';
-        }
+
+        if (String.isBlank(runContent)) return '';
 
         if (String.isNotBlank(style)) {
-            return '<span style="' + style + '">' + openTags + text.escapeHtml4() + closeTags + '</span>';
+            return '<span style="' + style + '">' + openTags + runContent + closeTags + '</span>';
         }
-        return openTags + text.escapeHtml4() + closeTags;
+        return openTags + runContent + closeTags;
     }
 
     /**

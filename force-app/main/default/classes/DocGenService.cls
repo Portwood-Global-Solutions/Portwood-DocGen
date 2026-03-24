@@ -387,6 +387,8 @@ public with sharing class DocGenService {
                 mr.processedXmlEntries.put(originalPath, xml);
                 if (originalPath == 'word/document.xml') {
                     mr.documentXml = xml;
+                } else if (originalPath.startsWith('word/header') || originalPath.startsWith('word/footer')) {
+                    // Headers and footers are already in processedXmlEntries via the put() above
                 }
             }
         }
@@ -951,8 +953,26 @@ public with sharing class DocGenService {
         }
         MergeResult mr = mergeTemplate(templateId, recordId, null, 'PDF');
 
+        // Combine document XML with headers and footers for HTML conversion
+        String combinedXml = mr.documentXml;
+        if (mr.processedXmlEntries != null) {
+            // Prepend headers, append footers
+            String headers = '';
+            String footers = '';
+            List<String> keys = new List<String>(mr.processedXmlEntries.keySet());
+            keys.sort();
+            for (String key : keys) {
+                if (key.startsWith('word/header')) {
+                    headers += mr.processedXmlEntries.get(key);
+                } else if (key.startsWith('word/footer')) {
+                    footers += mr.processedXmlEntries.get(key);
+                }
+            }
+            combinedXml = headers + combinedXml + footers;
+        }
+
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-        return DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages);
+        return DocGenHtmlRenderer.convertToHtml(combinedXml, pdfImages);
     }
 
     /**
