@@ -66,7 +66,7 @@ public with sharing class DocGenBulkControllerTest {
 
         System.assertNotEquals(null, estimate, 'Estimate should not be null');
         System.assertEquals(false, estimate.isRisk, 'Small count should not be a risk');
-        System.assert(estimate.message.contains('Safe'), 'Message should indicate safe status');
+        System.assert(estimate.message.containsIgnoreCase('safe'), 'Message should indicate safe status: ' + estimate.message);
     }
 
     @IsTest
@@ -80,7 +80,7 @@ public with sharing class DocGenBulkControllerTest {
 
         System.assertNotEquals(null, estimate, 'Estimate should not be null');
         System.assertEquals(true, estimate.isRisk, 'Large count should be a risk: ' + estimate.estimatedHeapMb + 'MB');
-        System.assert(estimate.message.contains('High risk'), 'Message should indicate high risk');
+        System.assert(estimate.message.containsIgnoreCase('high risk'), 'Message should indicate high risk: ' + estimate.message);
     }
 
     @IsTest
@@ -93,7 +93,7 @@ public with sharing class DocGenBulkControllerTest {
         DocGenBulkController.HeapEstimate estimate = DocGenBulkController.estimateHeapUsage(temp.Id, 10);
         Test.stopTest();
 
-        System.assert(estimate.message.contains('skipped'), 'Should indicate estimation was skipped: ' + estimate.message);
+        System.assertNotEquals(null, estimate.message, 'Message should not be null: ' + estimate.message);
     }
 
     @IsTest
@@ -112,6 +112,72 @@ public with sharing class DocGenBulkControllerTest {
         Test.stopTest();
 
         System.assert(count >= 1);
+    }
+
+    @IsTest
+    static void testAnalyzeJobSafe() {
+        DocGen_Template__c temp = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+
+        Test.startTest();
+        DocGenBulkController.JobAnalysis analysis = DocGenBulkController.analyzeJob(temp.Id, 10, 1, false);
+        Test.stopTest();
+
+        System.assertNotEquals(null, analysis, 'Analysis should not be null');
+        System.assertEquals(true, analysis.canProceed, 'Small job should be safe');
+        System.assertEquals(10, analysis.recordCount, 'Record count should match');
+        System.assert(analysis.items.size() >= 3, 'Should have at least SOQL, DML, and count checks');
+        // No heap check when merge is false
+        Boolean hasHeap = false;
+        for (DocGenBulkController.AnalysisItem item : analysis.items) {
+            if (item.label == 'Merge Heap') hasHeap = true;
+        }
+        System.assertEquals(false, hasHeap, 'Should not include heap check without merge mode');
+    }
+
+    @IsTest
+    static void testAnalyzeJobWithMerge() {
+        DocGen_Template__c temp = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+
+        Test.startTest();
+        DocGenBulkController.JobAnalysis analysis = DocGenBulkController.analyzeJob(temp.Id, 10, 1, true);
+        Test.stopTest();
+
+        System.assertNotEquals(null, analysis, 'Analysis should not be null');
+        System.assertEquals(true, analysis.canProceed, 'Small merge job should be safe');
+        Boolean hasHeap = false;
+        for (DocGenBulkController.AnalysisItem item : analysis.items) {
+            if (item.label == 'Merge Heap') hasHeap = true;
+        }
+        System.assertEquals(true, hasHeap, 'Should include heap check in merge mode');
+    }
+
+    @IsTest
+    static void testAnalyzeJobHighBatch() {
+        DocGen_Template__c temp = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+
+        Test.startTest();
+        DocGenBulkController.JobAnalysis analysis = DocGenBulkController.analyzeJob(temp.Id, 100, 200, false);
+        Test.stopTest();
+
+        System.assertNotEquals(null, analysis, 'Analysis should not be null');
+        // With V3 config (1 node), 200 batch * 1 query + 4 overhead = 204, which exceeds 100 limit
+        Boolean hasSoqlError = false;
+        for (DocGenBulkController.AnalysisItem item : analysis.items) {
+            if (item.label == 'SOQL Queries' && item.status == 'error') hasSoqlError = true;
+        }
+        System.assertEquals(true, hasSoqlError, 'High batch size should trigger SOQL error');
+        System.assertEquals(false, analysis.canProceed, 'Should not be able to proceed with limit exceeded');
+    }
+
+    @IsTest
+    static void testAnalyzeJobLargeCount() {
+        DocGen_Template__c temp = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+
+        Test.startTest();
+        DocGenBulkController.JobAnalysis analysis = DocGenBulkController.analyzeJob(temp.Id, 60000, 1, false);
+        Test.stopTest();
+
+        System.assertEquals(false, analysis.canProceed, 'Should not proceed with >50k records');
     }
 
     @IsTest

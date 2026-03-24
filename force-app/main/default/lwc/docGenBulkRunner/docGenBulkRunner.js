@@ -11,7 +11,7 @@ import getSavedQueries from '@salesforce/apex/DocGenBulkController.getSavedQueri
 import saveQuery from '@salesforce/apex/DocGenBulkController.saveQuery';
 import deleteQuery from '@salesforce/apex/DocGenBulkController.deleteQuery';
 import getRecentJobs from '@salesforce/apex/DocGenBulkController.getRecentJobs';
-import estimateHeapUsage from '@salesforce/apex/DocGenBulkController.estimateHeapUsage';
+import analyzeJob from '@salesforce/apex/DocGenBulkController.analyzeJob';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
 
 const POLL_INTERVAL_MS = 5000;
@@ -80,43 +80,45 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     @track mergeOnly = false;
     @track jobSearchTerm = '';
 
-    // Heap estimation state
-    @track heapEstimate = null;
-    @track isEstimatingHeap = false;
+    // Job analysis state
+    @track analysis = null;
+    @track isAnalyzing = false;
+    @track filterValidated = false;
 
-    get heapMessageClass() {
-        if (!this.heapEstimate) return '';
-        return this.heapEstimate.isRisk ? 'slds-text-color_error slds-text-title_bold' : 'slds-text-color_weak';
+    get analysisIcon() {
+        if (!this.analysis) return 'utility:info';
+        return this.analysis.canProceed ? 'utility:success' : 'utility:error';
     }
 
-    get isMergeRisk() {
-        return this.mergePdf && this.heapEstimate && this.heapEstimate.isRisk;
+    get analysisVariant() {
+        if (!this.analysis) return '';
+        return this.analysis.canProceed ? 'success' : 'error';
     }
 
-    get heapIconName() {
-        return this.isMergeRisk ? 'utility:warning' : 'utility:info';
+    get analysisItems() {
+        if (!this.analysis || !this.analysis.items) return [];
+        return this.analysis.items.map(item => ({
+            ...item,
+            iconName: item.status === 'ok' ? 'utility:success' : item.status === 'warning' ? 'utility:warning' : 'utility:error',
+            iconVariant: item.status === 'ok' ? 'success' : item.status === 'warning' ? 'warning' : 'error'
+        }));
     }
 
-    get heapIconVariant() {
-        return this.isMergeRisk ? 'error' : 'default';
-    }
+    async runAnalysis() {
+        if (!this.selectedTemplateId || !this.recordCount) return;
 
-    async checkHeapUsage() {
-        if (!this.mergePdf || !this.selectedTemplateId || !this.recordCount) {
-            this.heapEstimate = null;
-            return;
-        }
-
-        this.isEstimatingHeap = true;
+        this.isAnalyzing = true;
         try {
-            this.heapEstimate = await estimateHeapUsage({
+            this.analysis = await analyzeJob({
                 templateId: this.selectedTemplateId,
-                recordCount: this.recordCount
+                recordCount: this.recordCount,
+                batchSize: this.batchSize || 1,
+                mergePdf: this.mergePdf || false
             });
         } catch (error) {
-            console.error('Heap estimation failed', error);
+            console.error('Job analysis failed', error);
         } finally {
-            this.isEstimatingHeap = false;
+            this.isAnalyzing = false;
         }
     }
 
@@ -154,7 +156,8 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
             this.selectedTemplateName = selected.label;
             this.templateSearchTerm = '';
             this.recordCount = null;
-            this.heapEstimate = null;
+            this.analysis = null;
+            this.filterValidated = false;
             this.loadSavedQueries();
             this.applyAutoFilter();
         }
@@ -238,26 +241,23 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     handleBatchSizeChange(event) {
         const val = parseInt(event.target.value, 10);
         this.batchSize = (val >= 1 && val <= 200) ? val : 1;
+        if (this.filterValidated) this.runAnalysis();
     }
 
     handleMergePdfChange(event) {
         this.mergePdf = event.target.checked;
-        // If unchecking merge, also uncheck merge-only
         if (!this.mergePdf) {
             this.mergeOnly = false;
-            this.heapEstimate = null;
-        } else {
-            this.checkHeapUsage();
         }
+        if (this.filterValidated) this.runAnalysis();
     }
 
     handleMergeOnlyChange(event) {
         this.mergeOnly = event.target.checked;
-        // Merge-only implies merge
         if (this.mergeOnly) {
             this.mergePdf = true;
-            this.checkHeapUsage();
         }
+        if (this.filterValidated) this.runAnalysis();
     }
 
     handleJobSearchChange(event) {
@@ -293,6 +293,8 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         if (selected) {
             this.baseObject = selected.baseObject;
             this.recordCount = null;
+            this.analysis = null;
+            this.filterValidated = false;
             this.loadSavedQueries();
             this.applyAutoFilter();
         }
@@ -339,7 +341,8 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         if (query) {
             this.condition = query.Query_Condition__c;
             this.recordCount = null;
-            this.heapEstimate = null;
+            this.analysis = null;
+            this.filterValidated = false;
         }
     }
 
@@ -400,22 +403,25 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     handleConditionChange(event) {
         this.condition = event.detail.value || event.target.value; // Support both
         this.recordCount = null;
-        this.heapEstimate = null;
+        this.analysis = null;
+        this.filterValidated = false;
     }
 
     async handleValidate() {
         if (!this.baseObject) return;
         this.isValidating = true;
+        this.analysis = null;
         try {
             const count = await validateFilter({ objectName: this.baseObject, condition: this.condition });
             this.recordCount = count;
+            this.filterValidated = true;
             this.showToast('Success', `Found ${count} records.`, 'success');
-            if (this.mergePdf) {
-                this.checkHeapUsage();
-            }
+            // Always run analysis after validation
+            await this.runAnalysis();
         } catch (error) {
             this.showToast('Validation Error', error.body.message, 'error');
             this.recordCount = null;
+            this.filterValidated = false;
         } finally {
             this.isValidating = false;
         }
@@ -531,6 +537,6 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     }
 
     get isRunDisabled() {
-        return !this.selectedTemplateId || this.isProcessing;
+        return !this.selectedTemplateId || this.isProcessing || !this.filterValidated || (this.analysis && !this.analysis.canProceed);
     }
 }

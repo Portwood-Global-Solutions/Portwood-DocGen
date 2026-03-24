@@ -59,56 +59,216 @@ public with sharing class DocGenBulkController {
     }
 
     /**
-     * Estimates the final heap usage for a merged PDF job based on a single sample record.
+     * Analyzes a bulk job for governor limit risks before execution.
+     * Checks SOQL queries, DML statements, heap (merge mode), and record count.
      * @param templateId The DocGen template record ID
      * @param recordCount Total number of records to be processed
-     * @return HeapEstimate object with projected usage and risk status
+     * @param batchSize Records per batch execution
+     * @param mergePdf Whether merge mode is enabled
+     * @return JobAnalysis with per-check results and overall verdict
      */
     @AuraEnabled
-    public static HeapEstimate estimateHeapUsage(Id templateId, Integer recordCount) {
-        HeapEstimate estimate = new HeapEstimate();
+    public static JobAnalysis analyzeJob(Id templateId, Integer recordCount, Integer batchSize, Boolean mergePdf) {
+        JobAnalysis analysis = new JobAnalysis();
+        analysis.recordCount = recordCount;
+        analysis.items = new List<AnalysisItem>();
+        analysis.canProceed = true;
+
         if (templateId == null || recordCount == null || recordCount <= 0) {
-            return estimate;
+            analysis.summary = 'No records to process.';
+            return analysis;
         }
+
+        Integer safeBatchSize = (batchSize != null && batchSize >= 1 && batchSize <= 200) ? batchSize : 1;
+        Boolean isMerge = (mergePdf == true);
 
         try {
-            DocGen_Template__c temp = [SELECT Test_Record_Id__c FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
-            if (String.isBlank(temp.Test_Record_Id__c)) {
-                estimate.message = 'No test record ID on template. Estimation skipped.';
-                return estimate;
+            DocGen_Template__c temp = [
+                SELECT Query_Config__c, Test_Record_Id__c, Output_Format__c
+                FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+            ];
+
+            // --- 1. SOQL Queries per batch execution ---
+            Integer queriesPerRecord = countQueriesPerRecord(temp.Query_Config__c);
+            // Overhead: template load (~3 queries first batch, cached after), job update (1)
+            Integer overhead = 4;
+            Integer soqlPerBatch = (queriesPerRecord * safeBatchSize) + overhead;
+            Integer soqlLimit = 100; // async limit
+
+            AnalysisItem soqlItem = new AnalysisItem();
+            soqlItem.label = 'SOQL Queries';
+            soqlItem.estimated = soqlPerBatch;
+            soqlItem.limitVal = soqlLimit;
+            if (soqlPerBatch >= soqlLimit) {
+                soqlItem.status = 'error';
+                soqlItem.message = soqlPerBatch + ' / ' + soqlLimit + ' per batch — will exceed limit. Reduce batch size to ' + Math.max(1, Math.floor((soqlLimit - overhead) / queriesPerRecord)) + ' or lower.';
+                analysis.canProceed = false;
+            } else if (soqlPerBatch >= 80) {
+                soqlItem.status = 'warning';
+                soqlItem.message = soqlPerBatch + ' / ' + soqlLimit + ' per batch — approaching limit. Consider reducing batch size.';
+            } else {
+                soqlItem.status = 'ok';
+                soqlItem.message = soqlPerBatch + ' / ' + soqlLimit + ' per batch.';
+            }
+            analysis.items.add(soqlItem);
+
+            // --- 2. DML Statements per batch execution ---
+            // Each record: 1 CV insert. Merge mode: +1 HTML snippet CV per record. Job update: 1.
+            Integer dmlPerRecord = isMerge ? 2 : 1;
+            Integer dmlPerBatch = (dmlPerRecord * safeBatchSize) + 1;
+            Integer dmlLimit = 150;
+
+            AnalysisItem dmlItem = new AnalysisItem();
+            dmlItem.label = 'DML Statements';
+            dmlItem.estimated = dmlPerBatch;
+            dmlItem.limitVal = dmlLimit;
+            if (dmlPerBatch >= dmlLimit) {
+                dmlItem.status = 'error';
+                dmlItem.message = dmlPerBatch + ' / ' + dmlLimit + ' per batch — will exceed limit. Reduce batch size.';
+                analysis.canProceed = false;
+            } else if (dmlPerBatch >= 120) {
+                dmlItem.status = 'warning';
+                dmlItem.message = dmlPerBatch + ' / ' + dmlLimit + ' per batch — approaching limit.';
+            } else {
+                dmlItem.status = 'ok';
+                dmlItem.message = dmlPerBatch + ' / ' + dmlLimit + ' per batch.';
+            }
+            analysis.items.add(dmlItem);
+
+            // --- 3. Record Count ---
+            AnalysisItem countItem = new AnalysisItem();
+            countItem.label = 'Record Count';
+            countItem.estimated = recordCount;
+            countItem.limitVal = 50000;
+            if (recordCount > 50000) {
+                countItem.status = 'error';
+                countItem.message = recordCount + ' records — exceeds 50,000 batch query locator limit.';
+                analysis.canProceed = false;
+            } else if (recordCount > 10000) {
+                countItem.status = 'warning';
+                countItem.message = recordCount + ' records — large job, may take a while.';
+            } else {
+                countItem.status = 'ok';
+                countItem.message = recordCount + ' records.';
+            }
+            analysis.items.add(countItem);
+
+            // --- 4. Heap (merge mode only) ---
+            if (isMerge) {
+                AnalysisItem heapItem = new AnalysisItem();
+                heapItem.label = 'Merge Heap';
+                heapItem.limitVal = 12;
+
+                if (String.isNotBlank(temp.Test_Record_Id__c)) {
+                    try {
+                        String html = DocGenService.generateHtmlForRecord(templateId, temp.Test_Record_Id__c, null);
+                        Long singleRecordBytes = html.length() * 2;
+                        Decimal totalMb = ((singleRecordBytes * recordCount) * 1.25) / (1024.0 * 1024.0);
+                        heapItem.estimated = totalMb.setScale(2);
+
+                        if (totalMb >= 10.0) {
+                            heapItem.status = 'error';
+                            heapItem.message = totalMb.setScale(1) + 'MB / 12MB — high risk of heap failure. Reduce record count or disable merge.';
+                            analysis.canProceed = false;
+                        } else if (totalMb >= 7.0) {
+                            heapItem.status = 'warning';
+                            heapItem.message = totalMb.setScale(1) + 'MB / 12MB — moderate usage, monitor job.';
+                        } else {
+                            heapItem.status = 'ok';
+                            heapItem.message = totalMb.setScale(1) + 'MB / 12MB — safe.';
+                        }
+                    } catch (Exception e) {
+                        heapItem.status = 'warning';
+                        heapItem.message = 'Could not estimate — no test record data available.';
+                    }
+                } else {
+                    heapItem.status = 'warning';
+                    heapItem.message = 'No test record on template — heap estimate unavailable.';
+                }
+                analysis.items.add(heapItem);
             }
 
-            // Generate HTML for one record
-            String html = DocGenService.generateHtmlForRecord(templateId, temp.Test_Record_Id__c, null);
-            
-            // Apex characters are 2 bytes. 
-            // Final heap will contain: 
-            // 1. All snippet strings (already in ContentVersion, but read into memory)
-            // 2. Concatenated fullHtml string
-            // 3. pdfBlob (usually ~50-80% of HTML size, but safely assume 100%)
-            // 4. Temporary processing overhead
-            
-            Long singleRecordBytes = html.length() * 2;
-            Long totalProjectedBytes = singleRecordBytes * recordCount;
-            
-            // Add 25% safety buffer for overhead and concatenation
-            Decimal totalMb = (totalProjectedBytes * 1.25) / (1024.0 * 1024.0);
-            
-            estimate.estimatedHeapMb = totalMb.setScale(2);
-            // Async/Queueable heap limit is 12MB. Warn at 8MB, Risk at 10MB+.
-            if (totalMb >= 10.0) {
-                estimate.isRisk = true;
-                estimate.message = 'High risk of Heap Limit failure (' + estimate.estimatedHeapMb + 'MB estimated). Consider reducing the record count or disabling Merge Mode.';
-            } else if (totalMb >= 7.0) {
-                estimate.isRisk = false; // Warning but allowed
-                estimate.message = 'Moderate heap usage estimated (' + estimate.estimatedHeapMb + 'MB). Merge should succeed but monitor job status.';
-            } else {
-                estimate.isRisk = false;
-                estimate.message = 'Heap usage estimated at ' + estimate.estimatedHeapMb + 'MB. Safe to proceed.';
+            // --- Build summary ---
+            Integer errors = 0;
+            Integer warnings = 0;
+            for (AnalysisItem item : analysis.items) {
+                if (item.status == 'error') errors++;
+                else if (item.status == 'warning') warnings++;
             }
+            if (errors > 0) {
+                analysis.summary = 'Cannot proceed — ' + errors + ' limit(s) will be exceeded.';
+            } else if (warnings > 0) {
+                analysis.summary = 'Should work, but ' + warnings + ' item(s) need attention.';
+            } else {
+                analysis.summary = 'All checks passed. Safe to proceed.';
+            }
+
         } catch (Exception e) {
-            estimate.message = 'Could not estimate heap: ' + e.getMessage();
+            analysis.summary = 'Analysis error: ' + e.getMessage();
         }
+        return analysis;
+    }
+
+    /**
+     * Counts the number of SOQL queries needed per record based on the query config format.
+     */
+    private static Integer countQueriesPerRecord(String queryConfig) {
+        if (String.isBlank(queryConfig)) return 1;
+        if (!queryConfig.trim().startsWith('{')) return 1; // V1 flat string
+
+        try {
+            Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(queryConfig);
+            Object versionObj = config.get('v');
+            Integer version = (versionObj instanceof Integer) ? (Integer) versionObj : ((Decimal) versionObj).intValue();
+
+            if (version == 2) {
+                // V2: 1 base + children + junctions
+                Integer count = 1;
+                List<Object> children = (List<Object>) config.get('children');
+                if (children != null) count += children.size();
+                List<Object> junctions = (List<Object>) config.get('junctions');
+                if (junctions != null) count += junctions.size() * 2; // junction query + target query
+                return count;
+            } else if (version == 3) {
+                // V3: one query per node
+                List<Object> nodes = (List<Object>) config.get('nodes');
+                return (nodes != null) ? nodes.size() : 1;
+            }
+        } catch (Exception e) { // NOPMD EmptyCatchBlock — intentional fallback to 1 query for unparseable configs
+            System.debug(LoggingLevel.FINE, 'Query config parse failed, defaulting to 1: ' + e.getMessage());
+        }
+        return 1;
+    }
+
+    public class JobAnalysis {
+        @AuraEnabled public Integer recordCount;
+        @AuraEnabled public Boolean canProceed = true;
+        @AuraEnabled public List<AnalysisItem> items;
+        @AuraEnabled public String summary;
+    }
+
+    public class AnalysisItem {
+        @AuraEnabled public String label;
+        @AuraEnabled public String status;   // 'ok', 'warning', 'error'
+        @AuraEnabled public String message;
+        @AuraEnabled public Decimal estimated;
+        @AuraEnabled public Decimal limitVal;
+    }
+
+    // Keep for backward compatibility — delegates to analyzeJob
+    @AuraEnabled
+    public static HeapEstimate estimateHeapUsage(Id templateId, Integer recordCount) {
+        JobAnalysis analysis = analyzeJob(templateId, recordCount, 1, true);
+        HeapEstimate estimate = new HeapEstimate();
+        for (AnalysisItem item : analysis.items) {
+            if (item.label == 'Merge Heap') {
+                estimate.estimatedHeapMb = item.estimated;
+                estimate.isRisk = (item.status == 'error');
+                estimate.message = item.message;
+                return estimate;
+            }
+        }
+        estimate.message = analysis.summary;
         return estimate;
     }
 

@@ -122,11 +122,10 @@
                                         <lightning-button
                                             label="View Job"
                                             icon-name="utility:open"
-                                            variant="base"
+                                            variant="inverse"
                                             data-jobid={jobId}
                                             onclick={handleViewJob}
-                                            class="slds-size_full"
-                                            style="color: white;">
+                                            class="slds-size_full">
                                         </lightning-button>
                                     </div>
                                 </div>
@@ -211,6 +210,34 @@
                     </template>
                 </div>
 
+                <!-- Pre-flight Analysis -->
+                <template if:true={filterValidated}>
+                    <div class="analysis-card slds-var-m-top_medium">
+                        <div class="slds-grid slds-grid_vertical-align-center slds-var-m-bottom_small">
+                            <template if:true={isAnalyzing}>
+                                <lightning-spinner alternative-text="Analyzing..." size="xx-small" variant="brand" class="slds-is-relative slds-var-m-right_small"></lightning-spinner>
+                                <span class="slds-text-body_small slds-text-color_weak">Running pre-flight analysis...</span>
+                            </template>
+                            <template if:false={isAnalyzing}>
+                                <template if:true={analysis}>
+                                    <lightning-icon icon-name={analysisIcon} size="xx-small" variant={analysisVariant} class="slds-var-m-right_xx-small"></lightning-icon>
+                                    <span class="slds-text-title_bold">{analysis.summary}</span>
+                                </template>
+                            </template>
+                        </div>
+                        <template if:false={isAnalyzing}>
+                            <template if:true={analysis}>
+                                <template for:each={analysisItems} for:item="item">
+                                    <div key={item.label} class="analysis-row">
+                                        <lightning-icon icon-name={item.iconName} size="xx-small" variant={item.iconVariant} class="slds-var-m-right_x-small"></lightning-icon>
+                                        <span class="slds-text-body_small"><strong>{item.label}:</strong>&nbsp;{item.message}</span>
+                                    </div>
+                                </template>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+
                 <div class="divider"></div>
                 <h3 class="section-title">Step 3: Run Generation</h3>
                 <div class="run-bar slds-var-m-top_medium slds-grid slds-grid_align-center slds-grid_vertical-align-end slds-gutters_small">
@@ -254,25 +281,10 @@
                         </lightning-input>
                     </div>
 
-                    <!-- Heap Estimate -->
-                    <template if:true={mergePdf}>
-                        <div class="slds-col slds-size_full slds-var-m-top_small slds-var-p-left_small">
-                            <div class="slds-grid slds-grid_vertical-align-center">
-                                <template if:true={isEstimatingHeap}>
-                                    <lightning-spinner alternative-text="Estimating heap..." size="xx-small" variant="brand" class="slds-is-relative slds-var-m-right_small"></lightning-spinner>
-                                    <span class="slds-text-body_small slds-text-color_weak">Estimating heap usage...</span>
-                                </template>
-                                <template if:false={isEstimatingHeap}>
-                                    <template if:true={heapEstimate}>
-                                        <lightning-icon icon-name={heapIconName} size="xx-small" variant={heapIconVariant} class="slds-var-m-right_xx-small"></lightning-icon>
-                                        <span class={heapMessageClass}>{heapEstimate.message}</span>
-                                    </template>
-                                </template>
-                            </div>
-                        </div>
-                    </template>
-
                     <div class="slds-col slds-var-m-top_small">
+                        <template if:false={filterValidated}>
+                            <p class="slds-text-color_weak slds-text-body_small">Validate your filter to enable generation.</p>
+                        </template>
                         <lightning-button
                             label="Run Bulk Generation"
                             variant="brand"
