@@ -1165,7 +1165,7 @@ public with sharing class DocGenHtmlRenderer {
                 if (val != null && val.isNumeric()) { mBottom = Integer.valueOf(val); }
                 val = extractAttr(xml, 'w:pgMar', 'w:left');
                 if (val != null && val.isNumeric()) { mLeft = Integer.valueOf(val); }
-            } catch (Exception e) { /* use defaults */ }
+            } catch (Exception e) { /* use defaults */ } // NOPMD EmptyCatchBlock - intentional fallback to default page dimensions
         }
 
         dims.put('pageWidth', pgW / 1440.0);

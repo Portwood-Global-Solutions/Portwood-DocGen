@@ -2,7 +2,7 @@
 
 Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, completely free.
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
@@ -30,10 +30,10 @@ Scanned with `sf code-analyzer run --rule-selector "recommended"` — the rule s
 **New install:**
 
 ```bash
-sf package install --package 04tal000006PCFRAA4 --wait 10 --target-org <your-org>
+sf package install --package 04tal000006PCTxAAO --wait 10 --target-org <your-org>
 ```
 
-[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PCFRAA4) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PCFRAA4)
+[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PCTxAAO) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PCTxAAO)
 
 **Then:** Assign **DocGen Admin** permission set | Enable **Blob.toPdf() Release Update** | Open the **DocGen** app
 
@@ -109,10 +109,22 @@ QR codes support up to **255 characters** — enough for a full Salesforce text 
 
 | Tag | What It Does |
 |-----|-------------|
-| `{%Logo__c:200x60}` | Insert image at 200x60px from ContentVersion ID |
-| `{%Photo__c}` | Insert image at default size (4" x 3") |
+| `{%Logo__c}` | Insert image at original size (from image metadata when available) |
+| `{%Logo__c:200x60}` | Fixed size: width 200px, height 60px |
+| `{%Logo__c:100%x}` | Fixed width: 100% of page content width, keep aspect ratio |
+| `{%Logo__c:x50%}` | Fixed height: 50% of page content height, keep aspect ratio |
+| `{%Logo__c:m100%x}` | Max width: shrink to fit page width, never upscale |
+| `{%Logo__c:xm50%}` | Max height: shrink to 50% page height, never upscale |
+| `{%Logo__c:m100%xm50%}` | Max width + max height constraints (shrink-to-fit) |
 
 Store a ContentVersion ID (starts with `068`) in a text field. Works in Word templates — PDF and DOCX output.
+
+Image size syntax is `:widthxheight` with optional tokens:
+
+- `300` or `300px` = pixels
+- `100%` = percentage of current page content area
+- `m` prefix = max constraint (shrink only, CSS-style max behavior)
+- blank side is allowed: `100%x`, `x100%`, `m100%x`, `xm50%`
 
 ### Rich Text Fields
 

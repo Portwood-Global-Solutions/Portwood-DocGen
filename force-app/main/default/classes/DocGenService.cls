@@ -1,5 +1,35 @@
 public with sharing class DocGenService {
 
+    /**
+     * Creates an AuraHandledException with a user-facing message.
+     * Centralizes exception creation for consistent error handling.
+     */
+    public static AuraHandledException ahe(String message) {
+        AuraHandledException ex = new AuraHandledException(message);
+        ex.setMessage(message);
+        return ex;
+    }
+
+    /**
+     * Creates an AuraHandledException that includes the original exception details
+     * for debugging while showing a user-friendly message.
+     */
+    public static AuraHandledException ahe(Exception cause, String message) {
+        String fullMessage = message + ' (' + cause.getMessage() + ')';
+        AuraHandledException ex = new AuraHandledException(fullMessage);
+        ex.setMessage(fullMessage);
+        return ex;
+    }
+
+    /**
+     * Creates an AuraHandledException from an existing exception, preserving its message.
+     */
+    public static AuraHandledException ahe(Exception cause) {
+        AuraHandledException ex = new AuraHandledException(cause.getMessage());
+        ex.setMessage(cause.getMessage());
+        return ex;
+    }
+
     // Collector for images to inject after XML processing
     private static List<Map<String, Object>> pendingImages = new List<Map<String, Object>>();
     private static Integer imageCounter = 0;
@@ -1170,8 +1200,10 @@ public with sharing class DocGenService {
             
             Integer tagClose = xml.indexOf('}', cursor);
             if (tagClose == -1) {
-                output += xml.substring(cursor);
-                break;
+                throw new DocGenException(
+                    'Malformed merge tag: missing closing "}" near position ' + cursor +
+                    '. Check for an unclosed tag in the template.'
+                );
             }
             
             String rawTag = xml.substring(cursor + 1, tagClose);
@@ -1186,69 +1218,80 @@ public with sharing class DocGenService {
                 String key = tagContent.substring(1).trim();
                 Integer sectionEnd = findBalancedEnd(xml, tagClose + 1, key);
                 if (sectionEnd == -1) {
-                    output += '{' + rawTag + '}';
-                    cursor = tagClose + 1;
+                    throw new DocGenException(
+                        'Malformed loop tag: missing closing "{/' + key + '}" for "{#' + key + '}".'
+                    );
                 } else {
                     // Default: Content between tags
                     Integer contentStart = tagClose + 1;
                     Integer contentEnd = sectionEnd;
                     String innerXml = xml.substring(contentStart, contentEnd);
                     
-                    // Smart Table Row Expansion
-                    // Check if we are inside a TR and if the loop is fully contained in it
-                    Integer trStart = xml.lastIndexOf('<w:tr ', cursor);
-                    if (trStart == -1) {
-                        trStart = xml.lastIndexOf('<w:tr>', cursor);
+                    // Smart container expansion: repeat the nearest parent container when possible.
+                    // Candidate containers:
+                    // 1) Table row (<w:tr>...</w:tr>)
+                    // 2) Numbered/bulleted paragraph (nearest <w:p> containing <w:numPr>)
+                    Integer closeTagEnd = xml.indexOf('}', sectionEnd);
+                    Integer chosenContainerStart = -1;
+                    Integer chosenContainerEnd = -1;
+
+                    // Candidate: row container
+                    Integer rowContainerStart = lastIndexOfTagStart(xml, 'w:tr', cursor);
+                    if (rowContainerStart != -1) {
+                        Integer rowContainerEnd = xml.indexOf('</w:tr>', rowContainerStart);
+                        Boolean rowClosedBeforeCursor = xml.substring(rowContainerStart, cursor).contains('</w:tr>');
+                        if (!rowClosedBeforeCursor && rowContainerEnd != -1 && rowContainerEnd > closeTagEnd) {
+                            chosenContainerStart = rowContainerStart;
+                            chosenContainerEnd = rowContainerEnd + 7; // </w:tr>
+                        }
                     }
 
-                    // Find matching TR End
-                    Integer trEnd = -1;
-                    if (trStart != -1) {
-                         // Verify trStart is actually an ancestor of our cursor (no </w:tr> between trStart and cursor)
-                         Boolean trClosesBefore = xml.substring(trStart, cursor).contains('</w:tr>');
-
-                         trEnd = xml.indexOf('</w:tr>', trStart);
-                         Integer closeTagEnd = xml.indexOf('}', sectionEnd);
-
-                         if (trClosesBefore) {
-                             // The <w:tr> we found already closed before our tag - NOT our ancestor
-                             cursor = xml.indexOf('}', sectionEnd) + 1;
-                         } else if (trEnd > closeTagEnd) {
-                             // Yes, the loop is fully inside this TR.
-                             // Now, checking if we should expand.
-                             // Expand if the start tag and end tag are in the SAME TR (implied by above)
-                             // AND if we think it's intended (always true for better UX?)
-                             
-                             // CAUTION: If user meant cell-repetition, valid, but rare.
-                             // We assume Row Repetition is preferred.
-                             
-                             // Redefine Inner XML to include the TR
-                             // And strip the tags from it.
-                             
-                             contentStart = trStart;
-                             contentEnd = trEnd + 7; // Length of </w:tr>
-                             innerXml = xml.substring(contentStart, contentEnd);
-
-                             String startTagFull = '{' + rawTag + '}';
-                             innerXml = innerXml.replace(startTagFull, '');
-
-                             String endTagFull = xml.substring(sectionEnd, closeTagEnd + 1);
-                             innerXml = innerXml.replace(endTagFull, '');
-
-                             // Backtrack output to remove the TR prefix already appended
-                             Integer overlap = cursor - contentStart;
-                             if (overlap > 0) {
-                                  output = output.substring(0, output.length() - overlap);
-                             }
-
-                             cursor = contentEnd;
-                        } else {
-                            // Loop spans across TRs or is outside TR?
-                            // Default behavior (keep tags inside, repeat content)
-                             cursor = xml.indexOf('}', sectionEnd) + 1;
+                    // Candidate: list paragraph container (w:p with w:numPr)
+                    Integer numPropsStart = xml.lastIndexOf('<w:numPr', cursor);
+                    if (numPropsStart != -1) {
+                        Integer paragraphStart = lastIndexOfTagStart(xml, 'w:p', cursor);
+                        if (paragraphStart != -1 && paragraphStart <= numPropsStart) {
+                            Integer paragraphEndStart = xml.indexOf('</w:p>', paragraphStart);
+                            Boolean paragraphClosedBeforeCursor = xml.substring(paragraphStart, cursor).contains('</w:p>');
+                            if (!paragraphClosedBeforeCursor && paragraphEndStart != -1 && paragraphEndStart > closeTagEnd && numPropsStart < paragraphEndStart) {
+                                Integer paragraphContainerEnd = paragraphEndStart + 6; // </w:p>
+                                // Prefer the closest valid parent.
+                                if (chosenContainerStart == -1 || paragraphStart > chosenContainerStart) {
+                                    chosenContainerStart = paragraphStart;
+                                    chosenContainerEnd = paragraphContainerEnd;
+                                }
+                            }
                         }
+                    }
+
+                    if (chosenContainerStart != -1 && chosenContainerEnd != -1) {
+                        contentStart = chosenContainerStart;
+                        contentEnd = chosenContainerEnd;
+                        innerXml = xml.substring(contentStart, contentEnd);
+
+                        String startTagFull = '{' + rawTag + '}';
+                        innerXml = innerXml.replace(startTagFull, '');
+
+                        String endTagFull = xml.substring(sectionEnd, closeTagEnd + 1);
+                        innerXml = innerXml.replace(endTagFull, '');
+
+                        // Backtrack output to remove already-emitted prefix for chosen container.
+                        Integer overlap = cursor - contentStart;
+                        if (overlap > 0) {
+                            Integer outputLength = output.length();
+                            if (overlap > outputLength) {
+                                throw new DocGenException(
+                                    'Template loop parsing error for "{#' + key + '}": internal overlap (' + overlap +
+                                    ') exceeds output length (' + outputLength + '). ' +
+                                    'This usually indicates malformed or mismatched loop tags (missing "{/' + key + '}").'
+                                );
+                            }
+                            output = output.substring(0, outputLength - overlap);
+                        }
+                        cursor = contentEnd;
                     } else {
-                        cursor = xml.indexOf('}', sectionEnd) + 1;
+                        // Fallback behavior: keep default content-only repetition.
+                        cursor = closeTagEnd + 1;
                     }
 
                     // Process Data
@@ -1289,28 +1332,12 @@ public with sharing class DocGenService {
                     cursor = tagClose + 1;
                     continue;
                 }
-                String imageSpec = tagContent.substring(1).trim();
-                String imageField = imageSpec;
-                Integer imgWidthPx = null;
-                Integer imgHeightPx = null;
-
-                // Parse optional size suffix :WxH (pixels)
-                if (imageSpec.contains(':')) {
-                    List<String> parts = imageSpec.split(':', 2);
-                    imageField = parts[0].trim();
-                    String sizeStr = parts[1].trim().toLowerCase();
-                    if (sizeStr.contains('x')) {
-                        List<String> dims = sizeStr.split('x');
-                        if (dims.size() == 2 && dims[0].isNumeric() && dims[1].isNumeric()) {
-                            imgWidthPx = Integer.valueOf(dims[0]);
-                            imgHeightPx = Integer.valueOf(dims[1]);
-                        }
-                    }
-                }
-
-                Object val = resolveValue(data, imageField);
+                String imageTagSpec = tagContent.substring(1).trim();
+                ImageRenderSpec imageRenderSpec = parseImageTagSpec(imageTagSpec);
+                Object val = resolveValue(data, imageRenderSpec.imageField);
                 if (val != null) {
-                    String imageXml = buildImageXml(String.valueOf(val), imgWidthPx, imgHeightPx);
+                    imageRenderSpec.fieldValue = String.valueOf(val);
+                    String imageXml = buildImageXml(imageRenderSpec);
                     if (imageXml != null) {
                         output += imageXml;
                     }
@@ -1378,7 +1405,12 @@ public with sharing class DocGenService {
                         }
                     }
                     else {
-                        output += strVal.escapeXml();
+                        if (currentTemplateType == 'PowerPoint') {
+                            output += strVal.escapeXml();
+                        } else {
+                            // Multiline support: convert newlines to Word line breaks
+                            output += convertMultilineToXml(strVal);
+                        }
                     }
                 }
                 cursor = tagClose + 1;
@@ -1413,7 +1445,41 @@ public with sharing class DocGenService {
         }
         return -1;
     }
-    
+
+    private static Integer lastIndexOfTagStart(String xml, String tagName, Integer fromIndex) {
+        if (String.isBlank(xml) || String.isBlank(tagName) || fromIndex == null || fromIndex < 0) {
+            return -1;
+        }
+        Integer searchIndex = Math.min(fromIndex, xml.length());
+        Integer withAttributesIndex = xml.lastIndexOf('<' + tagName + ' ', searchIndex);
+        Integer bareTagIndex = xml.lastIndexOf('<' + tagName + '>', searchIndex);
+        return Math.max(withAttributesIndex, bareTagIndex);
+    }
+
+    /**
+     * Converts a text value with newlines to Word XML with <w:br/> line breaks.
+     * Properly closes and reopens <w:r> runs around each break for valid OOXML.
+     */
+    private static String convertMultilineToXml(String inputText) {
+        if (inputText == null) {
+            return '';
+        }
+        String normalized = inputText.replace('\r\n', '\n').replace('\r', '\n');
+        if (!normalized.contains('\n')) {
+            return normalized.escapeXml();
+        }
+        List<String> lines = normalized.split('\n');
+        String result = '';
+        String lineBreakXml = '</w:t></w:r><w:r><w:br/></w:r><w:r><w:t xml:space="preserve">';
+        for (Integer i = 0; i < lines.size(); i++) {
+            if (i > 0) {
+                result += lineBreakXml;
+            }
+            result += lines[i].escapeXml();
+        }
+        return result;
+    }
+
     private static Object resolveValue(Map<String, Object> data, String path) {
         if (data == null) {
             return null;
@@ -2118,126 +2184,157 @@ public with sharing class DocGenService {
         return tag.substring(pos, end2);
     }
 
+    private class ImageDimensionSpec {
+        Boolean isMaxConstraint;
+        Integer percentValue;
+        Integer pixelValue;
+    }
+
+    private class ImageRenderSpec {
+        String imageField;
+        String fieldValue;
+        String relationshipId;
+        String fileName;
+        String fileExtension;
+        String sourceUrl;
+        String contentVersionImageUrl;
+        Blob imageBlobData;
+
+        Integer widthPx;
+        Integer heightPx;
+        Integer widthPercent;
+        Integer heightPercent;
+        Integer maxWidthPx;
+        Integer maxHeightPx;
+        Integer maxWidthPercent;
+        Integer maxHeightPercent;
+    }
+
     private static String buildImageXml(String fieldValue) {
-        return buildImageXml(fieldValue, null, null);
+        ImageRenderSpec spec = new ImageRenderSpec();
+        spec.fieldValue = fieldValue;
+        return buildImageXml(spec);
     }
 
     private static String buildImageXml(String fieldValue, Integer widthPx, Integer heightPx) {
-        if (String.isBlank(fieldValue)) {
+        ImageRenderSpec spec = new ImageRenderSpec();
+        spec.fieldValue = fieldValue;
+        spec.widthPx = widthPx;
+        spec.heightPx = heightPx;
+        return buildImageXml(spec);
+    }
+
+    private static String buildImageXml(ImageRenderSpec spec) {
+        if (spec == null || String.isBlank(spec.fieldValue)) {
             return null;
         }
 
-        Blob imageBlob = null;
         String ext = 'png';
-        String cvImageUrl = null;
 
         try {
             // 1. Rich text HTML containing <img> tags
-            if (fieldValue.containsIgnoreCase('<img')) {
-                imageBlob = extractImageFromHtml(fieldValue);
+            if (spec.fieldValue.containsIgnoreCase('<img')) {
+                spec.imageBlobData = extractImageFromHtml(spec.fieldValue);
             }
             // 2. Base64 data URI
-            else if (fieldValue.startsWith('data:image/')) {
-                String base64Part = fieldValue.substringAfter(',');
-                if (fieldValue.containsIgnoreCase('jpeg') || fieldValue.containsIgnoreCase('jpg')) { ext = 'jpeg'; }
-                imageBlob = EncodingUtil.base64Decode(base64Part);
+            else if (spec.fieldValue.startsWith('data:image/')) {
+                String base64Part = spec.fieldValue.substringAfter(',');
+                if (spec.fieldValue.containsIgnoreCase('jpeg') || spec.fieldValue.containsIgnoreCase('jpg')) { ext = 'jpeg'; }
+                spec.imageBlobData = EncodingUtil.base64Decode(base64Part);
             }
             // 3. Raw base64 (no data URI prefix)
-            else if (fieldValue.length() > 100 && !fieldValue.contains('/') && !fieldValue.contains(' ')) {
-                imageBlob = EncodingUtil.base64Decode(fieldValue);
+            else if (spec.fieldValue.length() > 100 && !spec.fieldValue.contains('/') && !spec.fieldValue.contains(' ')) {
+                spec.imageBlobData = EncodingUtil.base64Decode(spec.fieldValue);
             }
             // 4. ContentVersion ID (starts with 068) — works for both DOCX (blob) and PDF (URL)
-            else if (fieldValue.startsWith('068') && fieldValue.length() >= 15) {
+            else if (spec.fieldValue.startsWith('068') && spec.fieldValue.length() >= 15) {
                 if (currentOutputFormat == 'PDF') {
                     // PDF path: only need the URL — Blob.toPdf() fetches images server-side.
                     // Skip loading the blob entirely to save heap.
-                    List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :fieldValue WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH SYSTEM_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
-                        cvImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
+                        spec.contentVersionImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
                     }
                 } else {
                     // DOCX path: need the blob for ZIP embedding
-                    List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :fieldValue WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH SYSTEM_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
-                        imageBlob = cvs[0].VersionData;
+                        spec.imageBlobData = cvs[0].VersionData;
                         if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
-                        cvImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
+                        spec.contentVersionImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
                     }
                 }
             }
             // 5. Salesforce file URL containing refid (rich text image reference)
-            else if (fieldValue.containsIgnoreCase('refid=')) {
-                String refId = fieldValue.substringAfterLast('refid=').substringBefore('&');
-                if (String.isBlank(refId)) { refId = fieldValue.substringAfterLast('refid='); }
-                imageBlob = fetchSalesforceImage(refId);
+            else if (spec.fieldValue.containsIgnoreCase('refid=')) {
+                String refId = spec.fieldValue.substringAfterLast('refid=').substringBefore('&');
+                if (String.isBlank(refId)) { refId = spec.fieldValue.substringAfterLast('refid='); }
+                spec.imageBlobData = fetchSalesforceImage(refId);
             }
             // 6. Salesforce servlet/sfc URL
-            else if (fieldValue.containsIgnoreCase('/servlet/') || fieldValue.containsIgnoreCase('/sfc/')) {
-                String docId = fieldValue.substringAfterLast('/');
+            else if (spec.fieldValue.containsIgnoreCase('/servlet/') || spec.fieldValue.containsIgnoreCase('/sfc/')) {
+                String docId = spec.fieldValue.substringAfterLast('/');
                 if (docId.contains('?')) { docId = docId.substringBefore('?'); }
-                imageBlob = fetchSalesforceImage(docId);
+                spec.imageBlobData = fetchSalesforceImage(docId);
             }
             // 7. Generic HTTPS URL — can't fetch without session ID (AppExchange safe).
-            // For {%ImageField} tags, users should use ContentVersion IDs or data URIs.
-            else if (fieldValue.startsWith('https://')) {
-                // External URL images cannot be fetched without session ID — users should use ContentVersion IDs or data URIs
+            else if (spec.fieldValue.startsWith('https://')) {
+                // External URL images cannot be fetched without session ID
             }
 
             // If no blob but we have a URL, store it for PDF rendering
-            // (Blob.toPdf resolves Salesforce URLs natively via the VF engine)
-            String sourceUrl = cvImageUrl; // Use CV URL if already resolved (PDF path)
-            if (imageBlob == null && sourceUrl == null) {
-                // Try to extract a URL from the field value for PDF
-                if (fieldValue.containsIgnoreCase('<img')) {
-                    // HTML with img tag — extract src URL
-                    Integer sIdx = fieldValue.indexOfIgnoreCase('src=');
+            spec.sourceUrl = spec.contentVersionImageUrl;
+            if (spec.imageBlobData == null && spec.sourceUrl == null) {
+                if (spec.fieldValue.containsIgnoreCase('<img')) {
+                    Integer sIdx = spec.fieldValue.indexOfIgnoreCase('src=');
                     if (sIdx != -1) {
                         sIdx += 4;
-                        while (sIdx < fieldValue.length() && fieldValue.substring(sIdx, sIdx + 1) == ' ') { sIdx++; }
-                        String qc = fieldValue.substring(sIdx, sIdx + 1);
+                        while (sIdx < spec.fieldValue.length() && spec.fieldValue.substring(sIdx, sIdx + 1) == ' ') { sIdx++; }
+                        String qc = spec.fieldValue.substring(sIdx, sIdx + 1);
                         if (qc == '"' || qc == '\'') {
                             sIdx++;
-                            Integer sEnd = fieldValue.indexOf(qc, sIdx);
-                            if (sEnd != -1) { sourceUrl = fieldValue.substring(sIdx, sEnd).replace('&amp;', '&'); }
+                            Integer sEnd = spec.fieldValue.indexOf(qc, sIdx);
+                            if (sEnd != -1) { spec.sourceUrl = spec.fieldValue.substring(sIdx, sEnd).replace('&amp;', '&'); }
                         }
                     }
-                } else if (fieldValue.startsWithIgnoreCase('http') || fieldValue.startsWith('/')) {
-                    sourceUrl = fieldValue;
+                } else if (spec.fieldValue.startsWithIgnoreCase('http') || spec.fieldValue.startsWith('/')) {
+                    spec.sourceUrl = spec.fieldValue;
                 }
 
-                if (String.isBlank(sourceUrl) || sourceUrl.startsWith('data:')) {
-                    // Could not resolve image source — no blob or usable URL available
+                if (String.isBlank(spec.sourceUrl) || spec.sourceUrl.startsWith('data:')) {
                     return null;
                 }
             }
 
             imageCounter++;
-            String relId = 'rIdImg' + imageCounter;
-            String fileName = 'docgen_image_' + imageCounter + '.' + ext;
+            spec.relationshipId = 'rIdImg' + imageCounter;
+            spec.fileName = 'docgen_image_' + imageCounter + '.' + ext;
+            spec.fileExtension = ext;
 
             // Register image — blob for DOCX, URL for PDF
             Map<String, Object> imgEntry = new Map<String, Object>{
-                'relId' => relId,
-                'fileName' => fileName
+                'relId' => spec.relationshipId,
+                'fileName' => spec.fileName
             };
-            if (imageBlob != null) {
-                imgEntry.put('blob', imageBlob);
+            if (spec.imageBlobData != null) {
+                imgEntry.put('blob', spec.imageBlobData);
             }
-            // Prefer CV URL (committed, works for PDF), fall back to extracted source URL
-            if (cvImageUrl != null) {
-                imgEntry.put('url', cvImageUrl);
-            } else if (sourceUrl != null) {
-                imgEntry.put('url', sourceUrl);
+            if (spec.contentVersionImageUrl != null) {
+                imgEntry.put('url', spec.contentVersionImageUrl);
+            } else if (spec.sourceUrl != null) {
+                imgEntry.put('url', spec.sourceUrl);
             }
             pendingImages.add(imgEntry);
 
-            // Use DrawingML format (<w:drawing>) for broad compatibility.
-            // VML (<w:pict>) works in Word but docx-preview (used for client-side PDF) cannot render it.
-            // DrawingML is the modern OOXML standard supported by Word, docx-preview, and Salesforce rendition API.
-            // EMU conversion: 1px at 96dpi = 9525 EMU, 1pt = 12700 EMU. Default: 4in x 3in
-            Integer widthEmu = (widthPx != null) ? (widthPx * 9525) : (288 * 12700);
-            Integer heightEmu = (heightPx != null) ? (heightPx * 9525) : (216 * 12700);
+            // Compute image dimensions in EMU with intrinsic size detection and scaling
+            List<Integer> intrinsicSizeEmu = getImageDimensionsInEmu(spec.imageBlobData, ext);
+            Integer baseWidthEmu = (intrinsicSizeEmu != null && intrinsicSizeEmu.size() == 2) ? intrinsicSizeEmu[0] : (288 * 12700);
+            Integer baseHeightEmu = (intrinsicSizeEmu != null && intrinsicSizeEmu.size() == 2) ? intrinsicSizeEmu[1] : (216 * 12700);
+
+            Integer[] scaledDims = scaleImageDimensionsEmu(baseWidthEmu, baseHeightEmu, spec);
+            Integer widthEmu = scaledDims[0];
+            Integer heightEmu = scaledDims[1];
 
             return '</w:t></w:r>' +
                 '<w:r><w:drawing>' +
@@ -2253,7 +2350,7 @@ public with sharing class DocGenService {
                           '<pic:cNvPicPr/>' +
                         '</pic:nvPicPr>' +
                         '<pic:blipFill>' +
-                          '<a:blip r:embed="' + relId + '" ' +
+                          '<a:blip r:embed="' + spec.relationshipId + '" ' +
                             'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>' +
                           '<a:stretch><a:fillRect/></a:stretch>' +
                         '</pic:blipFill>' +
@@ -2274,6 +2371,205 @@ public with sharing class DocGenService {
             // Image injection failed (invalid CV ID, corrupt base64, etc.) — skip this image
             return null;
         }
+    }
+
+    private static ImageRenderSpec parseImageTagSpec(String imageTagSpec) {
+        ImageRenderSpec spec = new ImageRenderSpec();
+        spec.imageField = imageTagSpec;
+        if (String.isBlank(imageTagSpec) || !imageTagSpec.contains(':')) {
+            return spec;
+        }
+
+        List<String> tagParts = imageTagSpec.split(':', 2);
+        spec.imageField = tagParts[0].trim();
+        String sizeToken = tagParts[1].trim().toLowerCase();
+        if (!sizeToken.contains('x')) {
+            return spec;
+        }
+
+        Integer separatorIndex = sizeToken.indexOf('x');
+        if (separatorIndex < 0) {
+            return spec;
+        }
+        String widthToken = sizeToken.substring(0, separatorIndex).trim();
+        String heightToken = sizeToken.substring(separatorIndex + 1).trim();
+
+        ImageDimensionSpec widthSpec = parseImageDimensionSpec(widthToken);
+        ImageDimensionSpec heightSpec = parseImageDimensionSpec(heightToken);
+        if (widthSpec != null) {
+            if (widthSpec.isMaxConstraint) {
+                spec.maxWidthPx = widthSpec.pixelValue;
+                spec.maxWidthPercent = widthSpec.percentValue;
+            } else {
+                spec.widthPx = widthSpec.pixelValue;
+                spec.widthPercent = widthSpec.percentValue;
+            }
+        }
+        if (heightSpec != null) {
+            if (heightSpec.isMaxConstraint) {
+                spec.maxHeightPx = heightSpec.pixelValue;
+                spec.maxHeightPercent = heightSpec.percentValue;
+            } else {
+                spec.heightPx = heightSpec.pixelValue;
+                spec.heightPercent = heightSpec.percentValue;
+            }
+        }
+        return spec;
+    }
+
+    private static ImageDimensionSpec parseImageDimensionSpec(String rawToken) {
+        if (String.isBlank(rawToken)) {
+            return null;
+        }
+        String token = rawToken.trim().toLowerCase();
+        Boolean isMax = token.startsWith('m');
+        if (isMax) {
+            token = token.substring(1).trim();
+        }
+        if (String.isBlank(token)) {
+            return null;
+        }
+
+        Integer percentValue = null;
+        Integer pixelValue = null;
+        if (token.endsWith('%')) {
+            String num = token.substring(0, token.length() - 1).trim();
+            if (num.isNumeric()) {
+                percentValue = Integer.valueOf(num);
+            }
+        } else if (token.endsWith('px')) {
+            String num = token.substring(0, token.length() - 2).trim();
+            if (num.isNumeric()) {
+                pixelValue = Integer.valueOf(num);
+            }
+        } else if (token.isNumeric()) {
+            pixelValue = Integer.valueOf(token);
+        }
+
+        if (percentValue == null && pixelValue == null) {
+            return null;
+        }
+        ImageDimensionSpec dimSpec = new ImageDimensionSpec();
+        dimSpec.isMaxConstraint = isMax;
+        dimSpec.percentValue = percentValue;
+        dimSpec.pixelValue = pixelValue;
+        return dimSpec;
+    }
+
+    private static Integer parseHexToInt(String hexStr) {
+        if (String.isBlank(hexStr)) {
+            return 0;
+        }
+        String hexChars = '0123456789ABCDEF';
+        Integer result = 0;
+        for (Integer i = 0; i < hexStr.length(); i++) {
+            Integer digit = hexChars.indexOf(hexStr.substring(i, i + 1).toUpperCase());
+            if (digit < 0) {
+                return 0;
+            }
+            result = (result * 16) + digit;
+        }
+        return result;
+    }
+
+    private static List<Integer> getImageDimensionsInEmu(Blob imageBlob, String fileExtension) {
+        if (imageBlob == null || imageBlob.size() < 24) {
+            return null;
+        }
+        String hex = EncodingUtil.convertToHex(imageBlob);
+        if (String.isBlank(hex) || hex.length() < 64) {
+            return null;
+        }
+        String hexUpper = hex.toUpperCase();
+        String extLower = fileExtension != null ? fileExtension.toLowerCase() : '';
+        Integer widthPx = null;
+        Integer heightPx = null;
+        try {
+            Boolean looksPng = extLower == 'png' || (hexUpper.length() >= 16 && hexUpper.substring(0, 16) == '89504E470D0A1A0A');
+            if (looksPng) {
+                Integer ihdrIdx = hexUpper.indexOf('49484452');
+                if (ihdrIdx >= 0 && ihdrIdx + 24 <= hexUpper.length()) {
+                    Integer w = parseHexToInt(hexUpper.substring(ihdrIdx + 8, ihdrIdx + 16));
+                    Integer h = parseHexToInt(hexUpper.substring(ihdrIdx + 16, ihdrIdx + 24));
+                    if (w > 0 && h > 0) {
+                        widthPx = w;
+                        heightPx = h;
+                    }
+                }
+            }
+            Boolean looksJpeg = extLower == 'jpg' || extLower == 'jpeg' || (hexUpper.length() >= 4 && hexUpper.substring(0, 4) == 'FFD8');
+            if ((widthPx == null || heightPx == null) && looksJpeg) {
+                Integer sofIdx = hexUpper.indexOf('FFC0');
+                if (sofIdx >= 0 && sofIdx + 18 <= hexUpper.length()) {
+                    heightPx = parseHexToInt(hexUpper.substring(sofIdx + 10, sofIdx + 14));
+                    widthPx = parseHexToInt(hexUpper.substring(sofIdx + 14, sofIdx + 18));
+                }
+            }
+            if (widthPx == null || heightPx == null || widthPx <= 0 || heightPx <= 0) {
+                return null;
+            }
+            Integer emuPerPx = 9525;
+            return new List<Integer>{widthPx * emuPerPx, heightPx * emuPerPx};
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Integer[] scaleImageDimensionsEmu(Integer baseWidthEmu, Integer baseHeightEmu, ImageRenderSpec spec) {
+        Integer pageContentWidthEmu = 5943600; // 6.5in
+        Integer pageContentHeightEmu = 8229600; // 9in
+
+        Integer resolvedW = baseWidthEmu;
+        Integer resolvedH = baseHeightEmu;
+
+        Integer fixedW = spec.widthPx != null ? (spec.widthPx * 9525) : null;
+        if (fixedW == null && spec.widthPercent != null) {
+            fixedW = (pageContentWidthEmu * spec.widthPercent) / 100;
+        }
+        Integer fixedH = spec.heightPx != null ? (spec.heightPx * 9525) : null;
+        if (fixedH == null && spec.heightPercent != null) {
+            fixedH = (pageContentHeightEmu * spec.heightPercent) / 100;
+        }
+
+        if (fixedW != null && fixedW > 0 && fixedH != null && fixedH > 0) {
+            resolvedW = fixedW;
+            resolvedH = fixedH;
+        } else if (fixedW != null && fixedW > 0 && baseWidthEmu > 0) {
+            Decimal scale = ((Decimal)fixedW) / ((Decimal)baseWidthEmu);
+            resolvedW = fixedW;
+            resolvedH = (((Decimal)baseHeightEmu) * scale).intValue();
+        } else if (fixedH != null && fixedH > 0 && baseHeightEmu > 0) {
+            Decimal scale = ((Decimal)fixedH) / ((Decimal)baseHeightEmu);
+            resolvedH = fixedH;
+            resolvedW = (((Decimal)baseWidthEmu) * scale).intValue();
+        }
+
+        Integer maxW = spec.maxWidthPx != null ? (spec.maxWidthPx * 9525) : null;
+        if (maxW == null && spec.maxWidthPercent != null) {
+            maxW = (pageContentWidthEmu * spec.maxWidthPercent) / 100;
+        }
+        Integer maxH = spec.maxHeightPx != null ? (spec.maxHeightPx * 9525) : null;
+        if (maxH == null && spec.maxHeightPercent != null) {
+            maxH = (pageContentHeightEmu * spec.maxHeightPercent) / 100;
+        }
+
+        Decimal maxScale = 1;
+        if (maxW != null && maxW > 0 && resolvedW > maxW && resolvedW > 0) {
+            Decimal ws = ((Decimal)maxW) / ((Decimal)resolvedW);
+            if (ws < maxScale) { maxScale = ws; }
+        }
+        if (maxH != null && maxH > 0 && resolvedH > maxH && resolvedH > 0) {
+            Decimal hs = ((Decimal)maxH) / ((Decimal)resolvedH);
+            if (hs < maxScale) { maxScale = hs; }
+        }
+        if (maxScale < 1) {
+            resolvedW = (((Decimal)resolvedW) * maxScale).intValue();
+            resolvedH = (((Decimal)resolvedH) * maxScale).intValue();
+        }
+
+        if (resolvedW == null || resolvedW <= 0) { resolvedW = 288 * 12700; }
+        if (resolvedH == null || resolvedH <= 0) { resolvedH = 216 * 12700; }
+        return new Integer[]{resolvedW, resolvedH};
     }
 
     /**
@@ -2369,34 +2665,61 @@ public with sharing class DocGenService {
 
 
     private static Id saveFile(Blob fileBlob, String title, Id recordId, String format, String type) {
-        ContentVersion cv = new ContentVersion();
         String baseName = title != null ? title : 'Generated_Document';
-
         String ext = (type == 'PowerPoint') ? '.pptx' : '.docx';
-        cv.Title = baseName;
-        cv.PathOnClient = baseName + ext;
-        cv.VersionData = fileBlob;
-        cv.FirstPublishLocationId = recordId;
-        SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-        insert cvDecision.getRecords();
-        Id savedCvId = cvDecision.getRecords()[0].Id;
-
-        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+        return saveContentVersion(fileBlob, baseName, baseName + ext, recordId);
     }
 
     /**
      * Saves a PDF Blob as a ContentVersion attached to the record.
      */
     private static Id savePdfFile(Blob pdfBlob, String title, Id recordId) {
-        ContentVersion cv = new ContentVersion();
         String baseName = title != null ? title : 'Generated_Document';
-        cv.Title = baseName;
-        cv.PathOnClient = baseName + '.pdf';
-        cv.VersionData = pdfBlob;
+        return saveContentVersion(pdfBlob, baseName, baseName + '.pdf', recordId);
+    }
+
+    /**
+     * Saves a Blob as a ContentVersion linked to the given record.
+     * Some standard objects (e.g., Pricebook2) don't support FirstPublishLocationId.
+     * In that case, insert without linking and create a ContentDocumentLink separately.
+     */
+    private static Id saveContentVersion(Blob fileBlob, String title, String fileName, Id recordId) {
+        ContentVersion cv = new ContentVersion();
+        cv.Title = title;
+        cv.PathOnClient = fileName;
+        cv.VersionData = fileBlob;
         cv.FirstPublishLocationId = recordId;
-        SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-        insert cvDecision.getRecords();
-        Id savedCvId = cvDecision.getRecords()[0].Id;
+
+        Id savedCvId;
+        try {
+            SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+            insert cvDecision.getRecords();
+            savedCvId = cvDecision.getRecords()[0].Id;
+        } catch (DmlException dml) {
+            // FirstPublishLocationId rejected (e.g., Pricebook2) — insert without link, then create CDL
+            if (dml.getMessage().contains('FIELD_INTEGRITY_EXCEPTION') && dml.getMessage().containsIgnoreCase('FirstPublishLocationId')) {
+                cv.FirstPublishLocationId = null;
+                SObjectAccessDecision cvDecision2 = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+                insert cvDecision2.getRecords();
+                savedCvId = cvDecision2.getRecords()[0].Id;
+
+                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+                // Try to link the file to the source record — some objects (e.g. Pricebook2) don't support CDLs
+                try {
+                    ContentDocumentLink cdl = new ContentDocumentLink(
+                        ContentDocumentId = docId,
+                        LinkedEntityId = recordId,
+                        ShareType = 'V',
+                        Visibility = 'AllUsers'
+                    );
+                    insert cdl; // NOPMD ApexCRUDViolation - linking generated document to source record
+                } catch (DmlException linkErr) { // NOPMD EmptyCatchBlock - some objects (e.g. Pricebook2) don't support ContentDocumentLink
+                    // Object doesn't support file linking — file saved to user's library instead
+                }
+                return docId;
+            }
+            throw dml;
+        }
 
         return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
     }

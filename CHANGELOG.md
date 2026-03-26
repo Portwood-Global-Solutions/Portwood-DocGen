@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.1 — "Image Sizing, Error Diagnostics & Multiline Text" (Portwood DocGen)
+
+Huge thanks to **@Henk3000** for PR #47 — ImageRenderSpec, ahe() helper, multiline text preservation, error diagnostics for malformed tags, and smart container expansion for numbered lists.
+
+- **ImageRenderSpec** — Percentage-based image sizing (`{%Logo:100%x}`), max constraints (`{%Logo:m100%x}`), intrinsic dimension detection from PNG/JPEG headers, aspect ratio preservation. Credit: @Henk3000 PR #47.
+- **Error Diagnostics** — Malformed merge tags and unclosed loop tags now throw `DocGenException` with descriptive messages instead of silently producing broken output.
+- **Multiline Text Preservation** — Newlines in Long Text Area and Text Area fields now render as proper Word line breaks (`<w:br/>`) with correct run element handling.
+- **Smart Container Expansion** — Loop tags inside numbered/bulleted lists now repeat the list paragraph formatting. Previously only table rows were detected.
+- **`ahe()` Helper** — Consistent `AuraHandledException` creation with original exception logging. All 38 throw sites migrated.
+- **Universal File Save** — `saveContentVersion()` gracefully handles objects that don't support `FirstPublishLocationId` or `ContentDocumentLink` (e.g., Pricebook2).
+- **507/507 Apex tests**, 79% coverage, 0 Critical/High. E2E 22/22.
+
 ## v1.1.0 — "Pixel-Perfect PDF" (Portwood DocGen)
 
 Huge thanks to **@josephedwards-png** for PR #46 — his analysis of the relId collision bug and namespacing approach was the key insight that unlocked header/footer image rendering.
