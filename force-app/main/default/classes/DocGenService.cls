@@ -1138,69 +1138,71 @@ public with sharing class DocGenService {
                     Integer contentEnd = sectionEnd;
                     String innerXml = xml.substring(contentStart, contentEnd);
                     
-                    // Smart Table Row Expansion
-                    // Check if we are inside a TR and if the loop is fully contained in it
-                    Integer trStart = xml.lastIndexOf('<w:tr ', cursor);
-                    if (trStart == -1) {
-                        trStart = xml.lastIndexOf('<w:tr>', cursor);
+                    // Smart container expansion: repeat the nearest parent container when possible.
+                    // Candidate containers:
+                    // 1) Table row (<w:tr>...</w:tr>)
+                    // 2) Numbered/bulleted paragraph (nearest <w:p> containing <w:numPr>)
+                    Integer closeTagEnd = xml.indexOf('}', sectionEnd);
+                    Integer chosenContainerStart = -1;
+                    Integer chosenContainerEnd = -1;
+
+                    // Candidate: row container
+                    Integer rowContainerStart = lastIndexOfTagStart(xml, 'w:tr', cursor);
+                    if (rowContainerStart != -1) {
+                        Integer rowContainerEnd = xml.indexOf('</w:tr>', rowContainerStart);
+                        Boolean rowClosedBeforeCursor = xml.substring(rowContainerStart, cursor).contains('</w:tr>');
+                        if (!rowClosedBeforeCursor && rowContainerEnd != -1 && rowContainerEnd > closeTagEnd) {
+                            chosenContainerStart = rowContainerStart;
+                            chosenContainerEnd = rowContainerEnd + 7; // </w:tr>
+                        }
                     }
 
-                    // Find matching TR End
-                    Integer trEnd = -1;
-                    if (trStart != -1) {
-                         // Verify trStart is actually an ancestor of our cursor (no </w:tr> between trStart and cursor)
-                         Boolean trClosesBefore = xml.substring(trStart, cursor).contains('</w:tr>');
-
-                         trEnd = xml.indexOf('</w:tr>', trStart);
-                         Integer closeTagEnd = xml.indexOf('}', sectionEnd);
-
-                         if (trClosesBefore) {
-                             // The <w:tr> we found already closed before our tag - NOT our ancestor
-                             cursor = xml.indexOf('}', sectionEnd) + 1;
-                         } else if (trEnd > closeTagEnd) {
-                             // Yes, the loop is fully inside this TR.
-                             // Now, checking if we should expand.
-                             // Expand if the start tag and end tag are in the SAME TR (implied by above)
-                             // AND if we think it's intended (always true for better UX?)
-                             
-                             // CAUTION: If user meant cell-repetition, valid, but rare.
-                             // We assume Row Repetition is preferred.
-                             
-                             // Redefine Inner XML to include the TR
-                             // And strip the tags from it.
-                             
-                             contentStart = trStart;
-                             contentEnd = trEnd + 7; // Length of </w:tr>
-                             innerXml = xml.substring(contentStart, contentEnd);
-
-                             String startTagFull = '{' + rawTag + '}';
-                             innerXml = innerXml.replace(startTagFull, '');
-
-                             String endTagFull = xml.substring(sectionEnd, closeTagEnd + 1);
-                             innerXml = innerXml.replace(endTagFull, '');
-
-                             // Backtrack output to remove the TR prefix already appended
-                             Integer overlap = cursor - contentStart;
-                             if (overlap > 0) {
-                                Integer outputLength = output.length();
-                                if (overlap > outputLength) {
-                                    throw new DocGenException(
-                                        'Template loop parsing error for "{#' + key + '}": internal overlap (' + overlap +
-                                        ') exceeds output length (' + outputLength + '). ' +
-                                        'This usually indicates malformed or mismatched loop tags (missing "{/' + key + '}").'
-                                    );
+                    // Candidate: list paragraph container (w:p with w:numPr)
+                    Integer numPropsStart = xml.lastIndexOf('<w:numPr', cursor);
+                    if (numPropsStart != -1) {
+                        Integer paragraphStart = lastIndexOfTagStart(xml, 'w:p', cursor);
+                        if (paragraphStart != -1 && paragraphStart <= numPropsStart) {
+                            Integer paragraphEndStart = xml.indexOf('</w:p>', paragraphStart);
+                            Boolean paragraphClosedBeforeCursor = xml.substring(paragraphStart, cursor).contains('</w:p>');
+                            if (!paragraphClosedBeforeCursor && paragraphEndStart != -1 && paragraphEndStart > closeTagEnd && numPropsStart < paragraphEndStart) {
+                                Integer paragraphContainerEnd = paragraphEndStart + 6; // </w:p>
+                                // Prefer the closest valid parent.
+                                if (chosenContainerStart == -1 || paragraphStart > chosenContainerStart) {
+                                    chosenContainerStart = paragraphStart;
+                                    chosenContainerEnd = paragraphContainerEnd;
                                 }
-                                output = output.substring(0, outputLength - overlap);
-                             }
-
-                             cursor = contentEnd;
-                        } else {
-                            // Loop spans across TRs or is outside TR?
-                            // Default behavior (keep tags inside, repeat content)
-                             cursor = xml.indexOf('}', sectionEnd) + 1;
+                            }
                         }
+                    }
+
+                    if (chosenContainerStart != -1 && chosenContainerEnd != -1) {
+                        contentStart = chosenContainerStart;
+                        contentEnd = chosenContainerEnd;
+                        innerXml = xml.substring(contentStart, contentEnd);
+
+                        String startTagFull = '{' + rawTag + '}';
+                        innerXml = innerXml.replace(startTagFull, '');
+
+                        String endTagFull = xml.substring(sectionEnd, closeTagEnd + 1);
+                        innerXml = innerXml.replace(endTagFull, '');
+
+                        // Backtrack output to remove already-emitted prefix for chosen container.
+                        Integer overlap = cursor - contentStart;
+                        if (overlap > 0) {
+                            Integer outputLength = output.length();
+                            if (overlap > outputLength) {
+                                throw new DocGenException(
+                                    'Template loop parsing error for "{#' + key + '}": internal overlap (' + overlap +
+                                    ') exceeds output length (' + outputLength + '). ' +
+                                    'This usually indicates malformed or mismatched loop tags (missing "{/' + key + '}").'
+                                );
+                            }
+                            output = output.substring(0, outputLength - overlap);
+                        }
+                        cursor = contentEnd;
                     } else {
-                        cursor = xml.indexOf('}', sectionEnd) + 1;
+                        // Fallback behavior: keep default content-only repetition.
+                        cursor = closeTagEnd + 1;
                     }
 
                     // Process Data
@@ -1348,6 +1350,16 @@ public with sharing class DocGenService {
             cursor = nextClose + 1;
         }
         return -1;
+    }
+
+    private static Integer lastIndexOfTagStart(String xml, String tagName, Integer fromIndex) {
+        if (String.isBlank(xml) || String.isBlank(tagName) || fromIndex == null || fromIndex < 0) {
+            return -1;
+        }
+        Integer searchIndex = Math.min(fromIndex, xml.length());
+        Integer withAttributesIndex = xml.lastIndexOf('<' + tagName + ' ', searchIndex);
+        Integer bareTagIndex = xml.lastIndexOf('<' + tagName + '>', searchIndex);
+        return Math.max(withAttributesIndex, bareTagIndex);
     }
     
     private static Object resolveValue(Map<String, Object> data, String path) {
@@ -2658,13 +2670,17 @@ public with sharing class DocGenService {
 
 	// Method to create an AuraHandledException with an Exception message
 	public static AuraHandledException ahe(Exception exc) {
+		return ahe(exc, exc.getMessage());
+	}
+	
+	public static AuraHandledException ahe(Exception exc, String message) {
 		if (exc instanceof AuraHandledException) {
 			return (AuraHandledException) exc;
 		}
 		System.debug(LoggingLevel.ERROR, 'AuraHandledException created from Exception type: ' + exc.getTypeName());
 		System.debug(LoggingLevel.ERROR, 'Message: ' + exc.getMessage());
 		System.debug(LoggingLevel.ERROR, 'StackTrace: ' + exc.getStackTraceString());
-		return ahe(exc.getMessage());
+		return ahe(message);
 	}
 	
 	// Method to create an AuraHandledException with a custom message

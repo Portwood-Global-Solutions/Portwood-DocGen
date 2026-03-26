@@ -171,7 +171,7 @@ public with sharing class DocGenController {
                 'templateType' => result.get('templateType')
             };
         } catch (Exception e) {
-            throw DocGenService.ahe('Error generating document. Please check the template configuration.');
+            throw DocGenService.ahe(e,'Error generating document. Please check the template configuration.');
         }
     }
 
@@ -188,7 +188,7 @@ public with sharing class DocGenController {
         try {
             return DocGenService.generateDocumentParts(templateId, recordId);
         } catch (Exception e) {
-            throw DocGenService.ahe('Error generating document parts. Please check the template configuration.');
+            throw DocGenService.ahe(e,'Error generating document parts. Please check the template configuration.');
         }
     }
 
@@ -364,7 +364,7 @@ public with sharing class DocGenController {
                 }
             }
         } catch (Exception e) {
-            throw DocGenService.ahe('Error saving template. Please verify your inputs and permissions.');
+            throw DocGenService.ahe(e,'Error saving template. Please verify your inputs and permissions.');
         }
     }
 
@@ -380,7 +380,7 @@ public with sharing class DocGenController {
             }
             delete new DocGen_Template__c(Id = templateId);
         } catch (Exception e) {
-            throw DocGenService.ahe('Error deleting template. Please check your permissions.');
+            throw DocGenService.ahe(e,'Error deleting template. Please check your permissions.');
         }
     }
 
