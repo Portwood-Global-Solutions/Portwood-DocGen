@@ -1,0 +1,296 @@
+<apex:page controller="DocGenLandingController" showHeader="false" standardStylesheets="false" sidebar="false" applyHtmlTag="true" applyBodyTag="false" docType="html-5.0" cache="true">
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portwood DocGen — Free Document Generation for Salesforce</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #1a1a2e;
+            background: #f8fafc;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .logo span { color: #60a5fa; }
+        .header-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .header-links a:hover { color: #fff; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            color: #fff;
+            text-align: center;
+            padding: 5rem 2rem 4rem;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 1rem;
+            line-height: 1.1;
+        }
+        .hero h1 span { color: #60a5fa; }
+        .hero p {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            max-width: 700px;
+            margin: 0 auto 2.5rem;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+        .btn-demo {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+        }
+
+        /* Badge */
+        .badge-row {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .badge {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .badge.green { color: #4ade80; border-color: rgba(74, 222, 128, 0.2); }
+
+        /* Features */
+        .features {
+            padding: 5rem 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .features h2 {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 3rem;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        .feature-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 2rem;
+            transition: box-shadow 0.2s;
+        }
+        .feature-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .feature-card p {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Install */
+        .install-section {
+            background: #fff;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+        .install-section h2 { font-size: 2rem; font-weight: 800; margin-bottom: 1rem; }
+        .install-section p { color: #64748b; margin-bottom: 2rem; font-size: 1.1rem; }
+        .install-links {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+        .install-code {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            display: inline-block;
+            margin-top: 1rem;
+        }
+
+        /* Footer */
+        .footer {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        .footer a { color: #60a5fa; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .footer-links { margin-bottom: 1rem; }
+        .footer-links a { margin: 0 1rem; font-size: 0.9rem; }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 2rem; }
+            .hero p { font-size: 1rem; }
+            .header { flex-direction: column; gap: 0.5rem; }
+            .header-links a { margin-left: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">Portwood <span>DocGen</span></div>
+        <nav class="header-links">
+            <a href="https://github.com/DaveMoudy/SalesforceDocGen">GitHub</a>
+            <a href="mailto:hello@portwoodglobalsolutions.com">Support</a>
+            <a href="{!installLinkProd}" style="color: #60a5fa;">Install</a>
+        </nav>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="badge-row">
+            <span class="badge green">100% Free</span>
+            <span class="badge">Zero Dependencies</span>
+            <span class="badge">100% Native Salesforce</span>
+            <span class="badge green">Open Source</span>
+        </div>
+        <h1>Document Generation<br/>for <span>Salesforce</span></h1>
+        <p>Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from any record. Merge tags, child loops, images, barcodes, QR codes, and aggregates.</p>
+        <div class="hero-actions">
+            <a href="{!installLinkProd}" class="btn btn-primary">Install Free</a>
+            <a href="{!installLinkSandbox}" class="btn btn-secondary">Install in Sandbox</a>
+            <apex:outputPanel rendered="{!hasDemoUrl}">
+                <a href="{!demoUrl}" class="btn btn-demo" target="_blank">Try Live Demo</a>
+            </apex:outputPanel>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+        <h2>Everything you need. Nothing you don't.</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">&#128196;</div>
+                <h3>Multi-Format Output</h3>
+                <p>PDF, Word, Excel, and PowerPoint. Use your own branded templates — just add merge tags and upload.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128257;</div>
+                <h3>Visual Query Builder</h3>
+                <p>Point-and-click field selection with unlimited depth relationships. No SOQL required.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128248;</div>
+                <h3>Images, Barcodes &amp; QR</h3>
+                <p>Embed images from ContentVersion fields, generate Code 128 barcodes and QR codes — all in PDF.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#9889;</div>
+                <h3>Flow &amp; Apex Integration</h3>
+                <p>Invocable actions for single and bulk generation. Custom Apex Data Providers for computed fields and external data.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128218;</div>
+                <h3>Bulk Generation</h3>
+                <p>Generate thousands of documents in the background. Combined PDF mode for maximum efficiency.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128274;</div>
+                <h3>Secure &amp; Governor-Safe</h3>
+                <p>Zero-heap PDF rendering, pre-decomposed templates, USER_MODE queries. 0 Critical, 0 High on Code Analyzer.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install -->
+    <section class="install-section">
+        <h2>Install in 30 seconds</h2>
+        <p>No configuration needed. Assign the permission set and start generating.</p>
+        <div class="install-links">
+            <a href="{!installLinkProd}" class="btn btn-primary">Install in Production</a>
+            <a href="{!installLinkSandbox}" class="btn btn-secondary" style="color: #1a1a2e; border-color: #cbd5e1;">Install in Sandbox</a>
+        </div>
+        <div class="install-code">sf package install --package 04tal000006PAOvAAO --wait 10 --target-org your-org</div>
+        <p style="margin-top: 1.5rem; font-size: 0.9rem;">Then: Assign <strong>DocGen Admin</strong> permission set &bull; Open the <strong>DocGen</strong> app</p>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="https://github.com/DaveMoudy/SalesforceDocGen">GitHub</a>
+            <a href="mailto:hello@portwoodglobalsolutions.com">Support</a>
+            <a href="https://github.com/DaveMoudy/SalesforceDocGen/issues">Report a Bug</a>
+        </div>
+        <p>Built by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
+        <p style="margin-top: 0.5rem; font-size: 0.8rem;">Namespace: portwoodglobal &bull; Apache 2.0 License &bull; Working toward Salesforce Accelerator listing</p>
+    </footer>
+
+</body>
+</html>
+</apex:page>

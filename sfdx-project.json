@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.0.7 — Mobile, Flow Actions & Code Quality",
-      "versionNumber": "1.0.7.NEXT",
+      "versionName": "1.0.8 — Apex Data Provider, Landing Page & Full Release",
+      "versionNumber": "1.0.8.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen",
@@ -24,6 +24,8 @@
     "Portwood DocGen@1.0.3-1": "04tal000006P9sfAAC",
     "Portwood DocGen@1.0.4-1": "04tal000006P9z7AAC",
     "Portwood DocGen@1.0.5-1": "04tal000006PA7BAAW",
-    "Portwood DocGen@1.0.6-1": "04tal000006PANJAA4"
+    "Portwood DocGen@1.0.6-1": "04tal000006PANJAA4",
+    "Portwood DocGen@1.0.7-1": "04tal000006PAOvAAO",
+    "Portwood DocGen@1.0.8-1": "04tal000006PB01AAG"
   }
 }

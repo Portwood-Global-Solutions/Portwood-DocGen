@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.0.8 — "Full Release" (Portwood DocGen)
+
+**IMPORTANT: If upgrading from the old unnamespaced "Document Generation" package, you MUST uninstall it first.** The new package uses the `portwoodglobal` namespace — the two cannot coexist. Go to Setup > Installed Packages > Document Generation > Uninstall, then install this version.
+
+- **Website Live** — [portwoodglobalsolutions.com](https://portwoodglobalsolutions.com) — landing page with install links and live demo
+- **DocGenDataProvider Interface** — Custom Apex data sources for templates. Implement `getData(Id recordId)` and `getFieldNames()` to supply data from any source — external APIs, computed fields, cross-object aggregations. V4 query config: `{"v":4,"provider":"ClassName"}`
+- **Apex Provider in Query Builder** — Toggle between Standard Object and Apex Provider. Searchable class picker finds all `DocGenDataProvider` implementations. Tags preview from `getFieldNames()`
+- **Flow Actions Expanded** — Single generation: Save to Record, Document Title override, Content Version ID output. Bulk generation: Combined PDF Only, Keep Individual Files, Batch Size, Job Label
+- **Mobile Support** — Responsive CSS, utility bar target, flow screen compatible
+- **Bulk Runner UX** — "Combined PDF Only" / "Combined + Individual PDFs" replaces confusing merge toggles
+- **Sample Record Picker** — Persistent bar above all tabs in edit modal
+- **507 Apex Tests Passing** — 83% code coverage, 0 Critical, 0 High on Code Analyzer
+- **E2E: 22/22** — includes V4 provider tests, image rendering, junction stitching, aggregates
+- **Package Install Tracker** — DevHub dashboard with version history, install notifications, auto-refresh
+
 ## v1.0.4 — "Namespace Release" (Portwood DocGen)
 - **Namespaced Package** — DocGen is now distributed as `portwoodglobal` namespaced unlocked 2GP package via Portwood Global Solutions. Existing unnamespaced installs must uninstall and reinstall.
 - **Namespace-Aware LWC** — All Lightning Web Components now use `@salesforce/schema` imports for field access, ensuring correct field resolution in namespaced subscriber orgs. Fixes "undefined" and "field does not exist" errors.

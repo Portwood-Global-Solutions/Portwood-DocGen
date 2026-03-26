@@ -2,33 +2,47 @@ import { LightningElement, wire, track } from 'lwc';
 import getPackages from '@salesforce/apex/PackageInstallTracker.getPackages';
 import getSubscribers from '@salesforce/apex/PackageInstallTracker.getSubscribers';
 import getStats from '@salesforce/apex/PackageInstallTracker.getStats';
+import getVersions from '@salesforce/apex/PackageInstallTracker.getVersions';
+import sendInstallNotification from '@salesforce/apex/PackageInstallTracker.sendInstallNotification';
 
 const COLUMNS = [
     { label: 'Org Name', fieldName: 'orgName', sortable: true },
     { label: 'Org Type', fieldName: 'orgType', initialWidth: 120, sortable: true,
-        cellAttributes: {
-            class: { fieldName: 'orgTypeClass' }
-        }
+        cellAttributes: { class: { fieldName: 'orgTypeClass' } }
     },
-    { label: 'Status', fieldName: 'installedStatus', initialWidth: 120, sortable: true,
-        cellAttributes: {
-            class: { fieldName: 'statusClass' }
-        }
+    { label: 'Status', fieldName: 'installedStatus', initialWidth: 110, sortable: true,
+        cellAttributes: { class: { fieldName: 'statusClass' } }
     },
-    { label: 'Version ID', fieldName: 'versionId', initialWidth: 200 },
+    { label: 'Version', fieldName: 'versionLabel', sortable: true },
     { label: 'Installed', fieldName: 'installedDateFormatted', initialWidth: 180, sortable: true },
     { label: 'Org ID', fieldName: 'orgKey', initialWidth: 200 }
 ];
 
+const VERSION_COLUMNS = [
+    { label: 'Version', fieldName: 'version', initialWidth: 120 },
+    { label: 'Name', fieldName: 'name' },
+    { label: 'State', fieldName: 'releaseState', initialWidth: 100,
+        cellAttributes: { class: { fieldName: 'stateClass' } }
+    },
+    { label: 'Published', fieldName: 'publishedDateFormatted', initialWidth: 180 }
+];
+
+const POLL_MS = 60000; // Check for new installs every 60 seconds
+
 export default class PackageInstallTracker extends LightningElement {
     columns = COLUMNS;
+    versionColumns = VERSION_COLUMNS;
     @track subscribers = [];
+    @track versions = [];
     @track packages = [];
     @track stats = {};
     selectedPackageId = '';
     isLoading = true;
     sortBy = 'installedDate';
     sortDirection = 'desc';
+    _pollTimer;
+    _lastSubscriberCount = 0;
+    showVersions = false;
 
     @wire(getPackages)
     wiredPackages({ data, error }) {
@@ -50,6 +64,14 @@ export default class PackageInstallTracker extends LightningElement {
     wiredSubscribers({ data, error }) {
         this.isLoading = false;
         if (data) {
+            const newCount = data.length;
+            // Detect new installs
+            if (this._lastSubscriberCount > 0 && newCount > this._lastSubscriberCount) {
+                const newest = data[0]; // Sorted by SystemModstamp DESC
+                this._sendNotification(newest);
+            }
+            this._lastSubscriberCount = newCount;
+
             this.subscribers = data.map(s => ({
                 ...s,
                 installedDateFormatted: s.installedDate ? new Date(s.installedDate).toLocaleDateString('en-US', {
@@ -66,13 +88,49 @@ export default class PackageInstallTracker extends LightningElement {
     }
 
     @wire(getStats, { metadataPackageId: '$selectedPackageId' })
-    wiredStats({ data, error }) {
+    wiredStats({ data }) {
+        if (data) { this.stats = data; }
+    }
+
+    @wire(getVersions, { metadataPackageId: '$selectedPackageId' })
+    wiredVersions({ data }) {
         if (data) {
-            this.stats = data;
+            this.versions = data.map(v => ({
+                ...v,
+                publishedDateFormatted: v.publishedDate ? new Date(v.publishedDate).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                }) : '',
+                stateClass: v.releaseState === 'Released' ? 'slds-text-color_success' : 'slds-text-color_weak'
+            }));
         }
-        if (error) {
-            this.stats = {};
+    }
+
+    connectedCallback() {
+        this._startPolling();
+    }
+
+    disconnectedCallback() {
+        this._stopPolling();
+    }
+
+    _startPolling() {
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._pollTimer = setInterval(() => { this.handleRefresh(); }, POLL_MS);
+    }
+
+    _stopPolling() {
+        if (this._pollTimer) {
+            clearInterval(this._pollTimer);
+            this._pollTimer = null;
         }
+    }
+
+    _sendNotification(subscriber) {
+        sendInstallNotification({
+            orgName: subscriber.orgName || 'Unknown Org',
+            orgType: subscriber.orgType || 'Unknown',
+            versionLabel: subscriber.versionLabel || subscriber.versionId
+        }).catch(() => {});
     }
 
     get packageOptions() {
@@ -85,19 +143,22 @@ export default class PackageInstallTracker extends LightningElement {
     get activeInstalls() { return this.stats.installed || 0; }
     get uninstalled() { return this.stats.uninstalled || 0; }
     get hasSubscribers() { return this.subscribers.length > 0; }
+    get hasVersions() { return this.versions.length > 0; }
+    get versionToggleLabel() { return this.showVersions ? 'Hide Versions' : 'Show Versions'; }
 
     handlePackageChange(event) {
         this.isLoading = true;
+        this._lastSubscriberCount = 0;
         this.selectedPackageId = event.detail.value;
+    }
+
+    handleToggleVersions() {
+        this.showVersions = !this.showVersions;
     }
 
     handleSort(event) {
         this.sortBy = event.detail.fieldName;
         this.sortDirection = event.detail.sortDirection;
-        this.sortData();
-    }
-
-    sortData() {
         const data = [...this.subscribers];
         const key = this.sortBy;
         const dir = this.sortDirection === 'asc' ? 1 : -1;
@@ -111,7 +172,6 @@ export default class PackageInstallTracker extends LightningElement {
 
     handleRefresh() {
         this.isLoading = true;
-        // Force re-wire by toggling the package ID
         const current = this.selectedPackageId;
         this.selectedPackageId = null;
         // eslint-disable-next-line @lwc/lwc/no-async-operation

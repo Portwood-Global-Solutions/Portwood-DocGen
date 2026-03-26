@@ -1,6 +1,7 @@
 <template>
     <lightning-card title="Package Install Tracker" icon-name="standard:dashboard">
         <div slot="actions">
+            <lightning-button label={versionToggleLabel} variant="neutral" onclick={handleToggleVersions} class="slds-var-m-right_small"></lightning-button>
             <lightning-button-icon icon-name="utility:refresh" alternative-text="Refresh" onclick={handleRefresh}></lightning-button-icon>
         </div>
 
@@ -51,7 +52,25 @@
                 </div>
             </div>
 
-            <!-- Data Table -->
+            <!-- Version History (collapsible) -->
+            <template if:true={showVersions}>
+                <div class="slds-box slds-m-bottom_medium" style="border-radius: 8px;">
+                    <h3 class="slds-text-heading_small slds-m-bottom_small">Version History</h3>
+                    <template if:true={hasVersions}>
+                        <lightning-datatable
+                            key-field="id"
+                            data={versions}
+                            columns={versionColumns}
+                            hide-checkbox-column>
+                        </lightning-datatable>
+                    </template>
+                    <template if:false={hasVersions}>
+                        <p class="slds-text-color_weak">No versions found.</p>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Subscriber Table -->
             <template if:true={isLoading}>
                 <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
             </template>
@@ -75,6 +94,8 @@
                     </div>
                 </template>
             </template>
+
+            <p class="slds-text-body_small slds-text-color_weak slds-m-top_medium slds-text-align_center">Auto-refreshes every 60 seconds. New installs trigger a notification.</p>
         </div>
     </lightning-card>
 </template>

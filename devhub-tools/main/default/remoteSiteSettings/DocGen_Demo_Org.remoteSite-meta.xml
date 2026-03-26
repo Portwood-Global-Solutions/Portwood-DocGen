@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://ability-drive-8015-dev-ed.scratch.my.salesforce.com</url>
+    <description>Demo scratch org for DocGen landing page SSO</description>
+</RemoteSiteSetting>
