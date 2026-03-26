@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.0 — "Pixel-Perfect PDF" (Portwood DocGen)
+
+Huge thanks to **@josephedwards-png** for PR #46 — his analysis of the relId collision bug and namespacing approach was the key insight that unlocked header/footer image rendering.
+
+- **Header/Footer Rendering in PDF** — Full formatting, borders, merge tags, images. Headers at top, footers pinned to bottom.
+- **Namespaced Image RelIds** — `header1_rId1`, `footer1_rId1` prevent collisions. Credit: @josephedwards-png PR #46.
+- **Dynamic Style Resolution** — Table borders, cell padding, page size/margins all read from `styles.xml` and `w:sectPr` at render time.
+- **PDF Merger Restored** — Generate+merge, merge-only, document packets with client-side PDF merging.
+- **Client-Side DOCX Assembly** — Zero heap ZIP. Per-image Apex calls with fresh 6MB heap each.
+- **507/507 Apex tests**, 81% coverage, 0 Critical/High. E2E 22/22.
+- Templates with headers/footers must be re-saved to pick up the fix.
+
 ## v1.0.8 — "Full Release" (Portwood DocGen)
 
 **IMPORTANT: If upgrading from the old unnamespaced "Document Generation" package, you MUST uninstall it first.** The new package uses the `portwoodglobal` namespace — the two cannot coexist. Go to Setup > Installed Packages > Document Generation > Uninstall, then install this version.

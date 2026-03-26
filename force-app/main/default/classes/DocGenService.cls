@@ -828,6 +828,10 @@ public with sharing class DocGenService {
         }
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
+        // Pass styles.xml to renderer for dynamic table style resolution
+        if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
+            DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
+        }
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         lastRenderedHtml = html;
 
