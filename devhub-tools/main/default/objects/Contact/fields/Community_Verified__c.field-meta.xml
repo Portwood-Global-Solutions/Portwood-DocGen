@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Community_Verified__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Whether this contact has verified their email for community access.</description>
+    <label>Community Verified</label>
+    <type>Checkbox</type>
+</CustomField>

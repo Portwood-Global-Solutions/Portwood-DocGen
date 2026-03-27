@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Voter__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Voter</label>
+    <referenceTo>Contact</referenceTo>
+    <relationshipLabel>Votes</relationshipLabel>
+    <relationshipName>Community_Votes</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

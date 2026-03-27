@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Community_Bio__c</fullName>
+    <description>Short bio for the community member profile.</description>
+    <label>Community Bio</label>
+    <length>1000</length>
+    <required>false</required>
+    <type>LongTextArea</type>
+    <visibleLines>4</visibleLines>
+</CustomField>

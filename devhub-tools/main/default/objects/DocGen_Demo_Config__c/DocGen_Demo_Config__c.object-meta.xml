@@ -50,6 +50,39 @@
         <unique>false</unique>
     </fields>
     <fields>
+        <fullName>Resend_API_Key__c</fullName>
+        <description>Resend.com API key for sending community verification emails.</description>
+        <externalId>false</externalId>
+        <label>Resend API Key</label>
+        <length>255</length>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Demo_Username__c</fullName>
+        <description>Username of the demo org user for SSO via frontdoor.jsp</description>
+        <externalId>false</externalId>
+        <label>Demo Username</label>
+        <length>255</length>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Demo_Password__c</fullName>
+        <description>Password + security token of the demo org user</description>
+        <externalId>false</externalId>
+        <label>Demo Password</label>
+        <length>255</length>
+        <required>false</required>
+        <trackTrending>false</trackTrending>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
         <fullName>Last_Refreshed__c</fullName>
         <description>When the session was last refreshed</description>
         <externalId>false</externalId>

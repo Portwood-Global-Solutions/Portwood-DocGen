@@ -1,11 +1,46 @@
 {
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/bower_components": true,
-    "**/.sf": true,
-    "**/.sfdx": true
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/core/build/repository/**": true,
+    "**/core/ext/**": true,
+    "**/target/**": true,
+    "**/bin/**": true,
+    "META-INF/": true
   },
-  "xml.preferences.showSchemaDocumentationType": "none",
-  "salesforcedx-vscode-apex.java.home": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
-  "xml.server.vmargs": "-Xmx512m"
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/core/build/repository/**": true,
+    "**/core/ext/**": true,
+    "**/target/**": true,
+    "**/bin/**": true
+  },
+  "perforce.maxBuffer": 10485760,
+  "perforce.editOnFileSave": true,
+  "perforce.editOnFileModified": true,
+  "perforce.addOnFileCreate": true,
+  "perforce.deleteOnFileDelete": true,
+  "perforce.client": "username-localhost-blt",
+  "perforce.user": "username",
+  "perforce.port": "ssl:host:port",
+  "extensions.ignoreRecommendations": true,
+  "salesforcedx-vscode-lightning.activationMode": "always",
+  "salesforcedx-vscode-lightning.showLightningExplorer": true,
+  "salesforcedx-vscode-core.internal-development": false,
+  "eslint.workingDirectories": [
+    "/Users/davemoudy/3-25-2026 Doc Gen gets a name/SalesforceDocGen"
+  ],
+  "eslint.validate": [
+    "javascript",
+    "typescript"
+  ],
+  "eslint.options": {
+    "overrideConfigFile": "/Users/davemoudy/3-25-2026 Doc Gen gets a name/SalesforceDocGen/.eslintrc.json"
+  },
+  "xml.preferences.showSchemaDocumentationType": "none"
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RecordType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prospect</fullName>
+    <active>true</active>
+    <description>Potential user or organization that has not yet installed DocGen.</description>
+    <label>Prospect</label>
+</RecordType>

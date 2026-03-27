@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Org_Type__c</fullName>
+    <description>Type of Salesforce org (Production, Sandbox, Scratch, Developer).</description>
+    <label>Org Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>Production</fullName><default>false</default><label>Production</label></value>
+            <value><fullName>Sandbox</fullName><default>false</default><label>Sandbox</label></value>
+            <value><fullName>Scratch</fullName><default>false</default><label>Scratch</label></value>
+            <value><fullName>Developer</fullName><default>false</default><label>Developer Edition</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

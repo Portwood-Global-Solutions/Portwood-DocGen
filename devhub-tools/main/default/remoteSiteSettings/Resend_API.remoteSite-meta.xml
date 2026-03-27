@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Resend_API</fullName>
+    <description>Resend email API for DocGen Community verification emails.</description>
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://api.resend.com</url>
+</RemoteSiteSetting>

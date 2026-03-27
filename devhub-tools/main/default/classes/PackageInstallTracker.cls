@@ -8,7 +8,7 @@ public with sharing class PackageInstallTracker {
     @AuraEnabled(cacheable=true)
     public static List<PackageInfo> getPackages() {
         List<PackageInfo> packages = new List<PackageInfo>();
-        for (MetadataPackage pkg : [SELECT Id, Name, NamespacePrefix FROM MetadataPackage ORDER BY Name]) {
+        for (MetadataPackage pkg : [SELECT Id, Name, NamespacePrefix FROM MetadataPackage ORDER BY Name]) { // NOPMD ApexCRUDViolation — MetadataPackage is a system object; CRUD checks not applicable
             PackageInfo pi = new PackageInfo();
             pi.id = pkg.Id;
             pi.name = pkg.Name;
@@ -30,7 +30,7 @@ public with sharing class PackageInstallTracker {
         // Build version ID → version number map
         Map<String, String> versionMap = getVersionMap();
 
-        for (PackageSubscriber sub : Database.query(query)) {
+        for (PackageSubscriber sub : Database.query(query)) { // NOPMD ApexCRUDViolation — PackageSubscriber is a system object; CRUD checks not applicable
             SubscriberInfo si = new SubscriberInfo();
             si.id = sub.Id;
             si.orgKey = sub.OrgKey;
@@ -49,10 +49,9 @@ public with sharing class PackageInstallTracker {
 
     @AuraEnabled(cacheable=true)
     public static List<VersionInfo> getVersions(String metadataPackageId) {
-        Map<String, String> versionMap = getVersionMap();
         List<VersionInfo> versions = new List<VersionInfo>();
 
-        for (MetadataPackageVersion mpv : [
+        for (MetadataPackageVersion mpv : [ // NOPMD ApexCRUDViolation — MetadataPackageVersion is a system object
             SELECT Id, Name, MajorVersion, MinorVersion, PatchVersion, BuildNumber, ReleaseState, SystemModstamp
             FROM MetadataPackageVersion
             WHERE MetadataPackageId = :metadataPackageId
@@ -72,7 +71,7 @@ public with sharing class PackageInstallTracker {
 
     private static Map<String, String> getVersionMap() {
         Map<String, String> versionMap = new Map<String, String>();
-        for (MetadataPackageVersion mpv : [
+        for (MetadataPackageVersion mpv : [ // NOPMD ApexCRUDViolation — system object
             SELECT Id, MajorVersion, MinorVersion, PatchVersion, BuildNumber, Name
             FROM MetadataPackageVersion
             ORDER BY SystemModstamp DESC
@@ -102,12 +101,13 @@ public with sharing class PackageInstallTracker {
     }
 
     private static String getNotificationTypeId() {
-        List<CustomNotificationType> types = [
+        List<CustomNotificationType> types = [ // NOPMD ApexCRUDViolation — system object
             SELECT Id FROM CustomNotificationType WHERE DeveloperName = 'DocGen_Job_Complete' LIMIT 1
         ];
         if (!types.isEmpty()) { return types[0].Id; }
         // Fallback: use any available notification type
-        types = [SELECT Id FROM CustomNotificationType LIMIT 1];
+        types = [ // NOPMD ApexCRUDViolation — system object
+            SELECT Id FROM CustomNotificationType LIMIT 1];
         return types.isEmpty() ? null : types[0].Id;
     }
 
@@ -125,7 +125,7 @@ public with sharing class PackageInstallTracker {
         Integer installed = 0;
         Integer uninstalled = 0;
 
-        for (PackageSubscriber sub : Database.query(query)) {
+        for (PackageSubscriber sub : Database.query(query)) { // NOPMD ApexCRUDViolation — PackageSubscriber is a system object
             total++;
             if (sub.OrgType == 'Production') { production++; }
             else { sandbox++; }

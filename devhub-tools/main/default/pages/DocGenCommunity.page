@@ -1,0 +1,1438 @@
+<apex:page controller="DocGenCommunityController" showHeader="false" standardStylesheets="false" sidebar="false" applyHtmlTag="true" applyBodyTag="false" docType="html-5.0" cache="false">
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DocGen Community</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e2e8f0; background: #0f172a; line-height: 1.6; }
+        a { color: #60a5fa; text-decoration: none; } a:hover { text-decoration: underline; }
+
+        /* Header */
+        .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+        .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; color: #fff; } .logo span { color: #60a5fa; }
+        .header-links a { color: #94a3b8; margin-left: 1.5rem; font-size: 0.9rem; font-weight: 500; } .header-links a:hover { color: #fff; text-decoration: none; }
+        .header-links .user-badge { color: #4ade80; }
+
+        /* Layout */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: 1fr 280px; gap: 2rem; }
+        .main-col { min-width: 0; }
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+
+        /* Cards */
+        .card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+        .card:hover { border-color: rgba(255,255,255,0.1); }
+        .card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; color: #fff; }
+        .card h3 a { color: #fff; } .card h3 a:hover { color: #60a5fa; }
+
+        /* Post list */
+        .post-meta { color: #64748b; font-size: 0.8rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-top: 0.4rem; }
+        .post-meta .cat { background: rgba(96,165,250,0.1); color: #60a5fa; padding: 2px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .post-meta .cat-question { background: rgba(251,191,36,0.1); color: #fbbf24; }
+        .post-meta .cat-testimonial { background: rgba(74,222,128,0.1); color: #4ade80; }
+        .post-meta .cat-feature { background: rgba(168,85,247,0.1); color: #a855f7; }
+        .post-stats { display: flex; gap: 1rem; color: #64748b; font-size: 0.8rem; margin-top: 0.5rem; }
+        .post-stats span { display: flex; align-items: center; gap: 0.25rem; }
+        .pinned-badge { color: #fbbf24; font-size: 0.75rem; font-weight: 700; }
+        .answered-badge { color: #4ade80; font-size: 0.75rem; font-weight: 700; }
+        .topic-tag { display: inline-block; background: rgba(255,255,255,0.05); color: #94a3b8; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; margin-right: 4px; margin-top: 4px; }
+
+        /* Sidebar */
+        .sidebar-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+        .sidebar-card h4 { font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+        .sidebar-stat { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.85rem; }
+        .sidebar-stat .val { color: #60a5fa; font-weight: 700; }
+        .sidebar-topics a { display: inline-block; background: rgba(255,255,255,0.05); color: #94a3b8; padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; margin: 2px; } .sidebar-topics a:hover { background: rgba(96,165,250,0.1); color: #60a5fa; text-decoration: none; }
+        .sidebar-categories a { display: block; padding: 6px 0; color: #94a3b8; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.04); } .sidebar-categories a:hover { color: #60a5fa; text-decoration: none; }
+
+        /* Sort tabs */
+        .sort-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .sort-tab { padding: 0.5rem 1.25rem; color: #64748b; font-size: 0.85rem; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; }
+        .sort-tab:hover { color: #e2e8f0; } .sort-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+
+        /* Buttons */
+        .btn { display: inline-block; padding: 10px 24px; border-radius: 50px; font-size: 0.9rem; font-weight: 700; text-decoration: none; cursor: pointer; border: none; transition: transform 0.2s; }
+        .btn:hover { transform: translateY(-1px); text-decoration: none; }
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; }
+        .btn-sm { padding: 6px 16px; font-size: 0.8rem; }
+        .btn-ghost { background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-success { background: linear-gradient(135deg, #059669, #047857); color: #fff; }
+        .btn-vote { background: none; border: 1px solid rgba(255,255,255,0.1); color: #64748b; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .btn-vote:hover { border-color: #60a5fa; color: #60a5fa; }
+        .btn-vote.voted { border-color: #60a5fa; color: #60a5fa; background: rgba(96,165,250,0.1); }
+
+        /* Forms */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; }
+        .form-input { width: 100%; padding: 10px 14px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.95rem; font-family: inherit; color: #e2e8f0; }
+        .form-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+        textarea.form-input { resize: vertical; min-height: 120px; }
+        .form-card { max-width: 480px; margin: 3rem auto; }
+        .form-error { color: #f87171; font-size: 0.85rem; margin-top: 0.5rem; }
+        .form-success { color: #4ade80; font-size: 0.85rem; margin-top: 0.5rem; }
+
+        /* Post detail */
+        .post-body { color: #cbd5e1; line-height: 1.8; font-size: 0.95rem; }
+        .post-body img { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+        .post-body code { background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+        .post-body pre { background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
+        .reply-card { border-left: 3px solid rgba(255,255,255,0.06); padding-left: 1rem; }
+        .reply-card.solution { border-left-color: #4ade80; }
+        .solution-badge { background: rgba(74,222,128,0.1); color: #4ade80; padding: 2px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+
+        /* Profile */
+        .profile-header { display: flex; gap: 1.5rem; align-items: flex-start; margin-bottom: 1.5rem; }
+        .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; color: #fff; flex-shrink: 0; }
+        .profile-stats { display: flex; gap: 2rem; margin-top: 0.5rem; }
+        .profile-stat { text-align: center; }
+        .profile-stat .val { font-size: 1.5rem; font-weight: 800; color: #60a5fa; display: block; }
+        .profile-stat .label { font-size: 0.75rem; color: #64748b; }
+
+        /* Vendor card */
+        .vendor-card { display: flex; gap: 1rem; align-items: flex-start; }
+        .vendor-badge { background: linear-gradient(135deg, #059669, #047857); color: #fff; padding: 3px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; }
+
+        /* Footer */
+        .footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 2rem; text-align: center; color: #475569; font-size: 0.8rem; }
+        .footer a { color: #60a5fa; }
+
+        /* File upload */
+        .upload-zone { border: 2px dashed rgba(255,255,255,0.1); border-radius: 8px; padding: 1.5rem; text-align: center; color: #64748b; cursor: pointer; transition: border-color 0.2s; margin-bottom: 1rem; }
+        .upload-zone:hover { border-color: #2563eb; color: #94a3b8; }
+        .upload-zone.dragover { border-color: #60a5fa; background: rgba(96,165,250,0.05); }
+        .upload-preview { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+        .upload-preview img { max-height: 80px; border-radius: 6px; }
+
+        /* Rich text editor */
+        .rte-toolbar { display: flex; gap: 2px; flex-wrap: wrap; padding: 0.5rem; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-bottom: none; border-radius: 8px 8px 0 0; }
+        .rte-toolbar button { background: none; border: 1px solid transparent; color: #94a3b8; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-family: inherit; line-height: 1; }
+        .rte-toolbar button:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; }
+        .rte-toolbar .sep { width: 1px; background: rgba(255,255,255,0.1); margin: 2px 4px; }
+        .rte-editor { min-height: 180px; padding: 12px 14px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 0 0 8px 8px; font-size: 0.95rem; font-family: inherit; color: #e2e8f0; line-height: 1.7; outline: none; overflow-y: auto; }
+        .rte-editor:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+        .rte-editor img { max-width: 100%; border-radius: 8px; margin: 0.5rem 0; }
+        .rte-editor a { color: #60a5fa; }
+        .rte-editor blockquote { border-left: 3px solid rgba(255,255,255,0.1); padding-left: 1rem; margin: 0.5rem 0; color: #94a3b8; }
+        .rte-editor pre { background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; overflow-x: auto; }
+        .rte-editor code { background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; font-size: 0.85em; }
+
+        /* Breadcrumbs */
+        .breadcrumb { max-width: 1100px; margin: 0 auto; padding: 0.75rem 2rem; font-size: 0.8rem; color: #475569; }
+        .breadcrumb a { color: #64748b; } .breadcrumb a:hover { color: #60a5fa; text-decoration: none; }
+        .breadcrumb .sep { margin: 0 0.5rem; color: #334155; }
+        .breadcrumb .current { color: #94a3b8; }
+
+        /* Active filter banner */
+        .filter-banner { max-width: 1100px; margin: 0 auto 0; padding: 0 2rem; }
+        .filter-pill { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(96,165,250,0.1); color: #60a5fa; padding: 6px 14px; border-radius: 50px; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .filter-pill .clear { color: #94a3b8; cursor: pointer; font-size: 1rem; line-height: 1; } .filter-pill .clear:hover { color: #fff; }
+
+        /* Edit modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .modal-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2rem; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; }
+
+        /* Hub hero */
+        .hub-hero { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .hub-hero h2 { font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.25rem; }
+        .hub-hero p { color: #64748b; font-size: 0.9rem; }
+
+        /* Quick actions */
+        .quick-actions { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .btn-bug { background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
+        .btn-bug:hover { background: rgba(248,113,113,0.15); }
+        .btn-question { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+        .btn-question:hover { background: rgba(251,191,36,0.15); }
+        .btn-feature { background: rgba(168,85,247,0.1); color: #a855f7; border: 1px solid rgba(168,85,247,0.2); }
+        .btn-feature:hover { background: rgba(168,85,247,0.15); }
+
+        /* Category cards */
+        .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        @media (max-width: 800px) { .category-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) { .category-grid { grid-template-columns: 1fr; } .quick-actions { flex-direction: column; } }
+        .category-card { display: block; background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-left: 4px solid #60a5fa; border-radius: 12px; padding: 1.25rem; text-decoration: none; transition: border-color 0.2s, transform 0.2s; cursor: pointer; }
+        .category-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-2px); text-decoration: none; }
+        .category-card .cc-icon { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; }
+        .category-card h4 { font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem; }
+        .category-card p { font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; line-height: 1.4; }
+        .category-card .cc-count { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
+        .cc-discussion { border-left-color: #60a5fa; }
+        .cc-question { border-left-color: #fbbf24; }
+        .cc-feature { border-left-color: #a855f7; }
+        .cc-bug { border-left-color: #f87171; }
+        .cc-show { border-left-color: #4ade80; }
+        .cc-template { border-left-color: #06b6d4; }
+        .cc-testimonial { border-left-color: #4ade80; }
+
+        /* @mention dropdown */
+        .mention-dropdown { position: absolute; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.25rem 0; z-index: 100; min-width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); max-height: 200px; overflow-y: auto; display: none; }
+        .mention-item { padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.85rem; color: #e2e8f0; }
+        .mention-item:hover, .mention-item.active { background: rgba(96,165,250,0.1); }
+        .mention-item .company { color: #64748b; font-size: 0.75rem; }
+        .mention-tag { background: rgba(96,165,250,0.15); color: #60a5fa; padding: 1px 4px; border-radius: 3px; text-decoration: none; }
+
+        /* Notification toggle */
+        .notif-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #94a3b8; cursor: pointer; margin-top: 0.75rem; }
+        .notif-toggle input { accent-color: #60a5fa; }
+        /* Org management */
+        .org-list { margin-top: 0.75rem; }
+        .org-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #0f172a; border-radius: 8px; margin-bottom: 0.5rem; }
+        .org-item .org-info { flex: 1; }
+        .org-item .org-name { color: #e2e8f0; font-size: 0.9rem; font-weight: 600; }
+        .org-item .org-meta { color: #64748b; font-size: 0.75rem; margin-top: 0.15rem; }
+        .org-item .org-status { font-size: 0.7rem; padding: 2px 8px; border-radius: 50px; }
+        .org-item .status-installed { background: rgba(74,222,128,0.1); color: #4ade80; }
+        .org-item .status-other { background: rgba(255,255,255,0.05); color: #94a3b8; }
+        .btn-remove { background: none; border: 1px solid rgba(248,113,113,0.2); color: #f87171; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+        .btn-remove:hover { background: rgba(248,113,113,0.1); }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo"><a href="/DocGenCommunity" style="color: #fff; text-decoration: none;">Portwood <span>DocGen</span> Community</a></div>
+        <nav class="header-links">
+            <a href="/DocGenLanding">Home</a>
+            <a href="/DocGenCommunity?view=vendors">Vendors</a>
+            <apex:outputPanel rendered="{!isLoggedIn}">
+                <a href="/DocGenCommunity?view=newPost" class="btn btn-sm btn-primary" style="margin-left: 1rem;">New Post</a>
+                <a href="/DocGenCommunity?view=profile&mid={!memberId}" class="user-badge" style="margin-left: 0.75rem;">{!memberName}</a>
+                <a href="/DocGenCommunity?view=logout" style="color: #64748b; font-size: 0.8rem;">Logout</a>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!!isLoggedIn}">
+                <a href="/DocGenCommunity?view=login">Log In</a>
+                <a href="/DocGenCommunity?view=signup" class="btn btn-sm btn-primary" style="margin-left: 0.5rem;">Join</a>
+            </apex:outputPanel>
+        </nav>
+    </header>
+
+    <!-- ═══ Breadcrumbs ═══ -->
+    <apex:outputPanel rendered="{!pageView != 'home' && pageView != 'setSession'}">
+        <div class="breadcrumb">
+            <a href="/DocGenCommunity">Community</a>
+            <apex:outputPanel rendered="{!pageView == 'post'}">
+                <span class="sep">/</span><span class="current">{!post.Title__c}</span>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!pageView == 'profile'}">
+                <span class="sep">/</span><span class="current">{!profDisplayName}</span>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!pageView == 'newPost'}">
+                <span class="sep">/</span><span class="current">New Post</span>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!pageView == 'vendors'}">
+                <span class="sep">/</span><span class="current">Vendors</span>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!pageView == 'vendorApply'}">
+                <span class="sep">/</span><a href="/DocGenCommunity?view=vendors">Vendors</a><span class="sep">/</span><span class="current">Apply</span>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!pageView == 'login'}">
+                <span class="sep">/</span><span class="current">Log In</span>
+            </apex:outputPanel>
+            <apex:outputPanel rendered="{!pageView == 'signup'}">
+                <span class="sep">/</span><span class="current">Sign Up</span>
+            </apex:outputPanel>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ HOME ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'home'}">
+        <!-- Active filter banner -->
+        <apex:outputPanel rendered="{!NOT(ISBLANK(categoryFilter)) || NOT(ISBLANK(topicFilter))}">
+            <div class="filter-banner">
+                <apex:outputPanel rendered="{!NOT(ISBLANK(categoryFilter))}">
+                    <span class="filter-pill">{!categoryFilter} <a href="/DocGenCommunity" class="clear">&times;</a></span>
+                </apex:outputPanel>
+                <apex:outputPanel rendered="{!NOT(ISBLANK(topicFilter))}">
+                    <span class="filter-pill">{!topicFilter} <a href="/DocGenCommunity" class="clear">&times;</a></span>
+                </apex:outputPanel>
+            </div>
+        </apex:outputPanel>
+        <div class="container">
+            <div class="main-col">
+                <!-- Hub sections (shown on unfiltered home only) -->
+                <apex:outputPanel rendered="{!ISBLANK(categoryFilter) && ISBLANK(topicFilter)}">
+                    <div class="hub-hero">
+                        <h2>DocGen Community Hub</h2>
+                        <p>Get answers, report issues, request features, and share templates with the DocGen community.</p>
+                    </div>
+
+                    <div class="quick-actions">
+                        <a href="/DocGenCommunity?view=newPost&precat=Bug+Report&pretopic=Bug" class="btn btn-sm btn-bug">Report a Bug</a>
+                        <a href="/DocGenCommunity?view=newPost&precat=Feature+Request&pretopic=Enhancement" class="btn btn-sm btn-feature">Request a Feature</a>
+                        <a href="/DocGenCommunity?view=newPost&precat=Question&pretopic=Help" class="btn btn-sm btn-question">Ask a Question</a>
+                    </div>
+
+                    <div class="category-grid">
+                        <a href="/DocGenCommunity?cat=Discussion" class="category-card cc-discussion">
+                            <span class="cc-icon">&#x1F4AC;</span>
+                            <h4>Discussion</h4>
+                            <p>General conversation about DocGen</p>
+                            <span class="cc-count">{!discussionCount} posts</span>
+                        </a>
+                        <a href="/DocGenCommunity?cat=Question" class="category-card cc-question">
+                            <span class="cc-icon">&#x2753;</span>
+                            <h4>Questions</h4>
+                            <p>Get help from the community</p>
+                            <span class="cc-count">{!questionCount} posts</span>
+                        </a>
+                        <a href="/DocGenCommunity?cat=Feature+Request" class="category-card cc-feature">
+                            <span class="cc-icon">&#x1F4A1;</span>
+                            <h4>Feature Requests</h4>
+                            <p>Suggest what to build next</p>
+                            <span class="cc-count">{!featureRequestCount} posts</span>
+                        </a>
+                        <a href="/DocGenCommunity?cat=Bug+Report" class="category-card cc-bug">
+                            <span class="cc-icon">&#x1F41B;</span>
+                            <h4>Bug Reports</h4>
+                            <p>Report issues you've found</p>
+                            <span class="cc-count">{!bugReportCount} posts</span>
+                        </a>
+                        <a href="/DocGenCommunity?cat=Show+and+Tell" class="category-card cc-show">
+                            <span class="cc-icon">&#x1F31F;</span>
+                            <h4>Show and Tell</h4>
+                            <p>Share what you've built</p>
+                            <span class="cc-count">{!showAndTellCount} posts</span>
+                        </a>
+                        <a href="/DocGenCommunity?cat=Template+Share" class="category-card cc-template">
+                            <span class="cc-icon">&#x1F4C4;</span>
+                            <h4>Template Sharing</h4>
+                            <p>Share and discover templates</p>
+                            <span class="cc-count">{!templateShareCount} posts</span>
+                        </a>
+                    </div>
+
+                    <h3 style="font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Latest Activity</h3>
+                </apex:outputPanel>
+
+                <!-- Sort tabs -->
+                <div class="sort-tabs">
+                    <a href="/DocGenCommunity?sort=recent" class="sort-tab {!IF(sortBy == 'recent', 'active', '')}">Recent</a>
+                    <a href="/DocGenCommunity?sort=popular" class="sort-tab {!IF(sortBy == 'popular', 'active', '')}">Popular</a>
+                    <a href="/DocGenCommunity?sort=active" class="sort-tab {!IF(sortBy == 'active', 'active', '')}">Most Active</a>
+                </div>
+
+                <!-- Post list -->
+                <apex:repeat value="{!posts}" var="p">
+                    <div class="card">
+                        <apex:outputPanel rendered="{!p.Is_Pinned__c}"><span class="pinned-badge">PINNED</span> </apex:outputPanel>
+                        <apex:outputPanel rendered="{!p.Is_Answered__c}"><span class="answered-badge">SOLVED</span> </apex:outputPanel>
+                        <h3><a href="/DocGenCommunity?view=post&id={!p.Id}">{!p.Title__c}</a></h3>
+                        <div class="post-meta">
+                            <span class="cat {!IF(p.Category__c == 'Question', 'cat-question', IF(p.Category__c == 'Testimonial', 'cat-testimonial', IF(p.Category__c == 'Feature Request', 'cat-feature', '')))}">{!p.Category__c}</span>
+                            <span>by {!p.Author_Display_Name__c}</span>
+                            <apex:outputPanel rendered="{!NOT(ISBLANK(p.Author_Company__c))}">
+                                <span>@ {!p.Author_Company__c}</span>
+                            </apex:outputPanel>
+                            <span><apex:outputText value="{0,date,MMM dd, yyyy}"><apex:param value="{!p.CreatedDate}" /></apex:outputText></span>
+                        </div>
+                        <div class="post-stats">
+                            <span>{!FLOOR(p.Upvote_Count__c)} upvotes</span>
+                            <span>{!FLOOR(p.Reply_Count__c)} replies</span>
+                            <span>{!FLOOR(p.View_Count__c)} views</span>
+                        </div>
+                        <apex:outputPanel rendered="{!NOT(ISBLANK(p.Topics__c))}">
+                            <div style="margin-top: 0.5rem;">
+                                <apex:outputText value="{!p.Topics__c}" />
+                            </div>
+                        </apex:outputPanel>
+                    </div>
+                </apex:repeat>
+            </div>
+
+            <!-- Sidebar -->
+            <div>
+                <apex:outputPanel rendered="{!!isLoggedIn}">
+                    <div class="sidebar-card" style="text-align: center;">
+                        <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.75rem;">Join the conversation</p>
+                        <a href="/DocGenCommunity?view=signup" class="btn btn-primary btn-sm" style="width: 100%; display: block; text-align: center;">Create Account</a>
+                    </div>
+                </apex:outputPanel>
+
+                <div class="sidebar-card">
+                    <h4>Community Stats</h4>
+                    <div class="sidebar-stat"><span>Members</span><span class="val">{!totalMembers}</span></div>
+                    <div class="sidebar-stat"><span>Posts</span><span class="val">{!totalPosts}</span></div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h4>Categories</h4>
+                    <div class="sidebar-categories">
+                        <a href="/DocGenCommunity">All</a>
+                        <a href="/DocGenCommunity?cat=Discussion">Discussion</a>
+                        <a href="/DocGenCommunity?cat=Question">Questions</a>
+                        <a href="/DocGenCommunity?cat=Testimonial">Testimonials</a>
+                        <a href="/DocGenCommunity?cat=Feature Request">Feature Requests</a>
+                        <a href="/DocGenCommunity?cat=Bug+Report">Bug Reports</a>
+                        <a href="/DocGenCommunity?cat=Show and Tell">Show and Tell</a>
+                        <a href="/DocGenCommunity?cat=Template Share">Template Sharing</a>
+                    </div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h4>Popular Topics</h4>
+                    <div class="sidebar-topics">
+                        <apex:repeat value="{!popularTopics}" var="t">
+                            <a href="/DocGenCommunity?topic={!t.name}">{!t.name} ({!t.count})</a>
+                        </apex:repeat>
+                    </div>
+                </div>
+
+                <div class="sidebar-card" style="text-align: center; background: linear-gradient(135deg, #1e293b, #0f172a); border-color: rgba(5,150,105,0.2);">
+                    <h4 style="color: #4ade80;">Become a Preferred Vendor</h4>
+                    <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.75rem;">Help orgs implement DocGen. Get listed in our vendor directory.</p>
+                    <a href="/DocGenCommunity?view=vendorApply" class="btn btn-success btn-sm">Apply Now</a>
+                </div>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ POST DETAIL ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'post'}">
+        <div class="container">
+            <div class="main-col">
+                <apex:variable var="p" value="{!post}">
+                    <apex:outputPanel rendered="{!NOT(ISBLANK(p))}">
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <span class="cat {!IF(p.Category__c == 'Question', 'cat-question', IF(p.Category__c == 'Testimonial', 'cat-testimonial', IF(p.Category__c == 'Feature Request', 'cat-feature', '')))}">{!p.Category__c}</span>
+                                    <apex:outputPanel rendered="{!p.Is_Answered__c}"><span class="answered-badge" style="margin-left: 0.5rem;">SOLVED</span></apex:outputPanel>
+                                </div>
+                                <button type="button" class="btn-vote" onclick="votePost('{!p.Id}')" id="postVoteBtn">{!FLOOR(p.Upvote_Count__c)} Upvote</button>
+                            </div>
+                            <h2 style="font-size: 1.5rem; font-weight: 800; margin: 0.75rem 0 0.5rem; color: #fff;">{!p.Title__c}</h2>
+                            <div class="post-meta" style="margin-bottom: 1.25rem;">
+                                <span>by <a href="/DocGenCommunity?view=profile&mid={!p.Author_Contact_Id__c}">{!p.Author_Display_Name__c}</a></span>
+                                <apex:outputPanel rendered="{!NOT(ISBLANK(p.Author_Company__c))}"><span>@ {!p.Author_Company__c}</span></apex:outputPanel>
+                                <span><apex:outputText value="{0,date,MMM dd, yyyy 'at' h:mm a}"><apex:param value="{!p.CreatedDate}" /></apex:outputText></span>
+                                <span>{!FLOOR(p.View_Count__c)} views</span>
+                            </div>
+                            <div class="post-body" id="postBodyContent"></div>
+                            <script>document.getElementById('postBodyContent').innerHTML = '{!JSENCODE(p.Body__c)}';</script>
+                            <apex:outputPanel rendered="{!isLoggedIn && p.Author_Contact_Id__c == memberId}">
+                                <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06);">
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="startEditPost('{!JSENCODE(p.Title__c)}', '{!p.Id}')">Edit</button>
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="confirmDeletePost('{!p.Id}')" style="color: #f87171; border-color: rgba(248,113,113,0.2);">Delete</button>
+                                </div>
+                            </apex:outputPanel>
+                        </div>
+
+                        <!-- Replies -->
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 1.5rem 0 1rem; color: #94a3b8;">{!FLOOR(p.Reply_Count__c)} Replies</h3>
+                        <apex:repeat value="{!replies}" var="r">
+                            <div class="card reply-card {!IF(r.Is_Solution__c, 'solution', '')}">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div class="post-meta" style="margin: 0;">
+                                        <apex:outputPanel rendered="{!r.Is_Solution__c}"><span class="solution-badge">Accepted Solution</span></apex:outputPanel>
+                                        <span><a href="/DocGenCommunity?view=profile&mid={!r.Author_Contact_Id__c}">{!r.Author_Display_Name__c}</a></span>
+                                        <apex:outputPanel rendered="{!NOT(ISBLANK(r.Author_Company__c))}"><span>@ {!r.Author_Company__c}</span></apex:outputPanel>
+                                        <span><apex:outputText value="{0,date,MMM dd}"><apex:param value="{!r.CreatedDate}" /></apex:outputText></span>
+                                    </div>
+                                    <button type="button" class="btn-vote" onclick="voteReply('{!r.Id}')">{!FLOOR(r.Upvote_Count__c)}</button>
+                                </div>
+                                <div class="post-body reply-body-js" style="margin-top: 0.75rem;" data-rid="{!r.Id}"></div>
+                                <script>document.querySelector('.reply-body-js[data-rid="{!r.Id}"]').innerHTML = '{!JSENCODE(r.Body__c)}';</script>
+                            </div>
+                        </apex:repeat>
+
+                        <!-- Reply form -->
+                        <apex:outputPanel rendered="{!isLoggedIn}">
+                            <div class="card" style="margin-top: 1.5rem;">
+                                <h4 style="color: #94a3b8; margin-bottom: 0.75rem;">Post a Reply</h4>
+                                <div class="rte-toolbar">
+                                    <button type="button" onclick="rteCmd('bold')" title="Bold"><b>B</b></button>
+                                    <button type="button" onclick="rteCmd('italic')" title="Italic"><i>I</i></button>
+                                    <button type="button" onclick="rteCmd('underline')" title="Underline"><u>U</u></button>
+                                    <div class="sep"></div>
+                                    <button type="button" onclick="rteCmd('insertUnorderedList')" title="Bullet List">&#8226; List</button>
+                                    <button type="button" onclick="rteCmd('formatBlock', 'blockquote')" title="Quote">&ldquo; Quote</button>
+                                    <button type="button" onclick="rteInsertCode()" title="Code Block">&lt;/&gt; Code</button>
+                                    <div class="sep"></div>
+                                    <button type="button" onclick="rteInsertLink()" title="Insert Link">Link</button>
+                                    <button type="button" onclick="document.getElementById('replyFileInput').click();" title="Upload Image">Image</button>
+                                </div>
+                                <div class="rte-editor" id="replyBody" contenteditable="true" data-placeholder="Write your reply..." style="min-height: 100px;"></div>
+                                <input type="file" id="replyFileInput" accept="image/*,.gif,.pdf,.docx" multiple="multiple" style="display:none;" onchange="handleFileUpload(this, 'replyBody')" />
+                                <button type="button" class="btn btn-primary" onclick="submitReply('{!p.Id}')" style="margin-top: 0.75rem;">Post Reply</button>
+                            </div>
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!!isLoggedIn}">
+                            <div class="card" style="text-align: center; margin-top: 1rem;">
+                                <a href="/DocGenCommunity?view=login" class="btn btn-primary">Log In to Reply</a>
+                            </div>
+                        </apex:outputPanel>
+                    </apex:outputPanel>
+                </apex:variable>
+            </div>
+
+            <!-- Post detail sidebar -->
+            <div>
+                <div class="sidebar-card">
+                    <a href="/DocGenCommunity" style="display: block; color: #60a5fa; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem;">&larr; Back to all posts</a>
+                </div>
+
+                <div class="sidebar-card">
+                    <h4>Categories</h4>
+                    <div class="sidebar-categories">
+                        <a href="/DocGenCommunity">All</a>
+                        <a href="/DocGenCommunity?cat=Discussion">Discussion</a>
+                        <a href="/DocGenCommunity?cat=Question">Questions</a>
+                        <a href="/DocGenCommunity?cat=Testimonial">Testimonials</a>
+                        <a href="/DocGenCommunity?cat=Feature Request">Feature Requests</a>
+                        <a href="/DocGenCommunity?cat=Bug+Report">Bug Reports</a>
+                        <a href="/DocGenCommunity?cat=Show and Tell">Show and Tell</a>
+                        <a href="/DocGenCommunity?cat=Template Share">Template Sharing</a>
+                    </div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h4>Popular Topics</h4>
+                    <div class="sidebar-topics">
+                        <apex:repeat value="{!popularTopics}" var="t">
+                            <a href="/DocGenCommunity?topic={!t.name}">{!t.name} ({!t.count})</a>
+                        </apex:repeat>
+                    </div>
+                </div>
+
+                <apex:outputPanel rendered="{!!isLoggedIn}">
+                    <div class="sidebar-card" style="text-align: center;">
+                        <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.75rem;">Join the conversation</p>
+                        <a href="/DocGenCommunity?view=signup" class="btn btn-primary btn-sm" style="width: 100%; display: block; text-align: center;">Create Account</a>
+                    </div>
+                </apex:outputPanel>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ LOGIN ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'login'}">
+        <div class="container" style="display: block;">
+            <div class="card form-card">
+                <h2 style="text-align: center; font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 1.5rem;">Log In</h2>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" class="form-input" placeholder="you@company.com" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="Your password" />
+                </div>
+                <div class="form-error" id="loginError"></div>
+                <button type="button" class="btn btn-primary" onclick="doLogin()" style="width: 100%; margin-top: 0.5rem;">Log In</button>
+                <p style="text-align: center; margin-top: 1.25rem; color: #64748b; font-size: 0.85rem;">
+                    Don't have an account? <a href="/DocGenCommunity?view=signup">Sign up</a>
+                </p>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ SIGNUP ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'signup'}">
+        <div class="container" style="display: block;">
+            <div class="card form-card">
+                <h2 style="text-align: center; font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;">Join DocGen Community</h2>
+                <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Ask questions, share templates, and connect with other users.</p>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="signupEmail" class="form-input" placeholder="you@company.com" />
+                </div>
+                <div class="form-error" id="signupError"></div>
+                <div class="form-success" id="signupSuccess" style="display: none;"></div>
+                <button type="button" class="btn btn-primary" id="signupBtn" onclick="doSignup()" style="width: 100%; margin-top: 0.5rem;">Send Verification Email</button>
+                <p style="text-align: center; margin-top: 1.25rem; color: #64748b; font-size: 0.85rem;">
+                    Already have an account? <a href="/DocGenCommunity?view=login">Log in</a>
+                </p>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ COMPLETE PROFILE ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'completeProfile'}">
+        <div class="container" style="display: block;">
+            <div class="card form-card">
+                <h2 style="text-align: center; font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;">Complete Your Profile</h2>
+                <p style="text-align: center; color: #4ade80; font-size: 0.9rem; margin-bottom: 1.5rem;">Email verified! Set up your profile to get started.</p>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="cpName" class="form-input" placeholder="Jane Smith" />
+                </div>
+                <div class="form-group">
+                    <label>Company</label>
+                    <input type="text" id="cpCompany" class="form-input" placeholder="Acme Corp" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="cpPassword" class="form-input" placeholder="At least 8 characters" />
+                </div>
+                <div class="form-error" id="cpError"></div>
+                <button type="button" class="btn btn-primary" onclick="doCompleteProfile()" style="width: 100%; margin-top: 0.5rem;">Create Account</button>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ NEW POST ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'newPost' && isLoggedIn}">
+        <div class="container" style="display: block;">
+            <div class="card" style="max-width: 700px; margin: 2rem auto;">
+                <h2 style="font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 1.5rem;">New Post</h2>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="npTitle" class="form-input" placeholder="What's on your mind?" />
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="npCategory" class="form-input">
+                        <option value="Discussion">Discussion</option>
+                        <option value="Question">Question</option>
+                        <option value="Testimonial">Testimonial</option>
+                        <option value="Feature Request">Feature Request</option>
+                        <option value="Bug Report">Bug Report</option>
+                        <option value="Show and Tell">Show and Tell</option>
+                        <option value="Template Share">Template Share</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Topics (comma-separated)</label>
+                    <input type="text" id="npTopics" class="form-input" placeholder="e.g. PDF, Bulk Generation, Flow" />
+                </div>
+                <div class="form-group">
+                    <label>Body</label>
+                    <div class="rte-toolbar" id="npToolbar">
+                        <button type="button" onclick="rteCmd('bold')" title="Bold"><b>B</b></button>
+                        <button type="button" onclick="rteCmd('italic')" title="Italic"><i>I</i></button>
+                        <button type="button" onclick="rteCmd('underline')" title="Underline"><u>U</u></button>
+                        <div class="sep"></div>
+                        <button type="button" onclick="rteCmd('insertUnorderedList')" title="Bullet List">&#8226; List</button>
+                        <button type="button" onclick="rteCmd('insertOrderedList')" title="Numbered List">1. List</button>
+                        <div class="sep"></div>
+                        <button type="button" onclick="rteCmd('formatBlock', 'blockquote')" title="Quote">&ldquo; Quote</button>
+                        <button type="button" onclick="rteInsertCode()" title="Code Block">&lt;/&gt; Code</button>
+                        <div class="sep"></div>
+                        <button type="button" onclick="rteInsertLink()" title="Insert Link">Link</button>
+                        <button type="button" onclick="document.getElementById('postFileInput').click();" title="Upload Image">Image</button>
+                    </div>
+                    <div class="rte-editor" id="npBody" contenteditable="true" data-placeholder="Share details, code, or ideas..."></div>
+                    <input type="file" id="postFileInput" accept="image/*,.gif,.pdf,.docx,.xlsx,.pptx" multiple="multiple" style="display:none;" onchange="handleFileUpload(this, 'npBody')" />
+                </div>
+                <div class="form-error" id="npError"></div>
+                <button type="button" class="btn btn-primary" onclick="doCreatePost()" style="margin-top: 0.5rem;">Publish Post</button>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ PROFILE ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'profile'}">
+        <div class="container">
+            <div class="main-col">
+                <!-- Force profileMember getter to run and populate wrapper properties -->
+                <apex:variable var="pm" value="{!profileMember}" />
+                <apex:outputPanel rendered="{!profHasData}">
+                        <div class="card">
+                            <div class="profile-header">
+                                <div class="profile-avatar">{!profInitials}</div>
+                                <div>
+                                    <h2 style="font-size: 1.5rem; font-weight: 800; color: #fff;">{!profDisplayName}</h2>
+                                    <apex:outputPanel rendered="{!NOT(ISBLANK(profDisplayTitle))}"><p style="color: #94a3b8;">{!profDisplayTitle}</p></apex:outputPanel>
+                                    <apex:outputPanel rendered="{!NOT(ISBLANK(profDisplayCompany))}"><p style="color: #64748b; font-size: 0.85rem;">{!profDisplayCompany}</p></apex:outputPanel>
+                                    <div class="profile-stats">
+                                        <div class="profile-stat"><span class="val">{!FLOOR(profPostCount)}</span><span class="label">Posts</span></div>
+                                        <div class="profile-stat"><span class="val">{!FLOOR(profSolutionCount)}</span><span class="label">Solutions</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <apex:outputPanel rendered="{!NOT(ISBLANK(profDisplayBio))}">
+                                <p style="color: #cbd5e1; margin-top: 1rem;">{!profDisplayBio}</p>
+                            </apex:outputPanel>
+                            <p style="color: #475569; font-size: 0.8rem; margin-top: 1rem;">Member since&nbsp;<apex:outputText value="{0,date,MMM yyyy}"><apex:param value="{!profCreatedDate}" /></apex:outputText></p>
+
+                            <apex:outputPanel rendered="{!isLoggedIn && memberId == profileId}">
+                                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06);">
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="toggleEditProfile()">Edit Profile</button>
+                                </div>
+
+                                <div id="editProfileForm" style="display: none; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06);">
+                                    <div class="form-group">
+                                        <label>Full Name</label>
+                                        <input type="text" id="epName" class="form-input" value="{!HTMLENCODE(profDisplayName)}" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Title / Role</label>
+                                        <input type="text" id="epTitle" class="form-input" placeholder="e.g. Salesforce Admin, Developer, Consultant" value="{!HTMLENCODE(profDisplayTitle)}" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Bio</label>
+                                        <textarea id="epBio" class="form-input" placeholder="Tell the community about yourself..." style="min-height: 80px;">{!profDisplayBio}</textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="notif-toggle">
+                                            <input type="checkbox" id="epNotify" checked="checked" />
+                                            Email me when someone replies to my posts
+                                        </label>
+                                    </div>
+                                    <div class="form-error" id="epError"></div>
+                                    <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="saveProfile()">Save</button>
+                                        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleEditProfile()">Cancel</button>
+                                    </div>
+                                </div>
+                            </apex:outputPanel>
+
+                            <!-- Account & Orgs (owner only) -->
+                            <apex:outputPanel rendered="{!isLoggedIn && memberId == profileId}">
+                                <div class="card" style="margin-top: 1rem;">
+                                    <h3 style="font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 1rem;">Account &amp; Orgs</h3>
+
+                                    <div class="form-group">
+                                        <label>Company / Account Name</label>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <input type="text" id="companyName" class="form-input" value="{!HTMLENCODE(profDisplayCompany)}" style="flex: 1;" />
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="updateCompany()">Save</button>
+                                        </div>
+                                        <div class="form-error" id="companyError"></div>
+                                    </div>
+
+                                    <div style="margin-top: 1.25rem;">
+                                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.5rem;">Linked Salesforce Orgs</label>
+                                        <div id="orgList" class="org-list">
+                                            <p style="color: #475569; font-size: 0.85rem;">Loading...</p>
+                                        </div>
+                                    </div>
+
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06);">
+                                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem;">Add an Org</label>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <input type="text" id="newOrgId" class="form-input" placeholder="Paste your 18-character Org ID" style="flex: 1;" />
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="addOrg()">Link Org</button>
+                                        </div>
+                                        <p style="color: #475569; font-size: 0.75rem; margin-top: 0.35rem;">Find your Org ID in Setup &gt; Company Information</p>
+                                        <div class="form-error" id="addOrgError"></div>
+                                    </div>
+                                </div>
+                            </apex:outputPanel>
+                        </div>
+
+                        <h3 style="color: #94a3b8; font-size: 0.9rem; font-weight: 700; margin: 1.5rem 0 1rem; text-transform: uppercase; letter-spacing: 0.5px;">Posts</h3>
+                        <apex:outputPanel rendered="{!profilePosts.size == 0}">
+                            <div class="card" style="text-align: center; padding: 2rem; color: #475569;">
+                                <p>No posts yet.</p>
+                            </div>
+                        </apex:outputPanel>
+                        <apex:repeat value="{!profilePosts}" var="pp">
+                            <div class="card" style="border-left: 3px solid {!IF(pp.Category__c == 'Question', '#fbbf24', IF(pp.Category__c == 'Feature Request', '#a855f7', IF(pp.Category__c == 'Bug Report', '#f87171', IF(pp.Category__c == 'Show and Tell', '#4ade80', IF(pp.Category__c == 'Template Share', '#06b6d4', '#60a5fa')))))};">
+                                <div style="display: flex; gap: 1rem;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; min-width: 40px; color: #64748b; font-size: 0.8rem;">
+                                        <span style="font-size: 1.1rem; font-weight: 700; color: #60a5fa;">{!FLOOR(pp.Upvote_Count__c)}</span>
+                                        <span>votes</span>
+                                    </div>
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <span class="cat {!IF(pp.Category__c == 'Question', 'cat-question', IF(pp.Category__c == 'Feature Request', 'cat-feature', IF(pp.Category__c == 'Bug Report', 'cat-question', '')))}" style="{!IF(pp.Category__c == 'Bug Report', 'background: rgba(248,113,113,0.1); color: #f87171;', '')}">{!pp.Category__c}</span>
+                                            <apex:outputPanel rendered="{!pp.Is_Answered__c}"><span class="answered-badge">SOLVED</span></apex:outputPanel>
+                                        </div>
+                                        <h3 style="margin: 0.35rem 0 0.25rem;"><a href="/DocGenCommunity?view=post&id={!pp.Id}" style="color: #fff;">{!pp.Title__c}</a></h3>
+                                        <div class="post-stats" style="margin-top: 0.35rem;">
+                                            <span>{!FLOOR(pp.Reply_Count__c)} replies</span>
+                                            <span>{!FLOOR(pp.View_Count__c)} views</span>
+                                            <span><apex:outputText value="{0,date,MMM dd, yyyy}"><apex:param value="{!pp.CreatedDate}" /></apex:outputText></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </apex:repeat>
+                    </apex:outputPanel>
+            </div>
+
+            <!-- Profile sidebar -->
+            <div>
+                <div class="sidebar-card">
+                    <a href="/DocGenCommunity" style="display: block; color: #60a5fa; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem;">&larr; Back to all posts</a>
+                </div>
+
+                <div class="sidebar-card">
+                    <h4>Community Stats</h4>
+                    <div class="sidebar-stat"><span>Members</span><span class="val">{!totalMembers}</span></div>
+                    <div class="sidebar-stat"><span>Posts</span><span class="val">{!totalPosts}</span></div>
+                </div>
+
+                <div class="sidebar-card">
+                    <h4>Categories</h4>
+                    <div class="sidebar-categories">
+                        <a href="/DocGenCommunity">All</a>
+                        <a href="/DocGenCommunity?cat=Discussion">Discussion</a>
+                        <a href="/DocGenCommunity?cat=Question">Questions</a>
+                        <a href="/DocGenCommunity?cat=Feature Request">Feature Requests</a>
+                        <a href="/DocGenCommunity?cat=Bug+Report">Bug Reports</a>
+                        <a href="/DocGenCommunity?cat=Template Share">Template Sharing</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ VENDOR DIRECTORY ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'vendors'}">
+        <div class="container" style="display: block;">
+            <div style="max-width: 700px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h2 style="font-size: 2rem; font-weight: 800; color: #fff;">Preferred Vendors</h2>
+                    <p style="color: #94a3b8; margin-top: 0.5rem;">Trusted partners who can help you implement DocGen.</p>
+                    <apex:outputPanel rendered="{!isLoggedIn}">
+                        <a href="/DocGenCommunity?view=vendorApply" class="btn btn-success" style="margin-top: 1rem;">Apply to Become a Vendor</a>
+                    </apex:outputPanel>
+                </div>
+
+                <apex:outputPanel rendered="{!preferredVendors.size == 0}">
+                    <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+                        <p style="font-size: 1.25rem; color: #94a3b8; margin-bottom: 0.5rem;">No vendors listed yet</p>
+                        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.25rem;">Be the first to get listed as a preferred DocGen implementation partner.</p>
+                        <apex:outputPanel rendered="{!isLoggedIn}">
+                            <a href="/DocGenCommunity?view=vendorApply" class="btn btn-success">Apply Now</a>
+                        </apex:outputPanel>
+                        <apex:outputPanel rendered="{!!isLoggedIn}">
+                            <a href="/DocGenCommunity?view=signup" class="btn btn-primary">Join to Apply</a>
+                        </apex:outputPanel>
+                    </div>
+                </apex:outputPanel>
+                <apex:repeat value="{!preferredVendors}" var="v">
+                    <div class="card vendor-card">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <h3 style="margin: 0;">{!v.Name}</h3>
+                                <span class="vendor-badge">Preferred Vendor</span>
+                            </div>
+                            <apex:outputPanel rendered="{!NOT(ISBLANK(v.Website))}"><p style="font-size: 0.85rem;"><apex:outputLink value="{!v.Website}" target="_blank"><apex:outputText value="{!v.Website}" /></apex:outputLink></p></apex:outputPanel>
+                            <apex:outputPanel rendered="{!NOT(ISBLANK(v.Description))}"><p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;"><apex:outputText value="{!v.Description}" /></p></apex:outputPanel>
+                        </div>
+                    </div>
+                </apex:repeat>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ VENDOR APPLICATION ═══ -->
+    <apex:outputPanel rendered="{!pageView == 'vendorApply' && isLoggedIn}">
+        <div class="container" style="display: block;">
+            <div class="card form-card" style="max-width: 560px;">
+                <h2 style="text-align: center; font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;">Become a Preferred Vendor</h2>
+                <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Get listed in our directory and help orgs implement DocGen.</p>
+                <div class="form-group">
+                    <label>Company Name</label>
+                    <input type="text" id="vaCompany" class="form-input" placeholder="Your consulting firm" />
+                </div>
+                <div class="form-group">
+                    <label>Services Offered</label>
+                    <input type="text" id="vaServices" class="form-input" placeholder="Implementation, Training, Template Design, Custom Development" />
+                </div>
+                <div class="form-group">
+                    <label>Website</label>
+                    <input type="url" id="vaWebsite" class="form-input" placeholder="https://yourcompany.com" />
+                </div>
+                <div class="form-group">
+                    <label>Salesforce Certifications</label>
+                    <input type="text" id="vaCerts" class="form-input" placeholder="Admin, Platform Developer I, etc." />
+                </div>
+                <div class="form-group">
+                    <label>Tell us about your practice</label>
+                    <textarea id="vaMessage" class="form-input" placeholder="How do you help Salesforce customers?"></textarea>
+                </div>
+                <div class="form-error" id="vaError"></div>
+                <div class="form-success" id="vaSuccess" style="display: none;">Application submitted! We'll review and get back to you.</div>
+                <button type="button" class="btn btn-success" id="vaBtn" onclick="doVendorApply()" style="width: 100%; margin-top: 0.5rem;">Submit Application</button>
+            </div>
+        </div>
+    </apex:outputPanel>
+
+    <!-- ═══ EDIT POST MODAL ═══ -->
+    <div id="editModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #fff; margin-bottom: 1.25rem;">Edit Post</h2>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="editTitle" class="form-input" />
+            </div>
+            <div class="form-group">
+                <label>Body</label>
+                <div class="rte-toolbar">
+                    <button type="button" onclick="rteCmd('bold')" title="Bold"><b>B</b></button>
+                    <button type="button" onclick="rteCmd('italic')" title="Italic"><i>I</i></button>
+                    <button type="button" onclick="rteCmd('underline')" title="Underline"><u>U</u></button>
+                    <div class="sep"></div>
+                    <button type="button" onclick="rteCmd('insertUnorderedList')" title="Bullet List">&#8226; List</button>
+                    <button type="button" onclick="rteCmd('formatBlock', 'blockquote')" title="Quote">&ldquo; Quote</button>
+                    <button type="button" onclick="rteInsertCode()" title="Code Block">&lt;/&gt; Code</button>
+                    <div class="sep"></div>
+                    <button type="button" onclick="rteInsertLink()" title="Insert Link">Link</button>
+                </div>
+                <div class="rte-editor" id="editBody" contenteditable="true" style="max-height: 50vh;"></div>
+            </div>
+            <div class="form-error" id="editError"></div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEditPost()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Built on Salesforce by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
+    </footer>
+
+    <div class="mention-dropdown" id="mentionDropdown"></div>
+
+    <!-- ═══ JavaScript ═══ -->
+    <script>
+        var sessionToken = '{!JSENCODE(sessionToken)}';
+
+        function getCookie(name) {
+            var v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+        }
+        function setCookie(name, value, days) {
+            var d = new Date(); d.setTime(d.getTime() + days * 86400000);
+            document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/;secure';
+        }
+
+        // ─── Auth ───
+        function doSignup() {
+            var email = document.getElementById('signupEmail').value.trim();
+            var errEl = document.getElementById('signupError');
+            var succEl = document.getElementById('signupSuccess');
+            errEl.textContent = ''; succEl.style.display = 'none';
+            var params = new URLSearchParams(window.location.search);
+            var orgId = params.get('orgId') || '';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.register}', email, orgId,
+                function(result, event) {
+                    if (event.status) {
+                        if (result === 'already_registered') {
+                            errEl.textContent = '';
+                            succEl.textContent = 'You already have an account! Redirecting to login...';
+                            succEl.style.display = 'block';
+                            setTimeout(function() { window.location.href = '/DocGenCommunity?view=login'; }, 2000);
+                        } else {
+                            document.getElementById('signupBtn').style.display = 'none';
+                            succEl.textContent = 'Verification email sent! Check your inbox and click the link.';
+                            succEl.style.display = 'block';
+                        }
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+
+        function doLogin() {
+            var email = document.getElementById('loginEmail').value.trim();
+            var password = document.getElementById('loginPassword').value;
+            var errEl = document.getElementById('loginError');
+            errEl.textContent = '';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.login}', email, password,
+                function(result, event) {
+                    if (event.status) {
+                        window.location.href = '/DocGenCommunity?view=setSession&s=' + result;
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+
+        function doCompleteProfile() {
+            var name = document.getElementById('cpName').value.trim();
+            var company = document.getElementById('cpCompany').value.trim();
+            var password = document.getElementById('cpPassword').value;
+            var errEl = document.getElementById('cpError');
+            errEl.textContent = '';
+            var params = new URLSearchParams(window.location.search);
+            var token = params.get('token');
+            var orgId = params.get('orgId') || '';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.completeProfileWithOrg}', token, name, company, password, orgId,
+                function(result, event) {
+                    if (event.status) {
+                        window.location.href = '/DocGenCommunity?view=setSession&s=' + result;
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+
+        // ─── Rich Text Editor ───
+        function rteCmd(cmd, val) { document.execCommand(cmd, false, val || null); }
+        function rteInsertLink() {
+            var url = prompt('Enter URL:');
+            if (url) document.execCommand('createLink', false, url);
+        }
+        function rteInsertCode() {
+            var sel = window.getSelection();
+            var text = sel.toString() || 'code here';
+            document.execCommand('insertHTML', false, '<pre><code>' + text.replace(/</g, '&lt;') + '</code></pre>');
+        }
+        function getEditorHtml(id) {
+            var el = document.getElementById(id);
+            return el ? el.innerHTML.trim() : '';
+        }
+
+        // ─── Paste image handler for contenteditable ───
+        function handlePasteImage(e) {
+            var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') === 0) {
+                    e.preventDefault();
+                    var file = items[i].getAsFile();
+                    var reader = new FileReader();
+                    var editorId = e.target.id;
+                    reader.onload = function(ev) {
+                        var base64 = ev.target.result.split(',')[1];
+                        var fileName = 'pasted-image-' + Date.now() + '.png';
+                        var editor = document.getElementById(editorId);
+                        // Show inline preview immediately using the local data URI
+                        var placeholderId = 'img-' + Date.now();
+                        editor.focus();
+                        document.execCommand('insertHTML', false,
+                            '<img id="' + placeholderId + '" src="' + ev.target.result + '" alt="Uploading..." style="max-width:100%;border-radius:8px;opacity:0.6;" />');
+                        // Upload and replace with public URL
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenCommunityController.uploadFile}',
+                            sessionToken, fileName, base64, null,
+                            function(result, event) {
+                                var placeholder = document.getElementById(placeholderId);
+                                if (event.status && placeholder) {
+                                    placeholder.src = result;
+                                    placeholder.alt = fileName;
+                                    placeholder.style.opacity = '1';
+                                    placeholder.removeAttribute('id');
+                                } else if (placeholder) {
+                                    placeholder.alt = 'Upload failed';
+                                    placeholder.style.opacity = '0.3';
+                                }
+                            }, {escape: true, buffer: false}
+                        );
+                    };
+                    reader.readAsDataURL(file);
+                    return;
+                }
+            }
+        }
+        // Attach paste handler to all rich text editors after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.rte-editor').forEach(function(editor) {
+                editor.addEventListener('paste', handlePasteImage);
+            });
+        });
+
+        // ─── Posts ───
+        function doCreatePost() {
+            var title = document.getElementById('npTitle').value.trim();
+            var body = getEditorHtml('npBody');
+            var category = document.getElementById('npCategory').value;
+            var topics = document.getElementById('npTopics').value.trim();
+            var errEl = document.getElementById('npError');
+            errEl.textContent = '';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.createPost}', sessionToken, title, body, category, topics,
+                function(result, event) {
+                    if (event.status) {
+                        if (mentionState.mentionedIds.length > 0) {
+                            Visualforce.remoting.Manager.invokeAction(
+                                '{!$RemoteAction.DocGenCommunityController.notifyMentionedUsers}',
+                                sessionToken, result, mentionState.mentionedIds.join(','),
+                                function() {}, {escape: true}
+                            );
+                        }
+                        window.location.href = '/DocGenCommunity?view=post&id=' + result;
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+
+        function submitReply(postId) {
+            var body = getEditorHtml('replyBody');
+            if (!body || body === '<br>') return;
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.createReply}', sessionToken, postId, body,
+                function(result, event) {
+                    if (event.status) {
+                        if (mentionState.mentionedIds.length > 0) {
+                            var pId = window.location.search.match(/id=([^&]+)/);
+                            Visualforce.remoting.Manager.invokeAction(
+                                '{!$RemoteAction.DocGenCommunityController.notifyMentionedUsers}',
+                                sessionToken, pId ? pId[1] : '', mentionState.mentionedIds.join(','),
+                                function() {}, {escape: true}
+                            );
+                            mentionState.mentionedIds = [];
+                        }
+                        window.location.reload();
+                    } else {
+                        alert(event.message);
+                    }
+                }, {escape: true}
+            );
+        }
+
+        // ─── Edit / Delete Post ───
+        var editingPostId = null;
+        function startEditPost(title, postId) {
+            editingPostId = postId;
+            document.getElementById('editTitle').value = title;
+            // Copy the current post body HTML into the edit editor
+            var postBody = document.querySelector('.post-body');
+            document.getElementById('editBody').innerHTML = postBody ? postBody.innerHTML : '';
+            document.getElementById('editError').textContent = '';
+            document.getElementById('editModal').style.display = 'flex';
+        }
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingPostId = null;
+        }
+        function saveEditPost() {
+            var title = document.getElementById('editTitle').value.trim();
+            var body = getEditorHtml('editBody');
+            var errEl = document.getElementById('editError');
+            errEl.textContent = '';
+            if (!title || !body) { errEl.textContent = 'Title and body are required.'; return; }
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.editPost}', sessionToken, editingPostId, title, body,
+                function(result, event) {
+                    if (event.status) {
+                        window.location.reload();
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+        function confirmDeletePost(postId) {
+            if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.deletePost}', sessionToken, postId,
+                function(result, event) {
+                    if (event.status) {
+                        window.location.href = '/DocGenCommunity';
+                    } else {
+                        alert(event.message);
+                    }
+                }, {escape: true}
+            );
+        }
+
+        // ─── Voting ───
+        function votePost(postId) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.vote}', sessionToken, postId, null,
+                function(result, event) { if (event.status) window.location.reload(); },
+                {escape: true}
+            );
+        }
+        function voteReply(replyId) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.vote}', sessionToken, null, replyId,
+                function(result, event) { if (event.status) window.location.reload(); },
+                {escape: true}
+            );
+        }
+
+        // ─── File Upload ───
+        function handleFileUpload(input, targetId) {
+            var files = input.files;
+            for (var i = 0; i < files.length; i++) {
+                (function(file) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        var base64 = e.target.result.split(',')[1];
+                        var editor = document.getElementById(targetId);
+                        // Show immediate preview for images
+                        var placeholderId = '';
+                        if (file.type.startsWith('image/')) {
+                            placeholderId = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+                            editor.focus();
+                            document.execCommand('insertHTML', false,
+                                '<img id="' + placeholderId + '" src="' + e.target.result + '" alt="Uploading ' + file.name + '..." style="max-width:100%;border-radius:8px;opacity:0.6;" />');
+                        }
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenCommunityController.uploadFile}',
+                            sessionToken, file.name, base64, null,
+                            function(result, event) {
+                                if (event.status) {
+                                    if (placeholderId) {
+                                        var ph = document.getElementById(placeholderId);
+                                        if (ph) { ph.src = result; ph.alt = file.name; ph.style.opacity = '1'; ph.removeAttribute('id'); }
+                                    } else {
+                                        editor.focus();
+                                        document.execCommand('insertHTML', false, '<a href="' + result + '">' + file.name + '</a>');
+                                    }
+                                }
+                            }, {escape: true, buffer: false}
+                        );
+                    };
+                    reader.readAsDataURL(file);
+                })(files[i]);
+            }
+        }
+
+        // ─── Drag & Drop ───
+        document.querySelectorAll('.upload-zone').forEach(function(zone) {
+            zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', function() { zone.classList.remove('dragover'); });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault(); zone.classList.remove('dragover');
+                var input = zone.querySelector('input[type="file"]');
+                input.files = e.dataTransfer.files;
+                input.dispatchEvent(new Event('change'));
+            });
+        });
+
+        // ─── Vendor Application ───
+        function doVendorApply() {
+            var company = document.getElementById('vaCompany').value.trim();
+            var services = document.getElementById('vaServices').value.trim();
+            var website = document.getElementById('vaWebsite').value.trim();
+            var certs = document.getElementById('vaCerts').value.trim();
+            var message = document.getElementById('vaMessage').value.trim();
+            var errEl = document.getElementById('vaError');
+            errEl.textContent = '';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.applyAsVendor}',
+                sessionToken, company, services, website, certs, message,
+                function(result, event) {
+                    if (event.status) {
+                        document.getElementById('vaBtn').style.display = 'none';
+                        document.getElementById('vaSuccess').style.display = 'block';
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+        // ─── Profile Edit ───
+        function toggleEditProfile() {
+            var form = document.getElementById('editProfileForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+        function saveProfile() {
+            var name = document.getElementById('epName').value.trim();
+            var title = document.getElementById('epTitle').value.trim();
+            var bio = document.getElementById('epBio').value.trim();
+            var errEl = document.getElementById('epError');
+            errEl.textContent = '';
+            if (!name) { errEl.textContent = 'Name is required.'; return; }
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.updateProfile}', sessionToken, name, title, bio,
+                function(result, event) {
+                    if (event.status) {
+                        window.location.reload();
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+
+        // ─── @Mention Autocomplete ───
+        var mentionState = { active: false, editorId: null, query: '', mentionedIds: [] };
+
+        function setupMentionListener(editorId) {
+            var editor = document.getElementById(editorId);
+            if (!editor) return;
+            editor.addEventListener('input', function(e) {
+                var sel = window.getSelection();
+                if (!sel.rangeCount) return;
+                var range = sel.getRangeAt(0);
+                var textNode = range.startContainer;
+                if (textNode.nodeType !== 3) return;
+                var text = textNode.textContent.substring(0, range.startOffset);
+                var atIdx = text.lastIndexOf('@');
+                if (atIdx >= 0 && (atIdx === 0 || text[atIdx - 1] === ' ' || text[atIdx - 1] === '\n')) {
+                    var query = text.substring(atIdx + 1);
+                    if (query.length >= 2 && !query.includes(' ')) {
+                        mentionState.active = true;
+                        mentionState.editorId = editorId;
+                        mentionState.query = query;
+                        searchMentions(query, editor);
+                        return;
+                    }
+                }
+                hideMentionDropdown();
+            });
+            editor.addEventListener('keydown', function(e) {
+                if (!mentionState.active) return;
+                var dd = document.getElementById('mentionDropdown');
+                var items = dd.querySelectorAll('.mention-item');
+                var activeIdx = -1;
+                items.forEach(function(it, i) { if (it.classList.contains('active')) activeIdx = i; });
+                if (e.key === 'ArrowDown') { e.preventDefault(); setMentionActive(items, Math.min(activeIdx + 1, items.length - 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setMentionActive(items, Math.max(activeIdx - 1, 0)); }
+                else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); }
+                else if (e.key === 'Escape') { hideMentionDropdown(); }
+            });
+        }
+        function setMentionActive(items, idx) {
+            items.forEach(function(it) { it.classList.remove('active'); });
+            if (items[idx]) items[idx].classList.add('active');
+        }
+        function searchMentions(query, editor) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.searchMembers}', query,
+                function(result, event) {
+                    if (!event.status || !result || !result.length) { hideMentionDropdown(); return; }
+                    var dd = document.getElementById('mentionDropdown');
+                    dd.innerHTML = '';
+                    result.forEach(function(m) {
+                        var div = document.createElement('div');
+                        div.className = 'mention-item';
+                        div.innerHTML = m.name + (m.company ? ' <span class="company">' + m.company + '</span>' : '');
+                        div.onclick = function() { insertMention(m.id, m.name); };
+                        dd.appendChild(div);
+                    });
+                    // Position near cursor
+                    var rect = editor.getBoundingClientRect();
+                    dd.style.left = (rect.left + 20) + 'px';
+                    dd.style.top = (rect.bottom - 10) + 'px';
+                    dd.style.display = 'block';
+                    if (dd.querySelector('.mention-item')) dd.querySelector('.mention-item').classList.add('active');
+                }, {escape: false}
+            );
+        }
+        function insertMention(contactId, name) {
+            hideMentionDropdown();
+            var editor = document.getElementById(mentionState.editorId);
+            if (!editor) return;
+            // Remove the @query text and insert the mention link
+            var sel = window.getSelection();
+            var range = sel.getRangeAt(0);
+            var textNode = range.startContainer;
+            var text = textNode.textContent;
+            var offset = range.startOffset;
+            var atIdx = text.lastIndexOf('@', offset - 1);
+            if (atIdx >= 0) {
+                textNode.textContent = text.substring(0, atIdx) + text.substring(offset);
+                range.setStart(textNode, atIdx);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand('insertHTML', false,
+                    '<a href="/DocGenCommunity?view=profile&amp;mid=' + contactId + '" class="mention-tag" data-mention-id="' + contactId + '">@' + name + '</a>&nbsp;');
+            }
+            mentionState.mentionedIds.push(contactId);
+            mentionState.active = false;
+        }
+        function hideMentionDropdown() {
+            document.getElementById('mentionDropdown').style.display = 'none';
+            mentionState.active = false;
+        }
+        // Initialize mention listeners on all editors
+        document.addEventListener('DOMContentLoaded', function() {
+            ['npBody', 'replyBody', 'editBody'].forEach(function(id) { setupMentionListener(id); });
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.mention-dropdown') && !e.target.closest('.rte-editor')) {
+                    hideMentionDropdown();
+                }
+            });
+        });
+
+        // ─── Account & Org Management ───
+        function loadMyOrgs() {
+            var container = document.getElementById('orgList');
+            if (!container) return;
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.getMyOrgs}', sessionToken,
+                function(result, event) {
+                    if (!event.status) { container.innerHTML = '<p style="color: #f87171; font-size: 0.85rem;">' + event.message + '</p>'; return; }
+                    if (!result || result.length === 0) {
+                        container.innerHTML = '<p style="color: #475569; font-size: 0.85rem;">No orgs linked yet. Add your Org ID below to connect your Salesforce org.</p>';
+                        return;
+                    }
+                    var html = '';
+                    result.forEach(function(org) {
+                        var statusClass = org.status === 'Installed' ? 'status-installed' : 'status-other';
+                        html += '<div class="org-item">'
+                            + '<div class="org-info">'
+                            + '<div class="org-name">' + (org.name || org.orgId) + '</div>'
+                            + '<div class="org-meta">' + (org.orgId || '') + (org.version ? ' &bull; ' + org.version : '') + (org.orgType ? ' &bull; ' + org.orgType : '') + '</div>'
+                            + '</div>'
+                            + '<span class="org-status ' + statusClass + '">' + (org.status || 'Unknown') + '</span>'
+                            + ' <button type="button" class="btn-remove" onclick="removeOrg(\'' + org.id + '\')">Remove</button>'
+                            + '</div>';
+                    });
+                    container.innerHTML = html;
+                }, {escape: false}
+            );
+        }
+        function addOrg() {
+            var orgId = document.getElementById('newOrgId').value.trim();
+            var errEl = document.getElementById('addOrgError');
+            errEl.textContent = '';
+            if (!orgId || orgId.length < 15) { errEl.textContent = 'Enter a valid 15 or 18 character Org ID.'; return; }
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.addOrg}', sessionToken, orgId,
+                function(result, event) {
+                    if (event.status) {
+                        document.getElementById('newOrgId').value = '';
+                        if (result === 'already_linked') { errEl.textContent = 'This org is already linked to your account.'; errEl.style.color = '#fbbf24'; }
+                        else { loadMyOrgs(); }
+                    } else {
+                        errEl.textContent = event.message;
+                    }
+                }, {escape: true}
+            );
+        }
+        function removeOrg(subOrgId) {
+            if (!confirm('Remove this org from your account?')) return;
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.removeOrg}', sessionToken, subOrgId,
+                function(result, event) {
+                    if (event.status) { loadMyOrgs(); }
+                    else { alert(event.message); }
+                }, {escape: true}
+            );
+        }
+        function updateCompany() {
+            var name = document.getElementById('companyName').value.trim();
+            var errEl = document.getElementById('companyError');
+            errEl.textContent = '';
+            if (!name) { errEl.textContent = 'Company name is required.'; return; }
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenCommunityController.updateCompany}', sessionToken, name,
+                function(result, event) {
+                    if (event.status) { window.location.reload(); }
+                    else { errEl.textContent = event.message; }
+                }, {escape: true}
+            );
+        }
+        // Load orgs when profile page renders
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('orgList')) { loadMyOrgs(); }
+        });
+
+        // Pre-select category and topics from URL params
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var precat = params.get('precat');
+            var pretopic = params.get('pretopic');
+            var sel = document.getElementById('npCategory');
+            var topicInput = document.getElementById('npTopics');
+            if (precat && sel) { sel.value = precat; }
+            if (pretopic && topicInput) { topicInput.value = pretopic; }
+        })();
+    </script>
+
+</body>
+</html>
+</apex:page>

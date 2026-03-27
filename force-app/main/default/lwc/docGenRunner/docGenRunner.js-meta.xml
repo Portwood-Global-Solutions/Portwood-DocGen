@@ -11,6 +11,18 @@
         <target>lightning__UtilityBar</target>
     </targets>
     <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <supportedFormFactors>
+                <supportedFormFactor type="Large" />
+                <supportedFormFactor type="Small" />
+            </supportedFormFactors>
+        </targetConfig>
+        <targetConfig targets="lightning__AppPage">
+            <supportedFormFactors>
+                <supportedFormFactor type="Large" />
+                <supportedFormFactor type="Small" />
+            </supportedFormFactors>
+        </targetConfig>
         <targetConfig targets="lightning__FlowScreen">
             <property name="recordId" type="String" label="Record ID" />
             <property name="objectApiName" type="String" label="Object API Name" />

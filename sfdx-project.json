@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.1.6 — Template Import/Export & Community Repo Migration",
-      "versionNumber": "1.1.6.NEXT",
+      "versionName": "1.1.7 — Runner Mobile Support & Community Hub (Parked)",
+      "versionNumber": "1.1.7.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen",

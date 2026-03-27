@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Reply__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <label>Reply</label>
+    <referenceTo>DocGen_Community_Reply__c</referenceTo>
+    <relationshipLabel>Votes</relationshipLabel>
+    <relationshipName>Votes</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

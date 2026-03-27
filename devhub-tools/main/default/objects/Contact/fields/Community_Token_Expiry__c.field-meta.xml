@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Community_Token_Expiry__c</fullName>
+    <description>Expiration datetime for the community session or verification token.</description>
+    <label>Community Token Expiry</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

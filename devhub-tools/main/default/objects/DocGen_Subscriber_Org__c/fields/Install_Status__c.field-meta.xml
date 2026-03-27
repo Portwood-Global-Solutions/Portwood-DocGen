@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Install_Status__c</fullName>
+    <description>Current install status of the package in this org.</description>
+    <label>Install Status</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>Installed</fullName><default>true</default><label>Installed</label></value>
+            <value><fullName>Uninstalled</fullName><default>false</default><label>Uninstalled</label></value>
+            <value><fullName>Expired</fullName><default>false</default><label>Expired</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
