@@ -138,6 +138,69 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     }
 
     /**
+     * Saves a document in chunks for files exceeding the 4MB Aura payload limit.
+     * First chunk creates the ContentVersion, subsequent chunks append to it.
+     * @param recordId The record to link the final document to
+     * @param fileName The document file name
+     * @param base64Chunk One chunk of base64-encoded content (~3MB)
+     * @param chunkIndex Zero-based chunk index
+     * @param totalChunks Total number of chunks expected
+     * @param contentVersionId The CV ID from the first chunk (null for first chunk)
+     * @param extension File extension
+     * @return The ContentVersion ID (same ID returned for all chunks)
+     */
+    @AuraEnabled
+    public static Id saveDocumentChunk(Id recordId, String fileName, String base64Chunk,
+            Integer chunkIndex, Integer totalChunks, Id contentVersionId, String extension) {
+        try {
+            if (chunkIndex == 0) {
+                // First chunk — create the ContentVersion with partial data
+                ContentVersion cv = new ContentVersion();
+                cv.Title = fileName;
+                cv.PathOnClient = fileName + (extension.startsWith('.') ? extension : '.' + extension);
+                cv.VersionData = EncodingUtil.base64Decode(base64Chunk);
+                cv.IsMajorVersion = true;
+                insert cv; // NOPMD ApexCRUDViolation — saving generated document chunk
+
+                if (totalChunks == 1) {
+                    // Single chunk — link to record immediately
+                    Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE].ContentDocumentId;
+                    try {
+                        insert new ContentDocumentLink( // NOPMD ApexCRUDViolation — linking doc to record
+                            ContentDocumentId = contentDocId, LinkedEntityId = recordId, ShareType = 'V', Visibility = 'AllUsers'
+                        );
+                    } catch (Exception linkErr) {
+                        String noop = linkErr.getMessage(); // NOPMD UnusedLocalVariable — some objects don't support CDL
+                    }
+                }
+                return cv.Id;
+            } else {
+                // Subsequent chunk — read existing CV, append data, re-save
+                ContentVersion existing = [SELECT Id, VersionData, Title, PathOnClient FROM ContentVersion WHERE Id = :contentVersionId WITH USER_MODE LIMIT 1];
+                String existingB64 = EncodingUtil.base64Encode(existing.VersionData);
+                String combined = existingB64 + base64Chunk;
+                existing.VersionData = EncodingUtil.base64Decode(combined);
+                update existing; // NOPMD ApexCRUDViolation — appending chunk to document
+
+                if (chunkIndex == totalChunks - 1) {
+                    // Last chunk — link to record
+                    Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :existing.Id WITH USER_MODE].ContentDocumentId;
+                    try {
+                        insert new ContentDocumentLink( // NOPMD ApexCRUDViolation — linking doc to record
+                            ContentDocumentId = contentDocId, LinkedEntityId = recordId, ShareType = 'V', Visibility = 'AllUsers'
+                        );
+                    } catch (Exception linkErr) {
+                        String noop = linkErr.getMessage(); // NOPMD UnusedLocalVariable — some objects don't support CDL
+                    }
+                }
+                return existing.Id;
+            }
+        } catch (Exception e) {
+            throw DocGenService.ahe(e, 'Error saving document chunk: ' + e.getMessage());
+        }
+    }
+
+    /**
      * Processes a template server-side and returns the document as base64, along with
      * the title, output format, and template type. Used by LWC for download/preview.
      * @param templateId The DocGen template record ID
@@ -440,6 +503,100 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         if (!docIds.isEmpty()) {
             delete [SELECT Id FROM ContentDocument WHERE Id IN :docIds]; // NOPMD ApexCRUDViolation — cleaning up Giant Query fragments
         }
+    }
+
+    /**
+     * Lightweight scout: counts child records per relationship for Giant Query detection.
+     * Reads the query config directly from the template — no client-side cache dependency.
+     * @param recordId The parent record ID
+     * @param templateId The DocGen_Template__c record ID
+     * @return Map of relationship name to child record count
+     */
+    @AuraEnabled
+    public static Map<String, Object> scoutChildCounts(Id recordId, Id templateId) {
+        Map<String, Object> result = new Map<String, Object>();
+        result.put('counts', new Map<String, Integer>());
+        result.put('childNodes', new Map<String, Map<String, Object>>());
+
+        if (recordId == null || templateId == null) {
+            return result;
+        }
+        List<DocGen_Template__c> templates = [
+            SELECT Query_Config__c, Base_Object_API__c FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1
+        ];
+        if (templates.isEmpty() || String.isBlank(templates[0].Query_Config__c)) {
+            return result;
+        }
+
+        String queryConfig = templates[0].Query_Config__c;
+        Map<String, Integer> counts = DocGenDataRetriever.scoutChildCounts(recordId, queryConfig);
+        result.put('counts', counts);
+
+        // Build child node metadata for the client (works for all config formats)
+        Map<String, Map<String, Object>> childNodes = new Map<String, Map<String, Object>>();
+        String trimmed = queryConfig.trim();
+
+        if (trimmed.startsWith('{')) {
+            // V3/V2 JSON — parse nodes
+            Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(trimmed);
+            List<Object> nodes = (List<Object>) config.get('nodes');
+            if (nodes != null) {
+                for (Object nodeObj : nodes) {
+                    Map<String, Object> n = (Map<String, Object>) nodeObj;
+                    String relName = (String) n.get('relationshipName');
+                    if (String.isNotBlank(relName) && n.get('parentNode') != null) {
+                        childNodes.put(relName, new Map<String, Object>{
+                            'object' => n.get('object'),
+                            'lookupField' => n.get('lookupField'),
+                            'fields' => n.get('fields'),
+                            'parentFields' => n.get('parentFields')
+                        });
+                    }
+                }
+            }
+        } else {
+            // V1 flat string — resolve child relationships from Schema
+            String baseObject = templates[0].Base_Object_API__c;
+            Schema.DescribeSObjectResult parentDescribe = Schema.getGlobalDescribe().get(baseObject)?.getDescribe();
+            if (parentDescribe != null) {
+                Pattern subqPattern = Pattern.compile('(?i)\\(\\s*SELECT\\s+(.+?)\\s+FROM\\s+(\\w+)\\s*\\)');
+                Matcher m = subqPattern.matcher(trimmed);
+                Map<String, Schema.ChildRelationship> relMap = new Map<String, Schema.ChildRelationship>();
+                for (Schema.ChildRelationship cr : parentDescribe.getChildRelationships()) {
+                    if (cr.getRelationshipName() != null) {
+                        relMap.put(cr.getRelationshipName().toLowerCase(), cr);
+                    }
+                }
+                while (m.find()) {
+                    String fieldList = m.group(1);
+                    String relName = m.group(2);
+                    Schema.ChildRelationship cr = relMap.get(relName.toLowerCase());
+                    if (cr != null) {
+                        List<String> fields = new List<String>();
+                        List<String> parentFields = new List<String>();
+                        for (String f : fieldList.split(',')) {
+                            String fTrimmed = f.trim();
+                            if (String.isNotBlank(fTrimmed)) {
+                                if (fTrimmed.contains('.')) {
+                                    parentFields.add(fTrimmed);
+                                } else {
+                                    fields.add(fTrimmed);
+                                }
+                            }
+                        }
+                        childNodes.put(relName, new Map<String, Object>{
+                            'object' => String.valueOf(cr.getChildSObject()),
+                            'lookupField' => String.valueOf(cr.getField()),
+                            'fields' => fields,
+                            'parentFields' => parentFields
+                        });
+                    }
+                }
+            }
+        }
+
+        result.put('childNodes', childNodes);
+        return result;
     }
 
     /**

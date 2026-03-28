@@ -1386,16 +1386,105 @@ public with sharing class DocGenDataRetriever {
             return counts;
         }
 
-        // Only V3 JSON configs are supported for Giant Query scouting
         String trimmed = queryConfigJson.trim();
-        if (!trimmed.startsWith('{')) {
-            return counts;
+
+        if (trimmed.startsWith('{')) {
+            // V3 or V2 JSON config
+            scoutFromJsonConfig(recordId, trimmed, counts);
+        } else {
+            // V1 flat string — parse subqueries like (SELECT ... FROM RelName)
+            scoutFromFlatConfig(recordId, trimmed, counts);
         }
 
-        Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(trimmed);
+        return counts;
+    }
+
+    /**
+     * Scout child counts from a V1 flat string config.
+     * Parses subquery patterns: (SELECT fields FROM RelationshipName)
+     * Uses the parent record's SObjectType to resolve relationship → child object.
+     */
+    private static void scoutFromFlatConfig(Id recordId, String config, Map<String, Integer> counts) {
+        // Find all subquery patterns: (SELECT ... FROM RelationshipName)
+        Pattern subqueryPattern = Pattern.compile('(?i)\\(\\s*SELECT\\s+.+?\\s+FROM\\s+(\\w+)\\s*\\)');
+        Matcher m = subqueryPattern.matcher(config);
+
+        // Get the parent object's child relationships to resolve rel name → child object + field
+        String parentObjectType = String.valueOf(recordId.getSobjectType());
+        Schema.DescribeSObjectResult parentDescribe = Schema.getGlobalDescribe().get(parentObjectType)?.getDescribe();
+        if (parentDescribe == null) { return; }
+
+        Map<String, Schema.ChildRelationship> relMap = new Map<String, Schema.ChildRelationship>();
+        for (Schema.ChildRelationship cr : parentDescribe.getChildRelationships()) {
+            if (cr.getRelationshipName() != null) {
+                relMap.put(cr.getRelationshipName().toLowerCase(), cr);
+            }
+        }
+
+        while (m.find()) {
+            String relName = m.group(1);
+            Schema.ChildRelationship cr = relMap.get(relName.toLowerCase());
+            if (cr == null) { continue; }
+
+            String childObject = String.valueOf(cr.getChildSObject());
+            String lookupField = String.valueOf(cr.getField());
+
+            try {
+                String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
+                Integer cnt = Database.countQuery(countQuery);
+                counts.put(relName, cnt);
+            } catch (Exception e) {
+                String noop = e.getMessage(); // NOPMD UnusedLocalVariable — skip relationships that fail
+            }
+        }
+    }
+
+    /**
+     * Scout child counts from a V3 (or V2) JSON config.
+     * Parses nodes array to find child relationships and counts them.
+     */
+    private static void scoutFromJsonConfig(Id recordId, String configJson, Map<String, Integer> counts) {
+        Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(configJson);
+
+        // V2 format — has junctions and children arrays
+        if (config.containsKey('children')) {
+            List<Object> children = (List<Object>) config.get('children');
+            if (children != null) {
+                Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+                for (Object childObj : children) {
+                    Map<String, Object> child = (Map<String, Object>) childObj;
+                    String rel = (String) child.get('rel');
+                    // V2 doesn't have object/lookupField directly — resolve from parent
+                    // For now, use the same flat config approach for V2
+                    if (String.isNotBlank(rel)) {
+                        String parentObjectType = String.valueOf(recordId.getSobjectType());
+                        Schema.DescribeSObjectResult parentDescribe = gd.get(parentObjectType)?.getDescribe();
+                        if (parentDescribe != null) {
+                            for (Schema.ChildRelationship cr : parentDescribe.getChildRelationships()) {
+                                if (cr.getRelationshipName() != null && cr.getRelationshipName().equalsIgnoreCase(rel)) {
+                                    try {
+                                        String childObjName = String.valueOf(cr.getChildSObject());
+                                        String lookupFld = String.valueOf(cr.getField());
+                                        String countQ = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjName) +
+                                            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId WITH USER_MODE';
+                                        counts.put(rel, Database.countQuery(countQ));
+                                    } catch (Exception e) {
+                                        String noop = e.getMessage(); // NOPMD UnusedLocalVariable
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // V3 format — has nodes array
         List<Object> nodesJson = (List<Object>) config.get('nodes');
         if (nodesJson == null || nodesJson.isEmpty()) {
-            return counts;
+            return;
         }
 
         Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
@@ -1403,10 +1492,8 @@ public with sharing class DocGenDataRetriever {
             Map<String, Object> n = (Map<String, Object>) nodeObj;
             String parentNodeId = (String) n.get('parentNode');
 
-            // Only count direct children of the root (parentNode == root node id)
-            // The root node has parentNode = null; children of root reference the root's id
             if (parentNodeId == null) {
-                continue; // Skip the root node itself
+                continue;
             }
 
             String childObject = (String) n.get('object');
@@ -1417,7 +1504,6 @@ public with sharing class DocGenDataRetriever {
                 continue;
             }
 
-            // Validate object name against Schema to prevent injection
             if (globalDescribe.get(childObject) == null) {
                 continue;
             }
@@ -1432,7 +1518,5 @@ public with sharing class DocGenDataRetriever {
                 counts.put(relationshipName, 0);
             }
         }
-
-        return counts;
     }
 }

@@ -15,6 +15,8 @@ import getGiantQueryFragments from '@salesforce/apex/DocGenController.getGiantQu
 import generateDocumentPartsGiantQuery from '@salesforce/apex/DocGenController.generateDocumentPartsGiantQuery';
 import cleanupGiantQueryFragments from '@salesforce/apex/DocGenController.cleanupGiantQueryFragments';
 import getChildRecordPage from '@salesforce/apex/DocGenController.getChildRecordPage';
+import scoutChildCounts from '@salesforce/apex/DocGenController.scoutChildCounts';
+import saveDocumentChunk from '@salesforce/apex/DocGenController.saveDocumentChunk';
 import { NavigationMixin } from 'lightning/navigation';
 import { downloadBase64 as downloadBase64Util } from 'c/docGenUtils';
 import { buildDocx } from './docGenZipWriter';
@@ -34,6 +36,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @track isLoading = false;
     @track error = '';
     @track loadingMessage = '';
+    @track isGiantQueryMode = false;
 
     @track appMode = 'generate'; // generate, packet, mergeOnly, mergeChildren
 
@@ -71,6 +74,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     }
 
     get modernOutputOptions() {
+        const isPdfOutput = this.templateOutputFormat === 'PDF';
+        if (!isPdfOutput || this.isGiantQueryMode) {
+            return [
+                { label: 'Download', value: 'download', icon: '⬇️', class: 'pill-btn active' }
+            ];
+        }
         const isSave = this.outputMode === 'save';
         return [
             { label: 'Download', value: 'download', icon: '⬇️', class: !isSave ? 'pill-btn active' : 'pill-btn' },
@@ -277,57 +286,41 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         const isPDF = this.templateOutputFormat === 'PDF' && !isPPT && !isExcel;
         const isWord = templateType === 'Word' && !isPPT && !isExcel;
 
-        // Giant Query auto-detect for PDF (non-merge) and DOCX Word output
-        if ((isPDF || isWord) && !this.mergeEnabled) {
-            this.isLoading = true;
-            this.loadingMessage = 'Analyzing template...';
-            this.error = null;
-            try {
-                const result = await generateDocumentGiantQuery({
-                    templateId: this.selectedTemplateId,
-                    recordId: this.recordId
-                });
-                if (result.isGiantQuery) {
-                    if (isPDF) {
-                        // PDF: async pipeline launched server-side — show toast and stop
-                        const count = result.childCounts ? Object.values(result.childCounts).find(c => c > 2000) : null;
-                        const countMsg = count ? count.toLocaleString() + ' records' : 'large dataset';
-                        this.showToast('Success', `${countMsg} detected — generating asynchronously. Check Job History for progress.`, 'success');
-                        return;
-                    }
-                    // DOCX: pure client-side assembly — no batch, no fragments
-                    await this._assembleGiantQueryDocxClientSide(result.giantRelationship, result.childCounts);
+        // Giant Query auto-detect: ALWAYS scout first before any generation
+        this.isLoading = true;
+        this.loadingMessage = 'Analyzing...';
+        this.error = null;
+        try {
+            const scoutResult = await scoutChildCounts({
+                recordId: this.recordId,
+                templateId: this.selectedTemplateId
+            });
+            const counts = scoutResult.counts || {};
+            const childNodes = scoutResult.childNodes || {};
+
+            const giantRel = Object.entries(counts).find(([, count]) => count > 2000);
+            if (giantRel) {
+                this.isGiantQueryMode = true;
+                this.outputMode = 'download';
+                if (isWord) {
+                    await this._assembleGiantQueryDocxClientSide(giantRel[0], counts, childNodes[giantRel[0]]);
                     return;
                 }
-                // Not a giant query — document was already generated and saved by the Apex method.
-                if (isPDF) {
-                    const saveToRecord = this.outputMode === 'save';
-                    const docTitle = result.title || 'Document';
-                    if (saveToRecord) {
-                        this.showToast('Success', 'PDF saved to record.', 'success');
-                    } else if (result.contentVersionId) {
-                        this.loadingMessage = 'Preparing download...';
-                        const b64 = await getContentVersionBase64({ contentVersionId: result.contentVersionId });
-                        if (b64) {
-                            this.downloadBase64(b64, docTitle + '.pdf', 'application/pdf');
-                            this.showToast('Success', 'PDF downloaded.', 'success');
-                        } else {
-                            this.showToast('Success', 'PDF saved to record (download unavailable).', 'success');
-                        }
-                    }
-                    return;
-                }
-                // Not giant DOCX — fall through to normal generation
-            } catch (e) {
-                // If scouting fails, fall through to normal generation
-                console.warn('DocGen: Giant Query scout failed, falling back to normal generation', e);
-            } finally {
                 this.isLoading = false;
                 this.loadingMessage = '';
+                this.error = `This record has ${giantRel[1].toLocaleString()} ${giantRel[0]} records. ` +
+                    'For datasets over 2,000 rows, please generate as DOCX (Word) output.';
+                return;
             }
+        } catch (e) {
+            // Scout failed — fall through to normal generation
+            console.error('DocGen: SCOUT FAILED:', e.body ? e.body.message : e.message, e);
+        } finally {
+            this.isLoading = false;
+            this.loadingMessage = '';
         }
 
-        // Normal generation path (non-PDF, merge-enabled PDF, or giant query scout fallback)
+        // Normal generation — scout confirmed <2000 children (or scout unavailable)
         await this.generateDocument();
     }
 
@@ -708,7 +701,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
      * No server-side batch, no fragment CVs — queries child records page by page
      * via getChildRecordPage (2,000 rows per call), renders XML in JS, builds DOCX.
      */
-    async _assembleGiantQueryDocxClientSide(giantRelationship, childCounts) {
+    async _assembleGiantQueryDocxClientSide(giantRelationship, childCounts, serverChildNode) {
         this.isLoading = true;
         this.error = null;
         try {
@@ -728,29 +721,15 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const docTitle = parts.title || 'Document';
             const placeholder = parts.placeholder || '<!--DOCGEN_GIANT_LOOP_PLACEHOLDER-->';
 
-            // 2. Parse the V3 query config to find the child node details
-            const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
-            const queryConfig = selected ? selected[QUERY_CONFIG_FIELD.fieldApiName] : null;
-            let childNode = null;
-            if (queryConfig) {
-                try {
-                    const config = JSON.parse(queryConfig);
-                    if (config.nodes) {
-                        childNode = config.nodes.find(n => n.relationshipName === giantRelationship);
-                    }
-                } catch (parseErr) {
-                    console.warn('DocGen: Could not parse query config', parseErr);
-                }
-            }
-
-            if (!childNode) {
+            // 2. Use server-resolved child node metadata (works for V1, V2, V3)
+            if (!serverChildNode) {
                 throw new Error('Could not find child node configuration for ' + giantRelationship);
             }
 
-            const childObject = childNode.object;
-            const lookupField = childNode.lookupField;
-            const childFields = childNode.fields || [];
-            const parentFields = childNode.parentFields || [];
+            const childObject = serverChildNode.object;
+            const lookupField = serverChildNode.lookupField;
+            const childFields = serverChildNode.fields || [];
+            const parentFields = serverChildNode.parentFields || [];
             const allFields = ['Id', ...childFields.filter(f => f !== 'Id'), ...parentFields].join(', ');
 
             // 3. Get the loop body XML from the template (extracted by generateDocumentPartsGiantQuery)
@@ -862,20 +841,16 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const fileBytes = buildDocx(parts.allXmlParts, allImages);
             const fileBase64 = this._uint8ArrayToBase64(fileBytes);
 
-            // 8. Download or save
-            const saveToRecord = this.outputMode === 'save';
-            if (saveToRecord) {
-                await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: fileBase64, extension: 'docx' });
-                this.showToast('Success', `DOCX saved — ${fetched.toLocaleString()} ${giantRelationship} rows.`, 'success');
-            } else {
-                this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
-                this.showToast('Success', `DOCX downloaded — ${fetched.toLocaleString()} ${giantRelationship} rows.`, 'success');
-            }
+            // 8. Giant Query always downloads — file size exceeds Aura 4MB payload limit
+            const fileSizeMB = (fileBase64.length * 0.75 / 1048576).toFixed(1);
+            this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
+            this.showToast('Success', `DOCX downloaded (${fileSizeMB}MB) — ${fetched.toLocaleString()} ${giantRelationship} rows.`, 'success');
         } catch (e) {
             this.error = 'Giant Query Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
         } finally {
             this.isLoading = false;
             this.loadingMessage = '';
+            this.isGiantQueryMode = false;
         }
     }
 
