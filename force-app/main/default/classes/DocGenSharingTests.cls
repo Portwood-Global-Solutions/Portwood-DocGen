@@ -3,12 +3,9 @@ private class DocGenSharingTests {
 
     @TestSetup
     static void setup() {
-        DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Sharing Template',
-            Base_Object_API__c = 'Account'
-        );
-        insert t;
+        TestDataFactory.createStandardTestData();
 
+        // Class-specific: Standard User for sharing tests
         Profile p = [SELECT Id FROM Profile WHERE Name='Standard User' LIMIT 1];
         User u = new User(Alias = 'standt', Email='standarduser@testorg.com',
             EmailEncodingKey='UTF-8', LastName='Testing', LanguageLocaleKey='en_US',
@@ -21,7 +18,7 @@ private class DocGenSharingTests {
     static void testSharingOperations() {
         User runAsUser = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(runAsUser) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
             User u = [SELECT Id FROM User WHERE LastName='Testing' LIMIT 1];
 
             Test.startTest();

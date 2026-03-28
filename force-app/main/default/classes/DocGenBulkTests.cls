@@ -3,17 +3,7 @@ private class DocGenBulkTests {
 
     @TestSetup
     static void setup() {
-        DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Test Template',
-            Base_Object_API__c = 'Account'
-        );
-        insert t;
-
-        Account a = new Account(
-            Name = 'Test Account',
-            Website = 'https://www.example.com'
-        );
-        insert a;
+        TestDataFactory.createStandardTestData();
     }
 
     @IsTest
@@ -32,7 +22,7 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Test.startTest();
-            Integer count = DocGenBulkController.validateFilter('Account', 'Name = \'Test Account\'');
+            Integer count = DocGenBulkController.validateFilter('Account', 'Name = \'DocGen Test Account\'');
             Test.stopTest();
             System.assertEquals(1, count, 'Should find 1 record');
         }
@@ -42,9 +32,9 @@ private class DocGenBulkTests {
     static void testSubmitJob() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'Test Account\'', 'Test Job', false, 1, false);
+            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'Test Job', false, 1, false);
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Status__c FROM DocGen_Job__c WHERE Id = :jobId];
@@ -56,7 +46,7 @@ private class DocGenBulkTests {
     static void testSavedQueries() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             // Save
             Test.startTest();
@@ -153,7 +143,7 @@ private class DocGenBulkTests {
     static void testGetJobStatus() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
@@ -173,7 +163,7 @@ private class DocGenBulkTests {
     static void testGetSavedQueriesEmpty() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             List<DocGen_Saved_Query__c> queries = DocGenBulkController.getSavedQueries(t.Id);
@@ -195,11 +185,11 @@ private class DocGenBulkTests {
             // The existing testSubmitJob covers this partly, but the batch runs with
             // a real template that has no DOCX file, so it will error.
             // We create a job and simulate by directly calling start/execute/finish
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
-                Query_Condition__c = 'Name = \'Test Account\'',
+                Query_Condition__c = 'Name = \'DocGen Test Account\'',
                 Status__c = 'Queued'
             );
             insert job;
@@ -219,7 +209,7 @@ private class DocGenBulkTests {
     static void testBatchSanitizeConditionCommentInjection() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
                 Query_Condition__c = 'Name != null /* comment */',
@@ -249,7 +239,7 @@ private class DocGenBulkTests {
     static void testBatchSanitizeConditionDashInjection() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
                 Query_Condition__c = 'Name != null -- comment',
@@ -279,61 +269,11 @@ private class DocGenBulkTests {
     // =========================================================================
 
     private static ContentVersion createValidDocxForTemplate(Id templateId, String docXml) {
-        Compression.ZipWriter zw = new Compression.ZipWriter();
-        zw.addEntry('[Content_Types].xml', Blob.valueOf(
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-            '<Default Extension="xml" ContentType="application/xml"/>' +
-            '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-            '</Types>'
-        ));
-        zw.addEntry('_rels/.rels', Blob.valueOf(
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
-            '</Relationships>'
-        ));
-        zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-            '</Relationships>'
-        ));
-        zw.addEntry('word/document.xml', Blob.valueOf(docXml));
-
-        ContentVersion cv = new ContentVersion(
-            Title = 'BulkTestDocx',
-            PathOnClient = 'BulkTestDocx.docx',
-            VersionData = zw.getArchive()
-        );
-        insert cv;
-
-        Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-        insert new ContentDocumentLink(
-            LinkedEntityId = templateId,
-            ContentDocumentId = conDocId,
-            ShareType = 'V'
-        );
-        return cv;
+        return TestDataFactory.createValidDocxFile(templateId, docXml);
     }
 
     private static String buildSimpleDocXml() {
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" ' +
-            'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" ' +
-            'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
-            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
-            'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" ' +
-            'xmlns:v="urn:schemas-microsoft-com:vml" ' +
-            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
-            'xmlns:w10="urn:schemas-microsoft-com:office:word" ' +
-            'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
-            'xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" ' +
-            'mc:Ignorable="w14 wp14">' +
-            '<w:body>' +
-            '<w:p><w:r><w:t>Hello {Name}</w:t></w:r></w:p>' +
-            '</w:body>' +
-            '</w:document>';
+        return TestDataFactory.buildSimpleDocXml();
     }
 
     // =========================================================================
@@ -532,7 +472,7 @@ private class DocGenBulkTests {
     static void testBatchConstructorSingleArg() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
                 Status__c = 'Queued'
@@ -552,7 +492,7 @@ private class DocGenBulkTests {
     static void testBatchConstructorTwoArgs() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
                 Status__c = 'Queued'
@@ -577,12 +517,12 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Use a template with no DOCX file — all records will fail
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account a = [SELECT Id FROM Account WHERE Name = 'Test Account' LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
+            Account a = TestDataFactory.getTestAccount();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
-                Query_Condition__c = 'Name = \'Test Account\'',
+                Query_Condition__c = 'Name = \'DocGen Test Account\'',
                 Status__c = 'Queued'
             );
             insert job;
@@ -609,11 +549,11 @@ private class DocGenBulkTests {
             // Run a batch that will finish and attempt to send notification.
             // Without the CustomNotificationType 'DocGen_Job_Complete' deployed,
             // sendJobNotification gracefully returns (no exception).
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
-                Query_Condition__c = 'Name = \'Test Account\'',
+                Query_Condition__c = 'Name = \'DocGen Test Account\'',
                 Status__c = 'Queued'
             );
             insert job;
@@ -692,11 +632,11 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // V1 config (plain string) should NOT create a data cache CV
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
-                Query_Condition__c = 'Name = \'Test Account\'',
+                Query_Condition__c = 'Name = \'DocGen Test Account\'',
                 Status__c = 'Queued'
             );
             insert job;
@@ -754,7 +694,7 @@ private class DocGenBulkTests {
     static void testGetRecentJobs() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             // Create some jobs
             List<DocGen_Job__c> jobs = new List<DocGen_Job__c>();
@@ -792,12 +732,12 @@ private class DocGenBulkTests {
     static void testGetJobGeneratedPdfs() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account a = [SELECT Id FROM Account WHERE Name = 'Test Account' LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
+            Account a = TestDataFactory.getTestAccount();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
-                Query_Condition__c = 'Name = \'Test Account\'',
+                Query_Condition__c = 'Name = \'DocGen Test Account\'',
                 Status__c = 'Completed'
             );
             insert job;
@@ -833,7 +773,7 @@ private class DocGenBulkTests {
     static void testGetJobGeneratedPdfsEmpty() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
@@ -870,7 +810,7 @@ private class DocGenBulkTests {
             createValidDocxForTemplate(t.Id, buildSimpleDocXml());
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'Test Account\'', 'Merge PDF Job', true, 1, false);
+            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'Merge PDF Job', true, 1, false);
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Status__c, Label__c, Merge_Only__c
@@ -901,7 +841,7 @@ private class DocGenBulkTests {
             createValidDocxForTemplate(t.Id, buildSimpleDocXml());
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'Test Account\'', 'MergeOnly Job', false, 1, true);
+            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'MergeOnly Job', false, 1, true);
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Status__c, Merge_Only__c
@@ -919,10 +859,10 @@ private class DocGenBulkTests {
     static void testSubmitJobCustomBatchSize() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'Test Account\'', null, false, 50, false);
+            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', null, false, 50, false);
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Status__c, Label__c FROM DocGen_Job__c WHERE Id = :jobId];
@@ -940,7 +880,7 @@ private class DocGenBulkTests {
     static void testSubmitJobNullBatchSize() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             // null batchSize should default to 1
@@ -960,7 +900,7 @@ private class DocGenBulkTests {
     static void testBatchNoCondition() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
@@ -1199,7 +1139,7 @@ private class DocGenBulkTests {
             createValidDocxForTemplate(t.Id, buildSimpleDocXml());
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'Test Account\'', 'MergeOnly Job', false, 1, true);
+            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'MergeOnly Job', false, 1, true);
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Merge_Only__c, Status__c FROM DocGen_Job__c WHERE Id = :jobId];
@@ -1216,7 +1156,7 @@ private class DocGenBulkTests {
     static void testSubmitJobDefaultBatchSize() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             Id jobId = DocGenBulkController.submitJob(t.Id, null, null, false, null, false);
@@ -1288,7 +1228,7 @@ private class DocGenBulkTests {
     static void testMergeJobExecuteWithSnippets() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
@@ -1337,7 +1277,7 @@ private class DocGenBulkTests {
     static void testMergeJobExecuteNoSnippets() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
@@ -1365,7 +1305,7 @@ private class DocGenBulkTests {
     static void testMergeJobErrorHandling() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = t.Id,
@@ -1445,7 +1385,7 @@ private class DocGenBulkTests {
     static void testSubmitJobWithLabel() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             Id jobId = DocGenBulkController.submitJob(t.Id, null, 'My Custom Label', false, 5, false);
@@ -1464,7 +1404,7 @@ private class DocGenBulkTests {
     static void testSubmitJobWithBlankLabel() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c t = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             Id jobId = DocGenBulkController.submitJob(t.Id, null, '', false, 1, false);

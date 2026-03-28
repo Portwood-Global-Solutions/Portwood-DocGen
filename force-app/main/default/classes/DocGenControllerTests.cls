@@ -3,37 +3,12 @@ private class DocGenControllerTests {
 
     @TestSetup
     static void setup() {
-        DocGen_Template__c tpl = new DocGen_Template__c(
-            Name = 'Controller Test Template',
-            Base_Object_API__c = 'Account',
-            Query_Config__c = 'Name, AccountSource',
-            Type__c = 'Word'
-        );
-        insert tpl;
-
-        Account acc = new Account(
-            Name = 'Controller Test Account',
-            AccountSource = 'Web',
-            Website = 'https://test.com'
-        );
-        insert acc;
+        TestDataFactory.createStandardTestData();
     }
 
     private static ContentVersion createTestFile() {
-        ContentVersion cv = new ContentVersion(
-            Title = 'ControllerTestDoc',
-            PathOnClient = 'ControllerTestDoc.docx',
-            VersionData = Blob.valueOf('Test Content For Controller')
-        );
-        insert cv;
-        Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-        DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-        insert new ContentDocumentLink(
-            LinkedEntityId = tpl.Id,
-            ContentDocumentId = conDocId,
-            ShareType = 'V'
-        );
-        return cv;
+        DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+        return TestDataFactory.createTestTemplateFile(tpl.Id);
     }
 
     // -----------------------------------------------------------------------
@@ -43,7 +18,7 @@ private class DocGenControllerTests {
     static void testSaveGeneratedDocument() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             String dummyContent = EncodingUtil.base64Encode(Blob.valueOf('Dummy PDF content'));
 
             Test.startTest();
@@ -69,7 +44,7 @@ private class DocGenControllerTests {
     static void testSaveGeneratedDocumentExtensionWithoutDot() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             String dummyContent = EncodingUtil.base64Encode(Blob.valueOf('Dummy DOCX content'));
 
             Test.startTest();
@@ -97,8 +72,8 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             createTestFile();
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -120,7 +95,7 @@ private class DocGenControllerTests {
     static void testPreviewRecordData() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Map<String, Object> result = DocGenController.previewRecordData(
@@ -129,8 +104,8 @@ private class DocGenControllerTests {
             Test.stopTest();
 
             System.assertNotEquals(null, result, 'Preview data should not be null');
-            System.assertEquals('Controller Test Account', result.get('Name'),
-                'Name field should match the test account');
+            System.assertEquals('DocGen Test Account', result.get('Name'),
+                'Name field should match the factory account');
         }
     }
 
@@ -160,7 +135,7 @@ private class DocGenControllerTests {
             System.assert(!templates.isEmpty(), 'Should return at least the test template');
             Boolean found = false;
             for (DocGen_Template__c t : templates) {
-                if (t.Name == 'Controller Test Template') {
+                if (t.Name == 'DocGen Test Template') {
                     found = true;
                     break;
                 }
@@ -176,7 +151,7 @@ private class DocGenControllerTests {
     static void testSaveTemplateUpdateOnly() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             Map<String, Object> fields = new Map<String, Object>{
                 'Id' => tpl.Id,
@@ -210,7 +185,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             createTestFile();
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             Map<String, Object> fields = new Map<String, Object>{
                 'Id' => tpl.Id,
@@ -282,7 +257,7 @@ private class DocGenControllerTests {
     static void testGetTemplateVersions() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Create a version record
             DocGen_Template_Version__c v = new DocGen_Template_Version__c(
@@ -476,7 +451,7 @@ private class DocGenControllerTests {
     static void testGetTemplateSharesEmpty() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             List<Map<String, String>> shares = DocGenController.getTemplateShares(tpl.Id);
@@ -495,7 +470,7 @@ private class DocGenControllerTests {
     static void testShareAndRemoveTemplate() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id, OwnerId FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // We need a different user or group to share with.
             // Use a public group for reliability in tests.
@@ -577,7 +552,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataNullTemplateId() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -601,7 +576,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataTemplateNotFound() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             // Use a fake but valid-format Id for a template that does not exist
             Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
 
@@ -627,8 +602,8 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             // Build a minimal valid DOCX ZIP
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -687,7 +662,7 @@ private class DocGenControllerTests {
             Test.stopTest();
 
             System.assert(!templates.isEmpty(), 'Should return the test template for Account');
-            System.assertEquals('Controller Test Template', templates[0].Name, 'Should return our test template');
+            System.assertEquals('DocGen Test Template', templates[0].Name, 'Should return our test template');
         }
     }
 
@@ -710,8 +685,8 @@ private class DocGenControllerTests {
     static void testProcessAndReturnDocumentSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             // Build valid DOCX
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -766,8 +741,8 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             createTestFile();
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -789,8 +764,8 @@ private class DocGenControllerTests {
     static void testGeneratePdfDownloadSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
             zw.addEntry('[Content_Types].xml', Blob.valueOf(
@@ -841,10 +816,10 @@ private class DocGenControllerTests {
     static void testGeneratePdfSaveSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Output_Format__c = 'PDF';
             update tpl;
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
             zw.addEntry('[Content_Types].xml', Blob.valueOf(
@@ -894,7 +869,7 @@ private class DocGenControllerTests {
     static void testActivateVersion() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Create two versions, both active initially
             DocGen_Template_Version__c v1 = new DocGen_Template_Version__c(
@@ -941,7 +916,7 @@ private class DocGenControllerTests {
     static void testSaveTemplateWithDefaultFlag() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             Map<String, Object> fields = new Map<String, Object>{
                 'Id' => tpl.Id,
@@ -972,7 +947,7 @@ private class DocGenControllerTests {
     static void testSaveTemplateDefaultEnforcement() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl1 = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl1 = TestDataFactory.getTestTemplate();
 
             // Create a second template for the same object
             DocGen_Template__c tpl2 = new DocGen_Template__c(
@@ -986,7 +961,7 @@ private class DocGenControllerTests {
             // Set tpl1 as default
             Map<String, Object> fields1 = new Map<String, Object>{
                 'Id' => tpl1.Id,
-                'Name' => 'Controller Test Template',
+                'Name' => 'DocGen Test Template',
                 'Category__c' => null,
                 'Type__c' => 'Word',
                 'Base_Object_API__c' => 'Account',
@@ -1030,7 +1005,7 @@ private class DocGenControllerTests {
     static void testPreviewRecordDataException() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -1112,11 +1087,11 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataWithRichTextRefid() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = 'Name, Description';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             // Set Description to contain HTML with an img tag using refid (simulates rich text)
             acc.Description = '<p>See image: <img src="https://example.com/servlet/rtaImage?eid=001&refid=0EM000000000001" alt="test"/></p>';
             update acc;
@@ -1177,11 +1152,11 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataWithServletImages() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = 'Name, Description';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             // Set Description with servlet URL (without refid) to exercise resolveServletImageUrls
             acc.Description = '<p><img src="https://myorg.salesforce.com/servlet/rtaImage?eid=001ABC&feoid=00N000&refid=" alt="img"/></p>';
             update acc;
@@ -1238,11 +1213,11 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataWithSfcImages() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = 'Name, Description';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             acc.Description = '<p><img src="https://myorg.salesforce.com/sfc/servlet.shepherd/version/download/069ABC" alt="img"/></p>';
             update acc;
 
@@ -1296,12 +1271,12 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataWithOutputFormatAndTitle() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Output_Format__c = 'PDF';
             tpl.Document_Title_Format__c = 'Invoice_{Name}';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
             zw.addEntry('[Content_Types].xml', Blob.valueOf(
@@ -1352,11 +1327,11 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataWithChildRelationship() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = 'Name, (SELECT LastName FROM Contacts)';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             insert new Contact(FirstName = 'Test', LastName = 'Child', AccountId = acc.Id);
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -1409,7 +1384,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             createTestFile();
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Create an existing active version
             DocGen_Template_Version__c existingVersion = new DocGen_Template_Version__c(
@@ -1529,7 +1504,7 @@ private class DocGenControllerTests {
         System.runAs(u) {
             // Use a fake template ID to trigger an exception inside DocGenService
             Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -1548,8 +1523,8 @@ private class DocGenControllerTests {
     static void testGenerateDocumentPartsSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             // Build a minimal valid DOCX and attach to template
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -1600,7 +1575,7 @@ private class DocGenControllerTests {
     static void testGetRecordPdfs() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             // Create a PDF ContentVersion linked to the account
             ContentVersion pdfCv = new ContentVersion(
@@ -1637,7 +1612,7 @@ private class DocGenControllerTests {
     static void testGetRecordPdfsEmpty() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             List<Map<String, String>> pdfs = DocGenController.getRecordPdfs(acc.Id);
@@ -1654,7 +1629,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPdfs() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             // Create a child contact
             Contact con = new Contact(FirstName = 'Pdf', LastName = 'Child', AccountId = acc.Id);
@@ -1716,7 +1691,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPdfsInvalidObject() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -1735,7 +1710,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPdfsInvalidLookup() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -1993,7 +1968,7 @@ private class DocGenControllerTests {
         System.runAs(u) {
             Map<String, Object> data = new Map<String, Object>{
                 'Description' => '<p><img src="/sfc/servlet.shepherd/version/download/069ABC" alt="test"/></p>',
-                'Name' => 'Test Account'
+                'Name' => 'DocGen Test Account'
             };
 
             Test.startTest();
@@ -2004,7 +1979,7 @@ private class DocGenControllerTests {
             System.assertNotEquals(null, descVal, 'Description should not be null');
             System.assert(descVal.contains('/sfc/'), 'Should contain /sfc/ path');
             // Name should be unchanged (no img tags)
-            System.assertEquals('Test Account', data.get('Name'), 'Name should be unchanged');
+            System.assertEquals('DocGen Test Account', data.get('Name'), 'Name should be unchanged');
         }
     }
 
@@ -2709,7 +2684,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataFromCacheSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Build a minimal valid DOCX and attach to template
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -2765,7 +2740,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataFromCacheReusesCache() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Attach a valid DOCX
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -2828,7 +2803,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPdfsWithFilter() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             insert new Contact(FirstName = 'FilterTest', LastName = 'Contact', AccountId = acc.Id);
 
             Test.startTest();
@@ -2850,8 +2825,8 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             createTestFile();
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
 
             Map<String, String> resolvedImages = new Map<String, String>{
                 'https://example.com/image.png' => 'data:image/png;base64,iVBOR...'
@@ -3032,10 +3007,10 @@ private class DocGenControllerTests {
     static void testScoutChildCountsV1Config() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             insert new Contact(FirstName = 'Scout', LastName = 'V1', AccountId = acc.Id);
 
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = 'Name, (SELECT FirstName, LastName FROM Contacts)';
             update tpl;
 
@@ -3059,10 +3034,10 @@ private class DocGenControllerTests {
     static void testScoutChildCountsV3Config() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             insert new Contact(FirstName = 'Scout', LastName = 'V3', AccountId = acc.Id);
 
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
                 '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
@@ -3099,7 +3074,7 @@ private class DocGenControllerTests {
     static void testScoutChildCountsTemplateNotFound() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
 
             Test.startTest();
@@ -3119,7 +3094,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPageFirstPage() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             insert new List<Contact>{
                 new Contact(FirstName = 'Page', LastName = 'One', AccountId = acc.Id),
                 new Contact(FirstName = 'Page', LastName = 'Two', AccountId = acc.Id)
@@ -3141,7 +3116,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPageWithCursor() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             Contact c1 = new Contact(FirstName = 'Cursor', LastName = 'First', AccountId = acc.Id);
             Contact c2 = new Contact(FirstName = 'Cursor', LastName = 'Second', AccountId = acc.Id);
             insert new List<Contact>{ c1, c2 };
@@ -3168,7 +3143,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPageInvalidObject() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -3189,7 +3164,7 @@ private class DocGenControllerTests {
     static void testGetChildRecordPageNullPageSize() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Map<String, Object> result = DocGenController.getChildRecordPage(
@@ -3209,7 +3184,7 @@ private class DocGenControllerTests {
     static void testSaveDocumentChunkSingleChunk() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             String base64Data = EncodingUtil.base64Encode(Blob.valueOf('Single chunk content'));
 
             Test.startTest();
@@ -3229,7 +3204,7 @@ private class DocGenControllerTests {
     static void testSaveDocumentChunkMultiChunk() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             String chunk1 = EncodingUtil.base64Encode(Blob.valueOf('Chunk1'));
             String chunk2 = EncodingUtil.base64Encode(Blob.valueOf('Chunk2'));
 
@@ -3258,7 +3233,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentGiantQueryNullTemplateId() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -3277,7 +3252,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentGiantQueryNullRecordId() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -3296,12 +3271,12 @@ private class DocGenControllerTests {
     static void testGenerateDocumentGiantQueryV1FallsThrough() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = 'Name, AccountSource';
             tpl.Output_Format__c = 'PDF';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             // Attach a valid DOCX so generation can work
             Compression.ZipWriter zw = new Compression.ZipWriter();
@@ -3350,7 +3325,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentGiantQueryV3BelowThreshold() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
                 '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
@@ -3358,7 +3333,7 @@ private class DocGenControllerTests {
             tpl.Output_Format__c = 'PDF';
             update tpl;
 
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             insert new Contact(FirstName = 'Giant', LastName = 'Test', AccountId = acc.Id);
 
             // Attach a valid DOCX
@@ -3409,7 +3384,7 @@ private class DocGenControllerTests {
     static void testGenerateDocumentGiantQueryTemplateNotFound() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
             Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
 
             Test.startTest();
@@ -3433,7 +3408,7 @@ private class DocGenControllerTests {
     static void testGetGiantQueryJobStatusFound() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Status__c = 'Processing',
@@ -3478,7 +3453,7 @@ private class DocGenControllerTests {
     static void testGetGiantQueryFragmentsEmpty() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Status__c = 'Complete',
                 Template__c = tpl.Id,
@@ -3500,7 +3475,7 @@ private class DocGenControllerTests {
     static void testGetGiantQueryFragmentsWithData() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Status__c = 'Complete',
                 Template__c = tpl.Id,
@@ -3536,7 +3511,7 @@ private class DocGenControllerTests {
     static void testCleanupGiantQueryFragments() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Status__c = 'Complete',
                 Template__c = tpl.Id,
@@ -3568,7 +3543,7 @@ private class DocGenControllerTests {
     static void testCleanupGiantQueryFragmentsNoFragments() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
             DocGen_Job__c job = new DocGen_Job__c(
                 Status__c = 'Complete',
                 Template__c = tpl.Id,
@@ -3594,7 +3569,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
@@ -3617,7 +3592,7 @@ private class DocGenControllerTests {
     static void testExportTemplateSuccess() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Create a version with a file so export includes the file
             ContentVersion cv = new ContentVersion(
@@ -3656,7 +3631,7 @@ private class DocGenControllerTests {
             System.assert(bundle.containsKey('templateFile'), 'Should contain template file');
 
             Map<String, Object> tmplData = (Map<String, Object>) bundle.get('template');
-            System.assertEquals('Controller Test Template', tmplData.get('Name'), 'Template name should match');
+            System.assertEquals('DocGen Test Template', tmplData.get('Name'), 'Template name should match');
         }
     }
 
@@ -3664,7 +3639,7 @@ private class DocGenControllerTests {
     static void testExportTemplateNoVersion() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             Test.startTest();
             String jsonResult = DocGenController.exportTemplate(tpl.Id);
@@ -3700,7 +3675,7 @@ private class DocGenControllerTests {
     static void testExportTemplateWithSavedQueries() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
 
             // Create saved queries
             insert new List<DocGen_Saved_Query__c>{
@@ -3876,7 +3851,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
-            Account acc = [SELECT Id FROM Account WHERE Name = 'Controller Test Account' LIMIT 1];
+            Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
             Boolean caughtException = false;
