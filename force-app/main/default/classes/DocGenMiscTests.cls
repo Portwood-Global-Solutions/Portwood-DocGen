@@ -5640,14 +5640,15 @@ private class DocGenMiscTests {
             try {
                 DocGenBatch batch = new DocGenBatch(job.Id);
                 Database.executeBatch(batch, 1);
+                Test.stopTest();
             } catch (Exception e) {
                 caught = true;
             }
-            Test.stopTest();
 
-            // The semicolon in the condition should trigger the sanitizer
-            // It may throw during start() or be caught internally
-            System.assert(true, 'Sanitize condition injection path exercised');
+            // The semicolon in the condition triggers the sanitizer in start()
+            // which throws during Test.stopTest() — either caught above or job marked Failed
+            DocGen_Job__c updatedJob = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
+            System.assert(caught || updatedJob.Status__c == 'Failed', 'Injection should be blocked');
         }
     }
 
