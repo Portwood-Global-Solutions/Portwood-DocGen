@@ -18,6 +18,9 @@
             <template lwc:if={isLoading}>
                  <div class="loading-state">
                      <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                     <template lwc:if={loadingMessage}>
+                         <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_small">{loadingMessage}</p>
+                     </template>
                  </div>
             </template>
 
@@ -97,15 +100,9 @@
                         </template>
                     </template>
 
-                    <button class="cool-brand-btn" onclick={generateDocument} disabled={isGenerateDisabled}>
+                    <button class="cool-brand-btn" onclick={handleGenerate} disabled={isGenerateDisabled}>
                         {generateButtonLabel}
                     </button>
-
-                    <template lwc:if={selectedTemplateId}>
-                        <div class="slds-m-top_x-small">
-                            <lightning-button label="Giant Query" variant="neutral" size="small" onclick={handleGiantQuery} disabled={isGenerateDisabled}></lightning-button>
-                        </div>
-                    </template>
                 </template>
 
                 <!-- PACKET MODE -->

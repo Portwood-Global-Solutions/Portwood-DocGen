@@ -10,6 +10,10 @@ import getChildRelationships from '@salesforce/apex/DocGenController.getChildRel
 import getChildRecordPdfs from '@salesforce/apex/DocGenController.getChildRecordPdfs';
 import getRecordPdfs from '@salesforce/apex/DocGenController.getRecordPdfs';
 import generateDocumentGiantQuery from '@salesforce/apex/DocGenController.generateDocumentGiantQuery';
+import getGiantQueryJobStatus from '@salesforce/apex/DocGenController.getGiantQueryJobStatus';
+import getGiantQueryFragments from '@salesforce/apex/DocGenController.getGiantQueryFragments';
+import generateDocumentPartsGiantQuery from '@salesforce/apex/DocGenController.generateDocumentPartsGiantQuery';
+import cleanupGiantQueryFragments from '@salesforce/apex/DocGenController.cleanupGiantQueryFragments';
 import { NavigationMixin } from 'lightning/navigation';
 import { downloadBase64 as downloadBase64Util } from 'c/docGenUtils';
 import { buildDocx } from './docGenZipWriter';
@@ -27,6 +31,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @track outputMode = 'download';
     @track isLoading = false;
     @track error = '';
+    @track loadingMessage = '';
 
     @track appMode = 'generate'; // generate, packet, mergeOnly, mergeChildren
 
@@ -255,6 +260,75 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
     // --- Core Logic ---
 
+    /**
+     * Main entry point for the Generate button. Auto-detects whether the dataset
+     * qualifies as a Giant Query (>2000 child records) and routes accordingly.
+     * For PDF output, launches async pipeline server-side.
+     * For DOCX output, launches harvest batch then assembles client-side.
+     * If not giant, falls through to normal generation.
+     */
+    async handleGenerate() {
+        const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
+        const templateType = selected ? selected[TYPE_FIELD.fieldApiName] : 'Word';
+        const isPPT = templateType === 'PowerPoint';
+        const isExcel = templateType === 'Excel';
+        const isPDF = this.templateOutputFormat === 'PDF' && !isPPT && !isExcel;
+        const isWord = templateType === 'Word' && !isPPT && !isExcel;
+
+        // Giant Query auto-detect for PDF (non-merge) and DOCX Word output
+        if ((isPDF || isWord) && !this.mergeEnabled) {
+            this.isLoading = true;
+            this.loadingMessage = 'Analyzing template...';
+            this.error = null;
+            try {
+                const result = await generateDocumentGiantQuery({
+                    templateId: this.selectedTemplateId,
+                    recordId: this.recordId
+                });
+                if (result.isGiantQuery) {
+                    if (isPDF) {
+                        // PDF: async pipeline launched server-side — show toast and stop
+                        const count = result.childCounts ? Object.values(result.childCounts).find(c => c > 2000) : null;
+                        const countMsg = count ? count.toLocaleString() + ' records' : 'large dataset';
+                        this.showToast('Success', `${countMsg} detected — generating asynchronously. Check Job History for progress.`, 'success');
+                        return;
+                    }
+                    // DOCX: harvest batch launched — poll and assemble client-side
+                    await this._assembleGiantQueryDocx(result.jobId, result.giantRelationship);
+                    return;
+                }
+                // Not a giant query — document was already generated and saved by the Apex method.
+                if (isPDF) {
+                    const saveToRecord = this.outputMode === 'save';
+                    const docTitle = result.title || 'Document';
+                    if (saveToRecord) {
+                        this.showToast('Success', 'PDF saved to record.', 'success');
+                    } else if (result.contentVersionId) {
+                        this.loadingMessage = 'Preparing download...';
+                        const b64 = await getContentVersionBase64({ contentVersionId: result.contentVersionId });
+                        if (b64) {
+                            this.downloadBase64(b64, docTitle + '.pdf', 'application/pdf');
+                            this.showToast('Success', 'PDF downloaded.', 'success');
+                        } else {
+                            this.showToast('Success', 'PDF saved to record (download unavailable).', 'success');
+                        }
+                    }
+                    return;
+                }
+                // Not giant DOCX — fall through to normal generation
+            } catch (e) {
+                // If scouting fails, fall through to normal generation
+                console.warn('DocGen: Giant Query scout failed, falling back to normal generation', e);
+            } finally {
+                this.isLoading = false;
+                this.loadingMessage = '';
+            }
+        }
+
+        // Normal generation path (non-PDF, merge-enabled PDF, or giant query scout fallback)
+        await this.generateDocument();
+    }
+
     async generateDocument() {
         this.isLoading = true;
         this.error = null;
@@ -307,6 +381,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             this.error = 'Generation Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
         } finally {
             this.isLoading = false;
+            this.loadingMessage = '';
         }
     }
 
@@ -509,6 +584,120 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         } else {
             this.downloadBase64(fileBase64, docTitle + '.' + extension, mimeType);
             this.showToast('Success', extension.toUpperCase() + ' downloaded.', 'success');
+        }
+    }
+
+    /**
+     * Polls a Giant Query harvest batch, fetches fragments, injects into the template
+     * shell, and builds a DOCX ZIP entirely client-side. No heap limit.
+     * @param {string} jobId - The DocGen_Job__c record ID
+     * @param {string} giantRelationship - The child relationship name being harvested
+     */
+    async _assembleGiantQueryDocx(jobId, giantRelationship) {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            // 1. Poll harvest batch until completed
+            this.loadingMessage = 'Processing records...';
+            let status = 'Harvesting';
+            while (status !== 'Completed' && status !== 'Failed') {
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise(resolve => { setTimeout(resolve, 3000); }); // NOSONAR — intentional poll delay
+                // eslint-disable-next-line no-await-in-loop
+                const jobStatus = await getGiantQueryJobStatus({ jobId });
+                status = jobStatus.status;
+                if (status === 'Failed') {
+                    throw new Error('Giant Query harvest failed: ' + (jobStatus.label || 'Unknown error'));
+                }
+                const done = jobStatus.successCount || 0;
+                const total = jobStatus.totalRecords || 0;
+                if (total > 0) {
+                    const batchesDone = done;
+                    const totalBatches = Math.ceil(total / 50);
+                    this.loadingMessage = `Processing ${total.toLocaleString()} records (batch ${batchesDone}/${totalBatches})...`;
+                }
+            }
+
+            // 2. Get template shell with placeholder where giant loop goes
+            this.loadingMessage = 'Preparing template...';
+            const parts = await generateDocumentPartsGiantQuery({
+                templateId: this.selectedTemplateId,
+                recordId: this.recordId,
+                giantRelationshipName: giantRelationship
+            });
+            if (!parts || !parts.allXmlParts) {
+                throw new Error('Template parts generation returned empty result.');
+            }
+            const docTitle = parts.title || 'Document';
+            const placeholder = parts.placeholder || '<!--DOCGEN_GIANT_LOOP_PLACEHOLDER-->';
+
+            // 3. Fetch fragment CV IDs
+            this.loadingMessage = 'Fetching fragments...';
+            const fragResult = await getGiantQueryFragments({ jobId });
+            const fragmentIds = fragResult.fragmentIds || [];
+
+            // 4. Fetch each fragment and concatenate XML
+            let allFragmentXml = '';
+            for (let i = 0; i < fragmentIds.length; i++) {
+                this.loadingMessage = `Assembling document (fragment ${i + 1}/${fragmentIds.length})...`;
+                // eslint-disable-next-line no-await-in-loop
+                const fragB64 = await getContentVersionBase64({ contentVersionId: fragmentIds[i] });
+                if (fragB64) {
+                    // Decode base64 to string (fragment is UTF-8 XML text)
+                    allFragmentXml += atob(fragB64);
+                }
+            }
+
+            // 5. Inject fragment XML into the template at the placeholder position
+            const docXmlKey = 'word/document.xml';
+            if (parts.allXmlParts[docXmlKey]) {
+                parts.allXmlParts[docXmlKey] = parts.allXmlParts[docXmlKey].replace(placeholder, allFragmentXml);
+            }
+
+            // 6. Fetch images (same logic as _generateOfficeClientSide)
+            this.loadingMessage = 'Fetching images...';
+            const allImages = { ...(parts.imageBase64Map || {}) };
+            if (parts.imageCvIdMap) {
+                const uniqueCvIds = new Map();
+                for (const [mediaPath, cvId] of Object.entries(parts.imageCvIdMap)) {
+                    if (!uniqueCvIds.has(cvId)) { uniqueCvIds.set(cvId, []); }
+                    uniqueCvIds.get(cvId).push(mediaPath);
+                }
+                for (const [cvId, mediaPaths] of uniqueCvIds) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        const b64 = await getContentVersionBase64({ contentVersionId: cvId });
+                        if (b64) { for (const mp of mediaPaths) { allImages[mp] = b64; } }
+                    } catch (imgErr) { console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr); }
+                }
+            }
+
+            // 7. Build DOCX ZIP
+            this.loadingMessage = 'Building DOCX...';
+            const fileBytes = buildDocx(parts.allXmlParts, allImages);
+            const fileBase64 = this._uint8ArrayToBase64(fileBytes);
+
+            // 8. Download or save
+            const saveToRecord = this.outputMode === 'save';
+            if (saveToRecord) {
+                await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: fileBase64, extension: 'docx' });
+                this.showToast('Success', 'DOCX saved to record.', 'success');
+            } else {
+                this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
+                this.showToast('Success', 'DOCX downloaded.', 'success');
+            }
+
+            // 9. Clean up fragment CVs server-side
+            try {
+                await cleanupGiantQueryFragments({ jobId });
+            } catch (cleanupErr) {
+                console.warn('DocGen: Fragment cleanup failed (non-fatal)', cleanupErr);
+            }
+        } catch (e) {
+            this.error = 'Giant Query DOCX Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
+        } finally {
+            this.isLoading = false;
+            this.loadingMessage = '';
         }
     }
 

@@ -610,6 +610,172 @@ public with sharing class DocGenService {
     }
 
     /**
+     * Generates document parts for Giant Query DOCX assembly. Merges the template
+     * with a placeholder where the giant child loop belongs. The client injects
+     * pre-rendered XML fragments from the harvest batch into this placeholder,
+     * then assembles the DOCX ZIP.
+     * @param templateId The DocGen_Template__c record ID
+     * @param recordId The source record ID for parent-level merge tags
+     * @param giantRelationshipName The child relationship processed by the harvest batch
+     * @return Map containing allXmlParts (with placeholder), image maps, title, and placeholder token
+     */
+    public static Map<String, Object> generateDocumentPartsGiantQuery(Id templateId, Id recordId, String giantRelationshipName) {
+        // Use PDF output format to skip image blob loading during merge
+        currentOutputFormat = 'PDF';
+
+        // Unique placeholder for the giant loop — client replaces with concatenated fragment XML
+        String placeholder = '<!--DOCGEN_GIANT_LOOP_PLACEHOLDER-->';
+
+        pendingImages = new List<Map<String, Object>>();
+        imageCounter = 0;
+
+        Map<String, Object> dataMap;
+        try {
+            dataMap = DocGenController.generateDocumentData(templateId, recordId);
+        } catch (Exception e) {
+            throw new DocGenException('Error retrieving template data: ' + e.getMessage());
+        }
+
+        String base64File = (String) dataMap.get('templateFile');
+        Object dataObj = dataMap.get('data');
+        String templateType = (String) dataMap.get('templateType');
+        String titleFormat = (String) dataMap.get('titleFormat');
+
+        if (base64File == null) {
+            throw new DocGenException('Template file content is missing.');
+        }
+
+        Map<String, Object> recordDataMap;
+        if (dataObj instanceof Map<String, Object>) {
+            recordDataMap = (Map<String, Object>) dataObj;
+        } else if (dataObj instanceof SObject) {
+            recordDataMap = ((SObject) dataObj).getPopulatedFieldsAsMap();
+        } else {
+            throw new DocGenException('Invalid data format.');
+        }
+
+        currentTemplateType = templateType;
+
+        MergeResult mr = new MergeResult();
+        mr.templateType = templateType;
+        mr.outputFormat = 'Native';
+        mr.relsPath = 'word/_rels/document.xml.rels';
+        mr.mediaPath = 'word/media/';
+
+        Blob templateBlob = EncodingUtil.base64Decode(base64File);
+        Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
+        String rawDocumentXml = null;
+
+        for (Compression.ZipEntry entry : reader.getEntries()) {
+            String name = entry.getName();
+            if (name == 'word/document.xml') {
+                rawDocumentXml = reader.extract(name).toString();
+            } else if (name == '[Content_Types].xml') {
+                mr.contentTypesXml = reader.extract(name).toString();
+            } else if (name == mr.relsPath) {
+                mr.relsXml = reader.extract(name).toString();
+            } else {
+                Boolean isProcessedXml = (name.startsWith('word/header') && name.endsWith('.xml')) ||
+                                         (name.startsWith('word/footer') && name.endsWith('.xml'));
+                if (isProcessedXml) {
+                    String xml = mergeRunsInTags(reader.extract(name).toString());
+                    xml = processXml(xml, recordDataMap);
+                    mr.processedXmlEntries.put(name, xml);
+                } else {
+                    mr.passthroughEntries.put(name, reader.extract(name));
+                }
+            }
+        }
+
+        if (rawDocumentXml == null) {
+            throw new DocGenException('Template does not contain word/document.xml.');
+        }
+
+        // Merge runs first, then inject placeholder for the giant loop
+        rawDocumentXml = mergeRunsInTags(rawDocumentXml);
+
+        Map<String, String> loopParts = extractLoopBody(rawDocumentXml, giantRelationshipName);
+        if (loopParts != null) {
+            rawDocumentXml = loopParts.get('beforeLoop') + placeholder + loopParts.get('afterLoop');
+        }
+
+        // Process remaining merge tags (parent-level fields, other loops)
+        String processedXml = processXml(rawDocumentXml, recordDataMap);
+        mr.documentXml = processedXml;
+        mr.processedXmlEntries.put('word/document.xml', processedXml);
+
+        mr.docTitle = generateDocTitle(titleFormat, recordDataMap);
+        if (mr.docTitle == null) {
+            mr.docTitle = (String) resolveValue(recordDataMap, 'Name');
+        }
+
+        // Handle pending images (rels entries needed for DOCX)
+        if (!pendingImages.isEmpty()) {
+            if (mr.contentTypesXml != null) {
+                if (!mr.contentTypesXml.contains('Extension="png"')) {
+                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+                }
+                if (!mr.contentTypesXml.contains('Extension="jpeg"') && !mr.contentTypesXml.contains('Extension="jpg"')) {
+                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+                }
+            }
+            if (mr.relsXml != null) {
+                for (Map<String, Object> img : pendingImages) {
+                    String relId = (String) img.get('relId');
+                    String fName = (String) img.get('fileName');
+                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
+                    mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
+                }
+            }
+        }
+
+        // Build return maps (same as generateDocumentParts)
+        Map<String, String> allXmlParts = new Map<String, String>(mr.processedXmlEntries);
+        if (mr.contentTypesXml != null) {
+            allXmlParts.put('[Content_Types].xml', mr.contentTypesXml);
+        }
+        if (mr.relsXml != null) {
+            allXmlParts.put(mr.relsPath, mr.relsXml);
+        }
+        for (String path : mr.passthroughEntries.keySet()) {
+            Blob entryBlob = mr.passthroughEntries.get(path);
+            if (!path.startsWith(mr.mediaPath)) {
+                allXmlParts.put(path, entryBlob.toString());
+            }
+        }
+
+        Map<String, String> imageBase64Map = new Map<String, String>();
+        for (String path : mr.passthroughEntries.keySet()) {
+            if (path.startsWith(mr.mediaPath)) {
+                imageBase64Map.put(path, EncodingUtil.base64Encode(mr.passthroughEntries.get(path)));
+            }
+        }
+
+        Map<String, String> imageCvIdMap = new Map<String, String>();
+        for (Map<String, Object> img : pendingImages) {
+            String fileName = (String) img.get('fileName');
+            String mediaPath = 'word/media/' + fileName;
+            if (img.containsKey('url')) {
+                String url = (String) img.get('url');
+                if (url.contains('/version/download/')) {
+                    imageCvIdMap.put(mediaPath, url.substringAfterLast('/'));
+                }
+            }
+        }
+
+        currentOutputFormat = 'Native';
+
+        return new Map<String, Object>{
+            'allXmlParts' => allXmlParts,
+            'imageBase64Map' => imageBase64Map,
+            'imageCvIdMap' => imageCvIdMap,
+            'title' => mr.docTitle,
+            'templateType' => mr.templateType,
+            'placeholder' => placeholder
+        };
+    }
+
+    /**
      * Extracts images from a template DOCX/PPTX file and saves them as ContentVersion
      * records linked to the template version. These committed CVs provide stable URLs
      * for Blob.toPdf() which cannot render data URI images (Flying Saucer limitation).

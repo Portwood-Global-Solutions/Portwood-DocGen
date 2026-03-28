@@ -241,9 +241,16 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             if (configVersion < 3) {
                 // Fall through to normal generation
                 Id docId = DocGenService.generateDocument(templateId, recordId);
+                List<ContentVersion> cvsFallback = [
+                    SELECT Id, Title FROM ContentVersion
+                    WHERE ContentDocumentId = :docId AND IsLatest = true
+                    WITH SYSTEM_MODE LIMIT 1
+                ];
                 return new Map<String, Object>{
                     'isGiantQuery' => false,
                     'docId' => docId,
+                    'contentVersionId' => cvsFallback.isEmpty() ? null : cvsFallback[0].Id,
+                    'title' => cvsFallback.isEmpty() ? null : cvsFallback[0].Title,
                     'childCounts' => new Map<String, Integer>()
                 };
             }
@@ -277,9 +284,17 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             if (giantRelationship == null) {
                 // All counts within threshold — normal generation
                 Id docId = DocGenService.generateDocument(templateId, recordId);
+                // Resolve the latest ContentVersion ID for download support
+                List<ContentVersion> cvs = [
+                    SELECT Id, Title FROM ContentVersion
+                    WHERE ContentDocumentId = :docId AND IsLatest = true
+                    WITH SYSTEM_MODE LIMIT 1
+                ];
                 return new Map<String, Object>{
                     'isGiantQuery' => false,
                     'docId' => docId,
+                    'contentVersionId' => cvs.isEmpty() ? null : cvs[0].Id,
+                    'title' => cvs.isEmpty() ? null : cvs[0].Title,
                     'childCounts' => counts
                 };
             }
@@ -338,6 +353,140 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error initiating Giant Query generation.');
         }
+    }
+
+    /**
+     * Returns the status and progress of a Giant Query job for client-side polling.
+     * @param jobId The DocGen_Job__c record ID
+     * @return Map with status, successCount, totalRecords
+     */
+    @AuraEnabled
+    public static Map<String, Object> getGiantQueryJobStatus(Id jobId) {
+        List<DocGen_Job__c> jobs = [
+            SELECT Status__c, Success_Count__c, Total_Records__c, Label__c
+            FROM DocGen_Job__c
+            WHERE Id = :jobId
+            WITH USER_MODE
+            LIMIT 1
+        ];
+        if (jobs.isEmpty()) {
+            return new Map<String, Object>{ 'status' => 'Not Found' };
+        }
+        DocGen_Job__c job = jobs[0];
+        return new Map<String, Object>{
+            'status' => job.Status__c,
+            'successCount' => job.Success_Count__c,
+            'totalRecords' => job.Total_Records__c,
+            'label' => job.Label__c
+        };
+    }
+
+    /**
+     * Returns the ordered list of fragment ContentVersion IDs for a Giant Query job.
+     * Used by client-side DOCX assembly to fetch each fragment one at a time.
+     * @param jobId The DocGen_Job__c record ID
+     * @return Map with fragmentIds (ordered list) and fragmentCount
+     */
+    @AuraEnabled
+    public static Map<String, Object> getGiantQueryFragments(Id jobId) {
+        String prefix = 'docgen_giant_' + jobId + '_';
+        List<ContentVersion> fragments = [
+            SELECT Id, Title FROM ContentVersion
+            WHERE Title LIKE :(prefix + '%') WITH USER_MODE ORDER BY Title
+        ];
+        List<String> fragmentIds = new List<String>();
+        for (ContentVersion cv : fragments) {
+            fragmentIds.add(cv.Id);
+        }
+        return new Map<String, Object>{
+            'fragmentIds' => fragmentIds,
+            'fragmentCount' => fragments.size()
+        };
+    }
+
+    /**
+     * Generates document parts for Giant Query DOCX assembly. Returns the merged
+     * template shell XML (parent data filled, giant loop replaced with placeholder)
+     * plus image maps. The client injects harvest fragments and builds the DOCX ZIP.
+     * @param templateId The DocGen_Template__c record ID
+     * @param recordId The source record ID for parent-level merge tags
+     * @param giantRelationshipName The child relationship name processed by harvest batch
+     * @return Map containing allXmlParts, image maps, title, placeholder token
+     */
+    @AuraEnabled
+    public static Map<String, Object> generateDocumentPartsGiantQuery(Id templateId, Id recordId, String giantRelationshipName) {
+        try {
+            return DocGenService.generateDocumentPartsGiantQuery(templateId, recordId, giantRelationshipName);
+        } catch (Exception e) {
+            throw DocGenService.ahe(e, 'Error generating Giant Query document parts.');
+        }
+    }
+
+    /**
+     * Deletes the fragment ContentVersions for a Giant Query job after client-side
+     * DOCX assembly is complete. Cleans up intermediate storage.
+     * @param jobId The DocGen_Job__c record ID
+     */
+    @AuraEnabled
+    public static void cleanupGiantQueryFragments(Id jobId) {
+        String prefix = 'docgen_giant_' + jobId + '_';
+        Set<Id> docIds = new Set<Id>();
+        for (ContentVersion cv : [
+            SELECT ContentDocumentId FROM ContentVersion
+            WHERE Title LIKE :(prefix + '%') WITH USER_MODE
+        ]) {
+            docIds.add(cv.ContentDocumentId);
+        }
+        if (!docIds.isEmpty()) {
+            delete [SELECT Id FROM ContentDocument WHERE Id IN :docIds]; // NOPMD ApexCRUDViolation — cleaning up Giant Query fragments
+        }
+    }
+
+    /**
+     * Returns one page of child records for client-side Giant Query assembly.
+     * Uses cursor-based pagination (Id > lastCursorId) — no OFFSET limit.
+     * Each call is a fresh transaction with fresh heap.
+     * @param childObject The child SObject API name
+     * @param lookupField The lookup field on the child pointing to the parent
+     * @param parentId The parent record ID
+     * @param lastCursorId The last record ID from the previous page (null for first page)
+     * @param fields Comma-separated list of fields to query
+     * @param pageSize Number of records per page (max 200)
+     * @return Map with 'records' (List<Map<String,Object>>), 'lastId' (String), 'hasMore' (Boolean)
+     */
+    @AuraEnabled
+    public static Map<String, Object> getChildRecordPage(String childObject, String lookupField, Id parentId, String lastCursorId, String fields, Integer pageSize) {
+        if (pageSize == null || pageSize > 200) { pageSize = 200; }
+
+        // Validate object name against Schema
+        Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+        if (gd.get(childObject) == null) {
+            throw DocGenService.ahe(new DocGenException('Invalid object: ' + childObject), 'Invalid child object.');
+        }
+
+        String query = 'SELECT ' + String.escapeSingleQuotes(fields) +
+            ' FROM ' + String.escapeSingleQuotes(childObject) +
+            ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :parentId';
+
+        if (String.isNotBlank(lastCursorId)) {
+            query += ' AND Id > :lastCursorId';
+        }
+        query += ' ORDER BY Id LIMIT :pageSize';
+
+        List<SObject> records = Database.query(query, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — object validated by Schema; fields from template config; USER_MODE enforced
+
+        List<Map<String, Object>> recordMaps = new List<Map<String, Object>>();
+        for (SObject rec : records) {
+            recordMaps.add(rec.getPopulatedFieldsAsMap());
+        }
+
+        String lastId = records.isEmpty() ? null : records[records.size() - 1].Id;
+
+        return new Map<String, Object>{
+            'records' => recordMaps,
+            'lastId' => lastId,
+            'hasMore' => records.size() == pageSize
+        };
     }
 
     /**

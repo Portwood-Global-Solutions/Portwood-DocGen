@@ -1,12 +1,14 @@
 /**
  * Batch Apex that harvests child records in cursor-based pages and renders
- * template loop body fragments. Each execute() queries one page of children,
- * renders the loop body for those records, and saves the result as a
- * ContentVersion fragment. After all pages are processed, chains the
- * DocGenGiantQueryStitchJob to assemble fragments and produce the final document.
+ * each page as a standalone fragment. Each execute() queries one page of
+ * children, renders the loop body XML, and saves as a ContentVersion.
  *
- * Implements Database.Batchable<String> (not SObject) so we can use page
- * descriptors as the iterable — each string triggers one cursor page query.
+ * For PDF output: fragments are saved as HTML, then the stitch job groups
+ * them into PDFs via Blob.toPdf().
+ *
+ * For DOCX output: fragments are saved as raw XML, stitch is skipped, and
+ * the client fetches each fragment one at a time to assemble the DOCX ZIP
+ * in JavaScript (no Apex heap limit).
  */
 public with sharing class DocGenGiantQueryBatch implements Database.Batchable<String>, Database.Stateful {
 
@@ -40,7 +42,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         this.innerXml = innerXml;
         this.outputFormat = outputFormat;
         this.fragmentSequence = 0;
-        this.batchSize = 200;
+        this.batchSize = 50; // Keep small for Blob.toPdf() HTML size limit (~150KB per fragment)
 
         this.relationshipName = (String) childNodeConfig.get('relationshipName');
         this.childObjectName = (String) childNodeConfig.get('object');
@@ -65,37 +67,29 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
 
     /**
      * Counts total children and generates page descriptors for cursor-based iteration.
-     * Updates job status to 'Harvesting'.
      * @param bc The batch context provided by the platform
      * @return Iterable of page descriptor strings
      */
     public Iterable<String> start(Database.BatchableContext bc) {
-        // Validate object name against Schema to prevent injection
         if (Schema.getGlobalDescribe().get(childObjectName) == null) {
             throw new DocGenException('Invalid child object: ' + childObjectName);
         }
 
-        // Count total children
         String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjectName) +
             ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
         Integer totalChildren = Database.countQuery(countQuery);
 
-        // Update job status
         Integer totalPages = (Integer) Math.ceil((Decimal) totalChildren / batchSize);
-        DocGen_Job__c jobUpdate = new DocGen_Job__c(
+        update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal
             Id = jobId,
             Status__c = 'Harvesting',
             Total_Records__c = totalChildren
         );
-        update jobUpdate; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
 
-        // Generate page descriptors
         List<String> pages = new List<String>();
         for (Integer i = 0; i < totalPages; i++) {
             pages.add('page:' + i);
         }
-
-        // Edge case: if no children, still need at least an empty list
         if (pages.isEmpty()) {
             pages.add('page:0');
         }
@@ -105,88 +99,79 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
     }
 
     /**
-     * Processes one page of child records: queries, renders loop body, saves fragment.
-     * Uses cursor-based pagination (Id > lastCursorId) to avoid OFFSET limits.
+     * Processes one page: queries children, renders loop body, converts to PDF,
+     * saves as ContentVersion. The PDF is a standalone page fragment that the
+     * stitch job will reference by URL without loading into heap.
      * @param bc The batch context
-     * @param scope List of page descriptors (typically one per execute)
+     * @param scope List of page descriptors
      */
     public void execute(Database.BatchableContext bc, List<String> scope) {
-        // Validate object against Schema
         if (Schema.getGlobalDescribe().get(childObjectName) == null) {
             return;
         }
 
         for (String pageDescriptor : scope) {
-            // Build SELECT fields
             List<String> selectFields = new List<String>{ 'Id' };
             for (String f : childFields) {
-                if (f != 'Id') {
-                    selectFields.add(f);
-                }
+                if (f != 'Id') { selectFields.add(f); }
             }
-            for (String f : parentFields) {
-                selectFields.add(f);
-            }
+            for (String f : parentFields) { selectFields.add(f); }
 
-            // Cursor-based query
             String query = 'SELECT ' + String.join(selectFields, ', ') +
                 ' FROM ' + String.escapeSingleQuotes(childObjectName) +
                 ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
-
             if (lastCursorId != null) {
                 query += ' AND Id > :lastCursorId';
             }
-
             query += ' ORDER BY Id LIMIT :batchSize';
 
-            List<SObject> records = Database.query(query, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — childObjectName validated by Schema.getGlobalDescribe(); lookupField from template config; USER_MODE enforced
+            List<SObject> records = Database.query(query, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — validated by Schema.getGlobalDescribe; USER_MODE enforced
+            if (records.isEmpty()) { continue; }
 
-            if (records.isEmpty()) {
-                continue;
-            }
-
-            // Update cursor
             lastCursorId = records[records.size() - 1].Id;
 
-            // Build combined field list for rendering
             List<String> allFields = new List<String>();
             allFields.addAll(childFields);
             allFields.addAll(parentFields);
 
-            // Render fragment
-            String fragment = DocGenService.renderLoopBodyForRecords(innerXml, relationshipName, records, allFields);
+            // Render the loop body HTML for this batch of records
+            String fragmentHtml = DocGenService.renderLoopBodyForRecords(innerXml, relationshipName, records, allFields);
 
-            // Save as ContentVersion fragment
+            // Save rendered XML fragment — stitch handles PDF conversion in groups,
+            // or client fetches directly for DOCX assembly
             String seq = String.valueOf(fragmentSequence++).leftPad(5, '0');
+            String fragExtension = ('PDF'.equalsIgnoreCase(outputFormat)) ? '.html' : '.xml';
             ContentVersion cv = new ContentVersion(
                 Title = 'docgen_giant_' + jobId + '_' + seq,
-                PathOnClient = 'docgen_giant_' + jobId + '_' + seq + '.xml',
-                VersionData = Blob.valueOf(fragment),
+                PathOnClient = 'docgen_giant_' + jobId + '_' + seq + fragExtension,
+                VersionData = Blob.valueOf(fragmentHtml),
                 IsMajorVersion = false,
                 FirstPublishLocationId = jobId
             );
-            insert cv; // NOPMD ApexCRUDViolation — internal fragment file for Giant Query processing
+            insert cv; // NOPMD ApexCRUDViolation — internal fragment for Giant Query
 
-            // Update job progress
-            DocGen_Job__c jobProgress = new DocGen_Job__c(
-                Id = jobId,
-                Success_Count__c = fragmentSequence
-            );
-            update jobProgress; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+            update new DocGen_Job__c(Id = jobId, Success_Count__c = fragmentSequence); // NOPMD ApexCRUDViolation — package-internal
         }
     }
 
     /**
-     * Chains the stitch Queueable to assemble all fragments into the final document.
+     * For PDF output, launches the stitch Batch to assemble HTML fragments into final PDFs.
+     * For DOCX/Native output, skips stitch entirely — client-side assembly fetches fragments
+     * one at a time via getContentVersionBase64() and builds the DOCX ZIP in JavaScript.
      * @param bc The batch context
      */
     public void finish(Database.BatchableContext bc) {
         try {
-            System.enqueueJob(new DocGenGiantQueryStitchJob(
-                jobId, templateId, recordId, relationshipName, outputFormat
-            ));
+            if ('PDF'.equalsIgnoreCase(outputFormat)) {
+                Database.executeBatch(new DocGenGiantQueryStitchJob(
+                    jobId, templateId, recordId, relationshipName, outputFormat
+                ), 1); // batch size 1 = one PDF per execute()
+            } else {
+                // DOCX: no server-side stitch needed — client will assemble
+                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal
+            }
         } catch (Exception e) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed'); // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed'); // NOPMD ApexCRUDViolation — package-internal
         }
     }
 }
