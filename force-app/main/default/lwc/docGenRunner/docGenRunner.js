@@ -16,7 +16,6 @@ import generateDocumentPartsGiantQuery from '@salesforce/apex/DocGenController.g
 import cleanupGiantQueryFragments from '@salesforce/apex/DocGenController.cleanupGiantQueryFragments';
 import getChildRecordPage from '@salesforce/apex/DocGenController.getChildRecordPage';
 import scoutChildCounts from '@salesforce/apex/DocGenController.scoutChildCounts';
-import saveDocumentChunk from '@salesforce/apex/DocGenController.saveDocumentChunk';
 import { NavigationMixin } from 'lightning/navigation';
 import { downloadBase64 as downloadBase64Util } from 'c/docGenUtils';
 import { buildDocx } from './docGenZipWriter';
@@ -24,7 +23,6 @@ import { mergePdfs } from './docGenPdfMerger';
 import OUT_FMT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__c';
 import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 import IS_DEFAULT_FIELD from '@salesforce/schema/DocGen_Template__c.Is_Default__c';
-import QUERY_CONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Config__c';
 
 export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -283,7 +281,6 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         const templateType = selected ? selected[TYPE_FIELD.fieldApiName] : 'Word';
         const isPPT = templateType === 'PowerPoint';
         const isExcel = templateType === 'Excel';
-        const isPDF = this.templateOutputFormat === 'PDF' && !isPPT && !isExcel;
         const isWord = templateType === 'Word' && !isPPT && !isExcel;
 
         // Giant Query auto-detect: ALWAYS scout first before any generation
