@@ -2820,4 +2820,256 @@ public with sharing class DocGenService {
     public static Map<String, Object> mergeTemplateForSignature(Id templateId, String recordIdStr) {
         throw new DocGenException('Signatures have been removed from DocGen. Please delete the old signature classes from your org.');
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Giant Query helpers — extract, render, and inject pre-rendered loop content
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Extracts the loop body XML from a template for a specific relationship.
+     * Returns the XML between {#relationshipName} and {/relationshipName} tags,
+     * plus the surrounding context (before/after the loop) for final assembly.
+     * Uses the same loop detection logic as processXml but only extracts — does not render.
+     * @param templateXml The raw template XML (e.g., word/document.xml)
+     * @param relationshipName The loop tag key (e.g., "Contacts", "OpportunityLineItems")
+     * @return Map with keys: 'innerXml', 'beforeLoop', 'afterLoop'
+     */
+    public static Map<String, String> extractLoopBody(String templateXml, String relationshipName) {
+        Map<String, String> result = new Map<String, String>();
+
+        // Merge runs first so we find complete tags
+        String xml = mergeRunsInTags(templateXml);
+
+        // Find the opening tag {#relationshipName}
+        String openTag = '{#' + relationshipName + '}';
+        Integer openIdx = xml.indexOf(openTag);
+        if (openIdx == -1) {
+            // Try with whitespace variations
+            Pattern openPattern = Pattern.compile('\\{\\s*#\\s*' + Pattern.quote(relationshipName) + '\\s*\\}');
+            Matcher openMatcher = openPattern.matcher(xml);
+            if (openMatcher.find()) {
+                openIdx = openMatcher.start();
+                openTag = openMatcher.group();
+            } else {
+                return null;
+            }
+        }
+
+        Integer contentStart = openIdx + openTag.length();
+        Integer sectionEnd = findBalancedEnd(xml, contentStart, relationshipName);
+        if (sectionEnd == -1) {
+            return null;
+        }
+
+        Integer closeTagEnd = xml.indexOf('}', sectionEnd) + 1;
+
+        // Determine container boundaries (same logic as processXml — expand to w:tr if applicable)
+        Integer containerStart = openIdx;
+        Integer containerEnd = closeTagEnd;
+
+        // Check for table row container
+        Integer rowContainerStart = lastIndexOfTagStart(xml, 'w:tr', openIdx);
+        if (rowContainerStart != -1) {
+            Integer rowContainerEnd = xml.indexOf('</w:tr>', rowContainerStart);
+            Boolean rowClosedBeforeOpen = xml.substring(rowContainerStart, openIdx).contains('</w:tr>');
+            if (!rowClosedBeforeOpen && rowContainerEnd != -1 && rowContainerEnd >= closeTagEnd) {
+                containerStart = rowContainerStart;
+                containerEnd = rowContainerEnd + 7; // </w:tr>
+            }
+        }
+
+        // Build inner XML (container content minus the open/close tags)
+        String innerXml = xml.substring(containerStart, containerEnd);
+        innerXml = innerXml.replace(openTag, '');
+        String closeTag = xml.substring(sectionEnd, closeTagEnd);
+        innerXml = innerXml.replace(closeTag, '');
+
+        result.put('innerXml', innerXml);
+        result.put('beforeLoop', xml.substring(0, containerStart));
+        result.put('afterLoop', xml.substring(containerEnd));
+
+        return result;
+    }
+
+    /**
+     * Renders the loop body XML for a list of child records.
+     * Each record gets its merge tags replaced via processXml, producing repeated content.
+     * @param innerXml The loop body template XML (one iteration)
+     * @param relationshipName The relationship name (used for context)
+     * @param records List of SObject child records to render
+     * @param fieldNames List of field API names to include in the data map
+     * @return Concatenated rendered XML for all records
+     */
+    public static String renderLoopBodyForRecords(String innerXml, String relationshipName, List<SObject> records, List<String> fieldNames) {
+        String rendered = '';
+        for (SObject rec : records) {
+            Map<String, Object> dataMap = new Map<String, Object>();
+            for (String field : fieldNames) {
+                try {
+                    // Handle parent fields (e.g., Product2.Name)
+                    if (field.contains('.')) {
+                        List<String> parts = field.split('\\.');
+                        SObject current = rec;
+                        for (Integer i = 0; i < parts.size() - 1; i++) {
+                            current = current.getSObject(parts[i]);
+                            if (current == null) { break; }
+                        }
+                        if (current != null) {
+                            dataMap.put(field, current.get(parts[parts.size() - 1]));
+                        } else {
+                            dataMap.put(field, null);
+                        }
+                    } else {
+                        dataMap.put(field, rec.get(field));
+                    }
+                } catch (Exception e) {
+                    dataMap.put(field, null);
+                }
+            }
+            rendered += processXml(innerXml, dataMap);
+        }
+        return rendered;
+    }
+
+    /**
+     * Merges a template but injects pre-rendered content for specified relationships
+     * instead of processing the loop normally. The pre-rendered content replaces the
+     * entire loop section (including container) for each specified relationship.
+     * @param templateId The DocGen_Template__c record ID
+     * @param recordId The source record ID for parent-level merge tags
+     * @param preRenderedLoops Map of relationship name to pre-rendered XML content
+     * @param outputFormat The desired output format ('PDF' or 'Native')
+     * @return ContentDocumentId of the saved document
+     */
+    public static Id mergeTemplateWithPreRenderedLoops(Id templateId, Id recordId, Map<String, String> preRenderedLoops, String outputFormat) {
+        pendingImages = new List<Map<String, Object>>();
+        imageCounter = 0;
+
+        Map<String, Object> dataMap;
+        try {
+            dataMap = DocGenController.generateDocumentData(templateId, recordId);
+        } catch (Exception e) {
+            throw new DocGenException('Error retrieving template data: ' + e.getMessage());
+        }
+
+        String base64File = (String) dataMap.get('templateFile');
+        Object dataObj = dataMap.get('data');
+        String templateType = (String) dataMap.get('templateType');
+        String titleFormat = (String) dataMap.get('titleFormat');
+
+        if (base64File == null) {
+            throw new DocGenException('Template file content is missing.');
+        }
+
+        Map<String, Object> recordDataMap;
+        if (dataObj instanceof Map<String, Object>) {
+            recordDataMap = (Map<String, Object>) dataObj;
+        } else if (dataObj instanceof SObject) {
+            recordDataMap = ((SObject) dataObj).getPopulatedFieldsAsMap();
+        } else {
+            throw new DocGenException('Invalid data format.');
+        }
+
+        // For PDF output, use pre-decomposed path if available
+        currentOutputFormat = (outputFormat == 'PDF') ? 'PDF' : 'Native';
+        currentTemplateType = templateType;
+
+        MergeResult mr = new MergeResult();
+        mr.templateType = templateType;
+        mr.outputFormat = outputFormat;
+        mr.relsPath = 'word/_rels/document.xml.rels';
+        mr.mediaPath = 'word/media/';
+
+        // Decode template ZIP to get the raw document XML
+        Blob templateBlob = EncodingUtil.base64Decode(base64File);
+        Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
+        String rawDocumentXml = null;
+
+        for (Compression.ZipEntry entry : reader.getEntries()) {
+            String name = entry.getName();
+            if (name == 'word/document.xml') {
+                rawDocumentXml = reader.extract(name).toString();
+            } else if (name == '[Content_Types].xml') {
+                mr.contentTypesXml = reader.extract(name).toString();
+            } else if (name == mr.relsPath) {
+                mr.relsXml = reader.extract(name).toString();
+            } else {
+                Boolean isProcessedXml = (name.startsWith('word/header') && name.endsWith('.xml')) ||
+                                         (name.startsWith('word/footer') && name.endsWith('.xml'));
+                if (isProcessedXml) {
+                    String xml = mergeRunsInTags(reader.extract(name).toString());
+                    xml = processXml(xml, recordDataMap);
+                    mr.processedXmlEntries.put(name, xml);
+                } else {
+                    mr.passthroughEntries.put(name, reader.extract(name));
+                }
+            }
+        }
+
+        if (rawDocumentXml == null) {
+            throw new DocGenException('Template does not contain word/document.xml.');
+        }
+
+        // Merge runs first, then inject pre-rendered loops before processXml
+        rawDocumentXml = mergeRunsInTags(rawDocumentXml);
+
+        // For each pre-rendered relationship, replace the loop section with pre-rendered content
+        for (String relName : preRenderedLoops.keySet()) {
+            Map<String, String> loopParts = extractLoopBody(rawDocumentXml, relName);
+            if (loopParts != null) {
+                rawDocumentXml = loopParts.get('beforeLoop') +
+                    preRenderedLoops.get(relName) +
+                    loopParts.get('afterLoop');
+            }
+        }
+
+        // Now process remaining merge tags (parent-level fields, other loops)
+        String processedXml = processXml(rawDocumentXml, recordDataMap);
+        mr.documentXml = processedXml;
+        mr.processedXmlEntries.put('word/document.xml', processedXml);
+
+        // Generate document title
+        mr.docTitle = generateDocTitle(titleFormat, recordDataMap);
+        if (mr.docTitle == null) {
+            mr.docTitle = (String) resolveValue(recordDataMap, 'Name');
+        }
+
+        // Handle pending images
+        if (!pendingImages.isEmpty()) {
+            if (mr.contentTypesXml != null) {
+                if (!mr.contentTypesXml.contains('Extension="png"')) {
+                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+                }
+                if (!mr.contentTypesXml.contains('Extension="jpeg"') && !mr.contentTypesXml.contains('Extension="jpg"')) {
+                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+                }
+            }
+            if (mr.relsXml != null) {
+                for (Map<String, Object> img : pendingImages) {
+                    String relId = (String) img.get('relId');
+                    String fName = (String) img.get('fileName');
+                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
+                    mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
+                }
+            }
+            for (Map<String, Object> img : pendingImages) {
+                String relId = (String) img.get('relId');
+                if (img.containsKey('blob')) {
+                    mr.imageBase64ByRelId.put(relId, EncodingUtil.base64Encode((Blob) img.get('blob')));
+                }
+                if (img.containsKey('url')) {
+                    mr.imageUrlByRelId.put(relId, (String) img.get('url'));
+                }
+            }
+        }
+
+        // Render to final format
+        if (outputFormat == 'PDF' && templateType == 'Word') {
+            Blob pdfBlob = renderPdf(mr, templateId, recordId);
+            return savePdfFile(pdfBlob, mr.docTitle, recordId);
+        }
+
+        Blob resultBlob = assembleZip(mr);
+        return saveFile(resultBlob, mr.docTitle, recordId, outputFormat, templateType);
+    }
 }

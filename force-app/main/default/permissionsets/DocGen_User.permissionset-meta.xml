@@ -25,6 +25,14 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>DocGenGiantQueryBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DocGenGiantQueryStitchJob</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>DocGenDataProvider</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -78,6 +86,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>DocGen_Job__c.Giant_Query_Config__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>DocGen_Job__c.Label__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -89,6 +102,11 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>DocGen_Job__c.Merged_PDF_CV__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>DocGen_Job__c.Parent_Record_Id__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

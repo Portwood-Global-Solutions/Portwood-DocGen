@@ -28,6 +28,16 @@
                 <label>Merging</label>
             </value>
             <value>
+                <fullName>Harvesting</fullName>
+                <default>false</default>
+                <label>Harvesting</label>
+            </value>
+            <value>
+                <fullName>Stitching</fullName>
+                <default>false</default>
+                <label>Stitching</label>
+            </value>
+            <value>
                 <fullName>Failed</fullName>
                 <default>false</default>
                 <label>Failed</label>

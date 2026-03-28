@@ -209,6 +209,138 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     }
 
     /**
+     * Generates a document using Giant Query async pipeline for records with thousands of children.
+     * Scouts child counts, and if any exceed the threshold (2000), creates a Job, extracts the
+     * loop body, and launches the batch harvester. Falls through to normal generation otherwise.
+     * @param templateId The DocGen_Template__c record ID
+     * @param recordId The source record ID to generate from
+     * @return Map with keys: jobId, isGiantQuery, childCounts. If isGiantQuery is false, includes docId.
+     */
+    @AuraEnabled
+    public static Map<String, Object> generateDocumentGiantQuery(Id templateId, Id recordId) {
+        try {
+            if (templateId == null) { throw new DocGenException('Template ID is missing.'); }
+            if (recordId == null) { throw new DocGenException('Record ID is missing.'); }
+
+            // Get template config
+            List<DocGen_Template__c> templates = [
+                SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c
+                FROM DocGen_Template__c
+                WHERE Id = :templateId
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
+            if (templates.isEmpty()) {
+                throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
+            }
+            DocGen_Template__c template = templates[0];
+            String queryConfig = template.Query_Config__c;
+
+            // Only V3 configs support Giant Query
+            Integer configVersion = DocGenDataRetriever.getConfigVersion(queryConfig);
+            if (configVersion < 3) {
+                // Fall through to normal generation
+                Id docId = DocGenService.generateDocument(templateId, recordId);
+                return new Map<String, Object>{
+                    'isGiantQuery' => false,
+                    'docId' => docId,
+                    'childCounts' => new Map<String, Integer>()
+                };
+            }
+
+            // Scout child counts
+            Map<String, Integer> counts = DocGenDataRetriever.scoutChildCounts(recordId, queryConfig);
+
+            // Check if any count exceeds threshold
+            Integer threshold = 2000;
+            String giantRelationship = null;
+            Map<String, Object> giantNodeConfig = null;
+
+            Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(queryConfig.trim());
+            List<Object> nodesJson = (List<Object>) config.get('nodes');
+
+            for (String relName : counts.keySet()) {
+                if (counts.get(relName) > threshold) {
+                    giantRelationship = relName;
+                    // Find the matching node config
+                    for (Object nodeObj : nodesJson) {
+                        Map<String, Object> n = (Map<String, Object>) nodeObj;
+                        if (relName.equals((String) n.get('relationshipName'))) {
+                            giantNodeConfig = n;
+                            break;
+                        }
+                    }
+                    break; // Process first giant relationship found
+                }
+            }
+
+            if (giantRelationship == null) {
+                // All counts within threshold — normal generation
+                Id docId = DocGenService.generateDocument(templateId, recordId);
+                return new Map<String, Object>{
+                    'isGiantQuery' => false,
+                    'docId' => docId,
+                    'childCounts' => counts
+                };
+            }
+
+            // Giant Query path: create Job, extract loop body, launch batch
+            // Get template XML for loop extraction
+            String base64File = DocGenTemplateManager.getTemplateFileContent(templateId);
+            Blob templateBlob = EncodingUtil.base64Decode(base64File);
+            Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
+            String documentXml = null;
+            for (Compression.ZipEntry entry : reader.getEntries()) {
+                if (entry.getName() == 'word/document.xml') {
+                    documentXml = reader.extract(entry.getName()).toString();
+                    break;
+                }
+            }
+            if (documentXml == null) {
+                throw new DocGenException('Template does not contain word/document.xml.');
+            }
+
+            Map<String, String> loopParts = DocGenService.extractLoopBody(documentXml, giantRelationship);
+            if (loopParts == null) {
+                throw new DocGenException('Could not find loop for relationship: ' + giantRelationship);
+            }
+
+            // Create Job record
+            DocGen_Job__c job = new DocGen_Job__c(
+                Status__c = 'Draft',
+                Template__c = templateId,
+                Label__c = 'Giant Query',
+                Parent_Record_Id__c = String.valueOf(recordId),
+                Giant_Query_Config__c = JSON.serialize(new Map<String, Object>{
+                    'relationshipName' => giantRelationship,
+                    'childNodeConfig' => giantNodeConfig,
+                    'childCount' => counts.get(giantRelationship)
+                })
+            );
+            insert job; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+
+            // Launch batch
+            DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
+                job.Id, templateId, recordId, giantNodeConfig,
+                loopParts.get('innerXml'),
+                template.Output_Format__c != null ? template.Output_Format__c : 'PDF'
+            );
+            Database.executeBatch(batch, 1); // scope size 1: one page descriptor per execute
+
+            return new Map<String, Object>{
+                'jobId' => job.Id,
+                'isGiantQuery' => true,
+                'childCounts' => counts,
+                'giantRelationship' => giantRelationship
+            };
+        } catch (DocGenException e) {
+            throw DocGenService.ahe(e);
+        } catch (Exception e) {
+            throw DocGenService.ahe(e, 'Error initiating Giant Query generation.');
+        }
+    }
+
+    /**
      * Previews the merged record data for a given record and query configuration.
      * @param recordId The record ID to preview data for
      * @param baseObject The base SObject API name

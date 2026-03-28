@@ -1370,4 +1370,69 @@ public with sharing class DocGenDataRetriever {
 
         return data;
     }
+
+    /**
+     * Counts child records per relationship for a given parent record.
+     * Used by Giant Query to determine if async processing is needed.
+     * Parses V3 query config to find child nodes and runs COUNT() for each.
+     * @param recordId The parent record ID to count children for
+     * @param queryConfigJson The V3 query configuration JSON string
+     * @return Map of relationship name to child record count
+     */
+    public static Map<String, Integer> scoutChildCounts(Id recordId, String queryConfigJson) {
+        Map<String, Integer> counts = new Map<String, Integer>();
+
+        if (recordId == null || String.isBlank(queryConfigJson)) {
+            return counts;
+        }
+
+        // Only V3 JSON configs are supported for Giant Query scouting
+        String trimmed = queryConfigJson.trim();
+        if (!trimmed.startsWith('{')) {
+            return counts;
+        }
+
+        Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(trimmed);
+        List<Object> nodesJson = (List<Object>) config.get('nodes');
+        if (nodesJson == null || nodesJson.isEmpty()) {
+            return counts;
+        }
+
+        Map<String, Schema.SObjectType> globalDescribe = Schema.getGlobalDescribe();
+        for (Object nodeObj : nodesJson) {
+            Map<String, Object> n = (Map<String, Object>) nodeObj;
+            String parentNodeId = (String) n.get('parentNode');
+
+            // Only count direct children of the root (parentNode == root node id)
+            // The root node has parentNode = null; children of root reference the root's id
+            if (parentNodeId == null) {
+                continue; // Skip the root node itself
+            }
+
+            String childObject = (String) n.get('object');
+            String lookupField = (String) n.get('lookupField');
+            String relationshipName = (String) n.get('relationshipName');
+
+            if (String.isBlank(childObject) || String.isBlank(lookupField) || String.isBlank(relationshipName)) {
+                continue;
+            }
+
+            // Validate object name against Schema to prevent injection
+            if (globalDescribe.get(childObject) == null) {
+                continue;
+            }
+
+            try {
+                String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
+                Integer cnt = Database.countQuery(countQuery);
+                counts.put(relationshipName, cnt);
+            } catch (Exception e) {
+                // Intentionally swallowed — skip relationships that fail to count
+                counts.put(relationshipName, 0);
+            }
+        }
+
+        return counts;
+    }
 }
