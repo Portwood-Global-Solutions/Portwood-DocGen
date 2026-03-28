@@ -120,6 +120,53 @@ public class BarcodeGenerator {
      * @param barcodeType The barcode type ('code128' or 'qr')
      * @return Pattern string, or null if encoding fails
      */
+    // Total data codewords per version, Level M (versions 1-14)
+    private static final List<Integer> QR_DATA_CAPACITY = new List<Integer>{
+        0, 16, 28, 44, 64, 86, 108, 124, 154, 182, 216, 254, 290, 334, 365
+    };
+
+    // EC block structure per version, ECL M: {ecPerBlock, grp1Count, grp1DataCW [, grp2Count, grp2DataCW]}
+    // Derived from ISO 18004 Table 9 / qrcode-generator RS_BLOCK_TABLE.
+    private static final List<List<Integer>> QR_EC_BLOCKS = new List<List<Integer>>{
+        new List<Integer>(),                // v0 unused
+        new List<Integer>{10, 1, 16},       // v1: 1×16, total=26
+        new List<Integer>{16, 1, 28},       // v2: 1×28, total=44
+        new List<Integer>{26, 1, 44},       // v3: 1×44, total=70
+        new List<Integer>{18, 2, 32},       // v4: 2×32, total=100
+        new List<Integer>{24, 2, 43},       // v5: 2×43, total=134
+        new List<Integer>{16, 4, 27},       // v6: 4×27, total=172
+        new List<Integer>{18, 4, 31},       // v7: 4×31, total=196
+        new List<Integer>{22, 2, 38, 2, 39},// v8: 2×38 + 2×39, total=242
+        new List<Integer>{22, 3, 36, 2, 37},// v9: 3×36 + 2×37, total=292
+        new List<Integer>{26, 4, 43, 1, 44},// v10: 4×43 + 1×44, total=346
+        new List<Integer>{30, 1, 50, 4, 51},// v11: 1×50 + 4×51, total=404
+        new List<Integer>{22, 6, 36, 2, 37},// v12: 6×36 + 2×37, total=466
+        new List<Integer>{22, 8, 37, 1, 38},// v13: 8×37 + 1×38, total=532
+        new List<Integer>{24, 4, 40, 5, 41} // v14: 4×40 + 5×41, total=581
+    };
+
+    // Alignment pattern center positions per version (0 = none)
+    private static final List<List<Integer>> QR_ALIGN_POS = new List<List<Integer>>{
+        new List<Integer>(),              // v0 (unused)
+        new List<Integer>(),              // v1: none
+        new List<Integer>{6,18},          // v2
+        new List<Integer>{6,22},          // v3
+        new List<Integer>{6,26},          // v4
+        new List<Integer>{6,30},          // v5
+        new List<Integer>{6,34},          // v6
+        new List<Integer>{6,22,38},       // v7
+        new List<Integer>{6,24,42},       // v8
+        new List<Integer>{6,26,46},       // v9
+        new List<Integer>{6,28,50},       // v10
+        new List<Integer>{6,30,54},       // v11
+        new List<Integer>{6,32,58},       // v12
+        new List<Integer>{6,34,62},       // v13
+        new List<Integer>{6,26,46,66}     // v14
+    };
+
+    // Reed-Solomon error correction over GF(256)
+    private static final Integer QR_GF_POLY = 285; // x^8 + x^4 + x^3 + x^2 + 1
+
     public static String getPattern(String value, String barcodeType) {
         if (String.isBlank(value)) { return null; }
         if (barcodeType == 'qr') {
@@ -148,49 +195,6 @@ public class BarcodeGenerator {
     // ---------------------------------------------------------------------------
     // QR Code — Version 1-14, Error Correction Level M, Byte mode
     // ---------------------------------------------------------------------------
-
-    // Total data codewords per version, Level M (versions 1-14)
-    private static final List<Integer> QR_DATA_CAPACITY = new List<Integer>{
-        0, 16, 28, 44, 64, 86, 108, 124, 154, 182, 216, 254, 290, 334, 365
-    };
-
-    // EC block structure per version, ECL M: {ecPerBlock, grp1Count, grp1DataCW [, grp2Count, grp2DataCW]}
-    // Derived from ISO 18004 Table 9 / qrcode-generator RS_BLOCK_TABLE.
-    private static final List<List<Integer>> QR_EC_BLOCKS = new List<List<Integer>>{
-        new List<Integer>(),                // v0 unused
-        new List<Integer>{10, 1, 16},       // v1: 1×16, total=26
-        new List<Integer>{16, 1, 28},       // v2: 1×28, total=44
-        new List<Integer>{26, 1, 44},       // v3: 1×44, total=70
-        new List<Integer>{18, 2, 32},       // v4: 2×32, total=100
-        new List<Integer>{24, 2, 43},       // v5: 2×43, total=134
-        new List<Integer>{16, 4, 27},       // v6: 4×27, total=172
-        new List<Integer>{18, 4, 31},       // v7: 4×31, total=196
-        new List<Integer>{22, 2, 38, 2, 39},// v8: 2×38 + 2×39, total=242
-        new List<Integer>{22, 3, 36, 2, 37},// v9: 3×36 + 2×37, total=292
-        new List<Integer>{26, 4, 43, 1, 44},// v10: 4×43 + 1×44, total=346
-        new List<Integer>{30, 1, 50, 4, 51},// v11: 1×50 + 4×51, total=404
-        new List<Integer>{22, 6, 36, 2, 37},// v12: 6×36 + 2×37, total=466
-        new List<Integer>{22, 8, 37, 1, 38},// v13: 8×37 + 1×38, total=532
-        new List<Integer>{24, 4, 40, 5, 41} // v14: 4×40 + 5×41, total=581
-    };
-    // Alignment pattern center positions per version (0 = none)
-    private static final List<List<Integer>> QR_ALIGN_POS = new List<List<Integer>>{
-        new List<Integer>(),              // v0 (unused)
-        new List<Integer>(),              // v1: none
-        new List<Integer>{6,18},          // v2
-        new List<Integer>{6,22},          // v3
-        new List<Integer>{6,26},          // v4
-        new List<Integer>{6,30},          // v5
-        new List<Integer>{6,34},          // v6
-        new List<Integer>{6,22,38},       // v7
-        new List<Integer>{6,24,42},       // v8
-        new List<Integer>{6,26,46},       // v9
-        new List<Integer>{6,28,50},       // v10
-        new List<Integer>{6,30,54},       // v11
-        new List<Integer>{6,32,58},       // v12
-        new List<Integer>{6,34,62},       // v13
-        new List<Integer>{6,26,46,66}     // v14
-    };
 
     private static String buildQrPattern(String value) {
         // Convert to byte mode data
@@ -453,10 +457,8 @@ public class BarcodeGenerator {
         }
     }
 
-    // Reed-Solomon error correction over GF(256)
-    private static final Integer QR_GF_POLY = 285; // x^8 + x^4 + x^3 + x^2 + 1
-
     private static List<Integer> generateReedSolomon(List<Integer> data, Integer ecCount) {
+        // Reed-Solomon error correction over GF(256)
         // Build log/antilog tables for GF(256)
         List<Integer> gfExp = new List<Integer>();
         List<Integer> gfLog = new List<Integer>();

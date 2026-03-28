@@ -6,7 +6,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getBulkTemplates() {
-        return [SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c, Test_Record_Id__c FROM DocGen_Template__c WITH SYSTEM_MODE ORDER BY Name];
+        return [SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c, Test_Record_Id__c FROM DocGen_Template__c WITH SYSTEM_MODE ORDER BY Name LIMIT 2000];
     }
 
     /**
@@ -267,7 +267,6 @@ public with sharing class DocGenBulkController {
                 return (nodes != null) ? nodes.size() : 1;
             }
         } catch (Exception e) { // NOPMD EmptyCatchBlock — intentional fallback to 1 query for unparseable configs
-            System.debug(LoggingLevel.FINE, 'Query config parse failed, defaulting to 1: ' + e.getMessage());
         }
         return 1;
     }

@@ -471,7 +471,6 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         this.stopPolling();
         // Poll immediately, then every POLL_INTERVAL_MS
         this.pollJob();
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
         this._pollTimer = setInterval(() => {
             this.pollJob();
         }, POLL_INTERVAL_MS);

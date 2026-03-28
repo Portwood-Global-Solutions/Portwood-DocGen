@@ -1510,7 +1510,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Use a fake but valid-format ContentVersion ID
-            Id fakeId = '068000000000000AAA';
+            Id fakeId = '068000000000000AAA'; // NOPMD AvoidHardcodingId — intentional fake ID for negative test
 
             Test.startTest();
             String b64 = DocGenController.getContentVersionBase64(fakeId);

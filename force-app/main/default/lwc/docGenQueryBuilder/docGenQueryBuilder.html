@@ -46,7 +46,7 @@
                             <template if:true={complexityWarning}>
                                 <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
                                     <span class="slds-assistive-text">warning</span>
-                                    <span class="slds-icon_container slds-icon-utility-warning slds-var-m-right_x-small" title="Description of icon when needed">
+                                    <span class="slds-icon_container slds-var-m-right_x-small" title="Description of icon when needed">
                                         <lightning-icon icon-name="utility:warning" variant="warning" size="x-small"></lightning-icon>
                                     </span>
                                     <h2>
@@ -462,7 +462,7 @@
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container">
                 <header class="slds-modal__header">
-                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare" class="slds-modal__close" onclick={handleCloseReportModal}></lightning-button-icon>
+                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare" class="slds-button slds-button_icon slds-modal__close" onclick={handleCloseReportModal}></lightning-button-icon>
                     <h2 class="slds-text-heading_medium">Import from Report</h2>
                     <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Select a report to import its columns as template fields.</p>
                 </header>

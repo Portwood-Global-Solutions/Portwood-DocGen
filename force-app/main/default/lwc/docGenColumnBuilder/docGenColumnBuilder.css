@@ -5,26 +5,26 @@
 
 .badge-base {
     display: inline-block;
-    font-size: 0.625rem;
+    font-size: var(--slds-g-font-scale-neg-2, 0.625rem);
     font-weight: var(--slds-g-font-weight-7, 700);
-    padding: 1px 6px;
-    border-radius: 10px;
+    padding: var(--slds-g-sizing-border-1, 1px) var(--slds-g-radius-border-2, 6px);
+    border-radius: var(--slds-g-radius-border-3, 10px);
     white-space: nowrap;
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
-.badge-main { background: #0176D3; color: #fff; }
-.badge-related { background: #2E844A; color: #fff; }
-.badge-linked { background: #FE9339; color: #fff; }
+.badge-main { background: var(--slds-g-color-accent-1, #0176D3); color: var(--slds-g-color-surface-1, #fff); }
+.badge-related { background: var(--slds-g-color-palette-green-50, #2E844A); color: var(--slds-g-color-surface-1, #fff); }
+.badge-linked { background: var(--slds-g-color-border-warning-1, #FE9339); color: var(--slds-g-color-surface-1, #fff); }
 
 .active-tab {
-    color: #0176D3;
-    border-bottom-color: #0176D3 !important;
+    color: var(--slds-g-color-accent-1, #0176D3);
+    border-bottom-color: var(--slds-g-color-border-accent-1, #0176D3) !important;
 }
 .inactive-tab {
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
 }
 .inactive-tab:hover {
-    color: #181818;
-    background: #f3f2f2;
+    color: var(--slds-g-color-on-surface-2, #181818);
+    background: var(--slds-g-color-surface-2, #f3f2f2);
 }

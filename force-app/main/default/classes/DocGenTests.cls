@@ -1,7 +1,7 @@
-@isTest
+@IsTest
 private class DocGenTests {
 
-    @testSetup
+    @TestSetup
     static void setup() {
         // Create Template
         DocGen_Template__c tpl = new DocGen_Template__c(
@@ -37,7 +37,7 @@ private class DocGenTests {
         insert cdl;
     }
 
-    @isTest
+    @IsTest
     static void testGenerationFlow() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
@@ -55,7 +55,7 @@ private class DocGenTests {
         }
     }
 
-    @isTest
+    @IsTest
     static void testGetTemplates() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
@@ -63,7 +63,7 @@ private class DocGenTests {
             System.assertEquals(1, tpls.size(), 'Should return 1 template for Account');
         }
     }
-    @isTest
+    @IsTest
     static void testVersioning() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {

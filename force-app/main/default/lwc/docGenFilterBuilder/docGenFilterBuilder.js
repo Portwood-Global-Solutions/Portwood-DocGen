@@ -34,6 +34,7 @@ export default class DocGenFilterBuilder extends LightningElement {
                 this.handleAddRow();
             }
         } else if (error) {
+            // Field loading error handled silently; fieldOptions stays empty
         }
         this.isLoading = false;
     }

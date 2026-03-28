@@ -1,15 +1,15 @@
 .runner-widget {
-    background: var(--slds-g-color-neutral-base-1, #ffffff);
+    background: var(--docgen-color-neutral-base-1, #ffffff);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
     border-radius: var(--slds-g-radius-border-3, 12px);
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--slds-g-color-neutral-10, #111827);
+    color: var(--docgen-color-neutral-10, #111827);
     overflow: hidden;
 }
 
 .widget-header {
-    background: var(--slds-g-color-neutral-base-2, #f9fafb);
+    background: var(--docgen-color-neutral-base-2, #f9fafb);
     padding: var(--slds-g-spacing-4, 1rem) var(--slds-g-spacing-5, 1.5rem);
     border-bottom: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
 }
@@ -17,19 +17,19 @@
 .header-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--slds-g-spacing-2, 8px);
     margin-bottom: var(--slds-g-spacing-1, 0.25rem);
 }
 
 .header-title h2 {
-    font-size: 1.1rem;
+    font-size: var(--slds-g-font-scale-2, 1.1rem);
     font-weight: var(--slds-g-font-weight-6, 600);
     margin: 0;
 }
 
 .header-subtitle {
-    font-size: 0.85rem;
-    color: #6b7280;
+    font-size: var(--slds-g-font-scale-base, 0.85rem);
+    color: var(--slds-g-color-neutral-base-50, #6b7280);
 }
 
 .widget-body {
@@ -39,8 +39,8 @@
 /* Custom Segmented Control (Replacing Radio Buttons) */
 .custom-segmented-control {
     display: flex;
-    background: #f3f4f6;
-    padding: 4px;
+    background: var(--slds-g-color-surface-2, #f3f4f6);
+    padding: var(--slds-g-spacing-1, 4px);
     border-radius: var(--slds-g-radius-border-2, 8px);
     gap: 2px;
 }
@@ -49,73 +49,73 @@
     flex: 1;
     background: transparent;
     border: none;
-    padding: 8px 4px;
-    border-radius: 6px;
-    font-size: 0.75rem;
+    padding: var(--slds-g-spacing-2, 8px) var(--slds-g-spacing-1, 4px);
+    border-radius: var(--slds-g-radius-border-2, 6px);
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
     font-weight: var(--slds-g-font-weight-6, 600);
-    color: #6b7280;
+    color: var(--slds-g-color-neutral-base-50, #6b7280);
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
-    line-height: 1.2;
+    line-height: var(--slds-g-font-line-height-1, 1.2);
 }
 
 .seg-btn:hover {
-    color: var(--slds-g-color-neutral-10, #111827);
+    color: var(--docgen-color-neutral-10, #111827);
 }
 
 .seg-btn.active {
-    background: var(--slds-g-color-neutral-base-1, #ffffff);
-    color: #1d4ed8;
+    background: var(--docgen-color-neutral-base-1, #ffffff);
+    color: var(--slds-g-color-accent-2, #1d4ed8);
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 /* Custom Mini Pills for Output */
 .custom-mini-pills {
     display: flex;
-    gap: 8px;
+    gap: var(--slds-g-spacing-2, 8px);
 }
 
 .pill-btn {
     flex: 1;
-    background: var(--slds-g-color-neutral-base-1, #ffffff);
+    background: var(--docgen-color-neutral-base-1, #ffffff);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
-    padding: 8px 12px;
-    border-radius: 50px;
-    font-size: 0.85rem;
+    padding: var(--slds-g-spacing-2, 8px) var(--slds-g-spacing-3, 12px);
+    border-radius: var(--slds-g-radius-border-4, 50px);
+    font-size: var(--slds-g-font-scale-base, 0.85rem);
     font-weight: var(--slds-g-font-weight-6, 600);
-    color: #4b5563;
+    color: var(--slds-g-color-on-surface-1, #4b5563);
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .pill-btn:hover {
-    background: var(--slds-g-color-neutral-base-2, #f9fafb);
-    border-color: #d1d5db;
+    background: var(--docgen-color-neutral-base-2, #f9fafb);
+    border-color: var(--slds-g-color-border-1, #d1d5db);
 }
 
 .pill-btn.active {
-    background: var(--slds-g-color-neutral-10, #111827);
-    color: var(--slds-g-color-neutral-base-1, #ffffff);
-    border-color: var(--slds-g-color-neutral-10, #111827);
+    background: var(--docgen-color-neutral-10, #111827);
+    color: var(--docgen-color-neutral-base-1, #ffffff);
+    border-color: var(--docgen-color-neutral-10, #111827);
 }
 
 /* Custom Select */
 .custom-select {
     width: 100%;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: var(--slds-g-spacing-2, 8px) var(--slds-g-spacing-3, 12px);
+    border-radius: var(--slds-g-radius-border-2, 6px);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
-    background: var(--slds-g-color-neutral-base-1, #ffffff);
-    font-size: 0.9rem;
+    background: var(--docgen-color-neutral-base-1, #ffffff);
+    font-size: var(--slds-g-font-scale-1, 0.9rem);
     font-family: inherit;
     cursor: pointer;
 }
 
 /* Merge Box */
 .merge-box {
-    background: var(--slds-g-color-neutral-base-2, #f9fafb);
-    border: var(--slds-g-sizing-border-1, 1px) dashed #d1d5db;
+    background: var(--docgen-color-neutral-base-2, #f9fafb);
+    border: var(--slds-g-sizing-border-1, 1px) dashed var(--slds-g-color-border-1, #d1d5db);
     border-radius: var(--slds-g-radius-border-2, 8px);
     padding: var(--slds-g-spacing-4, 1rem);
     margin-bottom: var(--slds-g-spacing-4, 1rem);
@@ -128,19 +128,19 @@
 .checkbox-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 0;
-    font-size: 0.85rem;
+    gap: var(--slds-g-spacing-2, 8px);
+    padding: var(--slds-g-spacing-1, 4px) 0;
+    font-size: var(--slds-g-font-scale-base, 0.85rem);
 }
 
 /* Cool Brand Button */
 .cool-brand-btn {
     width: 100%;
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    color: var(--slds-g-color-neutral-base-1, #ffffff);
-    padding: 12px 24px;
-    border-radius: 50px;
-    font-size: 1rem;
+    color: var(--docgen-color-neutral-base-1, #ffffff);
+    padding: var(--slds-g-spacing-3, 12px) var(--slds-g-spacing-6, 24px);
+    border-radius: var(--slds-g-radius-border-4, 50px);
+    font-size: var(--slds-g-font-scale-2, 1rem);
     font-weight: var(--slds-g-font-weight-7, 700);
     border: none;
     cursor: pointer;
@@ -156,48 +156,48 @@
 .cool-brand-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background: #9ca3af;
+    background: var(--slds-g-color-neutral-base-65, #9ca3af);
     box-shadow: none;
 }
 
 /* Action Buttons */
 .pill-action-btn {
-    background: var(--slds-g-color-neutral-base-1, #ffffff);
+    background: var(--docgen-color-neutral-base-1, #ffffff);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
-    padding: 6px 16px;
-    border-radius: 50px;
-    font-size: 0.85rem;
+    padding: var(--slds-g-spacing-2, 6px) var(--slds-g-spacing-4, 16px);
+    border-radius: var(--slds-g-radius-border-4, 50px);
+    font-size: var(--slds-g-font-scale-base, 0.85rem);
     font-weight: var(--slds-g-font-weight-6, 600);
     cursor: pointer;
 }
 
 .pill-action-btn:hover {
-    background: var(--slds-g-color-neutral-base-2, #f9fafb);
-    border-color: #d1d5db;
+    background: var(--docgen-color-neutral-base-2, #f9fafb);
+    border-color: var(--slds-g-color-border-1, #d1d5db);
 }
 
 /* Mobile Adjustments */
 @media (max-width: 480px) {
     .widget-header {
-        padding: 0.75rem 1rem;
+        padding: var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-4, 1rem);
     }
     .widget-body {
-        padding: 1rem;
+        padding: var(--slds-g-spacing-4, 1rem);
     }
     .header-title h2 {
-        font-size: 1rem;
+        font-size: var(--slds-g-font-scale-2, 1rem);
     }
     .seg-btn {
-        padding: 10px 4px;
-        font-size: 0.7rem;
+        padding: var(--slds-g-spacing-3, 10px) var(--slds-g-spacing-1, 4px);
+        font-size: var(--slds-g-font-scale-neg-2, 0.7rem);
     }
     .pill-btn {
-        padding: 10px 8px;
-        font-size: 0.8rem;
+        padding: var(--slds-g-spacing-3, 10px) var(--slds-g-spacing-2, 8px);
+        font-size: var(--slds-g-font-scale-neg-1, 0.8rem);
     }
     .cool-brand-btn {
-        padding: 14px 24px;
-        font-size: 1rem;
+        padding: var(--slds-g-spacing-4, 14px) var(--slds-g-spacing-6, 24px);
+        font-size: var(--slds-g-font-scale-2, 1rem);
     }
     .custom-mini-pills {
         flex-wrap: wrap;
@@ -213,11 +213,11 @@
 }
 
 .error-alert {
-    background: #fef2f2;
-    border: var(--slds-g-sizing-border-1, 1px) solid #fecaca;
-    color: #991b1b;
+    background: var(--slds-g-color-error-container-1, #fef2f2);
+    border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-error-base-80, #fecaca);
+    color: var(--slds-g-color-error-base-30, #991b1b);
     padding: var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-4, 1rem);
-    border-radius: 6px;
+    border-radius: var(--slds-g-radius-border-2, 6px);
     margin-bottom: var(--slds-g-spacing-4, 1rem);
-    font-size: 0.9rem;
+    font-size: var(--slds-g-font-scale-1, 0.9rem);
 }

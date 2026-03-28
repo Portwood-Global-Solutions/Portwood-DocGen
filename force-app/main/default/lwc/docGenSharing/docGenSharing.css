@@ -1,8 +1,8 @@
 .search-results-container {
     z-index: 9999;
-    background: var(--lwc-colorBackgroundAlt, white);
-    margin-top: var(--lwc-varSpacingVerticalXxxSmall, 2px);
-    border: var(--lwc-borderWidthThin, 1px) solid var(--lwc-colorBorder, #dddbda);
-    border-radius: var(--lwc-borderRadiusMedium, .25rem);
-    box-shadow: var(--lwc-shadowDropDown, 0 2px 3px 0 rgba(0,0,0,0.16));
+    background: var(--slds-g-color-surface-1, var(--lwc-colorBackgroundAlt, white));
+    margin-top: calc(var(--slds-g-spacing-1, 0.25rem) / 2);
+    border: var(--slds-g-sizing-border-1, var(--lwc-borderWidthThin, 1px)) solid var(--slds-g-color-neutral-base-90, var(--lwc-colorBorder, #dddbda));
+    border-radius: var(--slds-g-radius-border-2, var(--lwc-borderRadiusMedium, .25rem));
+    box-shadow: var(--slds-g-shadow-1, var(--lwc-shadowDropDown, 0 2px 3px 0 rgba(0,0,0,0.16)));
 }

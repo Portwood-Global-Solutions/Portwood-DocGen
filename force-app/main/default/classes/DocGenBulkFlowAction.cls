@@ -3,7 +3,7 @@
  * Exposes the full bulk generation pipeline: filtering, batch size,
  * combined PDF, and individual file options.
  */
-global with sharing class DocGenBulkFlowAction {
+global with sharing class DocGenBulkFlowAction { // NOPMD AvoidGlobalModifier — global required for @InvocableMethod visibility in subscriber orgs
 
     global class Request {
         @InvocableVariable(label='Template ID' required=true description='The DocGen Template record ID')

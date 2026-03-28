@@ -1,11 +1,11 @@
 .admin-workspace {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--slds-g-color-neutral-10, #111827);
+    color: var(--docgen-color-neutral-10, #111827);
 }
 
 /* Wizard */
 .wizard-header {
-    background: var(--slds-g-color-neutral-base-2, #f9fafb);
+    background: var(--docgen-color-neutral-base-2, #f9fafb);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
     border-radius: var(--slds-g-radius-border-3, 12px);
     padding: var(--slds-g-spacing-5, 1.5rem);
@@ -13,7 +13,7 @@
 }
 
 .wizard-content {
-    background: var(--slds-g-color-neutral-base-1, #ffffff);
+    background: var(--docgen-color-neutral-base-1, #ffffff);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
     border-radius: var(--slds-g-radius-border-3, 12px);
     padding: var(--slds-g-spacing-6, 2rem);
@@ -24,30 +24,30 @@
 .wizard-footer {
     margin-top: var(--slds-g-spacing-6, 2rem);
     padding-top: var(--slds-g-spacing-5, 1.5rem);
-    border-top: var(--slds-g-sizing-border-1, 1px) solid #f3f4f6;
+    border-top: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-surface-2, #f3f4f6);
 }
 
 /* Modal styling */
 .modern-modal {
-    border-radius: 16px !important;
+    border-radius: var(--slds-g-radius-border-4, 16px) !important;
     overflow: hidden;
 }
 
 .tag-click {
-    font-size: 0.8125rem;
-    color: #1d4ed8;
+    font-size: var(--slds-g-font-scale-base, 0.8125rem);
+    color: var(--slds-g-color-accent-2, #1d4ed8);
     cursor: pointer;
-    background: #eff6ff;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: var(--slds-g-sizing-border-1, 1px) solid #bfdbfe;
+    background: var(--slds-g-color-accent-light-1, #eff6ff);
+    padding: var(--slds-g-spacing-1, 4px) var(--slds-g-spacing-2, 8px);
+    border-radius: var(--slds-g-radius-border-2, 6px);
+    border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-info-container-1, #bfdbfe);
     transition: all 0.2s;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .tag-click:hover {
-    background: #dbeafe;
-    border-color: #93c5fd;
+    background: var(--slds-g-color-accent-light-2, #dbeafe);
+    border-color: var(--slds-g-color-brand-base-80, #93c5fd);
 }
 
 /* Table container styling */

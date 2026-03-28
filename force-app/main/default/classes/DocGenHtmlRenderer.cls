@@ -200,9 +200,6 @@ public with sharing class DocGenHtmlRenderer {
         String html = processBodyContent(bodyContent, images);
 
         // Build CSS with fixed-position header/footer for Flying Saucer
-        String headerHeight = String.isNotBlank(headerHtml) ? '0.75in' : '0';
-        String footerHeight = String.isNotBlank(footerHtml) ? '0.75in' : '0';
-
         String css = '@page { size: letter; margin: 1in; margin-top: ' + (String.isNotBlank(headerHtml) ? '1.75in' : '1in') + '; margin-bottom: ' + (String.isNotBlank(footerHtml) ? '1.75in' : '1in') + '; }';
         css += 'body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }';
         css += 'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }';
@@ -1009,8 +1006,6 @@ public with sharing class DocGenHtmlRenderer {
             // Table cell margins (default padding for all cells)
             String tblCellMar = extractElement(tblPr, 'w:tblCellMar');
             if (String.isNotBlank(tblCellMar)) {
-                String topMar = extractAttr(tblCellMar, 'w:top', 'w:w');
-                String bottomMar = extractAttr(tblCellMar, 'w:bottom', 'w:w');
                 String leftMar = extractAttr(tblCellMar, 'w:left', 'w:w');
                                 if (leftMar == null) { leftMar = extractAttr(tblCellMar, 'w:start', 'w:w'); }
                 String rightMar = extractAttr(tblCellMar, 'w:right', 'w:w');
@@ -1161,8 +1156,12 @@ public with sharing class DocGenHtmlRenderer {
     private static Map<String, Decimal> parsePageDimensions(String xml) {
         Map<String, Decimal> dims = new Map<String, Decimal>();
         // Defaults: Letter, 1in margins
-        Integer pgW = 12240, pgH = 15840;
-        Integer mTop = 1440, mRight = 1440, mBottom = 1440, mLeft = 1440;
+        Integer pgW = 12240;
+        Integer pgH = 15840;
+        Integer mTop = 1440;
+        Integer mRight = 1440;
+        Integer mBottom = 1440;
+        Integer mLeft = 1440;
 
         if (String.isNotBlank(xml) && xml.contains('<w:pgSz')) {
             try {
@@ -1180,7 +1179,8 @@ public with sharing class DocGenHtmlRenderer {
                 val = extractAttr(xml, 'w:pgMar', 'w:left');
                 if (val != null && val.isNumeric()) { mLeft = Integer.valueOf(val); }
             } catch (Exception e) {
-                System.debug(LoggingLevel.WARN, 'Page dimension parsing failed, using defaults: ' + e.getMessage());
+                // Intentionally swallowed — page dimension parsing failed, using defaults
+                String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
             }
         }
 

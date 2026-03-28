@@ -15,7 +15,10 @@ function nextNodeId() { return 'n' + (_nodeId++); }
 export default class DocGenColumnBuilder extends LightningElement {
 
     // === PUBLIC API ===
-    @api selectedObject = '';
+    @api
+    get selectedObject() { return this._selectedObject; }
+    set selectedObject(val) { this._selectedObject = val; }
+    @track _selectedObject = '';
     @api
     get queryConfig() { return this._queryConfig; }
     set queryConfig(value) {
@@ -235,7 +238,7 @@ export default class DocGenColumnBuilder extends LightningElement {
     handleObjectSelect(event) {
         const value = event.currentTarget.dataset.value;
         const label = event.currentTarget.dataset.label;
-        this.selectedObject = value;
+        this._selectedObject = value;
         this.selectedObjectLabel = label;
         this.showObjectPicker = false;
         this._initRootNode(value, label);
@@ -445,7 +448,7 @@ export default class DocGenColumnBuilder extends LightningElement {
         // Reset everything — go back to object selector
         this.treeNodes = [];
         this.activeNodeId = null;
-        this.selectedObject = '';
+        this._selectedObject = '';
         this.selectedObjectLabel = '';
         this.objectSearchTerm = '';
         this.isApexProviderMode = false;
@@ -641,8 +644,7 @@ export default class DocGenColumnBuilder extends LightningElement {
         this._loadNodeFields(newNode);
         this._notifyChange();
         // Force a re-render after modal close to ensure tabs and tree update
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
-        setTimeout(() => { this.treeNodes = [...this.treeNodes]; }, 0);
+        Promise.resolve().then(() => { this.treeNodes = [...this.treeNodes]; });
     }
 
     _guessLookupField(parentObjectName) {
@@ -819,7 +821,7 @@ export default class DocGenColumnBuilder extends LightningElement {
         if (!result) return;
         this.showReportModal = false;
         this.showImportPreview = false;
-        this.selectedObject = result.baseObject;
+        this._selectedObject = result.baseObject;
         const objOpt = this.objectOptions.find(o => o.value === result.baseObject);
         this.selectedObjectLabel = objOpt ? objOpt.label : result.baseObject;
 
@@ -953,7 +955,7 @@ export default class DocGenColumnBuilder extends LightningElement {
         // Trigger a notifyChange so the config includes fields immediately
         this._notifyChange();
 
-        let toastMsg = result.fieldCount + ' fields from "' + result.reportName + '" applied.';
+        const toastMsg = result.fieldCount + ' fields from "' + result.reportName + '" applied.';
         this.dispatchEvent(new ShowToastEvent({
             title: 'Report Imported',
             message: toastMsg,
@@ -1026,7 +1028,7 @@ export default class DocGenColumnBuilder extends LightningElement {
     _parseV2Config(config) {
         const objName = config.baseObject;
         if (!objName) return;
-        this.selectedObject = objName;
+        this._selectedObject = objName;
 
         const rootNode = this._createNode(objName, objName, true, null, null, null);
         rootNode.selectedFields = config.baseFields || [];
@@ -1116,7 +1118,7 @@ export default class DocGenColumnBuilder extends LightningElement {
         }
         this.treeNodes = nodes;
         this.activeNodeId = nodes.length > 0 ? nodes[0].id : null;
-        this.selectedObject = config.root;
+        this._selectedObject = config.root;
     }
 
     // === NOTIFY PARENT ===

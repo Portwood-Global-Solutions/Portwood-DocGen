@@ -17,7 +17,10 @@ export default class DocGenQueryBuilder extends LightningElement {
     @track childOptions = [];
     @track parentOptions = []; // New
     
-    @api selectedObject;
+    @api
+    get selectedObject() { return this._selectedObject; }
+    set selectedObject(val) { this._selectedObject = val; }
+    @track _selectedObject;
     @track selectedObjectLabel = '';
     
     @track baseFieldSelection = [];
@@ -166,6 +169,7 @@ export default class DocGenQueryBuilder extends LightningElement {
                 this.parseConfig(this._queryConfig);
             }
         } else if (error) {
+            // Object loading error handled silently
         }
     }
 
@@ -556,9 +560,9 @@ export default class DocGenQueryBuilder extends LightningElement {
         // Let's implement a safe flatten here.
         if (!data) return {};
         // .. implementation similar to runner ..
-        let flat = {};
-        for (let key in data) {
-            let val = data[key];
+        const flat = {};
+        for (const key in data) {
+            const val = data[key];
              if (val && typeof val === 'object' && val.records) {
                  flat[key] = val.records; // Keep array
              } else if (val && typeof val === 'object' && !Array.isArray(val)) {
@@ -755,7 +759,7 @@ export default class DocGenQueryBuilder extends LightningElement {
         const value = event.currentTarget.dataset.value;
         const label = event.currentTarget.dataset.label;
         
-        this.selectedObject = value;
+        this._selectedObject = value;
         this.selectedObjectLabel = label;
         this.showObjectDropdown = false;
         
@@ -905,8 +909,8 @@ export default class DocGenQueryBuilder extends LightningElement {
 
         if (this.selectedParentRel && this.selectedParentFields.length > 0) {
             const remaining = 10 - this.parentFieldSelection.length;
-            let newFields = [];
-            
+            const newFields = [];
+
             // Slice if they tried to select more than allowed in one go
             const candidates = this.selectedParentFields.slice(0, remaining);
             if (this.selectedParentFields.length > remaining) {
@@ -1321,7 +1325,7 @@ export default class DocGenQueryBuilder extends LightningElement {
                     this.parentFieldSelection = [];
                     this.childConfigs = [];
 
-                    this.selectedObject = result.baseObject;
+                    this._selectedObject = result.baseObject;
                     const objOpt = this.objectOptions.find(o => o.value === result.baseObject);
                     this.selectedObjectLabel = objOpt ? objOpt.label : result.baseObject;
                 }
@@ -1350,11 +1354,11 @@ export default class DocGenQueryBuilder extends LightningElement {
 
     get generatedQuery() {
         if (!this.selectedFields || (this.selectedFields.length === 0 && this.childConfigs.length === 0)) return '';
-        let queryParts = [...this.selectedFields];
+        const queryParts = [...this.selectedFields];
 
         this.childConfigs.forEach(child => {
             if (child.selectedFields.length > 0) {
-                let childFields = [...child.selectedFields];
+                const childFields = [...child.selectedFields];
 
                 // Append grandchild subqueries inside the child's field list
                 if (child.grandchildConfigs) {
@@ -1399,17 +1403,20 @@ export default class DocGenQueryBuilder extends LightningElement {
         this.notifyChange();
     }
 
-    @api titleFormat = '';
+    @api
+    get titleFormat() { return this._titleFormat; }
+    set titleFormat(val) { this._titleFormat = val; }
+    @track _titleFormat = '';
 
     handleTitleChange(event) {
-        this.titleFormat = event.target.value;
+        this._titleFormat = event.target.value;
         this.notifyChange();
     }
 
     handleInsertToTitle(event) {
         const tag = event.currentTarget.dataset.tag;
         if (tag) {
-             this.titleFormat = (this.titleFormat || '') + tag;
+             this._titleFormat = (this._titleFormat || '') + tag;
              this.notifyChange();
         }
     }
