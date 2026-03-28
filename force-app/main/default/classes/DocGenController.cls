@@ -456,7 +456,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled
     public static Map<String, Object> getChildRecordPage(String childObject, String lookupField, Id parentId, String lastCursorId, String fields, Integer pageSize) {
-        if (pageSize == null || pageSize > 200) { pageSize = 200; }
+        if (pageSize == null || pageSize > 500) { pageSize = 500; }
 
         // Validate object name against Schema
         Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
@@ -517,7 +517,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getTemplatesForObject(String objectApiName) {
         return [
-            SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c
+            SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c, Query_Config__c
             FROM DocGen_Template__c
             WHERE Base_Object_API__c = :objectApiName
             WITH SYSTEM_MODE

@@ -14,6 +14,7 @@ import getGiantQueryJobStatus from '@salesforce/apex/DocGenController.getGiantQu
 import getGiantQueryFragments from '@salesforce/apex/DocGenController.getGiantQueryFragments';
 import generateDocumentPartsGiantQuery from '@salesforce/apex/DocGenController.generateDocumentPartsGiantQuery';
 import cleanupGiantQueryFragments from '@salesforce/apex/DocGenController.cleanupGiantQueryFragments';
+import getChildRecordPage from '@salesforce/apex/DocGenController.getChildRecordPage';
 import { NavigationMixin } from 'lightning/navigation';
 import { downloadBase64 as downloadBase64Util } from 'c/docGenUtils';
 import { buildDocx } from './docGenZipWriter';
@@ -21,6 +22,7 @@ import { mergePdfs } from './docGenPdfMerger';
 import OUT_FMT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__c';
 import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 import IS_DEFAULT_FIELD from '@salesforce/schema/DocGen_Template__c.Is_Default__c';
+import QUERY_CONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Config__c';
 
 export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -293,8 +295,8 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         this.showToast('Success', `${countMsg} detected — generating asynchronously. Check Job History for progress.`, 'success');
                         return;
                     }
-                    // DOCX: harvest batch launched — poll and assemble client-side
-                    await this._assembleGiantQueryDocx(result.jobId, result.giantRelationship);
+                    // DOCX: pure client-side assembly — no batch, no fragments
+                    await this._assembleGiantQueryDocxClientSide(result.giantRelationship, result.childCounts);
                     return;
                 }
                 // Not a giant query — document was already generated and saved by the Apex method.
@@ -695,6 +697,182 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             }
         } catch (e) {
             this.error = 'Giant Query DOCX Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
+        } finally {
+            this.isLoading = false;
+            this.loadingMessage = '';
+        }
+    }
+
+    /**
+     * Pure client-side Giant Query DOCX assembly.
+     * No server-side batch, no fragment CVs — queries child records page by page
+     * via getChildRecordPage (2,000 rows per call), renders XML in JS, builds DOCX.
+     */
+    async _assembleGiantQueryDocxClientSide(giantRelationship, childCounts) {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const totalRecords = childCounts ? childCounts[giantRelationship] || 0 : 0;
+
+            // 1. Get template shell with placeholder
+            this.loadingMessage = 'Preparing template...';
+            const parts = await generateDocumentPartsGiantQuery({
+                templateId: this.selectedTemplateId,
+                recordId: this.recordId,
+                giantRelationshipName: giantRelationship
+            });
+            if (!parts || !parts.allXmlParts) {
+                throw new Error('Template parts generation returned empty result.');
+            }
+
+            const docTitle = parts.title || 'Document';
+            const placeholder = parts.placeholder || '<!--DOCGEN_GIANT_LOOP_PLACEHOLDER-->';
+
+            // 2. Parse the V3 query config to find the child node details
+            const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
+            const queryConfig = selected ? selected[QUERY_CONFIG_FIELD.fieldApiName] : null;
+            let childNode = null;
+            if (queryConfig) {
+                try {
+                    const config = JSON.parse(queryConfig);
+                    if (config.nodes) {
+                        childNode = config.nodes.find(n => n.relationshipName === giantRelationship);
+                    }
+                } catch (parseErr) {
+                    console.warn('DocGen: Could not parse query config', parseErr);
+                }
+            }
+
+            if (!childNode) {
+                throw new Error('Could not find child node configuration for ' + giantRelationship);
+            }
+
+            const childObject = childNode.object;
+            const lookupField = childNode.lookupField;
+            const childFields = childNode.fields || [];
+            const parentFields = childNode.parentFields || [];
+            const allFields = ['Id', ...childFields.filter(f => f !== 'Id'), ...parentFields].join(', ');
+
+            // 3. Get the loop body XML from the template (extracted by generateDocumentPartsGiantQuery)
+            const innerXml = parts.giantLoopBodyXml || '';
+            if (!innerXml) {
+                throw new Error('Could not extract loop body XML from template for ' + giantRelationship);
+            }
+
+            // 4. Page through child records and render XML client-side
+            let allRenderedXml = '';
+            let lastCursorId = null;
+            let hasMore = true;
+            let fetched = 0;
+            const pageSize = 500;
+
+            while (hasMore) {
+                this.loadingMessage = `Loading records (${fetched.toLocaleString()} / ${totalRecords.toLocaleString()})...`;
+
+                // eslint-disable-next-line no-await-in-loop
+                const page = await getChildRecordPage({
+                    childObject,
+                    lookupField,
+                    parentId: this.recordId,
+                    lastCursorId,
+                    fields: allFields,
+                    pageSize
+                });
+
+                const records = page.records || [];
+                lastCursorId = page.lastId;
+                hasMore = page.hasMore;
+                fetched += records.length;
+
+                // Render XML for each record using tag replacement
+                for (const rec of records) {
+                    let rowXml = innerXml;
+                    for (const field of [...childFields, ...parentFields]) {
+                        let value = '';
+                        if (field.includes('.')) {
+                            const fieldParts = field.split('.');
+                            let current = rec;
+                            for (let i = 0; i < fieldParts.length && current; i++) {
+                                current = current[fieldParts[i]];
+                            }
+                            value = current != null ? String(current) : '';
+                        } else {
+                            value = rec[field] != null ? String(rec[field]) : '';
+                        }
+                        // Escape XML special characters
+                        const escaped = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        // Replace standard tag {Field}, barcode tag {*Field}, QR tag {%QR:Field}, image tag {%Field}
+                        rowXml = rowXml.split('{' + field + '}').join(escaped);
+                        rowXml = rowXml.split('{*' + field + '}').join(escaped);
+                        rowXml = rowXml.split('{%QR:' + field + '}').join(escaped);
+                        rowXml = rowXml.split('{%BARCODE:' + field + '}').join(escaped);
+                        rowXml = rowXml.split('{%' + field + '}').join(escaped);
+                    }
+                    // Also handle formatting tags like {Field:currency}, {Field:MM/dd/yyyy}
+                    rowXml = rowXml.replace(/\{(\w[\w.]*?)(?::([^}]+))?\}/g, (match, fieldName, format) => {
+                        let val = rec[fieldName];
+                        if (fieldName.includes('.')) {
+                            const parts = fieldName.split('.');
+                            let cur = rec;
+                            for (let i = 0; i < parts.length && cur; i++) { cur = cur[parts[i]]; }
+                            val = cur;
+                        }
+                        if (val == null) return '';
+                        if (format === 'currency' && typeof val === 'number') {
+                            return val.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                        }
+                        if (format === 'number' && typeof val === 'number') {
+                            return val.toLocaleString();
+                        }
+                        return String(val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    });
+                    allRenderedXml += rowXml;
+                }
+            }
+
+            this.loadingMessage = `Loaded ${fetched.toLocaleString()} records. Building document...`;
+
+            // 5. Inject rendered XML into template at placeholder
+            const docXmlKey = 'word/document.xml';
+            if (parts.allXmlParts[docXmlKey]) {
+                parts.allXmlParts[docXmlKey] = parts.allXmlParts[docXmlKey].replace(placeholder, allRenderedXml);
+            }
+            allRenderedXml = null; // free memory
+
+            // 6. Fetch images
+            this.loadingMessage = 'Fetching images...';
+            const allImages = { ...(parts.imageBase64Map || {}) };
+            if (parts.imageCvIdMap) {
+                const uniqueCvIds = new Map();
+                for (const [mediaPath, cvId] of Object.entries(parts.imageCvIdMap)) {
+                    if (!uniqueCvIds.has(cvId)) { uniqueCvIds.set(cvId, []); }
+                    uniqueCvIds.get(cvId).push(mediaPath);
+                }
+                for (const [cvId, mediaPaths] of uniqueCvIds) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        const b64 = await getContentVersionBase64({ contentVersionId: cvId });
+                        if (b64) { for (const mp of mediaPaths) { allImages[mp] = b64; } }
+                    } catch (imgErr) { console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr); }
+                }
+            }
+
+            // 7. Build DOCX ZIP
+            this.loadingMessage = 'Building DOCX...';
+            const fileBytes = buildDocx(parts.allXmlParts, allImages);
+            const fileBase64 = this._uint8ArrayToBase64(fileBytes);
+
+            // 8. Download or save
+            const saveToRecord = this.outputMode === 'save';
+            if (saveToRecord) {
+                await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: fileBase64, extension: 'docx' });
+                this.showToast('Success', `DOCX saved — ${fetched.toLocaleString()} ${giantRelationship} rows.`, 'success');
+            } else {
+                this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
+                this.showToast('Success', `DOCX downloaded — ${fetched.toLocaleString()} ${giantRelationship} rows.`, 'success');
+            }
+        } catch (e) {
+            this.error = 'Giant Query Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
         } finally {
             this.isLoading = false;
             this.loadingMessage = '';

@@ -695,7 +695,9 @@ public with sharing class DocGenService {
         rawDocumentXml = mergeRunsInTags(rawDocumentXml);
 
         Map<String, String> loopParts = extractLoopBody(rawDocumentXml, giantRelationshipName);
+        String giantLoopBodyXml = '';
         if (loopParts != null) {
+            giantLoopBodyXml = loopParts.get('innerXml');
             rawDocumentXml = loopParts.get('beforeLoop') + placeholder + loopParts.get('afterLoop');
         }
 
@@ -771,7 +773,8 @@ public with sharing class DocGenService {
             'imageCvIdMap' => imageCvIdMap,
             'title' => mr.docTitle,
             'templateType' => mr.templateType,
-            'placeholder' => placeholder
+            'placeholder' => placeholder,
+            'giantLoopBodyXml' => giantLoopBodyXml
         };
     }
 
