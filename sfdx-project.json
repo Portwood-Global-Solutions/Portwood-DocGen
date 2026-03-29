@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.5.0 — Giant Query PDF (Ancestor Chain)",
-      "versionNumber": "1.5.0.NEXT",
-      "ancestorId": "04tal000006PEltAAG",
+      "versionName": "1.6.0 — Sample Flows + Fixes",
+      "versionNumber": "1.6.0.NEXT",
+      "ancestorId": "04tal000006PEnVAAW",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
