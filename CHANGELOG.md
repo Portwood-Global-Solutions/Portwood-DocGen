@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.3.0 — "Giant Query PDF" (Portwood DocGen Managed)
+
+Server-side PDF generation for records with 3,000-50,000+ child records. No external dependencies, no heap limits, no callouts.
+
+- **Giant Query PDF** — Render unlimited-row PDFs entirely server-side. Batch harvests child records in 50-row cursor pages, saves as lightweight HTML fragments. Progressive Queueable chain accumulates fragments into a single HTML document. One `Blob.toPdf()` call renders the final PDF. Saved directly to the record via ContentDocumentLink.
+- **Pre-baked HTML Templates** — Template DOCX is converted to HTML at save time and stored as a ContentVersion. At generation time, zero DOCX XML parsing — just load the pre-baked HTML and inject data rows. Eliminates the heaviest heap operation from the render path.
+- **Column CSS Formatting** — Bold, italic, font-size, and text alignment extracted once from the template's loop row XML, applied via CSS class selectors (`.c1`, `.c2`). CSS2.1 compatible with Flying Saucer (Blob.toPdf engine). Zero per-cell overhead for 10,000+ rows.
+- **Parent Lookup Fields** — Dot-notation parent fields (e.g., `Product2.Name`, `Product2.Description`) now resolve correctly in Giant Query data rows. Fixed nested map structure in `renderLoopBodyForRecords` to match `resolveValue` traversal.
+- **Progress Bar UI** — Real-time progress bar with percentage during batch processing. "Do not leave this page" warning during assembly.
+- **Lightweight Launch** — `launchGiantQueryPdfBatch` controller accepts scout-resolved child node config, works for V1/V2/V3 query configs. Pre-decomposed XML lookup avoids ZIP decompression in the controller.
+- **Barcode Handling** — Barcode markers (`##BARCODE:code128::VALUE##`) stripped to plain text values in Giant Query rows. CSS bar spans too heavy for 3K+ rows; barcodes work normally in standard PDF generation (< 2,000 rows).
+- **Known Limitations** — Images in data rows not rendered (template images work). Custom fonts not supported (Blob.toPdf platform limitation). No save-to-record for objects without ContentDocumentLink support (e.g., Pricebook2).
+- **615 Apex tests**, 76% coverage, 24/24 E2E, 0 Critical, 0 High. Tested: 3K PricebookEntries, 10K Opportunities.
+
 ## v1.2.0 — "Giant Query & AppExchange Ready" (Portwood DocGen Managed)
 
 First managed package release. Giant Query, security review prep, and 615 tests.
