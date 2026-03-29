@@ -1,12 +1,12 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.2.0 — Giant Query & AppExchange Ready",
-      "versionNumber": "1.2.0.NEXT",
+      "versionName": "1.3.0 — Giant Query PDF",
+      "versionNumber": "1.3.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
-      "versionDescription": "Free, native document generation for Salesforce. Create PDF and DOCX documents from any record with merge tags, unlimited-depth relationships, images, and rich text. Visual query builder, report import, bulk generation, Flow actions, zero-heap PDF rendering, Giant Query for 15,000+ child records, and self-contained E2E testing. No external dependencies."
+      "versionDescription": "Giant Query PDF: render 3K-50K+ child records as formatted PDF entirely server-side. Pre-baked HTML templates, progressive Queueable assembly, column formatting, parent lookup fields. Plus all v1.2.0 features: DOCX/PDF/PPTX/XLSX generation, visual query builder, bulk generation, Flow actions, barcodes, QR codes, and zero-heap PDF rendering."
     }
   ],
   "name": "Portwood DocGen",
