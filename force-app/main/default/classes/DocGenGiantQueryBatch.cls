@@ -150,6 +150,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             cursor = trEnd + 7;
             String row = '<tr>';
             Integer cellIdx = 0;
+            Integer colNum = 0;
             while (cellIdx < trXml.length()) {
                 Integer cellStart = findTag(trXml, '<w:tc', cellIdx);
                 if (cellStart == -1) { break; }
@@ -157,6 +158,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 if (cellEnd == -1) { break; }
                 String cellXml = trXml.substring(cellStart, cellEnd);
                 cellIdx = cellEnd + 7;
+                colNum++;
 
                 // Extract all <w:t> text content
                 String txt = '';
@@ -176,7 +178,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                     txt = txt.replaceAll('##BARCODE:[^:]*:[^:]*:([^#]*)##', '$1');
                 }
 
-                row += '<td>' + txt + '</td>';
+                row += '<td class="c' + colNum + '">' + txt + '</td>';
             }
             result += row + '</tr>';
         }
@@ -250,7 +252,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             }
 
             if (!styles.isEmpty()) {
-                css += 'td:nth-child(' + colNum + '){' + String.join(styles, ';') + '} ';
+                css += '.c' + colNum + '{' + String.join(styles, ';') + '} ';
             }
         }
         return css;
