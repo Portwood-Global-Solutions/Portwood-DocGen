@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <description>Record-Triggered Flow: when a Contact is created, generates a welcome document using the default DocGen template for Contact, saves it as a File on the Contact, and creates a Task for the Contact Owner. Requires at least one Contact template with Default Template checked.</description>
+    <interviewLabel>DocGen Welcome Pack New Contact {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>DocGen: Welcome Pack on New Contact</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Default_Template</targetReference>
+        </connector>
+        <object>Contact</object>
+        <recordTriggerType>Create</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+
+    <!-- ACTION CALLS -->
+    <actionCalls>
+        <name>Generate_Document</name>
+        <label>Generate Welcome Document</label>
+        <locationX>176</locationX>
+        <locationY>360</locationY>
+        <actionName>DocGenFlowAction</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Check_Generation_Success</targetReference>
+        </connector>
+        <inputParameters>
+            <name>templateId</name>
+            <value>
+                <elementReference>defaultTemplate.Id</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>saveToRecord</name>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>documentTitle</name>
+            <value>
+                <elementReference>welcomeDocTitle</elementReference>
+            </value>
+        </inputParameters>
+        <outputParameters>
+            <assignToReference>genSuccess</assignToReference>
+            <name>success</name>
+        </outputParameters>
+        <storeOutputAutomatically>false</storeOutputAutomatically>
+    </actionCalls>
+
+    <!-- ASSIGNMENTS -->
+    <assignments>
+        <name>No_Template_Error</name>
+        <label>Log: No Default Contact Template</label>
+        <locationX>440</locationX>
+        <locationY>360</locationY>
+        <assignmentItems>
+            <assignToReference>debugMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>No default Contact template found. Open DocGen, go to Templates, and check Default Template on a Contact template to enable this flow.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+
+    <!-- DECISIONS -->
+    <decisions>
+        <name>Check_Template_Found</name>
+        <label>Template Found?</label>
+        <locationX>176</locationX>
+        <locationY>240</locationY>
+        <defaultConnector>
+            <targetReference>No_Template_Error</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Default Template</defaultConnectorLabel>
+        <rules>
+            <name>Template_Found</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>defaultTemplate.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Generate_Document</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Check_Generation_Success</name>
+        <label>Generation Succeeded?</label>
+        <locationX>176</locationX>
+        <locationY>480</locationY>
+        <defaultConnectorLabel>Failed — exit</defaultConnectorLabel>
+        <rules>
+            <name>Generation_Succeeded</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>genSuccess</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Create_Owner_Task</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+
+    <!-- RECORD LOOKUPS -->
+    <recordLookups>
+        <name>Get_Default_Template</name>
+        <label>Get Default Contact Template</label>
+        <locationX>176</locationX>
+        <locationY>120</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Check_Template_Found</targetReference>
+        </connector>
+        <filterLogic>AND</filterLogic>
+        <filters>
+            <field>Base_Object_API__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Contact</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>Is_Default__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>DocGen_Template__c</object>
+        <outputReference>defaultTemplate</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Name</queriedFields>
+        <sortField>Name</sortField>
+        <sortOrder>Asc</sortOrder>
+    </recordLookups>
+
+    <!-- RECORD CREATES -->
+    <recordCreates>
+        <name>Create_Owner_Task</name>
+        <label>Create Task for Contact Owner</label>
+        <locationX>176</locationX>
+        <locationY>600</locationY>
+        <inputAssignments>
+            <field>OwnerId</field>
+            <value>
+                <elementReference>$Record.OwnerId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>WhoId</field>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Subject</field>
+            <value>
+                <stringValue>Welcome doc generated</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Description</field>
+            <value>
+                <stringValue>A welcome document was automatically generated and attached to this Contact. Please review and follow up if needed.</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>ActivityDate</field>
+            <value>
+                <elementReference>taskDueDate</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Status</field>
+            <value>
+                <stringValue>Not Started</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Priority</field>
+            <value>
+                <stringValue>Normal</stringValue>
+            </value>
+        </inputAssignments>
+        <object>Task</object>
+    </recordCreates>
+
+    <!-- VARIABLES -->
+    <variables>
+        <name>defaultTemplate</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>DocGen_Template__c</objectType>
+    </variables>
+    <variables>
+        <name>genSuccess</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>debugMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <!-- FORMULAS -->
+    <formulas>
+        <name>welcomeDocTitle</name>
+        <dataType>String</dataType>
+        <expression>&quot;Welcome Pack — &quot; &amp; $Record.FirstName &amp; &quot; &quot; &amp; $Record.LastName</expression>
+    </formulas>
+    <formulas>
+        <name>taskDueDate</name>
+        <dataType>Date</dataType>
+        <expression>TODAY() + 1</expression>
+    </formulas>
+
+</Flow>

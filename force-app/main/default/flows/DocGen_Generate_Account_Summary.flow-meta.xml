@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <description>Screen Flow: generates a PDF summary for the current Account using the default DocGen template marked for Account. Launch as a Quick Action or App Page button on the Account record page. Requires at least one Account template with Default Template checked.</description>
+    <interviewLabel>DocGen Generate Account Summary {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>DocGen: Generate Account Summary</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>Flow</processType>
+    <start>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Default_Template</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+
+    <!-- ACTION CALLS -->
+    <actionCalls>
+        <name>Generate_Document</name>
+        <label>Generate Account Summary PDF</label>
+        <locationX>176</locationX>
+        <locationY>360</locationY>
+        <actionName>DocGenFlowAction</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Check_Generation_Success</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Screen_Generation_Error</targetReference>
+        </faultConnector>
+        <inputParameters>
+            <name>templateId</name>
+            <value>
+                <elementReference>defaultTemplate.Id</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recordId</name>
+            <value>
+                <elementReference>recordId</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>saveToRecord</name>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </inputParameters>
+        <outputParameters>
+            <assignToReference>genSuccess</assignToReference>
+            <name>success</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>genErrorMessage</assignToReference>
+            <name>errorMessage</name>
+        </outputParameters>
+        <storeOutputAutomatically>false</storeOutputAutomatically>
+    </actionCalls>
+
+    <!-- DECISIONS -->
+    <decisions>
+        <name>Check_Template_Found</name>
+        <label>Template Found?</label>
+        <locationX>176</locationX>
+        <locationY>240</locationY>
+        <defaultConnector>
+            <targetReference>Screen_No_Template</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Default Template</defaultConnectorLabel>
+        <rules>
+            <name>Template_Found</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>defaultTemplate.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Generate_Document</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Check_Generation_Success</name>
+        <label>Generation Succeeded?</label>
+        <locationX>176</locationX>
+        <locationY>480</locationY>
+        <defaultConnector>
+            <targetReference>Screen_Generation_Error</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Failed</defaultConnectorLabel>
+        <rules>
+            <name>Generation_Succeeded</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>genSuccess</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Screen_Success</targetReference>
+            </connector>
+            <label>Yes</label>
+        </rules>
+    </decisions>
+
+    <!-- RECORD LOOKUPS -->
+    <recordLookups>
+        <name>Get_Default_Template</name>
+        <label>Get Default Account Template</label>
+        <locationX>176</locationX>
+        <locationY>120</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Check_Template_Found</targetReference>
+        </connector>
+        <filterLogic>AND</filterLogic>
+        <filters>
+            <field>Base_Object_API__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Account</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>Is_Default__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>DocGen_Template__c</object>
+        <outputReference>defaultTemplate</outputReference>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Name</queriedFields>
+        <sortField>Name</sortField>
+        <sortOrder>Asc</sortOrder>
+    </recordLookups>
+
+    <!-- SCREENS -->
+    <screens>
+        <name>Screen_Success</name>
+        <label>Document Generated</label>
+        <locationX>176</locationX>
+        <locationY>600</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>Success_Message</name>
+            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(46, 125, 50);&quot;&gt;Account summary generated successfully.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;The document has been saved as a File on this Account. Find it in the Files related list.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>false</showHeader>
+    </screens>
+    <screens>
+        <name>Screen_No_Template</name>
+        <label>No Default Template</label>
+        <locationX>440</locationX>
+        <locationY>240</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>No_Template_Message</name>
+            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(183, 28, 28);&quot;&gt;No default Account template found.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Open DocGen, go to Templates, and check &lt;strong&gt;Default Template&lt;/strong&gt; on an Account template to enable this flow.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>false</showHeader>
+    </screens>
+    <screens>
+        <name>Screen_Generation_Error</name>
+        <label>Generation Error</label>
+        <locationX>440</locationX>
+        <locationY>480</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>Error_Message_Display</name>
+            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(183, 28, 28);&quot;&gt;Document generation failed.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;{!genErrorMessage}&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>false</showHeader>
+    </screens>
+
+    <!-- VARIABLES -->
+    <variables>
+        <name>recordId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <description>The Account record ID. Passed automatically when launched as a Quick Action.</description>
+    </variables>
+    <variables>
+        <name>defaultTemplate</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>DocGen_Template__c</objectType>
+    </variables>
+    <variables>
+        <name>genSuccess</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>genErrorMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+</Flow>
