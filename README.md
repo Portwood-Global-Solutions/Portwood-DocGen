@@ -50,6 +50,23 @@ If you previously installed the unnamespaced "Document Generation" package:
 
 ---
 
+## Giant Query PDF
+
+Generate PDFs from records with **3,000 to 50,000+ child records** — entirely server-side, no external dependencies.
+
+| | Standard Engine | Giant Query Engine |
+|---|---|---|
+| **When** | < 2,000 child records | > 2,000 child records |
+| **Detection** | Automatic | Automatic |
+| **PDF** | Instant render via `Blob.toPdf()` | Batch → Queueable chain → `Blob.toPdf()` |
+| **DOCX** | Server-side ZIP or client-side assembly | Client-side pagination + assembly |
+| **Speed** | ~2-5 seconds | ~1-5 minutes (async) |
+| **Output** | Download or save to record | Saved to record automatically |
+
+The engine auto-detects large datasets when you click Generate. Same template, same button — the complexity is invisible. Ideal for transaction logs, price books, audit trails, and bulk data reports.
+
+---
+
 ## Quick Start
 
 1. **Create a template** — pick Word, Excel, or PowerPoint. Choose your Salesforce object.
@@ -275,6 +292,8 @@ Decompress → Merge XML tags → Recompress
 | `BarcodeGenerator` | Code 128 + QR code generation (pure Apex, Reed-Solomon) |
 | `DocGenController` | LWC controller — template CRUD, generation endpoints |
 | `DocGenBatch` | Batch Apex for bulk document generation |
+| `DocGenGiantQueryBatch` | Cursor-paginated harvest for 2,000+ child records |
+| `DocGenGiantQueryAssembler` | Progressive Queueable chain — accumulates HTML, renders PDF |
 | `docGenPdfMerger.js` | Client-side PDF merge engine (pure JS) |
 | `docGenZipWriter.js` | Client-side Office Open XML assembly (pure JS) |
 
