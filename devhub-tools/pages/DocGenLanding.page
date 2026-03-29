@@ -376,6 +376,9 @@
             <span class="badge">Zero Dependencies</span>
             <span class="badge">100% Native Salesforce</span>
             <span class="badge green">Open Source</span>
+            <apex:outputPanel rendered="{!installCount > 0}">
+                <span class="badge green">Proudly serving {!installCount} org{!IF(installCount > 1, 's', '')}</span>
+            </apex:outputPanel>
         </div>
         <h1>Document Generation<br/>for <span>Salesforce</span></h1>
         <p>Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from any record. Merge tags, child loops, images, barcodes, QR codes, and aggregates.</p>
@@ -573,6 +576,16 @@
                         <td class="cmp-partial">Higher tiers</td>
                         <td class="cmp-no">API only</td>
                         <td class="cmp-yes">Yes</td>
+                    </tr>
+                    <tr>
+                        <td>Child Records per Document</td>
+                        <td class="col-docgen cmp-yes">50,000+</td>
+                        <td class="cmp-partial">~500</td>
+                        <td class="cmp-partial">~500</td>
+                        <td class="cmp-partial">~1,000</td>
+                        <td class="cmp-partial">~500</td>
+                        <td class="cmp-partial">~200</td>
+                        <td class="cmp-partial">~500</td>
                     </tr>
                     <tr>
                         <td>Open Source</td>

@@ -48,6 +48,17 @@ public without sharing class DocGenLandingController {
         }
     }
 
+    public Integer installCount {
+        get {
+            try {
+                // PackageSubscriber tracks all orgs that have installed the managed package
+                return [SELECT COUNT() FROM PackageSubscriber WHERE InstalledStatus = 'i'];
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+    }
+
     public DocGenLandingController() {}
 
     @RemoteAction
