@@ -93,6 +93,20 @@ public class TestDataFactory {
         insert ver;
     }
 
+    /**
+     * Attaches a real DOCX file to the standard test template and updates
+     * the active version with its Content_Version_Id__c. Call this from
+     * tests that need the full merge pipeline (not error path tests).
+     */
+    public static ContentVersion attachRealDocxToTestTemplate() {
+        DocGen_Template__c tpl = getTestTemplate();
+        DocGen_Template_Version__c ver = getTestTemplateVersion();
+        ContentVersion cv = createValidDocxFile(tpl.Id, buildSimpleDocXml());
+        ver.Content_Version_Id__c = cv.Id;
+        update ver;
+        return cv;
+    }
+
     // =========================================================================
     // Helper getters — retrieve standard test data by known names
     // =========================================================================
