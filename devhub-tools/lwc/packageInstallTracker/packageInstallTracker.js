@@ -4,11 +4,24 @@ import getSubscribers from '@salesforce/apex/PackageInstallTracker.getSubscriber
 import getStats from '@salesforce/apex/PackageInstallTracker.getStats';
 import getVersions from '@salesforce/apex/PackageInstallTracker.getVersions';
 import sendInstallNotification from '@salesforce/apex/PackageInstallTracker.sendInstallNotification';
+import linkOrgToAccount from '@salesforce/apex/PackageInstallTracker.linkOrgToAccount';
+import createAccountForOrg from '@salesforce/apex/PackageInstallTracker.createAccountForOrg';
+import searchAccounts from '@salesforce/apex/PackageInstallTracker.searchAccounts';
 import syncNow from '@salesforce/apex/DocGenSubscriberSync.syncNow';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { NavigationMixin } from 'lightning/navigation';
+
+const ROW_ACTIONS = [
+    { label: 'Link to Account', name: 'link_account' },
+    { label: 'Create Account', name: 'create_account' },
+    { label: 'View Account', name: 'view_account' }
+];
 
 const COLUMNS = [
     { label: 'Org Name', fieldName: 'orgName', sortable: true },
+    { label: 'Account', fieldName: 'accountName', initialWidth: 180, sortable: true,
+        cellAttributes: { class: { fieldName: 'accountClass' } }
+    },
     { label: 'Org Type', fieldName: 'orgType', initialWidth: 120, sortable: true,
         cellAttributes: { class: { fieldName: 'orgTypeClass' } }
     },
@@ -17,7 +30,8 @@ const COLUMNS = [
     },
     { label: 'Version', fieldName: 'versionLabel', sortable: true },
     { label: 'Installed', fieldName: 'installedDateFormatted', initialWidth: 180, sortable: true },
-    { label: 'Org ID', fieldName: 'orgKey', initialWidth: 200 }
+    { label: 'Org ID', fieldName: 'orgKey', initialWidth: 200 },
+    { type: 'action', typeAttributes: { rowActions: ROW_ACTIONS } }
 ];
 
 const VERSION_COLUMNS = [
@@ -31,7 +45,7 @@ const VERSION_COLUMNS = [
 
 const POLL_MS = 60000; // Check for new installs every 60 seconds
 
-export default class PackageInstallTracker extends LightningElement {
+export default class PackageInstallTracker extends NavigationMixin(LightningElement) {
     columns = COLUMNS;
     versionColumns = VERSION_COLUMNS;
     @track subscribers = [];
@@ -46,6 +60,14 @@ export default class PackageInstallTracker extends LightningElement {
     _knownOrgKeys = new Set();
     _initialized = false;
     showVersions = false;
+
+    // Link Account modal state
+    @track showLinkModal = false;
+    @track linkOrgKey = '';
+    @track linkOrgName = '';
+    @track accountSearchTerm = '';
+    @track accountSearchResults = [];
+    @track selectedAccountId = null;
 
     @wire(getPackages)
     wiredPackages({ data, error }) {
@@ -85,7 +107,9 @@ export default class PackageInstallTracker extends LightningElement {
                     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                 }) : '',
                 orgTypeClass: s.orgType === 'Production' ? 'slds-text-color_success' : 'slds-text-color_weak',
-                statusClass: s.installedStatus === 'Installed' ? 'slds-text-color_success' : 'slds-text-color_error'
+                statusClass: s.installedStatus === 'Installed' ? 'slds-text-color_success' : 'slds-text-color_error',
+                accountName: s.accountName || '— No Account —',
+                accountClass: s.accountId ? '' : 'slds-text-color_error'
             }));
         }
         if (error) {
@@ -136,7 +160,8 @@ export default class PackageInstallTracker extends LightningElement {
         sendInstallNotification({
             orgName: subscriber.orgName || 'Unknown Org',
             orgType: subscriber.orgType || 'Unknown',
-            versionLabel: subscriber.versionLabel || subscriber.versionId
+            versionLabel: subscriber.versionLabel || subscriber.versionId,
+            orgKey: subscriber.orgKey
         }).catch(() => {});
     }
 
@@ -152,6 +177,7 @@ export default class PackageInstallTracker extends LightningElement {
     get hasSubscribers() { return this.subscribers.length > 0; }
     get hasVersions() { return this.versions.length > 0; }
     get versionToggleLabel() { return this.showVersions ? 'Hide Versions' : 'Show Versions'; }
+    get linkDisabled() { return !this.selectedAccountId; }
 
     handlePackageChange(event) {
         this.isLoading = true;
@@ -176,6 +202,89 @@ export default class PackageInstallTracker extends LightningElement {
             return va > vb ? dir : va < vb ? -dir : 0;
         });
         this.subscribers = data;
+    }
+
+    handleRowAction(event) {
+        const action = event.detail.action;
+        const row = event.detail.row;
+        switch (action.name) {
+            case 'view_account':
+                if (row.accountId) {
+                    this[NavigationMixin.Navigate]({
+                        type: 'standard__recordPage',
+                        attributes: { recordId: row.accountId, actionName: 'view' }
+                    });
+                } else {
+                    this.dispatchEvent(new ShowToastEvent({ title: 'No Account', message: 'This org has no linked Account. Use "Link to Account" or "Create Account".', variant: 'warning' }));
+                }
+                break;
+            case 'link_account':
+                this.linkOrgKey = row.orgKey;
+                this.linkOrgName = row.orgName;
+                this.accountSearchTerm = '';
+                this.accountSearchResults = [];
+                this.selectedAccountId = null;
+                this.showLinkModal = true;
+                break;
+            case 'create_account':
+                this._createAccount(row.orgKey, row.orgName);
+                break;
+            default:
+                break;
+        }
+    }
+
+    _createAccount(orgKey, orgName) {
+        this.isLoading = true;
+        createAccountForOrg({ orgKey, accountName: orgName })
+            .then(accountId => {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Account Created', message: orgName + ' account created and linked.', variant: 'success' }));
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__recordPage',
+                    attributes: { recordId: accountId, actionName: 'view' }
+                });
+                this.handleRefresh();
+            })
+            .catch(err => {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: err.body ? err.body.message : err.message, variant: 'error' }));
+                this.isLoading = false;
+            });
+    }
+
+    handleAccountSearch(event) {
+        this.accountSearchTerm = event.target.value;
+        if (this.accountSearchTerm.length >= 2) {
+            searchAccounts({ searchTerm: this.accountSearchTerm })
+                .then(results => { this.accountSearchResults = results; })
+                .catch(() => { this.accountSearchResults = []; });
+        } else {
+            this.accountSearchResults = [];
+        }
+    }
+
+    handleSelectAccount(event) {
+        this.selectedAccountId = event.currentTarget.dataset.id;
+        this.accountSearchTerm = event.currentTarget.dataset.name;
+        this.accountSearchResults = [];
+    }
+
+    handleLinkAccount() {
+        if (!this.selectedAccountId) return;
+        this.isLoading = true;
+        this.showLinkModal = false;
+        linkOrgToAccount({ orgKey: this.linkOrgKey, accountId: this.selectedAccountId })
+            .then(() => {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Linked', message: this.linkOrgName + ' linked to account.', variant: 'success' }));
+                this.handleRefresh();
+            })
+            .catch(err => {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: err.body ? err.body.message : err.message, variant: 'error' }));
+                this.isLoading = false;
+            });
+    }
+
+    handleCloseLinkModal() {
+        this.showLinkModal = false;
     }
 
     handleSyncNow() {

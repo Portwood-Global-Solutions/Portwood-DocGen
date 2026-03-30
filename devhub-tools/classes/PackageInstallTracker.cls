@@ -30,6 +30,14 @@ public with sharing class PackageInstallTracker {
         // Build version ID → version number map
         Map<String, String> versionMap = getVersionMap();
 
+        // Build orgKey → subscriber org record map (for Account links)
+        Map<String, DocGen_Subscriber_Org__c> subOrgMap = new Map<String, DocGen_Subscriber_Org__c>();
+        for (DocGen_Subscriber_Org__c so : [
+            SELECT Org_Id__c, Account__c, Account__r.Name FROM DocGen_Subscriber_Org__c WITH SYSTEM_MODE LIMIT 50000
+        ]) {
+            subOrgMap.put(so.Org_Id__c, so);
+        }
+
         for (PackageSubscriber sub : Database.query(query)) { // NOPMD ApexCRUDViolation — PackageSubscriber is a system object; CRUD checks not applicable
             SubscriberInfo si = new SubscriberInfo();
             si.id = sub.Id;
@@ -42,6 +50,13 @@ public with sharing class PackageInstallTracker {
                 ? versionMap.get(sub.MetadataPackageVersionId)
                 : sub.MetadataPackageVersionId;
             si.installedDate = sub.SystemModstamp;
+            // Account link from subscriber org record
+            DocGen_Subscriber_Org__c so = subOrgMap.get(sub.OrgKey);
+            if (so != null) {
+                si.subscriberOrgId = so.Id;
+                si.accountId = so.Account__c;
+                si.accountName = so.Account__r != null ? so.Account__r.Name : null;
+            }
             subs.add(si);
         }
         return subs;
@@ -87,13 +102,35 @@ public with sharing class PackageInstallTracker {
     }
 
     @AuraEnabled
-    public static void sendInstallNotification(String orgName, String orgType, String versionLabel) {
+    public static void sendInstallNotification(String orgName, String orgType, String versionLabel, String orgKey) {
         try {
+            // Find or create the subscriber org record so the notification links to it
+            Id targetId = UserInfo.getUserId(); // fallback
+            if (String.isNotBlank(orgKey)) {
+                List<DocGen_Subscriber_Org__c> subOrgs = [
+                    SELECT Id FROM DocGen_Subscriber_Org__c WHERE Org_Id__c = :orgKey WITH SYSTEM_MODE LIMIT 1
+                ];
+                if (subOrgs.isEmpty()) {
+                    // Auto-create subscriber org record for the new install
+                    DocGen_Subscriber_Org__c so = new DocGen_Subscriber_Org__c(
+                        Org_Id__c = orgKey,
+                        Name = String.isNotBlank(orgName) ? orgName : orgKey,
+                        Org_Type__c = orgType,
+                        Install_Status__c = 'Installed',
+                        Install_Date__c = Datetime.now()
+                    );
+                    insert so; // NOPMD ApexCRUDViolation — DevHub admin operation
+                    targetId = so.Id;
+                } else {
+                    targetId = subOrgs[0].Id;
+                }
+            }
+
             Messaging.CustomNotification notification = new Messaging.CustomNotification();
             notification.setTitle('New DocGen Install');
             notification.setBody(orgName + ' (' + orgType + ') installed ' + versionLabel);
             notification.setNotificationTypeId(getNotificationTypeId());
-            notification.setTargetId(UserInfo.getUserId());
+            notification.setTargetId(targetId);
             notification.send(new Set<String>{ UserInfo.getUserId() });
         } catch (Exception e) {
             System.debug(LoggingLevel.WARN, 'Install notification failed: ' + e.getMessage());
@@ -141,6 +178,56 @@ public with sharing class PackageInstallTracker {
         return stats;
     }
 
+    /**
+     * Links a subscriber org to an existing Account.
+     */
+    @AuraEnabled
+    public static void linkOrgToAccount(String orgKey, Id accountId) {
+        List<DocGen_Subscriber_Org__c> orgs = [
+            SELECT Id, Account__c FROM DocGen_Subscriber_Org__c WHERE Org_Id__c = :orgKey WITH SYSTEM_MODE LIMIT 1
+        ];
+        if (orgs.isEmpty()) {
+            // Create the subscriber org record first
+            DocGen_Subscriber_Org__c so = new DocGen_Subscriber_Org__c(
+                Org_Id__c = orgKey,
+                Name = orgKey,
+                Account__c = accountId
+            );
+            insert so; // NOPMD ApexCRUDViolation — DevHub admin operation
+        } else {
+            orgs[0].Account__c = accountId;
+            update orgs[0]; // NOPMD ApexCRUDViolation — DevHub admin operation
+        }
+    }
+
+    /**
+     * Creates a new Account for a subscriber org and links them.
+     */
+    @AuraEnabled
+    public static Id createAccountForOrg(String orgKey, String accountName) {
+        Account a = new Account(Name = accountName);
+        List<RecordType> rts = [
+            SELECT Id FROM RecordType WHERE SObjectType = 'Account' AND DeveloperName = 'Customer' WITH SYSTEM_MODE LIMIT 1
+        ];
+        if (!rts.isEmpty()) { a.RecordTypeId = rts[0].Id; }
+        insert a; // NOPMD ApexCRUDViolation — DevHub admin operation
+
+        linkOrgToAccount(orgKey, a.Id);
+        return a.Id;
+    }
+
+    /**
+     * Searches Accounts by name for the link-to-account lookup.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<Account> searchAccounts(String searchTerm) {
+        if (String.isBlank(searchTerm) || searchTerm.length() < 2) {
+            return new List<Account>();
+        }
+        String term = '%' + String.escapeSingleQuotes(searchTerm) + '%';
+        return [SELECT Id, Name FROM Account WHERE Name LIKE :term WITH SYSTEM_MODE ORDER BY Name LIMIT 20];
+    }
+
     public class PackageInfo {
         @AuraEnabled public String id;
         @AuraEnabled public String name;
@@ -156,6 +243,9 @@ public with sharing class PackageInstallTracker {
         @AuraEnabled public String versionId;
         @AuraEnabled public String versionLabel;
         @AuraEnabled public Datetime installedDate;
+        @AuraEnabled public Id accountId;
+        @AuraEnabled public String accountName;
+        @AuraEnabled public Id subscriberOrgId;
     }
 
     public class VersionInfo {

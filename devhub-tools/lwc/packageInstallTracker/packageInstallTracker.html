@@ -84,6 +84,7 @@
                     sorted-by={sortBy}
                     sorted-direction={sortDirection}
                     onsort={handleSort}
+                    onrowaction={handleRowAction}
                     hide-checkbox-column>
                 </lightning-datatable>
             </template>
@@ -99,4 +100,38 @@
             <p class="slds-text-body_small slds-text-color_weak slds-m-top_medium slds-text-align_center">Auto-refreshes every 60 seconds. Only net-new installs trigger a notification. Accounts sync every 6 hours or on demand.</p>
         </div>
     </lightning-card>
+
+    <!-- Link to Account Modal -->
+    <template if:true={showLinkModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container" style="max-width: 480px;">
+                <header class="slds-modal__header">
+                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare" class="slds-button slds-button_icon slds-modal__close" onclick={handleCloseLinkModal}></lightning-button-icon>
+                    <h2 class="slds-text-heading_medium">Link to Account</h2>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">Link <strong>{linkOrgName}</strong> to an existing Account.</p>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-input type="search" label="Search Accounts" placeholder="Type account name..." value={accountSearchTerm} onchange={handleAccountSearch}></lightning-input>
+                    <template if:true={accountSearchResults.length}>
+                        <div class="slds-dropdown slds-dropdown_fluid" style="position: relative; z-index: 100;">
+                            <ul class="slds-listbox slds-listbox_vertical">
+                                <template for:each={accountSearchResults} for:item="acct">
+                                    <li key={acct.Id} class="slds-listbox__item">
+                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-id={acct.Id} data-name={acct.Name} onclick={handleSelectAccount} style="cursor: pointer; padding: 0.5rem;">
+                                            <span class="slds-truncate">{acct.Name}</span>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={handleCloseLinkModal}></lightning-button>
+                    <lightning-button label="Link Account" variant="brand" onclick={handleLinkAccount} disabled={linkDisabled} class="slds-m-left_x-small"></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>
