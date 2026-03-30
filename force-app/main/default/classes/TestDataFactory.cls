@@ -269,4 +269,46 @@ public class TestDataFactory {
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:r><w:t>' + mergeTag + '</w:t></w:r></w:p></w:body></w:document>';
     }
+
+    /**
+     * Returns a document.xml with RTL (Hebrew) content:
+     * - Paragraph with <w:bidi/> and <w:rtl/> run
+     * - Mixed Hebrew + English runs
+     * - RTL table with <w:bidiVisual/>
+     */
+    public static String buildRtlDocXml() {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+            '<w:body>' +
+            // RTL paragraph with Hebrew text
+            '<w:p><w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr>' +
+            '<w:r><w:rPr><w:rtl/><w:rFonts w:cs="David"/></w:rPr><w:t>\u05E9\u05DC\u05D5\u05DD \u05E2\u05D5\u05DC\u05DD</w:t></w:r></w:p>' +
+            // Mixed: Hebrew label + English merge value
+            '<w:p><w:pPr><w:bidi/></w:pPr>' +
+            '<w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E9\u05DD:</w:t></w:r>' +
+            '<w:r><w:t>{Name}</w:t></w:r></w:p>' +
+            // RTL table with bidiVisual
+            '<w:tbl><w:tblPr><w:bidiVisual/><w:tblBorders>' +
+            '<w:top w:val="single" w:sz="4" w:color="000000"/>' +
+            '<w:bottom w:val="single" w:sz="4" w:color="000000"/>' +
+            '</w:tblBorders></w:tblPr>' +
+            '<w:tr>' +
+            '<w:tc><w:p><w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E2\u05DE\u05D5\u05D3\u05D4 1</w:t></w:r></w:p></w:tc>' +
+            '<w:tc><w:p><w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E2\u05DE\u05D5\u05D3\u05D4 2</w:t></w:r></w:p></w:tc>' +
+            '</w:tr></w:tbl>' +
+            '</w:body></w:document>';
+    }
+
+    /**
+     * Returns a styles.xml with RTL Normal style (document-wide bidi default).
+     */
+    public static String buildRtlStylesXml() {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:style w:type="paragraph" w:default="1" w:styleId="Normal">' +
+            '<w:name w:val="Normal"/><w:qFormat/>' +
+            '<w:pPr><w:bidi/></w:pPr>' +
+            '</w:style></w:styles>';
+    }
 }

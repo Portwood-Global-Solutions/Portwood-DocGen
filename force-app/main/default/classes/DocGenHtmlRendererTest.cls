@@ -1897,4 +1897,105 @@ private class DocGenHtmlRendererTest {
             System.assert(html.contains('NoBorder'), 'Should contain text');
         }
     }
+
+    // =========================================================================
+    // RTL / Bidi Tests
+    // =========================================================================
+
+    @IsTest
+    static void testRtlParagraphTextReversed() {
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:pPr><w:bidi/></w:pPr>' +
+            '<w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E9\u05DC\u05D5\u05DD</w:t></w:r></w:p>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        System.assert(html.contains('\u05DD\u05D5\u05DC\u05E9'), 'Hebrew should be reversed');
+        System.assert(html.contains('text-align:right'), 'RTL paragraph should be right-aligned');
+    }
+
+    @IsTest
+    static void testRtlRunEnglishNotReversed() {
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:pPr><w:bidi/></w:pPr>' +
+            '<w:r><w:rPr><w:rtl/></w:rPr><w:t>James Smith</w:t></w:r></w:p>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        System.assert(html.contains('James Smith'), 'English text should not be reversed');
+    }
+
+    @IsTest
+    static void testRtlTableBidiVisualReversesCells() {
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:tbl><w:tblPr><w:bidiVisual/><w:tblBorders>' +
+            '<w:top w:val="single" w:sz="4" w:color="000000"/></w:tblBorders></w:tblPr>' +
+            '<w:tr><w:tc><w:p><w:r><w:t>CellA</w:t></w:r></w:p></w:tc>' +
+            '<w:tc><w:p><w:r><w:t>CellB</w:t></w:r></w:p></w:tc></w:tr>' +
+            '</w:tbl></w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        Integer posB = html.indexOf('CellB');
+        Integer posA = html.indexOf('CellA');
+        System.assert(posB < posA, 'bidiVisual should reverse cell order');
+    }
+
+    @IsTest
+    static void testRtlRunOrderReversed() {
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:pPr><w:bidi/></w:pPr>' +
+            '<w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E8\u05D0\u05E9\u05D5\u05DF</w:t></w:r>' +
+            '<w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E9\u05E0\u05D9</w:t></w:r></w:p>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        Integer pos1 = html.indexOf('\u05DF\u05D5\u05E9\u05D0\u05E8');
+        Integer pos2 = html.indexOf('\u05D9\u05E0\u05E9');
+        System.assert(pos2 < pos1, 'RTL runs should be reversed in order');
+    }
+
+    @IsTest
+    static void testRtlDefaultStyleInherited() {
+        DocGenHtmlRenderer.stylesXml = TestDataFactory.buildRtlStylesXml();
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E9\u05DC\u05D5\u05DD</w:t></w:r></w:p>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        System.assert(html.contains('text-align: right'), 'Body should inherit RTL from Normal style');
+        System.assert(html.contains('Arial Unicode MS'), 'RTL doc should use Arial Unicode MS');
+        DocGenHtmlRenderer.stylesXml = null;
+    }
+
+    @IsTest
+    static void testRtlComplexScriptFont() {
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:r><w:rPr><w:rtl/><w:rFonts w:cs="David"/></w:rPr>' +
+            '<w:t>\u05E9\u05DC\u05D5\u05DD</w:t></w:r></w:p></w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        System.assert(html.contains('Arial Unicode MS'), 'RTL run should use Arial Unicode MS');
+    }
+
+    @IsTest
+    static void testRtlIndentStartEndFallback() {
+        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:pPr><w:bidi/><w:ind w:start="720" w:end="360"/></w:pPr>' +
+            '<w:r><w:t>Test</w:t></w:r></w:p></w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        System.assert(html.contains('margin-left'), 'w:start should fallback to margin-left');
+        System.assert(html.contains('margin-right'), 'w:end should fallback to margin-right');
+    }
+
+    @IsTest
+    static void testRtlFullDocument() {
+        DocGenHtmlRenderer.stylesXml = TestDataFactory.buildRtlStylesXml();
+        String xml = TestDataFactory.buildRtlDocXml();
+        String html = DocGenHtmlRenderer.convertToHtml(xml);
+        System.assert(html.contains('Arial Unicode MS'), 'RTL doc should use Arial Unicode MS');
+        System.assert(html.contains('text-align: right'), 'RTL doc should be right-aligned');
+        System.assert(html.contains('<table'), 'Should contain table');
+        DocGenHtmlRenderer.stylesXml = null;
+    }
 }

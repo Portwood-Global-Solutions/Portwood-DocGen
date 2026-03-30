@@ -32,6 +32,9 @@ public with sharing class DocGenHtmlRenderer {
     // Styles XML from template — set before calling convertToHtml for style resolution
     public static String stylesXml;
 
+    // Content width in inches — set during convertToHtml for RTL line break calculation
+    private static Decimal contentWidthInches = 6.5; // default: letter - 1in margins
+
     // Unit conversions
     private static final Decimal HALF_POINTS_TO_PT = 0.5;     // half-points → pt (÷2)
     private static final Decimal TWIPS_TO_PT = 0.05;           // twips → pt (÷20)
@@ -130,12 +133,21 @@ public with sharing class DocGenHtmlRenderer {
 
         // Build dynamic page CSS from document dimensions + styles
         Map<String, Decimal> pageDims = parsePageDimensions(documentXml);
+        contentWidthInches = pageDims.get('contentWidth');
         String cellPadding = resolveDefaultCellPadding();
         String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
             'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
             pageDims.get('marginBottom') + 'in ' + pageDims.get('marginLeft') + 'in; }';
+        // Check if document default style is RTL (Normal style with <w:bidi/> in styles.xml)
+        // Note: Flying Saucer's Blob.toPdf() does NOT properly implement the Unicode Bidi Algorithm.
+        // Using CSS direction:rtl causes double-reversal of Hebrew/Arabic characters.
+        // Instead, we use text-align:right for layout and let Unicode handle character order.
+        Boolean isDocRtl = isDefaultStyleRtl();
+        String bodyFont = isDocRtl ? '\'Arial Unicode MS\', Arial, sans-serif' : 'Arial, sans-serif';
+
+        String rtlBodyCss = isDocRtl ? ' text-align: right;' : '';
         String dynamicCss = dynamicPageCss +
-            'body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }' +
+            'body { font-family: ' + bodyFont + '; font-size: 11pt; line-height: 1.15; color: #000;' + rtlBodyCss + ' }' +
             'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }' +
             'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }' +
             'h3 { font-size: 14pt; font-weight: bold; margin: 0 0 4pt 0; }' +
@@ -153,12 +165,13 @@ public with sharing class DocGenHtmlRenderer {
             'hr { border: none; border-top: 1px solid #000; margin: 6pt 0; }' +
             'sub { vertical-align: sub; font-size: 0.8em; }' +
             'sup { vertical-align: super; font-size: 0.8em; }';
-        String dynamicPrefix = '<html><head><style>' + dynamicCss + '</style></head><body>';
+        String bodyTag = '<body>';
+        String dynamicPrefix = '<html><head><style>' + dynamicCss + '</style></head>' + bodyTag;
 
         // Always use dynamic prefix — it has resolved page dimensions and cell padding
         // Inject font-face CSS if provided
         if (String.isNotBlank(fontFaceCss)) {
-            dynamicPrefix = '<html><head><style>' + fontFaceCss + dynamicCss + '</style></head><body>';
+            dynamicPrefix = '<html><head><style>' + fontFaceCss + dynamicCss + '</style></head>' + bodyTag;
         }
         return dynamicPrefix + html + HTML_SUFFIX;
     }
@@ -441,13 +454,16 @@ public with sharing class DocGenHtmlRenderer {
         Integer headingLevel = 0;
         Boolean pageBreakBefore = false;
         Boolean isTitle = false;
-        Boolean isRtl = false;
+        // RTL: explicit <w:bidi/> on paragraph OR inherited from Normal style
+        Boolean isRtl = isDefaultStyleRtl();
 
         // Extract paragraph properties
         String pPr = extractElement(pXml, 'w:pPr');
         if (String.isNotBlank(pPr)) {
             style = parseParagraphStyle(pPr);
-            isRtl = pPr.contains('<w:bidi/>') || pPr.contains('<w:bidi ');
+            if (pPr.contains('<w:bidi/>') || pPr.contains('<w:bidi ')) {
+                isRtl = true;
+            }
 
             // Check for heading style
             String pStyleVal = extractAttr(pPr, 'w:pStyle', 'w:val');
@@ -468,8 +484,8 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
-        // Process runs
-        String content = processRuns(pXml, images);
+        // Process runs — for RTL paragraphs, reverse run order so first run (rightmost) renders last in HTML
+        String content = processRuns(pXml, images, isRtl);
 
         // Check for page break in runs (w:br w:type="page")
         if (pXml.contains('w:type="page"') || pXml.contains('w:type=\'page\'')) {
@@ -486,26 +502,49 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         String pageBreakDiv = pageBreakBefore ? '<div style="page-break-before:always"></div>' : '';
-        String dirAttr = isRtl ? ' dir="rtl"' : '';
 
         // Empty paragraph = line break
         if (String.isBlank(content)) {
-            return pageBreakDiv + '<p' + dirAttr + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>&nbsp;</p>';
+            return pageBreakDiv + '<p' + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>&nbsp;</p>';
+        }
+
+        // RTL: insert manual line breaks so FS doesn't wrap incorrectly
+        if (isRtl) {
+            // Extract font size from paragraph: try pPr default run props, then first run's rPr
+            Decimal pFontSize = 11; // default
+            String pRpr = String.isNotBlank(pPr) ? extractElement(pPr, 'w:rPr') : null;
+            String szVal = String.isNotBlank(pRpr) ? extractAttr(pRpr, 'w:sz', 'w:val') : null;
+            if (szVal == null) {
+                // Try szCs (complex script size) for RTL
+                szVal = String.isNotBlank(pRpr) ? extractAttr(pRpr, 'w:szCs', 'w:val') : null;
+            }
+            if (szVal == null) {
+                // Try first run's font size
+                String firstRPr = extractElement(pXml, 'w:rPr');
+                szVal = String.isNotBlank(firstRPr) ? extractAttr(firstRPr, 'w:sz', 'w:val') : null;
+                if (szVal == null) {
+                    szVal = String.isNotBlank(firstRPr) ? extractAttr(firstRPr, 'w:szCs', 'w:val') : null;
+                }
+            }
+            if (szVal != null && szVal.isNumeric()) {
+                pFontSize = Integer.valueOf(szVal) * 0.5; // half-points to points
+            }
+            content = wrapRtlParagraph(content, pFontSize);
         }
 
         // Heading
         if (headingLevel > 0) {
             String tag = 'h' + headingLevel;
-            return pageBreakDiv + '<' + tag + dirAttr + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>' + content + '</' + tag + '>';
+            return pageBreakDiv + '<' + tag + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>' + content + '</' + tag + '>';
         }
 
         // Title style
         if (isTitle) {
-            return pageBreakDiv + '<h1' + dirAttr + ' style="font-size:26pt;font-weight:normal' +
+            return pageBreakDiv + '<h1 style="font-size:26pt;font-weight:normal' +
                 (String.isNotBlank(style) ? ';' + style : '') + '">' + content + '</h1>';
         }
 
-        return pageBreakDiv + '<p' + dirAttr + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>' + content + '</p>';
+        return pageBreakDiv + '<p' + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>' + content + '</p>';
     }
 
     /**
@@ -516,8 +555,7 @@ public with sharing class DocGenHtmlRenderer {
 
         // RTL / Bidi: <w:bidi/> marks right-to-left paragraph (Hebrew, Arabic)
         if (pPr.contains('<w:bidi/>') || pPr.contains('<w:bidi ')) {
-            styles.add('direction:rtl');
-            styles.add('unicode-bidi:embed');
+            styles.add('text-align:right');
         }
 
         // Alignment: <w:jc w:val="center"/>
@@ -659,7 +697,11 @@ public with sharing class DocGenHtmlRenderer {
      * Processes all <w:r> (run) elements within a paragraph.
      */
     private static String processRuns(String pXml, Map<String, String> images) {
-        String result = '';
+        return processRuns(pXml, images, false);
+    }
+
+    private static String processRuns(String pXml, Map<String, String> images, Boolean isRtlParagraph) {
+        List<String> parts = new List<String>();
         Integer cursor = 0;
 
         while (cursor < pXml.length()) {
@@ -701,7 +743,7 @@ public with sharing class DocGenHtmlRenderer {
             if (elementType == 'run') {
                 Integer runEnd = findClosingTag(pXml, nextRun, 'w:r');
                 if (runEnd != -1) {
-                    result += processRun(pXml.substring(nextRun, runEnd), images);
+                    parts.add(processRun(pXml.substring(nextRun, runEnd), images));
                     cursor = runEnd;
                 } else {
                     cursor = nextRun + 1;
@@ -709,7 +751,7 @@ public with sharing class DocGenHtmlRenderer {
             } else if (elementType == 'drawing') {
                 Integer drawEnd = findClosingTag(pXml, nextDrawing, 'w:drawing');
                 if (drawEnd != -1) {
-                    result += processDrawing(pXml.substring(nextDrawing, drawEnd), images);
+                    parts.add(processDrawing(pXml.substring(nextDrawing, drawEnd), images));
                     cursor = drawEnd;
                 } else {
                     cursor = nextDrawing + 1;
@@ -717,7 +759,7 @@ public with sharing class DocGenHtmlRenderer {
             } else if (elementType == 'hyperlink') {
                 Integer hlEnd = findClosingTag(pXml, hyperlinkStart, 'w:hyperlink');
                 if (hlEnd != -1) {
-                    result += processHyperlink(pXml.substring(hyperlinkStart, hlEnd), images);
+                    parts.add(processHyperlink(pXml.substring(hyperlinkStart, hlEnd), images));
                     cursor = hlEnd;
                 } else {
                     cursor = hyperlinkStart + 1;
@@ -725,7 +767,16 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
-        return result;
+        // RTL paragraph: reverse run order so first run (rightmost) renders last in LTR HTML
+        if (isRtlParagraph && parts.size() > 1) {
+            List<String> reversed = new List<String>();
+            for (Integer i = parts.size() - 1; i >= 0; i--) {
+                reversed.add(parts[i]);
+            }
+            parts = reversed;
+        }
+
+        return String.join(parts, '');
     }
 
     /**
@@ -781,6 +832,8 @@ public with sharing class DocGenHtmlRenderer {
         // Extract run properties
         String rPr = extractElement(rXml, 'w:rPr');
         String style = (String.isNotBlank(rPr)) ? parseRunStyle(rPr) : '';
+        // RTL run: Flying Saucer renders all chars LTR, so we reverse RTL text in Apex
+        Boolean isRtlRun = String.isNotBlank(rPr) && (rPr.contains('<w:rtl/>') || rPr.contains('<w:rtl '));
         
         String openTags = '';
         String closeTags = '';
@@ -868,6 +921,7 @@ public with sharing class DocGenHtmlRenderer {
                                     }
                                 }
                             }
+                            if (isRtlRun) { text = reverseRtlText(text); }
                             runContent += text.escapeHtml4();
                         }
                         cursor = tEnd + 6;
@@ -942,11 +996,8 @@ public with sharing class DocGenHtmlRenderer {
         } else if (font != null) {
             styles.add('font-family:\'' + font.escapeHtml4() + '\',sans-serif');
         }
-        // Also apply direction on the run level for mixed LTR/RTL paragraphs
-        if (isRtlRun) {
-            styles.add('direction:rtl');
-            styles.add('unicode-bidi:embed');
-        }
+        // Note: NOT applying direction:rtl on runs — Flying Saucer double-reverses characters.
+        // Hebrew/Arabic Unicode characters render correctly without explicit direction hints.
 
         // Font size: <w:sz w:val="24"/> (half-points)
         String sz = extractAttr(rPr, 'w:sz', 'w:val');
@@ -1019,6 +1070,8 @@ public with sharing class DocGenHtmlRenderer {
                 }
             }
 
+            // RTL table: cells reversed manually in processTableRow
+
             // Table alignment
             String tblJc = extractAttr(tblPr, 'w:jc', 'w:val');
             if (tblJc == 'center') {
@@ -1038,6 +1091,10 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
+        // RTL table: reverse cell order manually
+        Boolean isBidiVisual = String.isNotBlank(tblPr) &&
+            (tblPr.contains('<w:bidiVisual/>') || tblPr.contains('<w:bidiVisual '));
+
         // Process rows
         String rows = '';
         Integer cursor = 0;
@@ -1048,7 +1105,7 @@ public with sharing class DocGenHtmlRenderer {
             Integer trEnd = findClosingTag(tblXml, trStart, 'w:tr');
                         if (trEnd == -1) { break; }
 
-            rows += processTableRow(tblXml.substring(trStart, trEnd), images, tblPr, hasBorders);
+            rows += processTableRow(tblXml.substring(trStart, trEnd), images, tblPr, hasBorders, isBidiVisual);
             cursor = trEnd;
         }
 
@@ -1058,14 +1115,14 @@ public with sharing class DocGenHtmlRenderer {
     /**
      * Processes a <w:tr> element into an HTML <tr>.
      */
-    private static String processTableRow(String trXml, Map<String, String> images, String tblPr, Boolean hasBorders) {
-        String cells = '';
+    private static String processTableRow(String trXml, Map<String, String> images, String tblPr, Boolean hasBorders, Boolean isBidiVisual) {
         Integer cursor = 0;
 
         // Check for header row
         String trPr = extractElement(trXml, 'w:trPr');
         Boolean isHeader = (String.isNotBlank(trPr) && (trPr.contains('<w:tblHeader/>') || trPr.contains('<w:tblHeader ')));
 
+        List<String> cellList = new List<String>();
         while (cursor < trXml.length()) {
             Integer tcStart = trXml.indexOf('<w:tc', cursor);
                         if (tcStart == -1) { break; }
@@ -1073,11 +1130,20 @@ public with sharing class DocGenHtmlRenderer {
             Integer tcEnd = findClosingTag(trXml, tcStart, 'w:tc');
                         if (tcEnd == -1) { break; }
 
-            cells += processTableCell(trXml.substring(tcStart, tcEnd), images, tblPr, hasBorders, isHeader);
+            cellList.add(processTableCell(trXml.substring(tcStart, tcEnd), images, tblPr, hasBorders, isHeader));
             cursor = tcEnd;
         }
 
-        return '<tr>' + cells + '</tr>';
+        // RTL table: reverse cell order so rightmost column appears first in HTML
+        if (isBidiVisual) {
+            List<String> reversed = new List<String>();
+            for (Integer i = cellList.size() - 1; i >= 0; i--) {
+                reversed.add(cellList[i]);
+            }
+            cellList = reversed;
+        }
+
+        return '<tr>' + String.join(cellList, '') + '</tr>';
     }
 
     /**
@@ -1223,6 +1289,174 @@ public with sharing class DocGenHtmlRenderer {
      * Resolves default table cell padding from TableNormal style in stylesXml.
      * Returns CSS padding value (e.g., "0pt 5.4pt").
      */
+    /**
+     * Checks if the document's default paragraph style (Normal) is RTL.
+     * In Hebrew/Arabic documents, the Normal style typically has <w:bidi/> in its pPr,
+     * meaning ALL paragraphs inherit RTL direction unless explicitly overridden.
+     */
+    /**
+     * Reverses RTL character sequences for Flying Saucer compatibility.
+     * Flying Saucer renders all characters LTR — reversing RTL text makes it
+     * display correctly when read right-to-left.
+     *
+     * Only reverses text that actually contains RTL characters (Hebrew/Arabic).
+     * English merge field values in RTL runs are left untouched.
+     * Mixed content (Hebrew + English in one run) reverses RTL segments only.
+     */
+    /**
+     * Pre-wraps reversed RTL paragraph content by splitting into line-width chunks
+     * from the END of the string, then reversing chunk order.
+     *
+     * Since the text is fully reversed, the beginning of the sentence is at the END
+     * of the string. By splitting from the end and putting the last chunk first,
+     * the sentence beginning appears on line 1 (top) when rendered right-aligned.
+     *
+     * @param html The paragraph's inner HTML (reversed RTL content)
+     * @param fontSizePt The paragraph's font size in points (default 11)
+     * @return HTML with <br/> inserted so each line is short enough to avoid FS wrapping
+     */
+    private static String wrapRtlParagraph(String html, Decimal fontSizePt) {
+        if (String.isBlank(html)) { return html; }
+        if (fontSizePt == null || fontSizePt <= 0) { fontSizePt = 11; }
+
+        Decimal contentWidthPt = contentWidthInches * 72;
+        // Average character width ratio varies by script and font:
+        // - Latin (Arial): ~0.5x font size
+        // - Hebrew (Arial Unicode MS): ~0.45x font size
+        // - Arabic: ~0.4x font size
+        // Use 0.45 as a reasonable middle ground for RTL text
+        Decimal avgCharWidth = fontSizePt * 0.45;
+        Integer charsPerLine = (Integer)(contentWidthPt / avgCharWidth);
+        if (charsPerLine < 30) { charsPerLine = 30; }
+
+        // Count visible characters (skip HTML tags)
+        Integer visibleChars = 0;
+        Boolean inTag = false;
+        for (Integer i = 0; i < html.length(); i++) {
+            String ch = html.substring(i, i + 1);
+            if (ch == '<') { inTag = true; }
+            else if (ch == '>') { inTag = false; }
+            else if (!inTag) { visibleChars++; }
+        }
+
+        // If fits on one line, no wrapping needed
+        if (visibleChars <= charsPerLine) { return html; }
+
+        // Find space positions (word boundaries) in the visible text, mapped to HTML positions
+        List<Integer> spaceHtmlPositions = new List<Integer>();
+        inTag = false;
+        for (Integer i = 0; i < html.length(); i++) {
+            String ch = html.substring(i, i + 1);
+            if (ch == '<') { inTag = true; }
+            else if (ch == '>') { inTag = false; }
+            else if (!inTag && ch == ' ') {
+                spaceHtmlPositions.add(i);
+            }
+        }
+
+        if (spaceHtmlPositions.isEmpty()) { return html; }
+
+        // Calculate break points FROM THE END: find the space closest to
+        // each charsPerLine boundary counting backwards from the last visible char
+        List<Integer> breakPositions = new List<Integer>();
+        Integer charsFromEnd = 0;
+        inTag = false;
+        // Walk backwards through HTML to find break points
+        for (Integer i = html.length() - 1; i >= 0; i--) {
+            String ch = html.substring(i, i + 1);
+            if (ch == '>') { inTag = true; }
+            else if (ch == '<') { inTag = false; }
+            else if (!inTag) {
+                charsFromEnd++;
+                if (charsFromEnd >= charsPerLine && ch == ' ') {
+                    breakPositions.add(i);
+                    charsFromEnd = 0;
+                }
+            }
+        }
+
+        if (breakPositions.isEmpty()) { return html; }
+
+        // Split HTML at break positions and reverse the chunk order
+        // breakPositions are from end-to-start, so they're already in the order we need
+        List<String> chunks = new List<String>();
+        Integer prevPos = 0;
+        // Sort break positions ascending
+        List<Integer> sorted = new List<Integer>(breakPositions);
+        sorted.sort();
+
+        for (Integer bp : sorted) {
+            chunks.add(html.substring(prevPos, bp));
+            prevPos = bp + 1; // skip the space
+        }
+        chunks.add(html.substring(prevPos));
+
+        // Reverse chunk order: last chunk (beginning of sentence) comes first
+        List<String> reversed = new List<String>();
+        for (Integer i = chunks.size() - 1; i >= 0; i--) {
+            reversed.add(chunks[i]);
+        }
+
+        return String.join(reversed, '<br/>');
+    }
+
+    private static Boolean isRtlCodePoint(Integer cp) {
+        return (cp >= 1424 && cp <= 1535) ||   // Hebrew (U+0590-U+05FF)
+               (cp >= 1536 && cp <= 1791) ||   // Arabic (U+0600-U+06FF)
+               (cp >= 1872 && cp <= 1919) ||   // Arabic Supplement (U+0750-U+077F)
+               (cp >= 64336 && cp <= 65023) ||  // Arabic Presentation Forms-A
+               (cp >= 65136 && cp <= 65279);    // Arabic Presentation Forms-B
+    }
+
+    /**
+     * Reverses RTL text for Flying Saucer. Full string reversal gives correct
+     * character order + word order when rendered LTR with text-align:right.
+     * English merge values are left untouched.
+     */
+    private static String reverseRtlText(String input) {
+        if (String.isBlank(input)) { return input; }
+
+        Boolean hasRtl = false;
+        for (Integer i = 0; i < input.length(); i++) {
+            if (isRtlCodePoint(input.charAt(i))) {
+                hasRtl = true;
+                break;
+            }
+        }
+        if (!hasRtl) { return input; }
+
+        // Check all chars are RTL + neutral ASCII
+        for (Integer i = 0; i < input.length(); i++) {
+            Integer cp = input.charAt(i);
+            if (!isRtlCodePoint(cp) && cp > 127) {
+                return input; // Mixed extended chars — don't reverse
+            }
+        }
+
+        String result = '';
+        for (Integer i = input.length() - 1; i >= 0; i--) {
+            result += input.substring(i, i + 1);
+        }
+        return result;
+    }
+
+    private static Boolean isDefaultStyleRtl() {
+        if (String.isBlank(stylesXml)) { return false; }
+        try {
+            // Find the Normal style (default paragraph style)
+            Integer normalIdx = stylesXml.indexOf('w:styleId="Normal"');
+            if (normalIdx == -1) { normalIdx = stylesXml.indexOf('w:styleId="normal"'); }
+            if (normalIdx == -1) { return false; }
+            Integer styleStart = stylesXml.lastIndexOf('<w:style', normalIdx);
+            Integer styleEnd = stylesXml.indexOf('</w:style>', normalIdx);
+            if (styleStart == -1 || styleEnd == -1) { return false; }
+            String normalDef = stylesXml.substring(styleStart, styleEnd);
+            return normalDef.contains('<w:bidi/>') || normalDef.contains('<w:bidi ');
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static String resolveDefaultCellPadding() {
         if (String.isBlank(stylesXml)) { return '0pt 5.4pt'; }
         try {
