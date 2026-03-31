@@ -115,18 +115,18 @@
         <div class="steps">
             <div class="step">
                 <div class="step-num">1</div>
-                <h3>Request Access</h3>
-                <p>Fill out the form below with your name and email. We'll set up your free Chatter account — no Salesforce license required.</p>
+                <h3>Sign Up</h3>
+                <p>Enter your name and email below. Your free Chatter account is created instantly — no Salesforce license required.</p>
             </div>
             <div class="step">
                 <div class="step-num">2</div>
-                <h3>Get Your Login</h3>
-                <p>You'll receive your Chatter login credentials. Log in to join the DocGen community groups.</p>
+                <h3>Check Your Email</h3>
+                <p>Salesforce sends you a welcome email with your login link. Set your password and you're in.</p>
             </div>
             <div class="step">
                 <div class="step-num">3</div>
                 <h3>Join the Conversation</h3>
-                <p>Post questions, vote on feature requests, share templates, and connect with other DocGen admins.</p>
+                <p>You're automatically added to all DocGen community groups. Post, comment, share files, and @mention others.</p>
             </div>
         </div>
     </section>
@@ -200,8 +200,8 @@
     <!-- Join Form -->
     <section class="join-section">
         <div class="join-card" id="joinForm">
-            <h2>Request Access</h2>
-            <p class="sub">We'll create your free Chatter account and send you login details.</p>
+            <h2>Join the Community</h2>
+            <p class="sub">Instant signup. Your Chatter account is created immediately.</p>
             <div class="form-group">
                 <label for="joinName">Name</label>
                 <input type="text" id="joinName" class="form-input" placeholder="Jane Smith" />
@@ -219,7 +219,7 @@
             <p class="form-note">No Salesforce license required. Chatter Free accounts are 100% free.</p>
         </div>
         <div class="form-success" id="joinSuccess" style="padding: 2rem;">
-            You're in! We'll send your Chatter login details shortly.
+            You're in! Check your email for a welcome message from Salesforce with your login link.
         </div>
 
         <!-- Existing members -->
@@ -267,14 +267,18 @@
             btn.textContent = 'Submitting...';
 
             Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenLandingController.submitHelpRequest}',
-                name, email, company, 'Chatter community access request',
+                '{!$RemoteAction.DocGenLandingController.createChatterUser}',
+                name, email, company,
                 function(result, event) {
                     if (event.status) {
                         document.getElementById('joinForm').style.display = 'none';
-                        document.getElementById('joinSuccess').style.display = 'block';
+                        var msg = document.getElementById('joinSuccess');
+                        if (result === 'reactivated') {
+                            msg.textContent = 'Welcome back! Your account has been reactivated. Log in at portwoodglobalsolutions.my.salesforce.com.';
+                        }
+                        msg.style.display = 'block';
                     } else {
-                        errEl.textContent = event.message || 'Something went wrong. Please try again or email hello@portwoodglobalsolutions.com.';
+                        errEl.textContent = event.message || 'Something went wrong. Please try again.';
                         errEl.style.display = 'block';
                         btn.disabled = false;
                         btn.textContent = 'Request Access';
