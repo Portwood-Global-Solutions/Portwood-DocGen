@@ -15,66 +15,55 @@
         .header-links a { color: #94a3b8; margin-left: 1.5rem; font-size: 0.9rem; font-weight: 500; text-decoration: none; } .header-links a:hover { color: #fff; }
 
         /* Hero */
-        .hero { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); text-align: center; padding: 4rem 2rem 3rem; }
+        .hero { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); text-align: center; padding: 5rem 2rem 4rem; }
         .hero h1 { font-size: 2.75rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 1rem; line-height: 1.1; color: #fff; }
         .hero h1 em { font-style: normal; color: #60a5fa; }
-        .hero p { font-size: 1.15rem; color: #94a3b8; max-width: 680px; margin: 0 auto; }
+        .hero p { font-size: 1.15rem; color: #94a3b8; max-width: 680px; margin: 0 auto 2.5rem; }
+        .btn { display: inline-block; padding: 16px 40px; border-radius: 50px; font-size: 1.1rem; font-weight: 700; text-decoration: none; cursor: pointer; border: none; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn:hover { transform: translateY(-2px); text-decoration: none; }
+        .btn-slack { background: #4A154B; color: #fff; box-shadow: 0 4px 14px rgba(74,21,75,0.4); font-size: 1.1rem; }
+        .btn-slack:hover { box-shadow: 0 6px 20px rgba(74,21,75,0.5); }
+        .btn-secondary { background: rgba(255,255,255,0.08); color: #fff; border: 2px solid rgba(255,255,255,0.15); margin-left: 1rem; font-size: 1rem; padding: 14px 32px; }
+        .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+        .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .slack-logo { display: inline-block; vertical-align: middle; margin-right: 0.5rem; width: 22px; height: 22px; }
 
         /* Section */
         .section { max-width: 960px; margin: 0 auto; padding: 4rem 2rem; }
         .section h2 { font-size: 2rem; font-weight: 800; text-align: center; margin-bottom: 0.5rem; color: #fff; }
         .section .subtitle { text-align: center; color: #64748b; margin-bottom: 3rem; font-size: 1.05rem; }
 
-        /* Steps */
-        .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-bottom: 3rem; }
-        .step { text-align: center; }
-        .step-num { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 1.25rem; font-weight: 800; margin-bottom: 1rem; }
-        .step h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem; }
-        .step p { color: #94a3b8; font-size: 0.9rem; }
+        /* Channel cards */
+        .channel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+        .channel-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.5rem; transition: border-color 0.2s; }
+        .channel-card:hover { border-color: rgba(255,255,255,0.12); }
+        .channel-name { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem; }
+        .channel-name span { color: #94a3b8; font-weight: 400; }
+        .channel-card p { color: #94a3b8; font-size: 0.88rem; }
+        .cc-features { border-left: 3px solid #a855f7; }
+        .cc-qa { border-left: 3px solid #fbbf24; }
+        .cc-bugs { border-left: 3px solid #f87171; }
+        .cc-show { border-left: 3px solid #4ade80; }
+        .cc-templates { border-left: 3px solid #06b6d4; }
+        .cc-general { border-left: 3px solid #60a5fa; }
+        .cc-announce { border-left: 3px solid #f97316; }
 
-        /* Group cards */
-        .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-        .group-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.5rem; transition: border-color 0.2s; }
-        .group-card:hover { border-color: rgba(255,255,255,0.12); }
-        .group-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
-        .group-card h3 { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem; }
-        .group-card p { color: #94a3b8; font-size: 0.88rem; }
-        .gc-features { border-left: 3px solid #a855f7; }
-        .gc-qa { border-left: 3px solid #fbbf24; }
-        .gc-bugs { border-left: 3px solid #f87171; }
-        .gc-show { border-left: 3px solid #4ade80; }
-        .gc-templates { border-left: 3px solid #06b6d4; }
-        .gc-general { border-left: 3px solid #60a5fa; }
-
-        /* Join form */
-        .join-section { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-top: 1px solid rgba(255,255,255,0.06); padding: 4rem 2rem; }
-        .join-card { max-width: 480px; margin: 0 auto; background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 2.5rem; }
-        .join-card h2 { font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem; text-align: center; }
-        .join-card .sub { text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
-        .form-group { margin-bottom: 1.25rem; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.35rem; }
-        .form-input { width: 100%; padding: 10px 14px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.95rem; font-family: inherit; color: #e2e8f0; }
-        .form-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-        .btn { display: inline-block; padding: 14px 32px; border-radius: 50px; font-size: 1rem; font-weight: 700; text-decoration: none; cursor: pointer; border: none; transition: transform 0.2s; }
-        .btn:hover { transform: translateY(-2px); text-decoration: none; }
-        .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.3); }
-        .btn-full { width: 100%; text-align: center; }
-        .form-note { text-align: center; color: #475569; font-size: 0.75rem; margin-top: 1rem; }
-        .form-success { text-align: center; color: #4ade80; font-weight: 600; font-size: 1.1rem; display: none; }
-        .form-error { text-align: center; color: #f87171; font-size: 0.85rem; margin-top: 0.75rem; display: none; }
-
-        /* Existing member */
-        .member-section { text-align: center; max-width: 960px; margin: 0 auto; padding: 0 2rem 3rem; }
-        .member-section p { color: #64748b; font-size: 0.95rem; margin-bottom: 1rem; }
-        .login-link { display: inline-block; padding: 12px 28px; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #60a5fa; font-weight: 700; font-size: 0.95rem; transition: background 0.2s; }
-        .login-link:hover { background: rgba(255,255,255,0.1); text-decoration: none; }
-
-        /* Why Chatter */
+        /* Why Slack */
         .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
         .why-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.25rem; text-align: center; }
         .why-card h4 { font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem; }
         .why-card p { color: #64748b; font-size: 0.8rem; }
         .why-icon { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; }
+
+        /* Client channels callout */
+        .client-callout { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 2px solid rgba(96,165,250,0.2); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .client-callout h3 { font-size: 1.25rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem; }
+        .client-callout p { color: #94a3b8; font-size: 0.95rem; max-width: 600px; margin: 0 auto; }
+
+        /* CTA */
+        .cta-section { background: linear-gradient(135deg, #4A154B 0%, #2c0a2d 100%); text-align: center; padding: 4rem 2rem; }
+        .cta-section h2 { font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 0.75rem; }
+        .cta-section p { color: rgba(255,255,255,0.6); max-width: 600px; margin: 0 auto 2rem; font-size: 1.05rem; }
 
         /* Footer */
         .footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 2rem; text-align: center; color: #475569; font-size: 0.8rem; }
@@ -84,7 +73,8 @@
 
         @media (max-width: 700px) {
             .hero h1 { font-size: 2rem; }
-            .steps { grid-template-columns: 1fr; gap: 1.5rem; }
+            .hero-actions { flex-direction: column; align-items: center; }
+            .btn-secondary { margin-left: 0; }
             .header { flex-direction: column; gap: 0.5rem; }
             .header-links a { margin-left: 0.75rem; }
         }
@@ -104,129 +94,105 @@
 
     <!-- Hero -->
     <section class="hero">
-        <h1>DocGen <em>Community</em></h1>
-        <p>A free community powered by Salesforce Chatter. Ask questions, request features, share templates, and help shape the roadmap — all inside the platform you already know.</p>
-    </section>
-
-    <!-- How It Works -->
-    <section class="section">
-        <h2>How It Works</h2>
-        <p class="subtitle">Three steps to join the conversation</p>
-        <div class="steps">
-            <div class="step">
-                <div class="step-num">1</div>
-                <h3>Sign Up</h3>
-                <p>Enter your name and email below. Your free Chatter account is created instantly — no Salesforce license required.</p>
-            </div>
-            <div class="step">
-                <div class="step-num">2</div>
-                <h3>Check Your Email</h3>
-                <p>Salesforce sends you a welcome email with your login link. Set your password and you're in.</p>
-            </div>
-            <div class="step">
-                <div class="step-num">3</div>
-                <h3>Join the Conversation</h3>
-                <p>You're automatically added to all DocGen community groups. Post, comment, share files, and @mention others.</p>
-            </div>
+        <h1>Join the DocGen <em>Community</em></h1>
+        <p>Connect with Salesforce admins and developers building documents with DocGen. Get help, request features, share templates, and shape the roadmap — all on Slack.</p>
+        <div class="hero-actions">
+            <a href="https://join.slack.com/t/portwooddocgen/shared_invite/zt-3tyu98946-3jbUlRYDgllyIaDl1oZNIg" class="btn btn-slack" target="_blank">
+                <svg class="slack-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#fff"/></svg>
+                Join on Slack
+            </a>
+            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen" class="btn btn-secondary" target="_blank">Star on GitHub</a>
         </div>
     </section>
 
-    <!-- Chatter Groups -->
-    <section class="section" style="padding-top: 0;">
-        <h2>Community Groups</h2>
-        <p class="subtitle">Organized conversations so you can find what you need</p>
-        <div class="group-grid">
-            <div class="group-card gc-features">
-                <span class="group-icon">&#x1F4A1;</span>
-                <h3>Feature Requests</h3>
-                <p>Suggest new features and vote on what gets built next. The most-requested features drive the roadmap.</p>
+    <!-- Channels -->
+    <section class="section">
+        <h2>Channels</h2>
+        <p class="subtitle">Jump into the conversation that matters to you</p>
+        <div class="channel-grid">
+            <div class="channel-card cc-announce">
+                <div class="channel-name"><span>#</span> announcements</div>
+                <p>Release notes, new features, and important updates from the DocGen team.</p>
             </div>
-            <div class="group-card gc-qa">
-                <span class="group-icon">&#x2753;</span>
-                <h3>Questions &amp; Answers</h3>
+            <div class="channel-card cc-features">
+                <div class="channel-name"><span>#</span> feature-requests</div>
+                <p>Suggest new features and vote on what gets built next. The community drives the roadmap.</p>
+            </div>
+            <div class="channel-card cc-qa">
+                <div class="channel-name"><span>#</span> help</div>
                 <p>Get help with templates, merge tags, query configs, Flows, and anything else DocGen-related.</p>
             </div>
-            <div class="group-card gc-bugs">
-                <span class="group-icon">&#x1F41B;</span>
-                <h3>Bug Reports</h3>
+            <div class="channel-card cc-bugs">
+                <div class="channel-name"><span>#</span> bug-reports</div>
                 <p>Found something broken? Report it here. We triage and fix bugs fast.</p>
             </div>
-            <div class="group-card gc-show">
-                <span class="group-icon">&#x1F31F;</span>
-                <h3>Show &amp; Tell</h3>
+            <div class="channel-card cc-templates">
+                <div class="channel-name"><span>#</span> template-sharing</div>
+                <p>Share and discover ready-to-use Word templates. Help others get started faster.</p>
+            </div>
+            <div class="channel-card cc-show">
+                <div class="channel-name"><span>#</span> show-and-tell</div>
                 <p>Share what you've built with DocGen — invoices, contracts, reports, creative use cases.</p>
             </div>
-            <div class="group-card gc-templates">
-                <span class="group-icon">&#x1F4C4;</span>
-                <h3>Template Sharing</h3>
-                <p>Share and download ready-to-use Word templates. Help others get started faster.</p>
+            <div class="channel-card cc-general">
+                <div class="channel-name"><span>#</span> general</div>
+                <p>Everything else — tips and tricks, Salesforce news, off-topic chat.</p>
             </div>
-            <div class="group-card gc-general">
-                <span class="group-icon">&#x1F4AC;</span>
-                <h3>General Discussion</h3>
-                <p>Everything else — announcements, tips and tricks, Salesforce news, community chat.</p>
-            </div>
+        </div>
+
+        <!-- Client channels callout -->
+        <div class="client-callout">
+            <h3>Need dedicated support?</h3>
+            <p>We create private client channels for orgs that need hands-on help with implementation, custom templates, or complex setups. Join Slack and let us know — we'll spin one up for you.</p>
         </div>
     </section>
 
-    <!-- Why Chatter -->
+    <!-- Why Slack -->
     <section class="section" style="padding-top: 0;">
-        <h2>Why Chatter?</h2>
-        <p class="subtitle">We built DocGen for Salesforce admins — the community should live where you already work</p>
+        <h2>Why Slack?</h2>
+        <p class="subtitle">Modern community for modern admins</p>
         <div class="why-grid">
             <div class="why-card">
-                <span class="why-icon">&#x1F4B0;</span>
-                <h4>100% Free</h4>
-                <p>Chatter Free licenses cost nothing. No subscriptions, no forum hosting fees.</p>
-            </div>
-            <div class="why-card">
-                <span class="why-icon">&#x1F50D;</span>
-                <h4>Searchable</h4>
-                <p>Find answers with Chatter's built-in search. No more digging through threads.</p>
+                <span class="why-icon">&#x26A1;</span>
+                <h4>Real-Time</h4>
+                <p>Get answers in minutes, not days. Live chat with the team and community.</p>
             </div>
             <div class="why-card">
                 <span class="why-icon">&#x1F514;</span>
                 <h4>Notifications</h4>
-                <p>Get notified when someone replies, @mentions you, or posts in your groups.</p>
+                <p>Desktop, mobile, and email notifications. Never miss a reply or @mention.</p>
             </div>
             <div class="why-card">
                 <span class="why-icon">&#x1F4CE;</span>
-                <h4>File Sharing</h4>
-                <p>Share templates, screenshots, and documents directly in posts. Native file support.</p>
+                <h4>Rich Media</h4>
+                <p>Drag and drop screenshots, paste images, share templates and files inline.</p>
+            </div>
+            <div class="why-card">
+                <span class="why-icon">&#x1F50D;</span>
+                <h4>Searchable</h4>
+                <p>Every conversation is searchable. Find answers to questions already asked.</p>
+            </div>
+            <div class="why-card">
+                <span class="why-icon">&#x1F4F1;</span>
+                <h4>Mobile App</h4>
+                <p>Stay connected on the go with Slack's iOS and Android apps.</p>
+            </div>
+            <div class="why-card">
+                <span class="why-icon">&#x1F6E1;</span>
+                <h4>Private Channels</h4>
+                <p>Dedicated client channels for orgs that need direct support.</p>
             </div>
         </div>
     </section>
 
-    <!-- Join Form -->
-    <section class="join-section">
-        <div class="join-card" id="joinForm">
-            <h2>Join the Community</h2>
-            <p class="sub">Instant signup. Your Chatter account is created immediately.</p>
-            <div class="form-group">
-                <label for="joinName">Name</label>
-                <input type="text" id="joinName" class="form-input" placeholder="Jane Smith" />
-            </div>
-            <div class="form-group">
-                <label for="joinEmail">Email</label>
-                <input type="email" id="joinEmail" class="form-input" placeholder="jane@company.com" />
-            </div>
-            <div class="form-group">
-                <label for="joinCompany">Company</label>
-                <input type="text" id="joinCompany" class="form-input" placeholder="Acme Corp" />
-            </div>
-            <button type="button" class="btn btn-primary btn-full" id="joinBtn" onclick="submitJoin()">Request Access</button>
-            <div class="form-error" id="joinError"></div>
-            <p class="form-note">No Salesforce license required. Chatter Free accounts are 100% free.</p>
-        </div>
-        <div class="form-success" id="joinSuccess" style="padding: 2rem;">
-            You're in! Check your email for a welcome message from Salesforce with your login link.
-        </div>
-
-        <!-- Existing members -->
-        <div class="member-section" style="margin-top: 2.5rem;">
-            <p>Already have an account?</p>
-            <a href="https://portwoodglobalsolutions.my.salesforce.com" class="login-link" target="_blank">Log In to Chatter</a>
-        </div>
+    <!-- CTA -->
+    <section class="cta-section">
+        <h2>Ready to join?</h2>
+        <p>It takes 10 seconds. Free forever. No email required — just click and you're in.</p>
+        <a href="https://join.slack.com/t/portwooddocgen/shared_invite/zt-3tyu98946-3jbUlRYDgllyIaDl1oZNIg" class="btn btn-slack" target="_blank" style="background: #fff; color: #4A154B;">
+            <svg style="width: 22px; height: 22px; vertical-align: middle; margin-right: 0.5rem;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#4A154B"/></svg>
+            Join the DocGen Slack
+        </a>
     </section>
 
     <!-- Footer -->
@@ -241,53 +207,6 @@
         </div>
         <p>Built by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
     </footer>
-
-    <script>
-        function submitJoin() {
-            var name = document.getElementById('joinName').value.trim();
-            var email = document.getElementById('joinEmail').value.trim();
-            var company = document.getElementById('joinCompany').value.trim();
-            var errEl = document.getElementById('joinError');
-            var btn = document.getElementById('joinBtn');
-
-            errEl.style.display = 'none';
-
-            if (!name || !email) {
-                errEl.textContent = 'Please enter your name and email.';
-                errEl.style.display = 'block';
-                return;
-            }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errEl.textContent = 'Please enter a valid email address.';
-                errEl.style.display = 'block';
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'Submitting...';
-
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenLandingController.createChatterUser}',
-                name, email, company,
-                function(result, event) {
-                    if (event.status) {
-                        document.getElementById('joinForm').style.display = 'none';
-                        var msg = document.getElementById('joinSuccess');
-                        if (result === 'reactivated') {
-                            msg.textContent = 'Welcome back! Your account has been reactivated. Log in at portwoodglobalsolutions.my.salesforce.com.';
-                        }
-                        msg.style.display = 'block';
-                    } else {
-                        errEl.textContent = event.message || 'Something went wrong. Please try again.';
-                        errEl.style.display = 'block';
-                        btn.disabled = false;
-                        btn.textContent = 'Request Access';
-                    }
-                },
-                { escape: true }
-            );
-        }
-    </script>
 
 </body>
 </html>
