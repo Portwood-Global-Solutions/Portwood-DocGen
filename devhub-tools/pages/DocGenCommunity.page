@@ -87,6 +87,7 @@
         <a href="/DocGenLanding" class="logo">Portwood <span>DocGen</span></a>
         <nav class="header-links">
             <a href="/DocGenLanding">Home</a>
+            <a href="/DocGenSupport">Support</a>
             <a href="/DocGenRoadmap">Roadmap</a>
             <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
         </nav>
@@ -186,6 +187,7 @@
         <div class="footer-links">
             <a href="/DocGenLanding">Home</a>
             <a href="/DocGenCommunity">Community</a>
+            <a href="/DocGenSupport">Support</a>
             <a href="/DocGenRoadmap">Roadmap</a>
             <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
             <a href="/DocGenTerms">Terms</a>

@@ -294,6 +294,7 @@
         <div class="logo">Portwood <span>DocGen</span></div>
         <nav class="header-links">
             <a href="/DocGenCommunity">Community</a>
+            <a href="/DocGenSupport">Support</a>
             <a href="/DocGenRoadmap">Roadmap</a>
             <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
             <a href="{!installLinkProd}" style="color: #60a5fa;">Install</a>
@@ -586,6 +587,7 @@
     <footer class="footer">
         <div class="footer-links">
             <a href="/DocGenCommunity">Community</a>
+            <a href="/DocGenSupport">Support the Project</a>
             <a href="/DocGenRoadmap">Roadmap</a>
             <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
             <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues">Report a Bug</a>
