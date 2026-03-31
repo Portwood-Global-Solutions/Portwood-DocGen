@@ -57,7 +57,7 @@
         <p>DocGen is a community-driven project. Feature requests, bug reports, and discussions are managed through the <a href="/DocGenCommunity">DocGen Slack community</a> and <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues">GitHub Issues</a>. The community helps shape the product roadmap.</p>
 
         <h2>6. Data and Privacy</h2>
-        <p>The Software runs entirely within your Salesforce org. No data is transmitted to, collected by, or stored by Portwood Global Solutions. We do not have access to your Salesforce data, templates, generated documents, or any other information in your org. See our <a href="/DocGenPrivacy">Privacy Policy</a> for full details.</p>
+        <p>The Software runs entirely within your Salesforce org. We do not have access to your Salesforce records, templates, generated documents, or any other data inside your org. As a managed package publisher, Salesforce automatically provides us with limited subscriber information (org ID, org name, org type, install status) through the standard PackageSubscriber system object. This is a Salesforce platform feature that applies to all managed packages. See our <a href="/DocGenPrivacy">Privacy Policy</a> for full details.</p>
 
         <h2>7. No Warranty</h2>
         <p class="uppercase">The Software is provided "as is" without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall Portwood Global Solutions be liable for any claim, damages, or other liability arising from the use of the Software, including but not limited to data loss, service interruption, or document generation errors.</p>

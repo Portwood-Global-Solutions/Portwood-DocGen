@@ -45,17 +45,27 @@
 
         <div class="tldr">
             <h2>The Short Version</h2>
-            <p>We don't collect your data. Period. Portwood DocGen runs entirely inside your Salesforce org. Nothing leaves the platform. We have no servers, no analytics, no tracking, and no access to your org.</p>
+            <p>Portwood DocGen runs entirely inside your Salesforce org. We cannot see your records, templates, or documents. The only data we receive is what Salesforce automatically provides to all managed package publishers: your org ID, org name, and install status. No analytics, no tracking, no external servers.</p>
         </div>
 
         <h2>1. What Data We Collect</h2>
-        <p><strong>None.</strong> Portwood DocGen is a 100% native Salesforce application. All processing occurs within your Salesforce org using your existing Salesforce infrastructure. We do not operate any external servers, APIs, databases, or data collection systems.</p>
-        <p>Specifically, we do NOT collect:</p>
+        <p>Portwood DocGen is a 100% native Salesforce application. All document generation processing occurs within your Salesforce org. We do not operate external servers, APIs, or data collection systems. We do not have access to your Salesforce records, templates, generated documents, or any data inside your org.</p>
+        <p><strong>What Salesforce provides to us automatically:</strong> As a managed package publisher, Salesforce provides us with limited subscriber information through the PackageSubscriber system object. This is a standard Salesforce platform feature for all managed packages and is not something we can opt out of. The data Salesforce provides includes:</p>
         <ul>
-            <li>Personal information</li>
-            <li>Salesforce org data or metadata</li>
+            <li>Org ID (the 15/18-character Salesforce org identifier)</li>
+            <li>Org name (the name of your Salesforce org as set in Company Information)</li>
+            <li>Org type (Production, Sandbox, Developer Edition, etc.)</li>
+            <li>Install status (installed or uninstalled)</li>
+            <li>Package version installed</li>
+            <li>Salesforce instance name</li>
+        </ul>
+        <p>We use this data to track install counts displayed on our website, understand adoption, and provide support when you reach out. We store this information in our DevHub org and may create internal Account records from org names for support tracking purposes.</p>
+        <p>We do NOT collect:</p>
+        <ul>
+            <li>Your Salesforce record data (Accounts, Contacts, Opportunities, etc.)</li>
             <li>Template content or generated documents</li>
-            <li>Usage analytics or telemetry</li>
+            <li>Usage analytics or telemetry from within the package</li>
+            <li>Personal information of your org's users</li>
             <li>IP addresses or device information</li>
             <li>Cookies (outside of standard Salesforce session cookies)</li>
         </ul>
@@ -74,7 +84,8 @@
         <p>This data is subject to your org's Salesforce security settings, sharing rules, field-level security, and data retention policies. We have no access to any of it.</p>
 
         <h2>4. Third-Party Services</h2>
-        <p>Portwood DocGen does not integrate with, transmit data to, or receive data from any third-party service. There are no external callouts, webhooks, or API connections in the distributed package.</p>
+        <p>The Portwood DocGen package installed in your org does not make external callouts, webhooks, or API connections. No data from your org is transmitted to any third-party service. The package operates entirely within the Salesforce platform boundary.</p>
+        <p>Separately, we use <strong>Slack</strong> (Slack Technologies, Inc.) to host the DocGen community workspace. If you choose to join the Slack community, your interactions there are governed by Slack's own privacy policy. The Slack workspace is not connected to and has no access to your Salesforce org.</p>
 
         <h2>5. Salesforce Platform</h2>
         <p>Your use of Portwood DocGen is subject to Salesforce's own Privacy Policy and Terms of Service. Salesforce processes and stores your org data according to their policies. We recommend reviewing Salesforce's privacy documentation at <a href="https://www.salesforce.com/company/privacy/">salesforce.com/company/privacy</a>.</p>
