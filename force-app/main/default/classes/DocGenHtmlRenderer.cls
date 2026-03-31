@@ -32,6 +32,9 @@ public with sharing class DocGenHtmlRenderer {
     // Styles XML from template — set before calling convertToHtml for style resolution
     public static String stylesXml;
 
+    // Numbering XML from template — set before calling convertToHtml for list type resolution
+    public static String numberingXml;
+
 
     // Unit conversions
     private static final Decimal HALF_POINTS_TO_PT = 0.5;     // half-points → pt (÷2)
@@ -105,36 +108,46 @@ public with sharing class DocGenHtmlRenderer {
         String bodyContent = extractBodyContent(mainXml);
         String html = processBodyContent(bodyContent, images);
 
-        // If we have header/footer, wrap in a table with thead/tfoot for repeating on every page
+        // Process header/footer HTML for Flying Saucer running elements
+        String headerHtml = '';
+        String footerHtml = '';
         if (String.isNotBlank(headerXml) || String.isNotBlank(footerXml)) {
-            String headerHtml = String.isNotBlank(headerXml) ? processBodyContent(extractBodyContent(headerXml), images) : '';
-            String footerHtml = String.isNotBlank(footerXml) ? processBodyContent(extractBodyContent(footerXml), images) : '';
+            headerHtml = String.isNotBlank(headerXml) ? processBodyContent(extractBodyContent(headerXml), images) : '';
+            footerHtml = String.isNotBlank(footerXml) ? processBodyContent(extractBodyContent(footerXml), images) : '';
 
-            // Zero out paragraph margins inside header/footer tables for tight cell spacing
+            // Zero out paragraph margins inside header/footer for tight spacing
             headerHtml = headerHtml.replace('<p>', '<p style="margin:0;">');
             footerHtml = footerHtml.replace('<p>', '<p style="margin:0;">');
-
-            // Calculate min-height from page dimensions in sectPr
-            String minHeight = calculatePageContentHeight(documentXml);
-
-            String wrapped = '<div style="position:relative;min-height:' + minHeight + ';">';
-            if (String.isNotBlank(headerHtml)) {
-                wrapped += '<div style="padding-bottom:10pt;">' + headerHtml + '</div>';
-            }
-            wrapped += '<div>' + html + '</div>';
-            if (String.isNotBlank(footerHtml)) {
-                wrapped += '<div style="position:absolute;bottom:0;left:0;right:0;padding-top:10pt;">' + footerHtml + '</div>';
-            }
-            wrapped += '</div>';
-            html = wrapped;
         }
 
         // Build dynamic page CSS from document dimensions + styles
         Map<String, Decimal> pageDims = parsePageDimensions(documentXml);
         String cellPadding = resolveDefaultCellPadding();
+        Boolean hasHeader = String.isNotBlank(headerHtml);
+        Boolean hasFooter = String.isNotBlank(footerHtml);
+
+        // Build @page rule with running header/footer margin boxes (Flying Saucer)
         String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
             'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
-            pageDims.get('marginBottom') + 'in ' + pageDims.get('marginLeft') + 'in; }';
+            pageDims.get('marginBottom') + 'in ' + pageDims.get('marginLeft') + 'in;';
+        if (hasHeader) {
+            dynamicPageCss += ' @top-center { content: element(docgen-running-header); }';
+        }
+        if (hasFooter) {
+            dynamicPageCss += ' @bottom-center { content: element(docgen-running-footer); }';
+        }
+        dynamicPageCss += ' }';
+
+        // Running element CSS — tells Flying Saucer to pull these divs out of flow
+        // and place them in the @page margin boxes on every page
+        String runningCss = '';
+        if (hasHeader) {
+            runningCss += '#docgen-header { position: running(docgen-running-header); }';
+        }
+        if (hasFooter) {
+            runningCss += '#docgen-footer { position: running(docgen-running-footer); }';
+        }
+
         // Check if document default style is RTL (Normal style with <w:bidi/> in styles.xml)
         // Note: Flying Saucer's Blob.toPdf() does NOT properly implement the Unicode Bidi Algorithm.
         // Using CSS direction:rtl causes double-reversal of Hebrew/Arabic characters.
@@ -143,7 +156,7 @@ public with sharing class DocGenHtmlRenderer {
         String bodyFont = isDocRtl ? '\'Arial Unicode MS\', Arial, sans-serif' : 'Arial, sans-serif';
 
         String rtlBodyCss = isDocRtl ? ' text-align: right;' : '';
-        String dynamicCss = dynamicPageCss +
+        String dynamicCss = dynamicPageCss + runningCss +
             'body { font-family: ' + bodyFont + '; font-size: 11pt; line-height: 1.15; color: #000;' + rtlBodyCss + ' }' +
             'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }' +
             'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }' +
@@ -170,7 +183,19 @@ public with sharing class DocGenHtmlRenderer {
         if (String.isNotBlank(fontFaceCss)) {
             dynamicPrefix = '<html><head><style>' + fontFaceCss + dynamicCss + '</style></head>' + bodyTag;
         }
-        return dynamicPrefix + html + HTML_SUFFIX;
+
+        // Insert running header/footer divs at top of body — Flying Saucer pulls them
+        // out of normal flow and places them in @page margin boxes on every page
+        String bodyHtml = '';
+        if (hasHeader) {
+            bodyHtml += '<div id="docgen-header">' + headerHtml + '</div>';
+        }
+        if (hasFooter) {
+            bodyHtml += '<div id="docgen-footer">' + footerHtml + '</div>';
+        }
+        bodyHtml += html;
+
+        return dynamicPrefix + bodyHtml + HTML_SUFFIX;
     }
 
     /**
@@ -401,12 +426,10 @@ public with sharing class DocGenHtmlRenderer {
                 li.isList = false;
                 return li;
             }
-            // Heuristic: odd numId = bullet, even = numbered (Word's common pattern)
-            // Also check for ilvl to detect nested lists (not handled as nested HTML for simplicity)
-            if (numId != null && numId.isNumeric()) {
-                Integer nId = Integer.valueOf(numId);
-                li.isNumbered = (Math.mod(nId, 2) == 0);
-            }
+            // Determine list type from numbering.xml definitions
+            String ilvl = extractAttr(pPr, 'w:ilvl', 'w:val');
+            if (ilvl == null) { ilvl = '0'; }
+            li.isNumbered = isNumberedList(numId, ilvl);
             return li;
         }
 
@@ -956,10 +979,19 @@ public with sharing class DocGenHtmlRenderer {
             styles.add('font-size:' + ptSize + 'pt');
         }
 
-        // Color: <w:color w:val="FF0000"/>
+        // Color: <w:color w:val="FF0000"/> or <w:color w:val="auto" w:themeColor="accent1"/>
         String color = extractAttr(rPr, 'w:color', 'w:val');
-        if (color != null && color != 'auto') {
+        if (color != null && color != 'auto' && color.length() >= 6) {
             styles.add('color:#' + color);
+        } else if (color == 'auto' || color == null) {
+            // Check for theme color — Word stores colors as theme references
+            String themeColor = extractAttr(rPr, 'w:color', 'w:themeColor');
+            if (themeColor != null) {
+                String resolved = resolveThemeColor(themeColor);
+                if (resolved != null) {
+                    styles.add('color:#' + resolved);
+                }
+            }
         }
 
         // Highlight: <w:highlight w:val="yellow"/>
@@ -1306,6 +1338,101 @@ public with sharing class DocGenHtmlRenderer {
             if (styleStart == -1 || styleEnd == -1) { return false; }
             String normalDef = stylesXml.substring(styleStart, styleEnd);
             return normalDef.contains('<w:bidi/>') || normalDef.contains('<w:bidi ');
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Maps standard Word theme color names to default hex values.
+     * These match the default Office theme (Office 2013+). Not perfect for custom
+     * themes, but covers the vast majority of documents.
+     */
+    private static final Map<String, String> THEME_COLOR_DEFAULTS = new Map<String, String>{
+        'dark1' => '000000',
+        'light1' => 'FFFFFF',
+        'dark2' => '44546A',
+        'light2' => 'E7E6E6',
+        'accent1' => '4472C4',
+        'accent2' => 'ED7D31',
+        'accent3' => 'A5A5A5',
+        'accent4' => 'FFC000',
+        'accent5' => '5B9BD5',
+        'accent6' => '70AD47',
+        'hyperlink' => '0563C1',
+        'followedHyperlink' => '954F72',
+        'text1' => '000000',
+        'text2' => '44546A',
+        'background1' => 'FFFFFF',
+        'background2' => 'E7E6E6'
+    };
+
+    private static String resolveThemeColor(String themeColor) {
+        if (themeColor == null) { return null; }
+        return THEME_COLOR_DEFAULTS.get(themeColor);
+    }
+
+    /**
+     * Determines if a list is numbered by looking up the numId in numbering.xml.
+     * Falls back to style-name heuristic if numbering.xml is not available.
+     * numbering.xml structure: <w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>
+     * then: <w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum>
+     * Bullet formats: "bullet"
+     * Numbered formats: "decimal", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman", etc.
+     */
+    private static Boolean isNumberedList(String numId, String ilvl) {
+        if (String.isBlank(numberingXml) || numId == null) {
+            // Fallback: assume bullet (safer default than the old odd/even heuristic)
+            return false;
+        }
+        try {
+            // Step 1: Find <w:num w:numId="X"> and get the abstractNumId
+            String numSearch = 'w:numId="' + numId + '"';
+            Integer numIdx = numberingXml.indexOf(numSearch);
+            if (numIdx == -1) { return false; }
+
+            // Find the abstractNumId within this <w:num> element
+            Integer numStart = numberingXml.lastIndexOf('<w:num ', numIdx);
+            Integer numEnd = numberingXml.indexOf('</w:num>', numIdx);
+            if (numStart == -1 || numEnd == -1) {
+                // Self-closing <w:num> — look for abstractNumId within the tag area
+                numEnd = numberingXml.indexOf('>', numIdx);
+                if (numEnd == -1) { return false; }
+            }
+            String numBlock = numberingXml.substring(numStart, numEnd);
+            String abstractNumId = extractAttr(numBlock, 'w:abstractNumId', 'w:val');
+            if (abstractNumId == null) { return false; }
+
+            // Step 2: Find <w:abstractNum w:abstractNumId="Y"> and get the numFmt for the ilvl
+            String absSearch = 'w:abstractNumId="' + abstractNumId + '"';
+            Integer absIdx = numberingXml.indexOf(absSearch);
+            if (absIdx == -1) { return false; }
+
+            Integer absStart = numberingXml.lastIndexOf('<w:abstractNum ', absIdx);
+            Integer absEnd = numberingXml.indexOf('</w:abstractNum>', absIdx);
+            if (absStart == -1 || absEnd == -1) { return false; }
+            String absBlock = numberingXml.substring(absStart, absEnd);
+
+            // Step 3: Find the <w:lvl w:ilvl="Z"> within the abstract definition
+            String lvlSearch = 'w:ilvl="' + ilvl + '"';
+            Integer lvlIdx = absBlock.indexOf(lvlSearch);
+            if (lvlIdx == -1) {
+                // Try ilvl 0 as fallback
+                lvlIdx = absBlock.indexOf('w:ilvl="0"');
+                if (lvlIdx == -1) { return false; }
+            }
+
+            Integer lvlStart = absBlock.lastIndexOf('<w:lvl ', lvlIdx);
+            Integer lvlEnd = absBlock.indexOf('</w:lvl>', lvlIdx);
+            if (lvlStart == -1 || lvlEnd == -1) { return false; }
+            String lvlBlock = absBlock.substring(lvlStart, lvlEnd);
+
+            // Step 4: Get the numFmt value
+            String numFmt = extractAttr(lvlBlock, 'w:numFmt', 'w:val');
+            if (numFmt == null) { return false; }
+
+            // "bullet" = bullet list, everything else = numbered
+            return numFmt != 'bullet';
         } catch (Exception e) {
             return false;
         }

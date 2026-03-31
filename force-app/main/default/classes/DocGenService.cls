@@ -1008,6 +1008,7 @@ public with sharing class DocGenService {
         if (mr.processedXmlEntries.containsKey('word/styles.xml')) {
             DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
+        setNumberingXml(mr);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         mr = null;
         pdfImages = null;
@@ -1239,6 +1240,7 @@ public with sharing class DocGenService {
                 if (htmlMr.processedXmlEntries.containsKey('word/styles.xml')) {
                     DocGenHtmlRenderer.stylesXml = htmlMr.processedXmlEntries.get('word/styles.xml');
                 }
+                setNumberingXml(htmlMr);
 
                 String templateHtml = DocGenHtmlRenderer.convertToHtml(
                     combineXmlWithHeadersFooters(htmlMr), pdfImages
@@ -1325,6 +1327,7 @@ public with sharing class DocGenService {
         if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
             DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
+        setNumberingXml(mr);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         lastRenderedHtml = html;
 
@@ -1375,6 +1378,7 @@ public with sharing class DocGenService {
             }
         }
 
+        setNumberingXml(mr);
         return DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), previewImages);
     }
 
@@ -1427,6 +1431,7 @@ public with sharing class DocGenService {
             }
         }
 
+        setNumberingXml(mr);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), mergedMap);
 
         return new Map<String, Object>{
@@ -1477,6 +1482,17 @@ public with sharing class DocGenService {
      * processes all template content (not just the main body).
      * Image relIds in header/footer XML are namespaced to prevent collisions.
      */
+    /**
+     * Sets DocGenHtmlRenderer.numberingXml from the template's word/numbering.xml
+     * passthrough entry, enabling accurate numbered vs bullet list detection.
+     */
+    private static void setNumberingXml(MergeResult mr) {
+        DocGenHtmlRenderer.numberingXml = null;
+        if (mr.passthroughEntries != null && mr.passthroughEntries.containsKey('word/numbering.xml')) {
+            DocGenHtmlRenderer.numberingXml = mr.passthroughEntries.get('word/numbering.xml').toString();
+        }
+    }
+
     private static String combineXmlWithHeadersFooters(MergeResult mr) {
         if (mr.processedXmlEntries == null) { return mr.documentXml; }
 
@@ -1548,6 +1564,7 @@ public with sharing class DocGenService {
         MergeResult mr = mergeTemplate(templateId, recordId, null, 'PDF');
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
+        setNumberingXml(mr);
         return DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
     }
 
