@@ -8,9 +8,21 @@ Reference document for the Salesforce AppExchange listing. Copy/paste into the l
 
 Portwood DocGen
 
+## SEO Title
+
+Portwood DocGen — Free Document Generation for Salesforce | PDF & Word
+
 ## Tagline
 
 Free Document Generation for Salesforce
+
+## Highlights (3 required, 250 char each)
+
+**1.** Completely free — every feature, every user, no limits. No paid tiers, no per-user pricing, no upgrade prompts. Generate unlimited documents from unlimited templates across your entire org at zero cost.
+
+**2.** 100% native Salesforce — your data never leaves your org. No external servers, no API callouts, no third-party dependencies. Respects sharing rules, CRUD, and field-level security. Works even when other vendors are down.
+
+**3.** Point-and-click setup, no code required. Upload a Word template with merge tags, use the visual query builder to pick fields and related records, and generate polished PDFs and Word documents in seconds.
 
 ## Brief Description (300 char max)
 
@@ -114,6 +126,11 @@ Free — all features, all users, no limits.
 - GitHub Issues: https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues
 - Website: https://portwoodglobalsolutions.com
 - Email: hello@portwoodglobalsolutions.com
+
+## Terms & Conditions
+
+- Terms of Service: https://portwoodglobalsolutions.com/DocGenTerms
+- Privacy Policy: https://portwoodglobalsolutions.com/DocGenPrivacy
 
 ## Publisher
 
