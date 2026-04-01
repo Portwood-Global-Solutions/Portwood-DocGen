@@ -382,7 +382,7 @@ DocGen is 100% free, open source, and community-driven. Published through [Portw
 | [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | Real-time help, feature requests, template sharing — join from your own Slack workspace |
 | [GitHub Issues](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues) | Bug reports and tracked feature requests |
 | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap) | See what's shipped and what's coming next |
-| [Website](https://portwoodglobalsolutions.com) | Install links, live demo, feature comparison |
+| [Website](https://portwoodglobalsolutions.com) | Install links, feature comparison |
 
 Join the community channel directly from your own Slack workspace — no separate account needed. Get help, request features, share templates, report bugs, and connect with other DocGen users.
 
