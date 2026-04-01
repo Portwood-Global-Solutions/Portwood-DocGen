@@ -1,13 +1,13 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.14.0 — PDF Rendering Fixes",
-      "versionNumber": "1.14.0.NEXT",
-      "ancestorId": "04tal000006PJqPAAW",
+      "versionName": "1.15.0 — Security Hardening for AppExchange",
+      "versionNumber": "1.15.0.NEXT",
+      "ancestorId": "04tal000006PM3VAAW",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
-      "versionDescription": "Giant Query PDF: render 3K-50K+ child records as formatted PDF entirely server-side. Pre-baked HTML templates, progressive Queueable assembly, column formatting, parent lookup fields. Plus all v1.2.0 features: DOCX/PDF/PPTX/XLSX generation, visual query builder, bulk generation, Flow actions, barcodes, QR codes, and zero-heap PDF rendering."
+      "versionDescription": "Security hardening for AppExchange review: 0 Checkmarx findings. FLS enforcement via stripInaccessible on all ContentVersion/CDL DML, USER_MODE on all SOQL queries, CRUD checks on all deletes, SOQL injection sanitization, DML bulkification out of loops, sharing declarations on all inner classes. 629 Apex tests passing, 76% coverage, 0 Code Analyzer violations."
     }
   ],
   "name": "Portwood DocGen",
