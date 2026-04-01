@@ -114,7 +114,7 @@ As a managed package publisher, Salesforce automatically provides limited subscr
 ## Basic Usage Instructions
 
 ### Installation
-1. Install the package: `sf package install --package 04tal000006PJqPAAW --wait 10 --target-org <your-org>`
+1. Install the package: `sf package install --package 04tal000006PM3VAAW --wait 10 --target-org <your-org>`
 2. Assign the **DocGen Admin** permission set to administrators
 3. Assign the **DocGen User** permission set to end users
 4. Enable the **Blob.toPdf() Release Update** in Setup (required for PDF generation)
