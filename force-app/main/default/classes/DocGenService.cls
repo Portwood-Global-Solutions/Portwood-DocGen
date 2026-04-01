@@ -384,7 +384,7 @@ public with sharing class DocGenService {
             List<DocGen_Template_Version__c> activeVersions = [
                 SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :templateId AND Is_Active__c = true
-                WITH USER_MODE LIMIT 1
+                WITH SYSTEM_MODE LIMIT 1
             ];
             if (activeVersions.isEmpty()) {
                 return null;
@@ -799,7 +799,7 @@ public with sharing class DocGenService {
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH USER_MODE LIMIT 1
+            WITH SYSTEM_MODE LIMIT 1
         ];
         if (activeVersions.isEmpty()) {
             throw new DocGenException('No active template version found.');
@@ -911,7 +911,7 @@ public with sharing class DocGenService {
         // Get parent-only record data (strip all children from config)
         List<DocGen_Template__c> templates = [
             SELECT Base_Object_API__c, Query_Config__c, Type__c, Document_Title_Format__c
-            FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1
+            FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
         ];
         DocGen_Template__c template = templates[0];
 
@@ -950,7 +950,7 @@ public with sharing class DocGenService {
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH USER_MODE LIMIT 1
+            WITH SYSTEM_MODE LIMIT 1
         ];
         String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
         List<ContentVersion> xmlCvs = [
@@ -1032,7 +1032,7 @@ public with sharing class DocGenService {
         }
 
         List<DocGen_Template__c> templates = [
-            SELECT Type__c FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1
+            SELECT Type__c FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
         ];
         if (templates.isEmpty()) {
             return;
@@ -1279,7 +1279,7 @@ public with sharing class DocGenService {
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH USER_MODE LIMIT 1
+            WITH SYSTEM_MODE LIMIT 1
         ];
         if (!activeVersions.isEmpty()) {
             String prefix = 'docgen_tmpl_img_' + activeVersions[0].Id + '_';

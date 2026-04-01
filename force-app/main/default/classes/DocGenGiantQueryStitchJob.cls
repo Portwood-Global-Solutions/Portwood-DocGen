@@ -39,7 +39,7 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
         SObjectAccessDecision stitchDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Stitching') });
         update stitchDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
 
-        DocGen_Template__c tmpl = [SELECT Name FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1];
+        DocGen_Template__c tmpl = [SELECT Name FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
         this.templateName = tmpl.Name;
 
         String prefix = 'docgen_giant_' + jobId + '_';

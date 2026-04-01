@@ -171,7 +171,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         List<DocGen_Template_Version__c> vers = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH USER_MODE LIMIT 1
+            WITH SYSTEM_MODE LIMIT 1
         ];
         String html = null;
         if (!vers.isEmpty()) {
@@ -243,7 +243,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         try {
             List<DocGen_Template__c> tpls = [
                 SELECT Base_Object_API__c FROM DocGen_Template__c
-                WHERE Id = :templateId WITH USER_MODE LIMIT 1
+                WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
             ];
             if (tpls.isEmpty()) { return html; }
             String baseObj = tpls[0].Base_Object_API__c;

@@ -45,7 +45,7 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         this.jobId = jobId;
         this.mergeMode = mergeMode || (mergeOnly == true);
         this.mergeOnly = (mergeOnly == true);
-        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Query_Config__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
+        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Query_Config__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
         this.templateId = job.Template__c;
         this.baseObject = job.Template__r.Base_Object_API__c;
         this.condition = job.Query_Condition__c;
@@ -350,11 +350,11 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             List<CustomNotificationType> types = [
                 SELECT Id FROM CustomNotificationType
                 WHERE DeveloperName = 'DocGen_Job_Complete'
-                WITH USER_MODE LIMIT 1
+                WITH SYSTEM_MODE LIMIT 1
             ];
                         if (types.isEmpty()) { return; }
 
-            DocGen_Job__c job = [SELECT CreatedById, Label__c, Name FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
+            DocGen_Job__c job = [SELECT CreatedById, Label__c, Name FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE LIMIT 1];
             String jobName = String.isNotBlank(job.Label__c) ? job.Label__c : job.Name;
 
             Messaging.CustomNotification notification = new Messaging.CustomNotification();

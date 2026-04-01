@@ -61,7 +61,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             // Get job details
             DocGen_Job__c job = [
                 SELECT Label__c, Name, CreatedById, Success_Count__c, Total_Records__c
-                FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1
+                FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE LIMIT 1
             ];
             String fileName = String.isNotBlank(job.Label__c) ? job.Label__c : 'Bulk Generation ' + job.Name;
 
@@ -105,7 +105,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             List<CustomNotificationType> types = [
                 SELECT Id FROM CustomNotificationType
                 WHERE DeveloperName = 'DocGen_Job_Complete'
-                WITH USER_MODE LIMIT 1
+                WITH SYSTEM_MODE LIMIT 1
             ];
             if (types.isEmpty()) {
                 return;
