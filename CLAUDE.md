@@ -115,22 +115,35 @@ DOCX output preserves whatever fonts are in the template file. If users need cus
 - **docgen-demo-v2**: Public demo org (SSO via landing page, 30-day expiry)
 - Create new scratch orgs from `Portwood Global - Production` DevHub
 
-## E2E Test Script
+## Release Validation Checklist
 
-**Every code change MUST be validated by the E2E test script.** If you add a feature, add a test for it in the script. If the script doesn't pass, the change doesn't ship.
+**All three checks MUST pass before every release. No exceptions.**
 
-Run: `sf apex run --target-org <org> -f scripts/e2e-test.apex`
+### 1. E2E Test Script (24 tests)
+```bash
+sf apex run --target-org <org> -f scripts/e2e-test.apex
+```
+Expected: `PASS: 24  FAIL: 0  ALL TESTS PASSED`
 
-The script is fully self-contained — creates its own template, DOCX file, template version, test data (Account, Contacts, Opportunity, Products, Line Items, Contact Roles, image CV), runs the V3 tree walker, validates parent fields, tests legacy backward compatibility, generates an actual PDF, validates junction stitching, and cleans up. Output: `PASS: 13  FAIL: 0  ALL TESTS PASSED`
+Self-contained — creates all test data, runs full document generation pipeline, validates output, cleans up. Zero dependencies on pre-existing org data.
 
-**Requires:** Nothing. Zero dependencies on pre-existing org data. Works on any org with DocGen deployed.
+**When adding features:** Add assertions to `scripts/e2e-test.apex` first.
 
-**When adding features:**
-1. Add test assertions to `scripts/e2e-test.apex`
-2. Run the script — all tests must pass
-3. If a test fails, fix before committing
+### 2. Apex Test Suite (629 tests, 76% coverage)
+```bash
+sf apex run test --target-org <org> --test-level RunLocalTests --wait 15 --code-coverage
+```
+Expected: `Outcome: Passed`, `Pass Rate: 100%`, org-wide coverage ≥ 75%
 
-Current tests (13): Account name, Owner.Name parent field, Contacts count, Opportunities count, Product2.Name on Line Items, Line Items count, Description CV ID, Legacy V1 backward compat, Image CV format, Image CV access, Document generation, Generated file not empty, Junction stitching (OCR → Contact).
+### 3. Code Analyzer — Security + AppExchange (0 violations)
+```bash
+sf code-analyzer run --workspace "force-app/" --rule-selector "Security" --rule-selector "AppExchange" --view table
+```
+Expected: `Found 0 violations.`
+
+Runs PMD security rules, AppExchange-specific rules, and Salesforce Graph Engine (SFGE) taint analysis. SFGE timeouts on complex methods are normal — only violations count.
+
+**If any check fails, the change doesn't ship.**
 
 ## Query Config Formats
 
