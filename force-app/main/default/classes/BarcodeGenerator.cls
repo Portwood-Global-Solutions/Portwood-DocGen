@@ -181,13 +181,16 @@ public class BarcodeGenerator {
     /**
      * Generates a barcode image as a BMP blob.
      * @param value The text to encode
-     * @param barcodeType The barcode type ('code128' supported)
+     * @param barcodeType The barcode type ('code128' or 'qr')
      * @return BMP image blob, or null if encoding fails or type is unsupported
      */
     public static Blob generate(String value, String barcodeType) {
         if (String.isBlank(value)) { return null; }
         if (barcodeType == null || barcodeType == 'code128') {
             return generateCode128(value);
+        }
+        if (barcodeType == 'qr') {
+            return generateQr(value);
         }
         return null;
     }
@@ -546,6 +549,118 @@ public class BarcodeGenerator {
 
         // Render to BMP
         return renderBarcodeBmp(pattern, 2, 60, 10);
+    }
+
+    /**
+     * Generates a QR Code as a 1-bit BMP image.
+     */
+    private static Blob generateQr(String value) {
+        String pattern = buildQrPattern(value);
+        if (pattern == null) { return null; }
+        
+        // Render QR to BMP
+        // Standard QR code has 4 modules quiet zone. We expand each module to 4 pixels.
+        return renderQrBmp(pattern, 4, 4);
+    }
+
+    /**
+     * Renders a 2D QR pattern string ('1' = black, '0' = white, separated by \n) to a BMP image.
+     */
+    private static Blob renderQrBmp(String pattern, Integer moduleWidth, Integer quietZoneModules) {
+        List<String> rows = pattern.split('\n');
+        Integer qrSize = rows.size();
+        Integer sizePixels = qrSize * moduleWidth;
+        Integer quietSizePixels = quietZoneModules * moduleWidth;
+        Integer width = sizePixels + (quietSizePixels * 2);
+        Integer height = width; // QR is square
+        
+        // BMP rows must be padded to 4-byte boundaries (1-bit per pixel)
+        Integer rowBytes = (width + 7) / 8;
+        Integer paddedRowBytes = ((rowBytes + 3) / 4) * 4;
+        Integer pixelDataSize = paddedRowBytes * height;
+
+        Integer headerSize = 14 + 40 + 8;
+        Integer fileSize = headerSize + pixelDataSize;
+
+        List<Integer> bmpBytes = new List<Integer>();
+
+        bmpBytes.add(66); bmpBytes.add(77); // 'BM'
+        addLE32(bmpBytes, fileSize);
+        addLE16(bmpBytes, 0); addLE16(bmpBytes, 0);
+        addLE32(bmpBytes, headerSize);
+
+        addLE32(bmpBytes, 40);
+        addLE32(bmpBytes, width);
+        addLE32(bmpBytes, height);
+        addLE16(bmpBytes, 1);
+        addLE16(bmpBytes, 1);
+        addLE32(bmpBytes, 0);
+        addLE32(bmpBytes, pixelDataSize);
+        addLE32(bmpBytes, 2835);
+        addLE32(bmpBytes, 2835);
+        addLE32(bmpBytes, 2);
+        addLE32(bmpBytes, 0);
+
+        bmpBytes.add(255); bmpBytes.add(255); bmpBytes.add(255); bmpBytes.add(0);
+        bmpBytes.add(0); bmpBytes.add(0); bmpBytes.add(0); bmpBytes.add(0);
+
+        List<Integer> bitWeights = new List<Integer>{ 128, 64, 32, 16, 8, 4, 2, 1 };
+        
+        List<Integer> whiteRowBits = new List<Integer>();
+        for (Integer i = 0; i < width; i++) { whiteRowBits.add(0); }
+        
+        List<Integer> whiteRowData = new List<Integer>();
+        for (Integer i = 0; i < paddedRowBytes; i++) {
+            Integer b = 0;
+            for (Integer bit = 0; bit < 8; bit++) {
+                Integer idx = i * 8 + bit;
+                if (idx < whiteRowBits.size() && whiteRowBits[idx] == 1) {
+                    b += bitWeights[bit];
+                }
+            }
+            whiteRowData.add(b);
+        }
+
+        List<List<Integer>> qrRowDataCache = new List<List<Integer>>();
+        for (Integer r = 0; r < qrSize; r++) {
+            List<Integer> rowBits = new List<Integer>();
+            for (Integer i = 0; i < quietSizePixels; i++) { rowBits.add(0); }
+            String patternRow = rows[r];
+            for (Integer c = 0; c < patternRow.length(); c++) {
+                Integer bit = patternRow.substring(c, c+1) == '1' ? 1 : 0;
+                for (Integer w = 0; w < moduleWidth; w++) { rowBits.add(bit); }
+            }
+            for (Integer i = 0; i < quietSizePixels; i++) { rowBits.add(0); }
+            
+            List<Integer> rData = new List<Integer>();
+            for (Integer i = 0; i < paddedRowBytes; i++) {
+                Integer b = 0;
+                for (Integer bit = 0; bit < 8; bit++) {
+                    Integer idx = i * 8 + bit;
+                    if (idx < rowBits.size() && rowBits[idx] == 1) {
+                        b += bitWeights[bit];
+                    }
+                }
+                rData.add(b);
+            }
+            qrRowDataCache.add(rData);
+        }
+
+        for (Integer i = 0; i < quietSizePixels; i++) { bmpBytes.addAll(whiteRowData); }
+        for (Integer r = qrSize - 1; r >= 0; r--) {
+            List<Integer> rData = qrRowDataCache[r];
+            for (Integer mw = 0; mw < moduleWidth; mw++) {
+                bmpBytes.addAll(rData);
+            }
+        }
+        for (Integer i = 0; i < quietSizePixels; i++) { bmpBytes.addAll(whiteRowData); }
+
+        String hex = '';
+        String hexChars = '0123456789abcdef';
+        for (Integer b : bmpBytes) {
+            hex += hexChars.substring(b / 16, b / 16 + 1) + hexChars.substring(Math.mod(b, 16), Math.mod(b, 16) + 1);
+        }
+        return EncodingUtil.convertFromHex(hex);
     }
 
     /**

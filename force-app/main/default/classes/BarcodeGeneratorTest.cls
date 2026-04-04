@@ -55,6 +55,11 @@ private class BarcodeGeneratorTest {
         System.runAs(u) {
             System.assertEquals(null, BarcodeGenerator.generate(null, 'code128'), 'Null input should return null BMP');
             System.assertEquals(null, BarcodeGenerator.generate('', 'code128'), 'Blank input should return null BMP');
+            System.assertEquals(null, BarcodeGenerator.generate(null, 'qr'), 'Null QR input should return null BMP');
+            System.assertEquals(null, BarcodeGenerator.generate('', 'qr'), 'Blank QR input should return null BMP');
+            String tooLong = '';
+            for (Integer i=0; i<3000; i++) { tooLong += 'A'; }
+            System.assertEquals(null, BarcodeGenerator.generate(tooLong, 'qr'), 'Too long QR input should return null BMP');
         }
     }
 
@@ -81,6 +86,17 @@ private class BarcodeGeneratorTest {
     }
 
     // --- QR Code Tests ---
+
+    @IsTest
+    static void testGenerateQrBasic() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Blob bmp = BarcodeGenerator.generate('Hello', 'qr');
+            System.assertNotEquals(null, bmp, 'BMP blob should not be null');
+            String hex = EncodingUtil.convertToHex(bmp);
+            System.assertEquals('424d', hex.substring(0, 4).toLowerCase(), 'Should start with BM magic bytes');
+        }
+    }
 
     @IsTest
     static void testQrBasic() {
