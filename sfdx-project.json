@@ -7,7 +7,7 @@
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
-      "versionDescription": "Portwood DocGen is a native Salesforce document generation engine. Build Word, PowerPoint, Excel, and PDF documents from any Salesforce record using merge tags in your own templates. Includes a visual query builder, bulk generation, multi-object support, and Flow integration — all without leaving Salesforce."
+      "versionDescription": "Portwood DocGen is a native Salesforce document generation engine. Build Word and PDF documents from any Salesforce record using merge tags in your own templates. Includes a visual query builder, bulk generation, multi-object support, and Flow integration — all without leaving Salesforce."
     }
   ],
   "name": "Portwood DocGen",
