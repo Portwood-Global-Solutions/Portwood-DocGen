@@ -13,13 +13,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     public static Map<String, Object> generateDocumentData(Id templateId, Id recordId) {
         if (templateId == null) { throw new DocGenException('Template ID is missing.'); }
 
-        List<DocGen_Template__c> templates = [
-            SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
+        List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
             FROM DocGen_Template__c
             WHERE Id = :templateId
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            LIMIT 1
-        ];
+            WITH USER_MODE
+            LIMIT 1];
 
         if (templates.isEmpty()) {
             throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
@@ -69,13 +67,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
 
         // Cache template metadata + file content on first call
         if (cachedTemplateId != templateId || cachedTemplateEnvelope == null) {
-            List<DocGen_Template__c> templates = [
-                SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
+            List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
                 FROM DocGen_Template__c
                 WHERE Id = :templateId
-                WITH SYSTEM_MODE
-                LIMIT 1
-            ];
+                WITH USER_MODE
+                LIMIT 1];
 
             if (templates.isEmpty()) {
                 throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
@@ -293,13 +289,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             if (recordId == null) { throw new DocGenException('Record ID is missing.'); }
 
             // Get template config
-            List<DocGen_Template__c> templates = [
-                SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c
+            List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c
                 FROM DocGen_Template__c
                 WHERE Id = :templateId
-                WITH SYSTEM_MODE
-                LIMIT 1
-            ];
+                WITH USER_MODE
+                LIMIT 1];
             if (templates.isEmpty()) {
                 throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
             }
@@ -371,11 +365,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
 
             // Giant Query path: create Job, extract loop body, launch batch
             // Use pre-decomposed XML to get document.xml — avoids ZIP decompression heap cost
-            List<DocGen_Template_Version__c> activeVersions = [
-                SELECT Id FROM DocGen_Template_Version__c
+            List<DocGen_Template_Version__c> activeVersions = [SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :templateId AND Is_Active__c = true
-                WITH SYSTEM_MODE LIMIT 1
-            ];
+                WITH USER_MODE LIMIT 1];
             String documentXml = null;
             if (!activeVersions.isEmpty()) {
                 String xmlKey = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_word__document.xml';
@@ -422,7 +414,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     'childCount' => counts.get(giantRelationship)
                 })
             );
-            insert job; // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            SObjectAccessDecision gqJobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
+            insert gqJobDec.getRecords();
+            job.Id = gqJobDec.getRecords()[0].Id;
 
             // Launch batch — shell PDF generation happens in start() with fresh heap
             DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
@@ -453,13 +447,10 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled
     public static Map<String, Object> getGiantQueryJobStatus(Id jobId) {
-        List<DocGen_Job__c> jobs = [
-            SELECT Status__c, Success_Count__c, Total_Records__c, Label__c
+        List<DocGen_Job__c> jobs = [SELECT Status__c, Success_Count__c, Total_Records__c, Label__c
             FROM DocGen_Job__c
             WHERE Id = :jobId
-            // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            WITH SYSTEM_MODE LIMIT 1
-        ];
+            WITH USER_MODE LIMIT 1];
         if (jobs.isEmpty()) {
             return new Map<String, Object>{ 'status' => 'Not Found' };
         }
@@ -574,11 +565,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             Map<String, Object> childNodeConfig = (Map<String, Object>) JSON.deserializeUntyped(childNodeConfigJson);
 
             // Get document XML from pre-decomposed parts (no ZIP decompression)
-            List<DocGen_Template_Version__c> activeVersions = [
-                SELECT Id FROM DocGen_Template_Version__c
+            List<DocGen_Template_Version__c> activeVersions = [SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :templateId AND Is_Active__c = true
-                WITH SYSTEM_MODE LIMIT 1
-            ];
+                WITH USER_MODE LIMIT 1];
             String documentXml = null;
             if (!activeVersions.isEmpty()) {
                 String xmlKey = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_word__document.xml';
@@ -607,7 +596,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Label__c = 'Giant Query PDF',
                 Parent_Record_Id__c = String.valueOf(recordId)
             );
-            insert job; // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            SObjectAccessDecision lpJobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
+            insert lpJobDec.getRecords();
+            job.Id = lpJobDec.getRecords()[0].Id;
 
             // Ensure relationshipName is in the config (V1 scout doesn't include it)
             childNodeConfig.put('relationshipName', giantRelationship);
@@ -647,10 +638,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         if (recordId == null || templateId == null) {
             return result;
         }
-        List<DocGen_Template__c> templates = [
-            // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            SELECT Query_Config__c, Base_Object_API__c FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
-        ];
+        List<DocGen_Template__c> templates = [SELECT Query_Config__c, Base_Object_API__c FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1];
         if (templates.isEmpty() || String.isBlank(templates[0].Query_Config__c)) {
             return result;
         }
@@ -800,13 +788,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getTemplatesForObject(String objectApiName) {
-        return [
-            SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c, Query_Config__c
+        return [SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c, Query_Config__c
             FROM DocGen_Template__c
             WHERE Base_Object_API__c = :objectApiName
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            ORDER BY Is_Default__c DESC, Name ASC
-        ];
+            WITH USER_MODE
+            ORDER BY Is_Default__c DESC, Name ASC];
     }
 
     /**
@@ -815,15 +801,13 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getAllTemplates() {
-        return [
-            SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c,
+        return [SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c,
                    Test_Record_Id__c, Output_Format__c, Document_Title_Format__c, Is_Default__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
+            WITH USER_MODE
             ORDER BY Category__c ASC, Name ASC
-            LIMIT 2000
-        ];
+            LIMIT 2000];
     }
 
     /**
@@ -856,41 +840,35 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 template.Is_Default__c = isDefault;
                 if (isDefault == true && template.Base_Object_API__c != null) {
                     String baseObj = (String) fields.get('Base_Object_API__c');
-                    // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-                    List<DocGen_Template__c> otherDefaults = [
-                        SELECT Id FROM DocGen_Template__c
+                    List<DocGen_Template__c> otherDefaults = [SELECT Id FROM DocGen_Template__c
                         WHERE Base_Object_API__c = :baseObj
                         AND Is_Default__c = true
                         AND Id != :templateId
-                        WITH SYSTEM_MODE
-                    ];
+                        WITH USER_MODE];
                     for (DocGen_Template__c other : otherDefaults) {
                         other.Is_Default__c = false;
                     }
                     if (!otherDefaults.isEmpty()) {
-                        SObjectAccessDecision otherDec = Security.stripInaccessible(AccessType.UPDATABLE, otherDefaults);
-                        update otherDec.getRecords();
+                        SObjectAccessDecision odUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, otherDefaults);
+                        update odUpdDec.getRecords();
                     }
                 }
             }
-            SObjectAccessDecision tmplDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
-            update tmplDec.getRecords();
+            SObjectAccessDecision tmplUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update tmplUpdDec.getRecords();
 
             // 2. Create Version if requested
             if (createVersion == true) {
                 // Deactivate current active versions
-                // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-                List<DocGen_Template_Version__c> activeVersions = [
-                    SELECT Id FROM DocGen_Template_Version__c
+                List<DocGen_Template_Version__c> activeVersions = [SELECT Id FROM DocGen_Template_Version__c
                     WHERE Template__c = :templateId AND Is_Active__c = true
-                    WITH SYSTEM_MODE
-                ];
+                    WITH USER_MODE];
                 for (DocGen_Template_Version__c av : activeVersions) {
                     av.Is_Active__c = false;
                 }
                 if (!activeVersions.isEmpty()) {
-                    SObjectAccessDecision avDec = Security.stripInaccessible(AccessType.UPDATABLE, activeVersions);
-                    update avDec.getRecords();
+                    SObjectAccessDecision avUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, activeVersions);
+                    update avUpdDec.getRecords();
                 }
 
                 // Get latest ContentVersionId
@@ -919,9 +897,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
 
-                SObjectAccessDecision verDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ version });
-                insert verDec.getRecords();
-                version.Id = verDec.getRecords()[0].Id;
+                SObjectAccessDecision verInsDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ version });
+                insert verInsDec.getRecords();
+                version.Id = verInsDec.getRecords()[0].Id;
 
                 // Extract images from DOCX/PPTX and save as ContentVersions linked to the version.
                 // Blob.toPdf() cannot render data URI images — needs committed CV URLs.
@@ -960,14 +938,12 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled
     public static List<DocGen_Template_Version__c> getTemplateVersions(Id templateId) {
-        return [
-            SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Content_Version_Id__c,
+        return [SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Content_Version_Id__c,
                    Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c
             FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            ORDER BY CreatedDate DESC
-        ];
+            WITH USER_MODE
+            ORDER BY CreatedDate DESC];
     }
 
     /**
@@ -977,34 +953,29 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     @AuraEnabled
     public static void activateVersion(Id versionId) {
         try {
-            DocGen_Template_Version__c version = [
-                SELECT Template__c, Query_Config__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
+            List<DocGen_Template_Version__c> actVerList = [SELECT Template__c, Query_Config__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
                 FROM DocGen_Template_Version__c
                 WHERE Id = :versionId
-                // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-                WITH SYSTEM_MODE
-                LIMIT 1
-            ];
+                WITH USER_MODE
+                LIMIT 1];
+            DocGen_Template_Version__c version = actVerList[0];
 
             // 1. Deactivate others
-            List<DocGen_Template_Version__c> others = [
-                SELECT Id FROM DocGen_Template_Version__c
+            List<DocGen_Template_Version__c> others = [SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :version.Template__c AND Is_Active__c = true
-                // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-                WITH SYSTEM_MODE
-            ];
+                WITH USER_MODE];
             for (DocGen_Template_Version__c v : others) {
                 v.Is_Active__c = false;
             }
             if (!others.isEmpty()) {
-                SObjectAccessDecision othersDec = Security.stripInaccessible(AccessType.UPDATABLE, others);
-                update othersDec.getRecords();
+                SObjectAccessDecision othUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, others);
+                update othUpdDec.getRecords();
             }
 
             // 2. Activate this one
             version.Is_Active__c = true;
-            SObjectAccessDecision versionDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template_Version__c>{ version });
-            update versionDec.getRecords();
+            SObjectAccessDecision verUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template_Version__c>{ version });
+            update verUpdDec.getRecords();
 
             // 3. Update Template Record Headline
             DocGen_Template__c template = new DocGen_Template__c(Id = version.Template__c);
@@ -1014,8 +985,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             template.Type__c = version.Type__c;
             template.Base_Object_API__c = version.Base_Object_API__c;
 
-            SObjectAccessDecision tmplDec2 = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
-            update tmplDec2.getRecords();
+            SObjectAccessDecision actTmplDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update actTmplDec.getRecords();
 
         } catch (Exception e) {
             throw new DocGenException('Error activating version: ' + e.getMessage());
@@ -3103,10 +3074,10 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Description__c = d.get('desc')
             ));
         }
-        SObjectAccessDecision tmplsDec = Security.stripInaccessible(AccessType.CREATABLE, templates);
-        insert tmplsDec.getRecords();
+        SObjectAccessDecision stDec = Security.stripInaccessible(AccessType.CREATABLE, templates);
+        insert stDec.getRecords();
         for (Integer i = 0; i < templates.size(); i++) {
-            templates[i].Id = tmplsDec.getRecords()[i].Id;
+            templates[i].Id = stDec.getRecords()[i].Id;
         }
 
         // Create ContentVersions (DOCX files) linked to templates
@@ -3140,10 +3111,10 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Base_Object_API__c = templates[i].Base_Object_API__c
             ));
         }
-        SObjectAccessDecision versDec = Security.stripInaccessible(AccessType.CREATABLE, versions);
-        insert versDec.getRecords();
+        SObjectAccessDecision svDec = Security.stripInaccessible(AccessType.CREATABLE, versions);
+        insert svDec.getRecords();
         for (Integer i = 0; i < versions.size(); i++) {
-            versions[i].Id = versDec.getRecords()[i].Id;
+            versions[i].Id = svDec.getRecords()[i].Id;
         }
 
         // Extract and save template images for PDF rendering
@@ -3177,8 +3148,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     @AuraEnabled
     public static String exportTemplate(Id templateId) {
         try {
-            List<DocGen_Template__c> templates = [
-                SELECT Name, Base_Object_API__c, Type__c, Output_Format__c, Category__c,
+            List<DocGen_Template__c> templates = [SELECT Name, Base_Object_API__c, Type__c, Output_Format__c, Category__c,
                        Description__c, Query_Config__c, Document_Title_Format__c, Is_Default__c,
                        (SELECT Id, Is_Active__c, Query_Config__c, Content_Version_Id__c,
                                Category__c, Description__c, Type__c, Base_Object_API__c
@@ -3186,9 +3156,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                        (SELECT Name, Query_Condition__c, Description__c FROM Saved_Queries__r)
                 FROM DocGen_Template__c
                 WHERE Id = :templateId
-                // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-                WITH SYSTEM_MODE LIMIT 1
-            ];
+                WITH USER_MODE LIMIT 1];
             if (templates.isEmpty()) {
                 throw new DocGenException('Template not found or not accessible.');
             }
@@ -3276,9 +3244,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             tmpl.Query_Config__c = (String) tmplData.get('Query_Config__c');
             tmpl.Document_Title_Format__c = (String) tmplData.get('Document_Title_Format__c');
             tmpl.Is_Default__c = tmplData.get('Is_Default__c') == true;
-            SObjectAccessDecision tmplImpDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template__c>{ tmpl });
-            insert tmplImpDec.getRecords();
-            tmpl.Id = tmplImpDec.getRecords()[0].Id;
+            SObjectAccessDecision impTmplDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template__c>{ tmpl });
+            insert impTmplDec.getRecords();
+            tmpl.Id = impTmplDec.getRecords()[0].Id;
 
             // 2. Upload template file if present
             Map<String, Object> fileData = (Map<String, Object>) bundle.get('templateFile');
@@ -3305,9 +3273,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             ver.Description__c = (String) tmplData.get('Description__c');
             ver.Type__c = (String) tmplData.get('Type__c');
             ver.Base_Object_API__c = (String) tmplData.get('Base_Object_API__c');
-            SObjectAccessDecision verImpDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ ver });
-            insert verImpDec.getRecords();
-            ver.Id = verImpDec.getRecords()[0].Id;
+            SObjectAccessDecision impVerDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ ver });
+            insert impVerDec.getRecords();
+            ver.Id = impVerDec.getRecords()[0].Id;
 
             // 4. Extract images and pre-decompose (non-fatal)
             try {

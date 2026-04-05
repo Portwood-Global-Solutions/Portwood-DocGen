@@ -1,0 +1,108 @@
+# ======================================================================
+# CODE ANALYZER CONFIGURATION
+# To learn more about this configuration, visit:
+#   https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/guide/config-custom.html
+# ======================================================================
+
+# The absolute folder path to which all other path values in this configuration may be relative to.
+# If unspecified, or if specified as null, then the value is automatically chosen to be the parent folder of your Code Analyzer
+# configuration file if it exists, or the current working directory otherwise.
+config_root: null # Last calculated by the config command as: "/Users/davemoudy/4-5-2026/Portwood-DocGen"
+
+# Folder where to store log files. May be an absolute path or a path relative to config_root.
+# If unspecified, or if specified as null, then the value is automatically chosen to be your machine's default temporary directory.
+log_folder: null # Last calculated by the config command as: "/var/folders/pj/r60drhl55075qbd73_c6hyqh0000gn/T"
+
+# Level at which to log messages to log files.
+# Possible values are:
+#   1 or 'Error' - Includes only error messages in the log.
+#   2 or 'Warn' - Includes warning and error messages in the log.
+#   3 or 'Info' - Includes informative, warning, and error messages in the log.
+#   4 or 'Debug' - Includes debug, informative, warning, and error messages in the log.
+#   5 or 'Fine' - Includes fine detail, debug, informative, warning, and error messages in the log.
+# If unspecified, or if specified as null, then the 'Debug' log level will be used.
+log_level: 4
+
+# Configuration for ignoring files during analysis.
+#   files: An array of glob patterns specifying files to exclude from scanning.
+# ---- [Example usage]: ---------------------
+# ignores:
+#   files:
+#     - "**/node_modules/**"
+#     - "**/*.test.js"
+# -------------------------------------------
+ignores:
+  files: []
+
+# Rule override settings of the format rules.{engine_name}.{rule_name}.{property_name} = {override_value} where:
+#   {engine_name} is the name of the engine containing the rule that you want to override.
+#   {rule_name} is the name of the rule that you want to override.
+#   {property_name} can either be:
+#     'severity' - [Optional] The severity level value that you want to use to override the default severity level for the rule
+#                  Possible values: 1 or 'Critical', 2 or 'High', 3 or 'Moderate', 4 or 'Low', 5 or 'Info'
+#     'tags'     - [Optional] The string array of tag values that you want to use to override the default tags for the rule
+#     'disabled' - [Optional] Boolean value to disable the rule for all files. When set to true, the rule will not run during analysis
+# ---- [Example usage]: ---------------------
+# rules:
+#   eslint:
+#     sort-vars:
+#       severity: "Info"
+#       tags: ["Recommended", "Suggestion"]
+#   regex:
+#     NoTrailingWhiteSpace:
+#       disabled: true
+# -------------------------------------------
+rules:
+
+  # ======================================================================
+  # SFGE ENGINE RULE OVERRIDES
+  # ======================================================================
+  sfge: {} # Remove this empty object {} when you are ready to specify your first rule override
+
+# Engine specific custom configuration settings of the format engines.{engine_name}.{property_name} = {value} where:
+#   {engine_name} is the name of the engine containing the setting that you want to override.
+#   {property_name} is the name of a property that you would like to override.
+# Each engine may have its own set of properties available to help customize that particular engine's behavior.
+engines:
+
+  # ======================================================================
+  # SFGE ENGINE CONFIGURATION
+  # This engine is in Developer Preview and is subject to change.
+  # To learn more about this configuration, visit:
+  #   [PLACEHOLDER LINK]
+  # ======================================================================
+  sfge:
+
+    # Whether to turn off the 'sfge' engine so that it is not included when running Code Analyzer commands.
+    disable_engine: false
+
+    # Whether to prevent 'sfge' from throwing LimitReached violations for complex paths.
+    # By default, Salesforce Graph Engine attempts to detect complex paths that might cause OutOfMemory errors,
+    # and throws LimitReached violations for these paths to continue evaluating other paths safely. The allowed
+    # complexity is dynamically calculated based on the max Java heap size available, but in some cases you may
+    # desire to disable this check in addition to increasing java_max_heap_size.
+    disable_limit_reached_violations: false
+
+    # Indicates the specific 'java' command associated with the JRE or JDK to use for the 'sfge' engine.
+    # May be provided as the name of a command that exists on the path, or an absolute file path location.
+    # If unspecified, or specified as null, then an attempt will be made to automatically discover a 'java' command from your environment.
+    java_command: null # Last calculated by the config command as: "java"
+
+    # Specifies the maximum size (in bytes) of the Java heap. The specified value is appended to the '-Xmx' Java
+    # command option. The value must be a multiple of 1024, and greater than 2MB. Append the letters 'k', 'K', 'kb',
+    # or 'KB' to indicate kilobytes, 'm', 'M', 'mb', or 'MB' to indicate megabytes, and 'g', 'G', 'gb', or 'GB' to
+    # indicate gigabytes. If unspecified, or specified as null, then the JVM will dynamically choose a default value
+    # at runtime based on system configuration.
+    java_max_heap_size: null
+
+    # Specifies the number of Java threads available for parallel execution. Increasing the thread count allows for
+    # Salesforce Graph Engine to evaluate more paths at the same time.
+    java_thread_count: 8
+
+    # Specifies the maximum time (in milliseconds) a specific Java thread may execute before Salesforce Graph Engine
+    # issues a Timeout violation.
+    java_thread_timeout: 30000
+
+# ======================================================================
+# END OF CODE ANALYZER CONFIGURATION
+# ======================================================================

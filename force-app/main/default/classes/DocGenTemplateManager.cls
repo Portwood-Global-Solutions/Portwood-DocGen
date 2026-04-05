@@ -11,14 +11,12 @@ public with sharing class DocGenTemplateManager {
         }
 
         // 1. Check for Active Version first
-        List<DocGen_Template_Version__c> activeVersions = [
-            SELECT Content_Version_Id__c
+        List<DocGen_Template_Version__c> activeVersions = [SELECT Content_Version_Id__c
             FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId
             AND Is_Active__c = true
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            LIMIT 1
-        ];
+            WITH USER_MODE
+            LIMIT 1];
 
         Id targetCvId = null;
 

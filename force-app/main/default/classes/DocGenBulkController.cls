@@ -6,8 +6,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getBulkTemplates() {
-        // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-        return [SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c, Test_Record_Id__c FROM DocGen_Template__c WITH SYSTEM_MODE ORDER BY Name LIMIT 2000];
+        return [SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c, Test_Record_Id__c FROM DocGen_Template__c WITH USER_MODE ORDER BY Name LIMIT 2000];
     }
 
     /**
@@ -83,11 +82,9 @@ public with sharing class DocGenBulkController {
         Boolean isMerge = (mergePdf == true);
 
         try {
-            DocGen_Template__c temp = [
-                SELECT Query_Config__c, Test_Record_Id__c, Output_Format__c
-                // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-                FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
-            ];
+            List<DocGen_Template__c> tempList = [SELECT Query_Config__c, Test_Record_Id__c, Output_Format__c
+                FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1];
+            DocGen_Template__c temp = tempList[0];
 
             // --- 1. SOQL Queries per batch execution ---
             Integer queriesPerRecord = countQueriesPerRecord(temp.Query_Config__c);
@@ -330,10 +327,12 @@ public with sharing class DocGenBulkController {
             DocGen_Job__c job = new DocGen_Job__c(
                 Template__c = templateId,
                 Query_Condition__c = condition,
-                Label__c = String.isNotBlank(jobLabel) ? jobLabel : null,
                 Status__c = 'Queued',
                 Merge_Only__c = isMergeOnly
             );
+            if (String.isNotBlank(jobLabel)) {
+                job.Label__c = jobLabel;
+            }
             SObjectAccessDecision jobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
             insert jobDec.getRecords();
             job.Id = jobDec.getRecords()[0].Id;
@@ -356,8 +355,8 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static DocGen_Job__c getJobStatus(Id jobId) {
-        // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-        return [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
+        List<DocGen_Job__c> jsRecords = [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
+        return jsRecords[0];
     }
 
     /**
@@ -366,14 +365,12 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static List<DocGen_Job__c> getRecentJobs() {
-        return [
-            SELECT Id, Name, Label__c, Status__c, Success_Count__c, Error_Count__c, Total_Records__c,
+        return [SELECT Id, Name, Label__c, Status__c, Success_Count__c, Error_Count__c, Total_Records__c,
                    CreatedDate, Template__r.Name, Template__r.Output_Format__c
             FROM DocGen_Job__c
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
+            WITH USER_MODE
             ORDER BY CreatedDate DESC
-            LIMIT 20
-        ];
+            LIMIT 20];
     }
 
     /**
@@ -384,12 +381,10 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static List<Map<String, String>> getJobGeneratedPdfs(Id jobId) {
-        DocGen_Job__c job = [
-            SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Name,
+        List<DocGen_Job__c> gpRecords = [SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Name,
                    Query_Condition__c, CreatedDate
-            // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE
-        ];
+            FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
+        DocGen_Job__c job = gpRecords[0];
 
         String baseObject = job.Template__r.Base_Object_API__c;
         if (Schema.getGlobalDescribe().get(baseObject) == null) {
@@ -442,13 +437,11 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Saved_Query__c> getSavedQueries(Id templateId) {
-        return [
-            SELECT Id, Name, Description__c, Query_Condition__c
+        return [SELECT Id, Name, Description__c, Query_Condition__c
             FROM DocGen_Saved_Query__c
             WHERE DocGen_Template__c = :templateId
-            WITH SYSTEM_MODE // SYSTEM_MODE required — package-internal object; namespace resolution fails under USER_MODE
-            ORDER BY CreatedDate DESC
-        ];
+            WITH USER_MODE
+            ORDER BY CreatedDate DESC];
     }
 
     /**
@@ -467,8 +460,8 @@ public with sharing class DocGenBulkController {
                 Description__c = description,
                 Query_Condition__c = condition
             );
-            SObjectAccessDecision sqDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Saved_Query__c>{ sq });
-            insert sqDec.getRecords();
+            SObjectAccessDecision sqInsDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Saved_Query__c>{ sq });
+            insert sqInsDec.getRecords();
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error saving query.');
         }
