@@ -355,7 +355,7 @@ private class DocGenGiantQueryTest {
 
             Test.startTest();
             List<Id> sortedIds = DocGenController.getSortedChildIds(
-                'Contact', 'AccountId', acc.Id, 'LastName ASC'
+                'Contact', 'AccountId', acc.Id, 'LastName ASC', null
             );
             Test.stopTest();
 
@@ -370,7 +370,7 @@ private class DocGenGiantQueryTest {
             Account acc = [SELECT Id FROM Account LIMIT 1];
             Boolean caught = false;
             try {
-                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'Name; DELETE Contact');
+                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'Name; DELETE Contact', null);
             } catch (Exception e) {
                 caught = true;
             }

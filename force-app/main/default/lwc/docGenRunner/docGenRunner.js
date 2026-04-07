@@ -765,6 +765,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
             // 4. Page through child records and render XML client-side
             const orderBy = serverChildNode.orderBy || '';
+            const whereClause = serverChildNode.where || '';
             let allRenderedXml = '';
             let fetched = 0;
             const pageSize = 500;
@@ -776,7 +777,8 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     childObject,
                     lookupField,
                     parentId: this.recordId,
-                    orderByClause: orderBy
+                    orderByClause: orderBy,
+                    whereClause: whereClause || null
                 });
 
                 for (let i = 0; i < sortedIds.length; i += pageSize) {

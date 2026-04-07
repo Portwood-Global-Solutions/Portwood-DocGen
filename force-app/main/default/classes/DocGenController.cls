@@ -695,12 +695,22 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                             'parentFields' => parentFields,
                             'relationshipName' => relName
                         };
-                        // Extract ORDER BY from clauses
+                        // Extract WHERE, ORDER BY, and LIMIT from clauses
                         if (String.isNotBlank(clausesPart)) {
+                            Pattern wherePattern = Pattern.compile('(?i)\\s*WHERE\\s+(.+?)(?:\\s+ORDER\\s+BY|\\s+LIMIT|$)');
+                            Matcher whereMatcher = wherePattern.matcher(clausesPart);
+                            if (whereMatcher.find()) {
+                                nodeConfig.put('where', whereMatcher.group(1).trim());
+                            }
                             Pattern orderPattern = Pattern.compile('(?i)ORDER\\s+BY\\s+(.+?)(?:\\s+LIMIT|$)');
                             Matcher orderMatcher = orderPattern.matcher(clausesPart);
                             if (orderMatcher.find()) {
                                 nodeConfig.put('orderBy', orderMatcher.group(1).trim());
+                            }
+                            Pattern limitPattern = Pattern.compile('(?i)LIMIT\\s+(\\d+)');
+                            Matcher limitMatcher = limitPattern.matcher(clausesPart);
+                            if (limitMatcher.find()) {
+                                nodeConfig.put('limit', limitMatcher.group(1).trim());
                             }
                         }
                         childNodes.put(relName, nodeConfig);
@@ -771,7 +781,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      * @return List of record IDs in sort order
      */
     @AuraEnabled
-    public static List<Id> getSortedChildIds(String childObject, String lookupField, Id parentId, String orderByClause) {
+    public static List<Id> getSortedChildIds(String childObject, String lookupField, Id parentId, String orderByClause, String whereClause) {
         // Validate object name
         if (Schema.getGlobalDescribe().get(childObject) == null) {
             throw DocGenService.ahe(new DocGenException('Invalid object: ' + childObject), 'Invalid child object.');
@@ -790,9 +800,23 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             }
         }
 
+        // Sanitize WHERE clause if provided
+        if (String.isNotBlank(whereClause)) {
+            if (whereClause.contains(';') || whereClause.contains('--') || whereClause.contains('/*')) {
+                throw new DocGenException('Invalid WHERE clause.');
+            }
+            String normalizedWhere = whereClause.replaceAll('\\s+', ' ').toUpperCase().trim();
+            for (String kw : new List<String>{ 'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'DROP ', 'SELECT ' }) {
+                if (normalizedWhere.contains(kw)) {
+                    throw new DocGenException('Invalid WHERE clause: disallowed keyword.');
+                }
+            }
+        }
+
         String query = 'SELECT Id FROM ' + String.escapeSingleQuotes(childObject) +
-            ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :parentId' +
-            ' ORDER BY ' + orderByClause;
+            ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :parentId';
+        if (String.isNotBlank(whereClause)) { query += ' AND ' + whereClause; }
+        query += ' ORDER BY ' + orderByClause;
 
         List<Id> sortedIds = new List<Id>();
         for (SObject rec : Database.query(query, AccessLevel.USER_MODE)) { // NOPMD ApexSOQLInjection — object validated by Schema; orderBy sanitized; USER_MODE enforced
@@ -1361,6 +1385,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         List<String> childFields = new List<String>();
         List<String> parentFields = new List<String>();
         String orderBy = null;
+        String whereClause = null;
+        String limitVal = null;
 
         // Find the subquery in the config string
         Pattern subqPattern = Pattern.compile('(?i)\\(\\s*SELECT\\s+(.+?)\\s+FROM\\s+' + Pattern.quote(relationshipName) + '([^)]*)\\)');
@@ -1380,11 +1406,25 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 }
             }
 
+            // Extract WHERE (before ORDER BY / LIMIT)
+            Pattern wherePattern = Pattern.compile('(?i)\\s*WHERE\\s+(.+?)(?:\\s+ORDER\\s+BY|\\s+LIMIT|$)');
+            Matcher whereMatcher = wherePattern.matcher(clausesPart);
+            if (whereMatcher.find()) {
+                whereClause = whereMatcher.group(1).trim();
+            }
+
             // Extract ORDER BY
             Pattern orderPattern = Pattern.compile('(?i)ORDER\\s+BY\\s+(.+?)(?:\\s+LIMIT|$)');
             Matcher orderMatcher = orderPattern.matcher(clausesPart);
             if (orderMatcher.find()) {
                 orderBy = orderMatcher.group(1).trim();
+            }
+
+            // Extract LIMIT
+            Pattern limitPattern = Pattern.compile('(?i)LIMIT\\s+(\\d+)');
+            Matcher limitMatcher = limitPattern.matcher(clausesPart);
+            if (limitMatcher.find()) {
+                limitVal = limitMatcher.group(1).trim();
             }
         }
 
@@ -1395,6 +1435,12 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             'fields' => childFields,
             'parentFields' => parentFields
         };
+        if (String.isNotBlank(whereClause)) {
+            nodeConfig.put('where', whereClause);
+        }
+        if (String.isNotBlank(limitVal)) {
+            nodeConfig.put('limit', limitVal);
+        }
         if (String.isNotBlank(orderBy)) {
             nodeConfig.put('orderBy', orderBy);
         }

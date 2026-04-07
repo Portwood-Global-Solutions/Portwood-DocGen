@@ -31,6 +31,8 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
     private String outputFormat;
     private String giantRelationshipName;
     private String orderByClause;
+    private String whereClause;
+    private String limitClause;
     private List<List<Id>> sortedIdChunks;
 
     public DocGenGiantQueryBatch(Id jobId, Id templateId, Id recordId, Map<String, Object> childNodeConfig, String innerXml, String outputFormat) {
@@ -68,6 +70,20 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         if (String.isNotBlank(rawOrderBy)) {
             this.orderByClause = sanitizeOrderByClause(rawOrderBy);
         }
+
+        // Read and sanitize WHERE clause from config
+        String rawWhere = (String) childNodeConfig.get('where');
+        if (rawWhere == null) { rawWhere = (String) childNodeConfig.get('whereClause'); }
+        if (String.isNotBlank(rawWhere)) {
+            this.whereClause = sanitizeWhereClause(rawWhere);
+        }
+
+        // Read and sanitize LIMIT clause from config
+        String rawLimit = childNodeConfig.get('limit') != null ? String.valueOf(childNodeConfig.get('limit')) : null;
+        if (rawLimit == null) { rawLimit = childNodeConfig.get('limitClause') != null ? String.valueOf(childNodeConfig.get('limitClause')) : null; }
+        if (String.isNotBlank(rawLimit) && rawLimit.trim().isNumeric()) {
+            this.limitClause = rawLimit.trim();
+        }
     }
 
     public Iterable<String> start(Database.BatchableContext bc) {
@@ -78,8 +94,10 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             // This lets execute() page through globally-sorted chunks instead of
             // cursor-based Id order. Costs one lightweight Id-only query (<50K rows).
             String sortQuery = 'SELECT Id FROM ' + String.escapeSingleQuotes(childObjectName) +
-                ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId' +
-                ' ORDER BY ' + orderByClause;
+                ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+            if (String.isNotBlank(whereClause)) { sortQuery += ' AND ' + whereClause; }
+            sortQuery += ' ORDER BY ' + orderByClause;
+            if (String.isNotBlank(limitClause)) { sortQuery += ' LIMIT ' + limitClause; }
 
             List<SObject> sortedRecords = Database.query(sortQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — object/field validated by Schema.getGlobalDescribe; orderBy sanitized by sanitizeOrderByClause(); runs with USER_MODE
 
@@ -108,6 +126,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             // Original cursor-based path (no sort requested)
             String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjectName) +
                 ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+            if (String.isNotBlank(whereClause)) { countQuery += ' AND ' + whereClause; }
             Integer totalChildren = Database.countQuery(countQuery, AccessLevel.USER_MODE);
 
             Integer totalPages = (Integer) Math.ceil((Decimal) totalChildren / batchSize);
@@ -169,6 +188,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 String query = 'SELECT ' + String.join(selectFields, ', ') +
                     ' FROM ' + String.escapeSingleQuotes(childObjectName) +
                     ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                if (String.isNotBlank(whereClause)) { query += ' AND ' + whereClause; }
                 if (lastCursorId != null) {
                     query += ' AND Id > :lastCursorId';
                 }
@@ -371,6 +391,28 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
      * Rejects injection vectors (statement terminators, comments, DML keywords,
      * subqueries). Mirrors DocGenDataRetriever.sanitizeClause() logic.
      */
+    /**
+     * Sanitizes a WHERE clause for use in dynamic SOQL.
+     * Mirrors DocGenDataRetriever.sanitizeClause() logic.
+     */
+    private static String sanitizeWhereClause(String clause) {
+        if (String.isBlank(clause)) { return null; }
+        if (clause.contains(';') || clause.contains('--') || clause.contains('/*')) {
+            throw new DocGenException('Invalid WHERE clause in query config.');
+        }
+        String normalized = clause.replaceAll('\\s+', ' ').toUpperCase().trim();
+        List<String> disallowed = new List<String>{
+            'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
+            'DROP ', 'ALTER ', 'CREATE ', 'GRANT ', 'REVOKE ', 'SELECT '
+        };
+        for (String keyword : disallowed) {
+            if (normalized.contains(keyword)) {
+                throw new DocGenException('Invalid WHERE clause: disallowed keyword detected.');
+            }
+        }
+        return clause;
+    }
+
     private static String sanitizeOrderByClause(String clause) {
         if (String.isBlank(clause)) { return null; }
         // Reject statement terminators and comments
