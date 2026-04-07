@@ -13,6 +13,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
     private Id templateId;
     private Id recordId;
     private String giantRelationshipName;
+    private String colGroupHtml = '';
 
     public DocGenGiantQueryAssembler(Id jobId, Id templateId, Id recordId, String giantRelationshipName) {
         this.jobId = jobId;
@@ -85,7 +86,11 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         // Insert </table><table> breaks every ROWS_PER_PDF_CHUNK rows to prevent
         // Flying Saucer's "Maximum stack depth" error on very large tables.
         // This keeps everything in ONE Blob.toPdf() call — no gap between chunks.
-        allRows = insertTableBreaks(allRows, ROWS_PER_PDF_CHUNK);
+        // Prepend colgroup to rows so the first table also gets fixed column widths
+        if (String.isNotBlank(this.colGroupHtml)) {
+            allRows = this.colGroupHtml + allRows;
+        }
+        allRows = insertTableBreaks(allRows, ROWS_PER_PDF_CHUNK, this.colGroupHtml);
 
         String html = injectRowsIntoTemplate(htmlTemplate, allRows);
         allRows = null;
@@ -161,12 +166,17 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         try {
             Map<String, Object> cfg = DocGenService.extractGiantQueryFragmentConfig(templateId, giantRelationshipName);
             columnCss = cfg.get('columnCss') != null ? (String) cfg.get('columnCss') : '';
+            // Parse column widths from the template's <w:tblGrid>
+            String tblPropsXml = cfg.get('tablePropertiesXml') != null ? (String) cfg.get('tablePropertiesXml') : '';
+            if (tblPropsXml.contains('<w:tblGrid')) {
+                this.colGroupHtml = buildColGroupFromTblGrid(tblPropsXml);
+            }
         } catch (Exception e) { String noop = e.getMessage(); } // NOPMD EmptyCatchBlock
 
         if (html != null) {
             if (html.contains('</style>')) {
                 html = html.replace('</style>',
-                    'td, th { border: 0.5pt solid #ccc; padding: 3px 5px; } th { background-color: #f0f0f0; font-weight: bold; } tr { page-break-inside: avoid; } ' +
+                    'table { table-layout: fixed; } td, th { border: 0.5pt solid #ccc; padding: 3px 5px; } th { background-color: #f0f0f0; font-weight: bold; } tr { page-break-inside: avoid; } ' +
                     columnCss + '</style>');
             }
 
@@ -194,7 +204,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             html = '<html><head><style>' +
                 '@page { size: letter; margin: 0.75in; }' +
                 'body { font-family: Helvetica, sans-serif; font-size: 9pt; margin: 0; }' +
-                'table { width: 100%; border-collapse: collapse; }' +
+                'table { width: 100%; border-collapse: collapse; table-layout: fixed; }' +
                 'td, th { border: 0.5pt solid #ccc; padding: 3px 5px; }' +
                 'th { background-color: #f0f0f0; font-weight: bold; }' +
                 'tr { page-break-inside: avoid; }' +
@@ -361,16 +371,86 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
     }
 
     /**
+     * Builds a <colgroup> with percentage column widths from the template's
+     * <w:tblGrid><w:gridCol w:w="2400"/>...</w:tblGrid> XML.
+     * Widths are in twips (1440 = 1 inch). Converts to percentages of total width.
+     */
+    private static String buildColGroupFromTblGrid(String tblPropsXml) {
+        List<Integer> colWidths = new List<Integer>();
+        Integer totalWidth = 0;
+
+        Integer gridStart = tblPropsXml.indexOf('<w:tblGrid');
+        Integer gridEnd = tblPropsXml.indexOf('</w:tblGrid>');
+        if (gridStart == -1 || gridEnd == -1) { return ''; }
+
+        String gridXml = tblPropsXml.substring(gridStart, gridEnd);
+        Integer scanPos = 0;
+        while (scanPos < gridXml.length()) {
+            Integer colStart = gridXml.indexOf('<w:gridCol', scanPos);
+            if (colStart == -1) { break; }
+            Integer wStart = gridXml.indexOf('w:w="', colStart);
+            if (wStart == -1) { break; }
+            wStart += 5;
+            Integer wEnd = gridXml.indexOf('"', wStart);
+            if (wEnd == -1) { break; }
+            try {
+                Integer w = Integer.valueOf(gridXml.substring(wStart, wEnd));
+                colWidths.add(w);
+                totalWidth += w;
+            } catch (Exception e) {
+                String noop = e.getMessage(); // NOPMD
+            }
+            scanPos = wEnd + 1;
+        }
+
+        if (colWidths.isEmpty() || totalWidth == 0) { return ''; }
+
+        String colGroup = '<colgroup>';
+        for (Integer w : colWidths) {
+            Decimal pct = (Decimal.valueOf(w) / Decimal.valueOf(totalWidth) * 100).setScale(1);
+            colGroup += '<col style="width:' + pct + '%">';
+        }
+        colGroup += '</colgroup>';
+        return colGroup;
+    }
+
+    /**
      * Inserts </table><table> breaks every N rows into the row HTML.
      * This resets Flying Saucer's DOM tree depth without splitting into
      * separate PDF files, keeping the output as one continuous document.
      */
-    private static String insertTableBreaks(String allRows, Integer rowsPerBreak) {
+    private static String insertTableBreaks(String allRows, Integer rowsPerBreak, String colGroupHtml) {
         if (String.isBlank(allRows)) { return allRows; }
 
         final String TR_CLOSE = '</tr>';
         final Integer trCloseLen = TR_CLOSE.length();
-        final String TABLE_BREAK = '</table><table style="width:100%;border-collapse:collapse;">';
+
+        // Use template column widths if available, otherwise calculate equal widths from first row
+        String colGroup = String.isNotBlank(colGroupHtml) ? colGroupHtml : '';
+        if (String.isBlank(colGroup)) {
+            Integer colCount = 0;
+            Integer firstTrEnd = allRows.indexOf(TR_CLOSE);
+            if (firstTrEnd != -1) {
+                String firstRow = allRows.substring(0, firstTrEnd);
+                Integer tdIdx = 0;
+                while (tdIdx < firstRow.length()) {
+                    Integer tdStart = firstRow.indexOf('<td', tdIdx);
+                    if (tdStart == -1) { break; }
+                    colCount++;
+                    tdIdx = tdStart + 3;
+                }
+            }
+            if (colCount > 0) {
+                String colWidth = String.valueOf((100.0 / colCount).setScale(2)) + '%';
+                colGroup = '<colgroup>';
+                for (Integer i = 0; i < colCount; i++) {
+                    colGroup += '<col style="width:' + colWidth + '">';
+                }
+                colGroup += '</colgroup>';
+            }
+        }
+
+        final String TABLE_BREAK = '</table><table style="width:100%;border-collapse:collapse;table-layout:fixed;">' + colGroup;
 
         // Build result with table breaks inserted at row boundaries.
         // Use List<String> + join instead of string concatenation for heap efficiency.
