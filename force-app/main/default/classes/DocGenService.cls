@@ -1210,6 +1210,14 @@ public with sharing class DocGenService {
         shellCv.FirstPublishLocationId = versionId;
         newCvs.add(shellCv);
 
+        // Insert image + XML CVs BEFORE building pre-baked HTML, so buildPdfImageMap
+        // can find the image ContentVersions via SOQL.
+        if (!newCvs.isEmpty()) {
+            SObjectAccessDecision preDec = Security.stripInaccessible(AccessType.CREATABLE, newCvs);
+            insert preDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            newCvs.clear();
+        }
+
         // Pre-bake HTML version of the template for Giant Query PDF.
         // Loop tags ({#Rel}...{/Rel}) are preserved as HTML comments so the
         // assembler can find and replace them with rendered data at generation time.
@@ -1239,7 +1247,7 @@ public with sharing class DocGenService {
                 htmlMr.documentXml = docXml;
                 htmlMr.processedXmlEntries.put('word/document.xml', docXml);
 
-                // Build image map for template-embedded images
+                // Build image map — image CVs were inserted above so SOQL can find them
                 Map<String, String> pdfImages = buildPdfImageMap(htmlMr, templateId);
                 if (htmlMr.processedXmlEntries.containsKey('word/styles.xml')) {
                     DocGenHtmlRenderer.stylesXml = htmlMr.processedXmlEntries.get('word/styles.xml');
