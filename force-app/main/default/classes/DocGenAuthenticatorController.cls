@@ -6,7 +6,7 @@ public without sharing class DocGenAuthenticatorController {
     @AuraEnabled
     @RemoteAction
     public static VerificationResult verifyDocument(String fileHash) {
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */  // Guest user context — access gated by token validation
+        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Audit__c> audits = [
             SELECT Id, Signed_Date__c, IP_Address__c, Signer_Name__c, Signer_Email__c,
                    Consent_Captured__c, PIN_Verified_At__c, Document_Hash_SHA256__c
@@ -42,7 +42,7 @@ public without sharing class DocGenAuthenticatorController {
     @AuraEnabled
     @RemoteAction
     public static List<VerificationResult> verifyByRequestId(String requestId) {
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */  // Guest user context — access gated by token validation
+        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Audit__c> audits = [
             SELECT Id, Signed_Date__c, IP_Address__c, Signer_Name__c, Signer_Email__c,
                    Consent_Captured__c, PIN_Verified_At__c, Document_Hash_SHA256__c, Error_Message__c,
