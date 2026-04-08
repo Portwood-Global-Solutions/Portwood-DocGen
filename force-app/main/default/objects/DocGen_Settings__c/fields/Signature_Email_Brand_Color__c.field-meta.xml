@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Signature_Email_Brand_Color__c</fullName>
+    <defaultValue>&quot;#0176D3&quot;</defaultValue>
+    <description>Hex color code for the primary button and accent color in signature request emails. Default: Salesforce blue (#0176D3).</description>
+    <label>Signature Email Brand Color</label>
+    <length>7</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

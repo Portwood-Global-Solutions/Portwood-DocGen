@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>PIN_Verified_At__c</fullName>
+    <description>Timestamp when the signer successfully verified their email PIN. Stored for audit trail.</description>
+    <externalId>false</externalId>
+    <label>PIN Verified At</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

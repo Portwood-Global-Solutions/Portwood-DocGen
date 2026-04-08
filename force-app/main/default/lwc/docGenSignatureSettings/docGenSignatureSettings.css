@@ -1,0 +1,40 @@
+.email-preview {
+    border: 1px solid #dddbda;
+    border-radius: 6px;
+    overflow: hidden;
+    max-width: 480px;
+    margin: 0 auto;
+    font-size: 0.8125rem;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.preview-header {
+    text-align: center;
+}
+
+.preview-body {
+    padding: 1rem 1.25rem;
+    color: #333;
+}
+
+.preview-body p {
+    margin: 0 0 0.5rem 0;
+    line-height: 1.4;
+}
+
+.preview-msg {
+    color: #555;
+}
+
+.preview-footer {
+    background: #f8f9fa;
+    border-top: 1px solid #e5e5e5;
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    color: #999;
+    font-size: 0.75rem;
+}
+
+.preview-btn {
+    cursor: default;
+}

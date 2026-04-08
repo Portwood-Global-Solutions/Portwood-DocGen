@@ -47,13 +47,16 @@ export default class DocGenCommandHub extends LightningElement {
 
     get isTemplates() { return this.activeSection === 'templates'; }
     get isBulk() { return this.activeSection === 'bulk'; }
+    get isSignatures() { return this.activeSection === 'signatures'; }
     get isHelp() { return this.activeSection === 'help'; }
     get templatesTabClass() { return this.activeSection === 'templates' ? 'tab-active' : ''; }
     get bulkTabClass() { return this.activeSection === 'bulk' ? 'tab-active' : ''; }
+    get signaturesTabClass() { return this.activeSection === 'signatures' ? 'tab-active' : ''; }
     get helpTabClass() { return this.activeSection === 'help' ? 'tab-active' : ''; }
 
     handleShowTemplates() { this.activeSection = 'templates'; }
     handleShowBulk() { this.activeSection = 'bulk'; }
+    handleShowSignatures() { this.activeSection = 'signatures'; }
     handleShowHelp() { this.activeSection = 'help'; }
 
     handleDismissBanner() { this.showBanner = false; this.bannerDismissed = true; }

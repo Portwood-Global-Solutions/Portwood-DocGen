@@ -1,0 +1,21 @@
+<apex:component >
+    <style>
+        .dg-footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 2rem; text-align: center; color: #475569; font-size: 0.8rem; }
+        .dg-footer a { color: #60a5fa; text-decoration: none; } .dg-footer a:hover { text-decoration: underline; }
+        .dg-footer-links { margin-bottom: 0.75rem; }
+        .dg-footer-links a { margin: 0 0.75rem; }
+    </style>
+    <footer class="dg-footer">
+        <div class="dg-footer-links">
+            <a href="/DocGenLanding">Home</a>
+            <a href="/DocGenGuide">User Guide</a>
+            <a href="/DocGenCommunity">Community</a>
+            <a href="/DocGenRoadmap">Roadmap</a>
+            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
+            <a href="/DocGenSupport">Support the Project</a>
+            <a href="/DocGenTerms">Terms</a>
+            <a href="/DocGenPrivacy">Privacy</a>
+        </div>
+        <p>Built by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
+    </footer>
+</apex:component>

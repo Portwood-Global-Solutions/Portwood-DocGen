@@ -1,0 +1,741 @@
+<apex:page controller="DocGenSignatureController" showHeader="false" sidebar="false"
+           standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false" docType="html-5.0">
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Document Signature</title>
+    <apex:slds />
+
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background-color: #f3f2f2;
+            font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #181818;
+        }
+        .page-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        /* Card Container */
+        .sig-card {
+            max-width: 640px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+        .sig-card h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 0.25rem 0;
+        }
+        .sig-card .subtitle {
+            font-size: 0.875rem;
+            color: #706e6b;
+            margin: 0 0 1.25rem 0;
+        }
+
+        /* Form inputs */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #3e3e3c;
+            margin-bottom: 0.25rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #dddbda;
+            border-radius: 4px;
+            font-size: 0.9375rem;
+            font-family: inherit;
+            color: #181818;
+            transition: border-color 0.15s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #0176d3;
+            box-shadow: 0 0 0 1px #0176d3;
+        }
+        .form-input::placeholder { color: #b0adab; }
+
+        /* PIN input */
+        .pin-input {
+            font-size: 1.5rem;
+            letter-spacing: 8px;
+            text-align: center;
+            font-family: monospace;
+            max-width: 200px;
+        }
+        .pin-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Consent checkbox */
+        .consent-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e5e5e5;
+        }
+        .consent-row input[type="checkbox"] {
+            margin-top: 0.2rem;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .consent-row label {
+            font-size: 0.8125rem;
+            color: #3e3e3c;
+            line-height: 1.4;
+            cursor: pointer;
+        }
+
+        /* Typed name preview */
+        .signature-preview {
+            border: 2px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            background: #fafafa;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .signature-preview .typed-name {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 1.75rem;
+            font-style: italic;
+            color: #181818;
+        }
+        .signature-preview .placeholder-text {
+            color: #b0adab;
+            font-style: italic;
+            font-size: 0.875rem;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1.25rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid #dddbda;
+            background: #ffffff;
+            color: #181818;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn:hover { background: #f3f2f2; }
+        .btn-brand {
+            background: #0176d3;
+            color: #ffffff;
+            border-color: #0176d3;
+        }
+        .btn-brand:hover { background: #014486; }
+        .btn-brand:disabled {
+            background: #c9c7c5;
+            border-color: #c9c7c5;
+            cursor: not-allowed;
+        }
+
+        /* Document Preview Panel */
+        .doc-preview-panel {
+            border: 1px solid #dddbda;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #ffffff;
+        }
+        .doc-preview-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #0176d3;
+            border-bottom: 1px solid #dddbda;
+            background: #f8fafc;
+            border-radius: 8px 8px 0 0;
+        }
+        .doc-preview-toggle:hover { background: #eef4fb; }
+        .doc-preview-toggle .chevron { transition: transform 0.2s; }
+        .doc-preview-toggle.collapsed .chevron { transform: rotate(-90deg); }
+        .doc-preview-toggle.collapsed + .doc-preview-content { display: none; }
+        .doc-preview-content {
+            padding: 1rem;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+        }
+        .doc-preview-content img { max-width: 100%; }
+
+        /* Info/success/error messages */
+        .msg { padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.8125rem; margin-bottom: 1rem; }
+        .msg-info { background: #eef4fb; border: 1px solid #0176d3; color: #014486; }
+        .msg-success { background: #e8f5e1; border: 1px solid #2e844a; color: #2e844a; }
+        .msg-error { background: #fef0ef; border: 1px solid #ea001e; color: #ea001e; }
+
+        /* Role Badge */
+        .role-badge {
+            display: inline-block;
+            background: #0176d3;
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .progress-info {
+            font-size: 0.8125rem;
+            color: #706e6b;
+            margin: 0.25rem 0 1rem 0;
+        }
+
+        /* State cards */
+        .error-card, .success-card, .waiting-card, .processing-card {
+            max-width: 480px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+        }
+        .error-card { border: 1px solid #fca5a5; }
+        .error-icon { font-size: 3rem; color: #ea001e; margin-bottom: 0.5rem; }
+        .error-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #ea001e; }
+        .error-card p { color: #706e6b; margin: 0; }
+
+        .success-card { border: 1px solid #91db8b; }
+        .success-icon { font-size: 3rem; color: #2e844a; margin-bottom: 0.5rem; }
+        .success-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #2e844a; }
+        .success-card p { color: #706e6b; margin: 0; }
+
+        .waiting-card { border: 1px solid #ffd27a; }
+        .waiting-icon { font-size: 3rem; color: #fe9339; margin-bottom: 0.5rem; }
+        .waiting-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #fe9339; }
+        .waiting-card p { color: #706e6b; margin: 0; }
+
+        .processing-card { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .processing-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0.75rem 0 0.5rem 0; }
+        .processing-card p { color: #706e6b; margin: 0; }
+
+        /* Spinner */
+        .spinner-container { display: flex; justify-content: center; align-items: center; padding: 2rem; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #dddbda;
+            border-top-color: #0176d3;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Resend link */
+        .resend-link {
+            color: #0176d3;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.8125rem;
+        }
+        .resend-link:hover { color: #014486; }
+        .resend-link.disabled { color: #b0adab; cursor: not-allowed; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+
+        <!-- STATE: Loading -->
+        <div id="state-loading">
+            <div class="spinner-container"><div class="spinner"></div></div>
+        </div>
+
+        <!-- STATE: Error -->
+        <div id="state-error" style="display:none">
+            <div class="error-card">
+                <div class="error-icon">&#9888;</div>
+                <h2>Signature Error</h2>
+                <p id="error-message"></p>
+            </div>
+        </div>
+
+        <!-- STATE: Email Verification -->
+        <div id="state-verify" style="display:none">
+            <div class="sig-card">
+                <h2 id="verify-doc-title"></h2>
+                <p class="subtitle">Verify your email to continue</p>
+
+                <div id="verify-msg"></div>
+
+                <div class="form-group">
+                    <label for="verify-email">Email Address</label>
+                    <input id="verify-email" type="email" class="form-input" placeholder="Enter your email address" />
+                </div>
+
+                <div id="pin-section" style="display:none">
+                    <div class="form-group">
+                        <label for="verify-pin">Verification Code</label>
+                        <div class="pin-row">
+                            <input id="verify-pin" type="text" class="form-input pin-input" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]{6}" />
+                            <button id="btn-verify-pin" class="btn btn-brand" type="button">Verify</button>
+                        </div>
+                    </div>
+                    <p id="resend-link" class="resend-link disabled">Resend code</p>
+                </div>
+
+                <div class="btn-row">
+                    <button id="btn-send-pin" class="btn btn-brand" type="button">Send Verification Code</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATE: Signature (typed name + consent) -->
+        <div id="state-signature" style="display:none">
+            <div class="sig-card">
+                <h2 id="doc-title"></h2>
+                <p class="subtitle">
+                    Signing as: <strong id="signer-name"></strong>
+                    <span id="role-badge" class="role-badge" style="display:none"></span>
+                </p>
+                <p id="progress-info" class="progress-info" style="display:none"></p>
+
+                <!-- Document Preview -->
+                <div id="doc-preview-panel" class="doc-preview-panel">
+                    <div id="doc-preview-toggle" class="doc-preview-toggle">
+                        <span>&#128196; Review Document Before Signing</span>
+                        <span class="chevron">&#9660;</span>
+                    </div>
+                    <div id="doc-preview-content" class="doc-preview-content">
+                        <div style="text-align:center;color:#706e6b;font-size:0.8125rem;">Loading document preview...</div>
+                    </div>
+                </div>
+
+                <!-- Typed Name -->
+                <div class="form-group">
+                    <label for="typed-name">Type your full name to sign</label>
+                    <input id="typed-name" type="text" class="form-input" placeholder="e.g., John Smith" autocomplete="name" />
+                </div>
+
+                <!-- Signature Preview -->
+                <div class="signature-preview">
+                    <span id="sig-preview-name" class="typed-name" style="display:none"></span>
+                    <span id="sig-preview-placeholder" class="placeholder-text">Your signature will appear here</span>
+                </div>
+
+                <!-- Consent -->
+                <div class="consent-row">
+                    <input id="consent-checkbox" type="checkbox" />
+                    <label for="consent-checkbox">
+                        I agree to sign this document electronically. I understand that my typed name constitutes
+                        my legal electronic signature, and I consent to conducting this transaction electronically.
+                    </label>
+                </div>
+
+                <div class="btn-row">
+                    <button id="btn-submit" class="btn btn-brand" type="button" disabled="disabled">Sign Document</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATE: Processing -->
+        <div id="state-processing" style="display:none">
+            <div class="processing-card">
+                <div class="spinner-container" style="padding:0.5rem"><div class="spinner"></div></div>
+                <h2>Processing Signature</h2>
+                <p id="processing-status">Finalizing your signature...</p>
+            </div>
+        </div>
+
+        <!-- STATE: Success -->
+        <div id="state-success" style="display:none">
+            <div class="success-card">
+                <div class="success-icon">&#10003;</div>
+                <h2>Signature Complete</h2>
+                <p>Your document has been signed and processed securely. You may close this window.</p>
+            </div>
+        </div>
+
+        <!-- STATE: Waiting -->
+        <div id="state-waiting" style="display:none">
+            <div class="waiting-card">
+                <div class="waiting-icon">&#10003;</div>
+                <h2>Signature Recorded</h2>
+                <p id="waiting-message">Your signature has been recorded. Waiting for other signers to complete.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        // ===== STATE MANAGEMENT =====
+        var stateIds = ['loading', 'error', 'verify', 'signature', 'processing', 'success', 'waiting'];
+        function showState(name) {
+            for (var i = 0; i < stateIds.length; i++) {
+                document.getElementById('state-' + stateIds[i]).style.display = (stateIds[i] === name) ? '' : 'none';
+            }
+        }
+        function showError(msg) {
+            document.getElementById('error-message').textContent = msg;
+            showState('error');
+        }
+        function showVerifyMsg(msg, type) {
+            var el = document.getElementById('verify-msg');
+            el.innerHTML = '<div class="msg msg-' + type + '">' + msg + '</div>';
+        }
+
+        // ===== TOKEN FROM URL =====
+        var urlParams = new URLSearchParams(window.location.search);
+        var token = urlParams.get('token');
+
+        if (!token) {
+            showError('Invalid or missing security token. Please check your signature link.');
+            return;
+        }
+
+        // ===== GLOBAL STATE =====
+        var signerData = null;
+        var isMultiSigner = false;
+        var resendTimer = null;
+
+        // ===== STEP 1: VALIDATE TOKEN =====
+        Visualforce.remoting.Manager.invokeAction(
+            '{!$RemoteAction.DocGenSignatureController.validateToken}',
+            token,
+            function(result, event) {
+                if (event.status && result && result.isValid) {
+                    signerData = result;
+                    if (result.requiresPin) {
+                        initVerifyScreen(result);
+                    } else {
+                        initSignatureScreen(result);
+                    }
+                } else {
+                    var msg = (result && result.errorMessage) ? result.errorMessage : 'This signature request is no longer active.';
+                    showError(msg);
+                }
+            },
+            { escape: false }
+        );
+
+        // ===== EMAIL VERIFICATION SCREEN =====
+        function initVerifyScreen(data) {
+            document.getElementById('verify-doc-title').textContent = data.documentTitle || 'Document Signature';
+            // Pre-fill email with masked version
+            if (data.signerEmail) {
+                var parts = data.signerEmail.split('@');
+                var masked = parts[0].substring(0, 2) + '***@' + parts[1];
+                document.getElementById('verify-email').placeholder = 'Enter: ' + masked;
+            }
+            showState('verify');
+
+            document.getElementById('btn-send-pin').addEventListener('click', handleSendPin);
+            document.getElementById('btn-verify-pin').addEventListener('click', handleVerifyPin);
+            document.getElementById('resend-link').addEventListener('click', handleResendPin);
+
+            // Allow Enter key in PIN input
+            document.getElementById('verify-pin').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') handleVerifyPin();
+            });
+            document.getElementById('verify-email').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') handleSendPin();
+            });
+        }
+
+        function handleSendPin() {
+            var email = document.getElementById('verify-email').value.trim();
+            if (!email) {
+                showVerifyMsg('Please enter your email address.', 'error');
+                return;
+            }
+
+            var btn = document.getElementById('btn-send-pin');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenSignatureController.sendPin}',
+                token,
+                email,
+                function(result, event) {
+                    btn.disabled = false;
+                    btn.textContent = 'Send Verification Code';
+                    if (event.status && result) {
+                        if (result.success) {
+                            showVerifyMsg(result.message, 'success');
+                            document.getElementById('pin-section').style.display = '';
+                            btn.style.display = 'none';
+                            startResendTimer();
+                        } else {
+                            showVerifyMsg(result.message, 'error');
+                        }
+                    } else {
+                        showVerifyMsg('Failed to send verification code. Please try again.', 'error');
+                    }
+                },
+                { escape: false }
+            );
+        }
+
+        function handleVerifyPin() {
+            var pin = document.getElementById('verify-pin').value.trim();
+            if (!pin || pin.length !== 6) {
+                showVerifyMsg('Please enter the 6-digit code from your email.', 'error');
+                return;
+            }
+
+            var btn = document.getElementById('btn-verify-pin');
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenSignatureController.verifyPin}',
+                token,
+                pin,
+                function(result, event) {
+                    btn.disabled = false;
+                    btn.textContent = 'Verify';
+                    if (event.status && result) {
+                        if (result.success) {
+                            initSignatureScreen(signerData);
+                        } else {
+                            showVerifyMsg(result.message, 'error');
+                        }
+                    } else {
+                        showVerifyMsg('Verification failed. Please try again.', 'error');
+                    }
+                },
+                { escape: false }
+            );
+        }
+
+        function handleResendPin() {
+            var link = document.getElementById('resend-link');
+            if (link.classList.contains('disabled')) return;
+            handleSendPin2();
+        }
+
+        function handleSendPin2() {
+            var email = document.getElementById('verify-email').value.trim();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenSignatureController.sendPin}',
+                token,
+                email,
+                function(result, event) {
+                    if (event.status && result && result.success) {
+                        showVerifyMsg('New verification code sent.', 'success');
+                        startResendTimer();
+                    } else {
+                        showVerifyMsg(result ? result.message : 'Failed to resend code.', 'error');
+                    }
+                },
+                { escape: false }
+            );
+        }
+
+        function startResendTimer() {
+            var link = document.getElementById('resend-link');
+            link.classList.add('disabled');
+            var seconds = 60;
+            link.textContent = 'Resend code (' + seconds + 's)';
+            if (resendTimer) clearInterval(resendTimer);
+            resendTimer = setInterval(function() {
+                seconds--;
+                if (seconds <= 0) {
+                    clearInterval(resendTimer);
+                    link.classList.remove('disabled');
+                    link.textContent = 'Resend code';
+                } else {
+                    link.textContent = 'Resend code (' + seconds + 's)';
+                }
+            }, 1000);
+        }
+
+        // ===== SIGNATURE SCREEN =====
+        function initSignatureScreen(data) {
+            document.getElementById('doc-title').textContent = data.documentTitle || 'Confidential Document';
+            document.getElementById('signer-name').textContent = data.signerName || '';
+
+            if (data.roleName) {
+                var badge = document.getElementById('role-badge');
+                badge.textContent = data.roleName;
+                badge.style.display = 'inline-block';
+            }
+
+            var totalSigners = data.totalSigners || 1;
+            var signedCount = data.signedCount || 0;
+            isMultiSigner = data.isSignerToken === true;
+
+            if (isMultiSigner) {
+                var progressEl = document.getElementById('progress-info');
+                progressEl.textContent = 'Signer ' + (signedCount + 1) + ' of ' + totalSigners;
+                progressEl.style.display = 'block';
+            }
+
+            showState('signature');
+            loadDocumentPreview();
+
+            // Toggle preview panel
+            document.getElementById('doc-preview-toggle').addEventListener('click', function() {
+                this.classList.toggle('collapsed');
+            });
+
+            // Typed name → signature preview
+            var nameInput = document.getElementById('typed-name');
+            var previewName = document.getElementById('sig-preview-name');
+            var previewPlaceholder = document.getElementById('sig-preview-placeholder');
+
+            nameInput.addEventListener('input', function() {
+                var val = this.value.trim();
+                if (val) {
+                    previewName.textContent = val;
+                    previewName.style.display = '';
+                    previewPlaceholder.style.display = 'none';
+                } else {
+                    previewName.style.display = 'none';
+                    previewPlaceholder.style.display = '';
+                }
+                updateSubmitState();
+            });
+
+            // Consent checkbox
+            document.getElementById('consent-checkbox').addEventListener('change', updateSubmitState);
+
+            // Submit button
+            document.getElementById('btn-submit').addEventListener('click', handleSubmit);
+        }
+
+        function updateSubmitState() {
+            var nameVal = document.getElementById('typed-name').value.trim();
+            var consentVal = document.getElementById('consent-checkbox').checked;
+            document.getElementById('btn-submit').disabled = !(nameVal && consentVal);
+        }
+
+        // ===== DOCUMENT PREVIEW =====
+        function loadDocumentPreview() {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenSignatureController.fetchDocumentData}',
+                token,
+                function(result, event) {
+                    var contentEl = document.getElementById('doc-preview-content');
+                    if (event.status && result && result.templateBase64) {
+                        contentEl.innerHTML = result.templateBase64;
+                    } else {
+                        contentEl.innerHTML = '<p style="color:#706e6b;text-align:center;">Document preview unavailable.</p>';
+                    }
+                },
+                { escape: false, buffer: false, timeout: 60000 }
+            );
+        }
+
+        // ===== STEP 2: SUBMIT SIGNATURE =====
+        function handleSubmit() {
+            var typedName = document.getElementById('typed-name').value.trim();
+            var consentGiven = document.getElementById('consent-checkbox').checked;
+
+            if (!typedName || !consentGiven) return;
+            showState('processing');
+
+            // User agent captured client-side; IP captured server-side via request headers
+            var ipAddress = '';
+            var userAgent = navigator.userAgent || 'Unknown';
+
+            if (isMultiSigner) {
+                document.getElementById('processing-status').textContent = 'Saving your signature...';
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.DocGenSignatureController.saveSignature}',
+                    token,
+                    typedName,
+                    consentGiven,
+                    ipAddress,
+                    userAgent,
+                    function(result, event) {
+                        if (!event.status) {
+                            showError('Save failed: ' + (event.message || 'Unknown error'));
+                            return;
+                        }
+                        if (result.isComplete) {
+                            document.getElementById('processing-status').textContent = 'All signatures collected. Generating final PDF...';
+                            callStampAndSave(typedName);
+                        } else {
+                            var msg = 'Your signature has been recorded. Waiting for ' +
+                                result.remaining + ' more signer' + (result.remaining > 1 ? 's' : '') +
+                                ' to complete.';
+                            document.getElementById('waiting-message').textContent = msg;
+                            showState('waiting');
+                        }
+                    },
+                    { escape: false, buffer: false, timeout: 120000 }
+                );
+            } else {
+                document.getElementById('processing-status').textContent = 'Saving signature...';
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.DocGenSignatureController.saveLegacySignature}',
+                    token,
+                    typedName,
+                    function(saveResult, saveEvent) {
+                        if (!saveEvent.status) {
+                            showError('Save failed: ' + (saveEvent.message || 'Unknown error'));
+                            return;
+                        }
+                        document.getElementById('processing-status').textContent = 'Generating signed PDF...';
+                        callStampAndSave(typedName);
+                    },
+                    { escape: false, buffer: false, timeout: 120000 }
+                );
+            }
+        }
+
+        function callStampAndSave(typedName) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenSignatureController.stampAndReturnSource}',
+                token,
+                typedName,
+                function(result, event) {
+                    if (!event.status) {
+                        showError('Processing failed: ' + (event.message || 'Unknown error'));
+                        return;
+                    }
+                    showState('success');
+                },
+                { escape: false, buffer: false, timeout: 120000 }
+            );
+        }
+    })();
+    </script>
+</body>
+</html>
+</apex:page>

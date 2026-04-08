@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>PIN_Expires_At__c</fullName>
+    <description>Timestamp when the current PIN expires. PINs are valid for 10 minutes.</description>
+    <externalId>false</externalId>
+    <label>PIN Expires At</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

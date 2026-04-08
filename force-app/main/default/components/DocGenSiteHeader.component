@@ -1,0 +1,22 @@
+<apex:component >
+    <style>
+        .dg-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+        .dg-header .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; color: #fff; text-decoration: none; } .dg-header .logo span { color: #60a5fa; }
+        .dg-header .nav a { color: #94a3b8; margin-left: 1.5rem; font-size: 0.9rem; font-weight: 500; text-decoration: none; } .dg-header .nav a:hover { color: #fff; }
+        .dg-header .nav .support { color: #fbbf24; } .dg-header .nav .support:hover { color: #fde68a; }
+        .dg-header .nav .install { color: #60a5fa; } .dg-header .nav .install:hover { color: #93c5fd; }
+        @media (max-width: 768px) { .dg-header { flex-direction: column; gap: 0.5rem; } .dg-header .nav a { margin-left: 0.75rem; } }
+    </style>
+    <header class="dg-header">
+        <a href="/DocGenLanding" class="logo">Portwood <span>DocGen</span></a>
+        <nav class="nav">
+            <a href="/DocGenLanding">Home</a>
+            <a href="/DocGenGuide">User Guide</a>
+            <a href="/DocGenLearn">Learn</a>
+            <a href="/DocGenRoadmap">Roadmap</a>
+            <a href="/DocGenCommunity">Community</a>
+            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
+            <a href="/DocGenSupport" class="support">Support the Project</a>
+        </nav>
+    </header>
+</apex:component>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Signature_Email_Subject__c</fullName>
+    <defaultValue>&quot;Action Required: Please Sign {DocumentTitle}&quot;</defaultValue>
+    <description>Email subject line for signature requests. Supports merge fields: {DocumentTitle}, {SignerName}, {SenderName}. Default: "Action Required: Please Sign {DocumentTitle}"</description>
+    <label>Signature Email Subject</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

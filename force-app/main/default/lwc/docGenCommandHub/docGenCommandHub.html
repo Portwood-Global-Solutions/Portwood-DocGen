@@ -20,6 +20,10 @@
                     <lightning-icon icon-name="utility:layers" size="x-small" class="nav-icon"></lightning-icon>
                     <span>Bulk Generation</span>
                 </button>
+                <button class={signaturesTabClass} onclick={handleShowSignatures}>
+                    <lightning-icon icon-name="utility:edit_form" size="x-small" class="nav-icon"></lightning-icon>
+                    <span>Signatures</span>
+                </button>
                 <button class={helpTabClass} onclick={handleShowHelp}>
                     <lightning-icon icon-name="utility:knowledge_base" size="x-small" class="nav-icon"></lightning-icon>
                     <span>Learning Center</span>
@@ -66,38 +70,110 @@
                         </div>
                     </template>
 
+                    <!-- SIGNATURES -->
+                    <template if:true={isSignatures}>
+                        <div class="panel-header">
+                            <h2>Signature Settings</h2>
+                            <p>Configure email branding, site URL, and signature behavior.</p>
+                        </div>
+                        <div class="panel-body">
+                            <c-doc-gen-signature-settings></c-doc-gen-signature-settings>
+                        </div>
+                    </template>
+
                     <!-- HELP / LEARNING CENTER -->
                     <template if:true={isHelp}>
                         <div class="learning-workspace">
-                            
-                            <!-- Detailed Sidebar (No Emojis) -->
+
+                            <!-- Sidebar Navigation -->
                             <aside class="learning-sidebar">
                                 <div class="sidebar-section">
                                     <h3>Getting Started</h3>
                                     <nav class="learning-nav">
-                                        <a href="#intro" class="nav-item">Introduction</a>
-                                        <a href="#quickstart" class="nav-item">Quick Start</a>
+                                        <a href="#overview" class="nav-item">Overview</a>
+                                        <a href="#installation" class="nav-item">Installation &amp; Setup</a>
+                                        <a href="#quick-start" class="nav-item">Quick Start</a>
                                     </nav>
                                 </div>
 
                                 <div class="sidebar-section">
-                                    <h3>User Guide</h3>
+                                    <h3>Templates</h3>
                                     <nav class="learning-nav">
-                                        <a href="#syntax" class="nav-item">Template Syntax</a>
-                                        <a href="#formatting" class="nav-item">Data Formatting</a>
-                                        <a href="#images" class="nav-item">Images & Barcodes</a>
-                                        <a href="#loops" class="nav-item">Loops & Page Breaks</a>
-                                        <a href="#pdfmerge" class="nav-item">PDF Merger</a>
+                                        <a href="#creating-templates" class="nav-item">Creating Templates</a>
+                                        <a href="#query-builder" class="nav-item">Query Builder</a>
+                                        <a href="#template-formats" class="nav-item">Template Formats</a>
+                                        <a href="#versioning" class="nav-item">Versioning</a>
+                                        <a href="#import-export" class="nav-item">Import &amp; Export</a>
                                     </nav>
                                 </div>
 
                                 <div class="sidebar-section">
-                                    <h3>Power Users</h3>
+                                    <h3>Merge Tags</h3>
                                     <nav class="learning-nav">
-                                        <a href="#flow" class="nav-item">Flow Automation</a>
-                                        <a href="#bulk-docs" class="nav-item">Bulk Strategies</a>
-                                        <a href="#admin" class="nav-item">Sharing & Versions</a>
-                                        <a href="#limits" class="nav-item">Limits & Workarounds</a>
+                                        <a href="#field-tags" class="nav-item">Field Tags</a>
+                                        <a href="#parent-lookups" class="nav-item">Parent Lookups</a>
+                                        <a href="#child-loops" class="nav-item">Child Loops</a>
+                                        <a href="#repeating-tables" class="nav-item">Repeating Tables</a>
+                                        <a href="#conditionals" class="nav-item">Conditionals</a>
+                                        <a href="#formatting" class="nav-item">Formatting</a>
+                                        <a href="#aggregates" class="nav-item">Aggregates</a>
+                                        <a href="#images" class="nav-item">Images</a>
+                                        <a href="#barcodes-qr" class="nav-item">Barcodes/QR</a>
+                                        <a href="#rich-text" class="nav-item">Rich Text</a>
+                                        <a href="#page-breaks" class="nav-item">Page Breaks</a>
+                                    </nav>
+                                </div>
+
+                                <div class="sidebar-section">
+                                    <h3>PDF Features</h3>
+                                    <nav class="learning-nav">
+                                        <a href="#cover-pages" class="nav-item">Cover Pages</a>
+                                        <a href="#headers-footers" class="nav-item">Headers/Footers</a>
+                                        <a href="#page-numbers" class="nav-item">Page Numbers</a>
+                                        <a href="#pdf-vs-docx" class="nav-item">PDF vs DOCX</a>
+                                        <a href="#pdf-fonts" class="nav-item">PDF Fonts</a>
+                                        <a href="#pdf-limitations" class="nav-item">PDF Limitations</a>
+                                        <a href="#rtl" class="nav-item">RTL Languages</a>
+                                    </nav>
+                                </div>
+
+                                <div class="sidebar-section">
+                                    <h3>E-Signatures</h3>
+                                    <nav class="learning-nav">
+                                        <a href="#sig-overview" class="nav-item">Overview</a>
+                                        <a href="#sig-templates" class="nav-item">Template Setup</a>
+                                        <a href="#sig-flow" class="nav-item">Signing Flow</a>
+                                        <a href="#sig-verify" class="nav-item">Verification</a>
+                                        <a href="#sig-admin" class="nav-item">Admin Setup</a>
+                                    </nav>
+                                </div>
+
+                                <div class="sidebar-section">
+                                    <h3>Document Generation</h3>
+                                    <nav class="learning-nav">
+                                        <a href="#generate-single" class="nav-item">Generate from Record</a>
+                                        <a href="#document-packets" class="nav-item">Document Packets</a>
+                                        <a href="#pdf-merge" class="nav-item">PDF Merge</a>
+                                        <a href="#bulk-generation" class="nav-item">Bulk Generation</a>
+                                        <a href="#giant-query" class="nav-item">Giant Query</a>
+                                    </nav>
+                                </div>
+
+                                <div class="sidebar-section">
+                                    <h3>Automation</h3>
+                                    <nav class="learning-nav">
+                                        <a href="#flow-actions" class="nav-item">Flow Actions</a>
+                                        <a href="#apex-provider" class="nav-item">Apex Data Provider</a>
+                                    </nav>
+                                </div>
+
+                                <div class="sidebar-section">
+                                    <h3>Admin</h3>
+                                    <nav class="learning-nav">
+                                        <a href="#permissions" class="nav-item">Permissions</a>
+                                        <a href="#governor-limits" class="nav-item">Governor Limits</a>
+                                        <a href="#known-limitations" class="nav-item">Known Limitations</a>
+                                        <a href="#troubleshooting" class="nav-item">Troubleshooting</a>
                                     </nav>
                                 </div>
 
@@ -109,215 +185,1055 @@
                                         <button class="pill-tag" data-tag="\{Amount:currency}" onclick={handleCopyTag}>&#123;Amount:currency&#125;</button>
                                         <button class="pill-tag" data-tag="loop-contacts" onclick={handleCopyTag}>&#123;#List&#125;...&#123;/List&#125;</button>
                                         <button class="pill-tag" data-tag="\{*Barcode}" onclick={handleCopyTag}>&#123;*Barcode&#125;</button>
+                                        <button class="pill-tag" data-tag="\{@Signature_Buyer}" onclick={handleCopyTag}>&#123;@Signature_Buyer&#125;</button>
                                     </div>
                                 </div>
                             </aside>
 
                             <!-- Right: Content -->
                             <div class="learning-content">
-                                <section id="intro" class="content-section">
+
+                                <!-- ============================================ -->
+                                <!-- GETTING STARTED -->
+                                <!-- ============================================ -->
+
+                                <section id="overview" class="content-section">
                                     <div class="content-header">
-                                        <h2>Welcome to DocGen</h2>
-                                        <p>A 100% native document generation engine for Salesforce professionals.</p>
+                                        <h2>DocGen User Guide</h2>
+                                        <p>Everything you need to create templates, generate documents, and automate document workflows in Salesforce.</p>
                                     </div>
-                                    <p>DocGen is designed to bridge the gap between complex Salesforce data and professional document layouts. It lets you use Microsoft Word, Excel, and PowerPoint as your design tools, while DocGen handles the data mapping, bulk generation, and PDF conversion.</p>
+
+                                    <div class="card-tip">
+                                        <strong>What is DocGen?</strong>
+                                        <p>DocGen generates PDFs, Word docs, Excel spreadsheets, and PowerPoint decks by merging live Salesforce data into your templates. 100% native, zero external dependencies, runs entirely on the Salesforce platform.</p>
+                                    </div>
                                 </section>
 
-                                <!-- Quick Start -->
-                                <section id="quickstart" class="content-section">
-                                    <h3 class="section-heading">Quick Start Path</h3>
+                                <section id="installation" class="content-section">
+                                    <h3 class="section-heading">Installation &amp; Setup</h3>
                                     <div class="step-visual">
                                         <div class="step-card">
                                             <div class="num">1</div>
-                                            <strong>Design</strong>
-                                            <p>Create your .docx, .xlsx, or .pptx layout.</p>
+                                            <strong>Install</strong>
+                                            <p>Install the package from the landing page or GitHub. Choose "Install for Admins Only" to start.</p>
                                         </div>
                                         <div class="step-card">
                                             <div class="num">2</div>
-                                            <strong>Map</strong>
-                                            <p>Pick your Salesforce fields in the Template Manager.</p>
+                                            <strong>Permissions</strong>
+                                            <p>Go to Setup &gt; Permission Sets and assign <strong>DocGen Admin</strong> or <strong>DocGen User</strong> to your users.</p>
                                         </div>
                                         <div class="step-card">
                                             <div class="num">3</div>
-                                            <strong>Run</strong>
-                                            <p>Deploy to a record page and click "Generate".</p>
+                                            <strong>Release Update</strong>
+                                            <p>Go to Setup &gt; Release Updates and enable "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations".</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Add Component</strong>
+                                            <p>Edit any Lightning Record Page, drag the <code>docGenRunner</code> component onto the layout, save and activate.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">5</div>
+                                            <strong>Open App</strong>
+                                            <p>Use the App Launcher to find "DocGen" -- this is the Command Hub where admins create and manage templates.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="card-tip warning">
+                                        <strong>Required:</strong> The Blob.toPdf() Release Update must be enabled for PDF generation. Without it, PDFs render incorrectly. This is opt-in until Summer '26 when Salesforce enforces it for all orgs.
+                                    </div>
+                                </section>
+
+                                <section id="quick-start" class="content-section">
+                                    <h3 class="section-heading">Quick Start</h3>
+                                    <div class="step-visual">
+                                        <div class="step-card">
+                                            <div class="num">1</div>
+                                            <strong>Create</strong>
+                                            <p>In the DocGen app, click Create New. Name it, choose your object, and select a sample record for preview.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">2</div>
+                                            <strong>Query</strong>
+                                            <p>Type your SOQL in the editor. Add merge tags to your Word file: <code>&#123;Name&#125;</code>, <code>&#123;Account.Name&#125;</code>, <code>&#123;#Contacts&#125;&#123;FirstName&#125;&#123;/Contacts&#125;</code>.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">3</div>
+                                            <strong>Upload</strong>
+                                            <p>Upload a <code>.docx</code>, <code>.xlsx</code>, or <code>.pptx</code> file containing your merge tags. Use the Copy-Paste Tags panel to see all available tags.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Generate</strong>
+                                            <p>Go to any record page with the DocGen component, select your template, and click Generate. Done.</p>
                                         </div>
                                     </div>
                                 </section>
 
-                                <!-- Syntax -->
-                                <section id="syntax" class="content-section">
-                                    <h3 class="section-heading">Template Syntax & Logic</h3>
-                                    <p>The DocGen engine parses your files and replaces tags with live data. Most tags are simple field API names wrapped in curly braces.</p>
-                                    
+                                <!-- ============================================ -->
+                                <!-- TEMPLATES -->
+                                <!-- ============================================ -->
+
+                                <section id="creating-templates" class="content-section">
+                                    <h3 class="section-heading">Creating Templates</h3>
+                                    <p>Templates are created in the DocGen Command Hub (the DocGen app tab). The wizard walks you through three steps:</p>
+
                                     <div class="card-tip">
-                                        <strong>Smart Table Detection</strong>
-                                        <p>If you place a loop tag (<code>&#123;#List&#125;</code>) inside a table row in Word, DocGen automatically duplicates that entire row for every record in the list.</p>
+                                        <strong>Step 1 -- Name &amp; Configure</strong>
+                                        <p>Give your template a name, select the type (Word, Excel, or PowerPoint), choose the output format (PDF or Native), and pick the base Salesforce object. Optionally select a sample record -- this powers the live data preview on step 2. You can also add a category and description for organization.</p>
                                     </div>
 
-                                    <table class="doc-table">
-                                        <thead>
-                                            <tr><th>Tag Type</th><th>Description</th><th>Example</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr><td><strong>Merge Field</strong></td><td>Pulls from the base record or parent lookup.</td><td><code>&#123;Account.Name&#125;</code></td></tr>
-                                            <tr><td><strong>Child Loop</strong></td><td>Repeats content for every record in a related list.</td><td><code>&#123;#Contacts&#125;...&#123;/Contacts&#125;</code></td></tr>
-                                            <tr><td><strong>Conditional</strong></td><td>Shows content only if a checkbox is checked.</td><td><code>&#123;#IsVIP&#125;Show Me!&#123;/IsVIP&#125;</code></td></tr>
-                                            <tr><td><strong>Aggregates</strong></td><td>Compute totals outside of a loop block.</td><td><code>&#123;SUM:Items.TotalPrice&#125;</code></td></tr>
-                                        </tbody>
-                                    </table>
-                                </section>
-
-                                <!-- Formatting -->
-                                <section id="formatting" class="content-section">
-                                    <h3 class="section-heading">Data Formatting</h3>
-                                    <p>Use the colon (:) syntax to apply professional formatting to dates, numbers, and currencies.</p>
-                                    <div class="format-grid">
-                                        <div class="format-item"><code>&#123;CloseDate:MM/dd/yyyy&#125;</code> <span>03/23/2026</span></div>
-                                        <div class="format-item"><code>&#123;Amount:currency&#125;</code> <span>$50,000.00</span></div>
-                                        <div class="format-item"><code>&#123;Rate:percent&#125;</code> <span>15.5%</span></div>
-                                        <div class="format-item"><code>&#123;Quantity:number&#125;</code> <span>1,234</span></div>
+                                    <div class="card-tip">
+                                        <strong>Step 2 -- Build Your Query</strong>
+                                        <p>Type your SOQL query directly in the editor. As you type, inline autocomplete suggests fields from the object schema. Type <code>Owner.</code> to see User fields, type <code>(</code> to see child relationships. You can also paste a full SOQL statement -- DocGen automatically strips the <code>SELECT ... FROM</code> wrapper and keeps just the field list.</p>
+                                        <p>If you selected a sample record on step 1, a live preview tree appears showing real values from your query: field names with actual data, child records in mini-tables.</p>
                                     </div>
-                                </section>
 
-                                <!-- Images & Barcodes (Refined) -->
-                                <section id="images" class="content-section">
-                                    <h3 class="section-heading">Images & Barcodes</h3>
-                                    <p>Insert dynamic images and scannable barcodes directly into your Word-to-PDF workflows.</p>
-                                    
+                                    <div class="card-tip">
+                                        <strong>Step 3 -- Upload Your File</strong>
+                                        <p>Upload a <code>.docx</code>, <code>.xlsx</code>, or <code>.pptx</code> file containing merge tags. The <strong>Copy-Paste Tags</strong> panel shows all available tags from your query -- including nested child and grandchild fields at every level. Click any tag to copy it, then paste into your template file.</p>
+                                    </div>
+
                                     <div class="card-tip info">
-                                        <strong>Image Tip:</strong> Use a <strong>ContentVersion ID</strong> (starting with 068) in a text field for the most reliable image rendering.
-                                    </div>
-
-                                    <table class="doc-table">
-                                        <thead>
-                                            <tr><th>Feature</th><th>Tag Example</th><th>Result</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td><strong>Images</strong></td>
-                                                <td><code>&#123;%Logo_ID__c:200x60&#125;</code></td>
-                                                <td>Inserts image at specific size.</td>
-                                            </tr>
-                                            <tr>
-                                                <td><strong>Barcodes</strong></td>
-                                                <td><code>&#123;*ProductCode&#125;</code></td>
-                                                <td>Renders a Code 128 barcode.</td>
-                                            </tr>
-                                            <tr>
-                                                <td><strong>QR Codes</strong></td>
-                                                <td><code>&#123;*WebsiteURL:qr:150&#125;</code></td>
-                                                <td>Renders a 150px QR code.</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </section>
-
-                                <!-- Loops & Page Breaks -->
-                                <section id="loops" class="content-section">
-                                    <h3 class="section-heading">Loops & Page Breaks</h3>
-                                    <p>Need a separate page for every child record (like individual invoices)?</p>
-                                    <div class="pro-tip-box">
-                                        <strong>The Page Break Trick:</strong>
-                                        <ol>
-                                            <li>Start your loop: <code>&#123;#Opportunities&#125;</code></li>
-                                            <li>Design your page layout.</li>
-                                            <li>Insert a standard <strong>Word Page Break</strong> (Ctrl+Enter).</li>
-                                            <li>Add your closing tag: <code>&#123;/Opportunities&#125;</code></li>
-                                        </ol>
+                                        <strong>Tip:</strong> Set a <strong>Document Title Format</strong> in the template settings to auto-name generated files. Use merge tags like <code>Invoice_&#123;Name&#125;_&#123;CloseDate&#125;</code>. The generated file will be named using real data from the record.
                                     </div>
                                 </section>
 
-                                <!-- PDF Merge -->
-                                <section id="pdfmerge" class="content-section">
-                                    <h3 class="section-heading">PDF Merger</h3>
-                                    <p>Combine multiple documents using the built-in PDF engine.</p>
+                                <section id="query-builder" class="content-section">
+                                    <h3 class="section-heading">Query Builder</h3>
+                                    <p>The query builder is a manual-first SOQL editor with smart suggestions. Type your query directly -- no drag-and-drop, no multi-panel UI.</p>
+
                                     <ul class="bullet-list">
-                                        <li><strong>Generate & Merge:</strong> Append existing PDFs from the record.</li>
-                                        <li><strong>Document Packets:</strong> Merge multiple templates into one file.</li>
-                                        <li><strong>Related Files:</strong> Combine individual PDFs from child records.</li>
-                                        <li><strong>Bulk Merge:</strong> Merge every generated result from a bulk job.</li>
+                                        <li><strong>Inline Autocomplete</strong> -- Start typing a field name and suggestions appear from the object schema. Click to insert with auto-comma formatting.</li>
+                                        <li><strong>Context-Aware</strong> -- Type <code>Owner.</code> and it loads User fields. Type <code>(</code> and it shows child relationships. Inside a subquery like <code>(SELECT ... FROM Contacts)</code>, it suggests Contact fields.</li>
+                                        <li><strong>Paste Full SOQL</strong> -- Paste a complete <code>SELECT ... FROM ... WHERE</code> statement directly. DocGen auto-strips the SELECT/FROM wrapper and keeps the field list.</li>
+                                        <li><strong>Nested Subqueries</strong> -- Build multi-level relationships at any depth: Account &gt; Opportunities &gt; Line Items &gt; Schedules.</li>
+                                        <li><strong>Parent Lookups</strong> -- Use dot notation for related fields: <code>Account.Name</code>, <code>Owner.Email</code>, <code>Account.Owner.Name</code></li>
+                                        <li><strong>Child Subqueries</strong> -- Add subqueries with optional WHERE, ORDER BY, and LIMIT: <code>(SELECT FirstName, LastName FROM Contacts WHERE Active__c = true ORDER BY LastName LIMIT 100)</code></li>
+                                        <li><strong>Sample Record Preview</strong> -- Pick a sample record on step 1, and step 2 shows real values from your query in a structured tree with child records in mini-tables.</li>
+                                        <li><strong>Trailing Comma Cleanup</strong> -- Trailing commas are auto-stripped when clicking Next.</li>
                                     </ul>
                                 </section>
 
-                                <!-- Flow -->
-                                <section id="flow" class="content-section">
-                                    <h3 class="section-heading">Automation with Flow</h3>
-                                    <p>Trigger document creation automatically using Flow Actions.</p>
+                                <section id="template-formats" class="content-section">
+                                    <h3 class="section-heading">Template Formats</h3>
+                                    <p>DocGen supports three template formats. Word is the most capable.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Format</th><th>Template File</th><th>Output Options</th><th>Best For</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><strong>Word</strong></td><td><code>.docx</code></td><td>PDF or DOCX</td><td>Contracts, proposals, invoices, letters</td></tr>
+                                            <tr><td><strong>Excel</strong></td><td><code>.xlsx</code></td><td>XLSX</td><td>Data exports, reports, financial summaries</td></tr>
+                                            <tr><td><strong>PowerPoint</strong></td><td><code>.pptx</code></td><td>PPTX</td><td>Presentations, slide decks</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Word is the only format that supports images, barcodes, QR codes, rich text, headers/footers, and PDF output. Excel and PowerPoint support all merge tags and formatting but output in their native format only.</p>
+                                </section>
+
+                                <section id="versioning" class="content-section">
+                                    <h3 class="section-heading">Template Versioning</h3>
+                                    <p>Every time you upload a new file, a new version is created. You can view version history, download any version, and restore a previous version at any time. The most recent upload is always the active version.</p>
+                                </section>
+
+                                <section id="import-export" class="content-section">
+                                    <h3 class="section-heading">Import &amp; Export Templates</h3>
+                                    <p>Move templates between orgs using the portable <code>.docgen.json</code> format:</p>
+
+                                    <ul class="bullet-list">
+                                        <li><strong>Export:</strong> Click the row action menu on any template &gt; Export. Downloads a JSON file with all metadata, query config, and the template file.</li>
+                                        <li><strong>Import:</strong> Click Import Template in the Command Hub, upload the JSON file. The template is recreated with all settings intact.</li>
+                                    </ul>
+
+                                    <div class="card-tip info">
+                                        <strong>Tip:</strong> This is the easiest way to move templates from sandbox to production, or to share templates with other orgs.
+                                    </div>
+                                </section>
+
+                                <!-- ============================================ -->
+                                <!-- MERGE TAGS -->
+                                <!-- ============================================ -->
+
+                                <section id="field-tags" class="content-section">
+                                    <h3 class="section-heading">Field Tags</h3>
+                                    <p>Place tags in your Word, Excel, or PowerPoint template. DocGen replaces them with live Salesforce data at generation time.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type in Template</th><th>What Appears in Output</th><th>Notes</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;Name&#125;</code></td><td>Acme Corporation</td><td>Standard field</td></tr>
+                                            <tr><td><code>&#123;Email&#125;</code></td><td>john@acme.com</td><td>Any standard field</td></tr>
+                                            <tr><td><code>&#123;Phone&#125;</code></td><td>(317) 555-0100</td><td>Phone fields</td></tr>
+                                            <tr><td><code>&#123;Custom_Field__c&#125;</code></td><td>Gold Tier</td><td>Custom fields use API name</td></tr>
+                                            <tr><td><code>&#123;CreatedDate&#125;</code></td><td>2026-03-18T14:30:00.000Z</td><td>Raw date (add format -- see below)</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>Tip:</strong> The tag inherits whatever font, size, color, and style you apply to it in your Word template. If you make <code>&#123;Name&#125;</code> bold and 14pt in your file, the output value will be bold and 14pt.
+                                    </div>
+                                </section>
+
+                                <section id="parent-lookups" class="content-section">
+                                    <h3 class="section-heading">Parent Lookups</h3>
+                                    <p>Pull data from related records using dot notation. Add these fields in your query on step 2 (e.g., <code>Account.Name, Owner.Email</code>).</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What It Fetches</th><th>Example Output</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;Account.Name&#125;</code></td><td>Parent Account name</td><td>Acme Corporation</td></tr>
+                                            <tr><td><code>&#123;Owner.Email&#125;</code></td><td>Record owner's email</td><td>dave@company.com</td></tr>
+                                            <tr><td><code>&#123;Account.Owner.Name&#125;</code></td><td>Account's owner (2 levels up)</td><td>Dave Moudy</td></tr>
+                                            <tr><td><code>&#123;CreatedBy.Name&#125;</code></td><td>Who created the record</td><td>Admin User</td></tr>
+                                            <tr><td><code>&#123;Account.BillingCity&#125;</code></td><td>Parent's billing city</td><td>Indianapolis</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>You can go multiple levels deep -- just make sure each level is in your query: <code>Account.Name, Account.Owner.Name, Account.Owner.Email</code></p>
+                                </section>
+
+                                <section id="child-loops" class="content-section">
+                                    <h3 class="section-heading">Child Record Loops</h3>
+                                    <p>Repeat a section of your document for each child record. Use <code>&#123;#RelationshipName&#125;</code> to start the loop and <code>&#123;/RelationshipName&#125;</code> to end it. The relationship name matches your SOQL subquery.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type in Template</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;#Contacts&#125;</code><br/>Name: <code>&#123;FirstName&#125;</code> <code>&#123;LastName&#125;</code> -- <code>&#123;Title&#125;</code><br/><code>&#123;/Contacts&#125;</code></td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What Appears in Output (3 Contacts)</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Name: John Smith -- VP Sales<br/>Name: Sarah Johnson -- CEO<br/>Name: Mike Chen -- CTO</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Everything between <code>&#123;#Contacts&#125;</code> and <code>&#123;/Contacts&#125;</code> repeats once per child record. This works with paragraphs, bullet points, table rows -- any content block.</p>
+                                </section>
+
+                                <section id="repeating-tables" class="content-section">
+                                    <h3 class="section-heading">Repeating Table Rows</h3>
+                                    <p>The most common use of child loops. Put <code>&#123;#ChildName&#125;</code> in the first cell and <code>&#123;/ChildName&#125;</code> in the last cell of the <strong>same data row</strong>. The header row stays fixed.</p>
+
+                                    <p><strong>What you type in your Word template:</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Total</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;#OpportunityLineItems&#125;&#123;Name&#125;</code></td><td><code>&#123;Quantity&#125;</code></td><td><code>&#123;UnitPrice:currency&#125;</code></td><td><code>&#123;TotalPrice:currency&#125;&#123;/OpportunityLineItems&#125;</code></td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p><strong>What appears in the generated document:</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Total</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Enterprise License</td><td>10</td><td>$5,000.00</td><td>$50,000.00</td></tr>
+                                            <tr><td>Implementation Services</td><td>1</td><td>$15,000.00</td><td>$15,000.00</td></tr>
+                                            <tr><td>Annual Support</td><td>10</td><td>$1,000.00</td><td>$10,000.00</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>Key rule:</strong> The opening tag <code>&#123;#...&#125;</code> goes in the <strong>first cell</strong> and the closing tag <code>&#123;/...&#125;</code> goes in the <strong>last cell</strong> of the same row. The header row is never touched. All table formatting (borders, shading, column widths) carries through to every generated row.
+                                    </div>
+                                </section>
+
+                                <section id="conditionals" class="content-section">
+                                    <h3 class="section-heading">Conditional Sections</h3>
+                                    <p>Show or hide content based on a field value. Same syntax as loops, but with a boolean or text field instead of a child relationship.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>When It Shows</th><th>When It's Hidden</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;#IsActive&#125;Active customer&#123;/IsActive&#125;</code></td><td>Field is <strong>true</strong></td><td>Field is <strong>false</strong></td></tr>
+                                            <tr><td><code>&#123;#Description&#125;See notes: &#123;Description&#125;&#123;/Description&#125;</code></td><td>Field has a value</td><td>Field is blank/null</td></tr>
+                                            <tr><td><code>&#123;#HasDiscount&#125;Discount applied!&#123;/HasDiscount&#125;</code></td><td>Checkbox is checked</td><td>Checkbox is unchecked</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>The entire block -- including any text, tables, or images between the tags -- is removed from the output when the condition is false or blank.</p>
+                                </section>
+
+                                <section id="formatting" class="content-section">
+                                    <h3 class="section-heading">Date &amp; Number Formatting</h3>
+                                    <p>Add a format specifier after a colon to control how values display:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Appears</th><th>Format Type</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;CloseDate:MM/dd/yyyy&#125;</code></td><td>03/18/2026</td><td>US date</td></tr>
+                                            <tr><td><code>&#123;CloseDate:dd/MM/yyyy&#125;</code></td><td>18/03/2026</td><td>International date</td></tr>
+                                            <tr><td><code>&#123;CreatedDate:MMMM d, yyyy&#125;</code></td><td>March 18, 2026</td><td>Long date</td></tr>
+                                            <tr><td><code>&#123;Amount:currency&#125;</code></td><td>$500,000.00</td><td>Currency</td></tr>
+                                            <tr><td><code>&#123;Rate:percent&#125;</code></td><td>15.5%</td><td>Percentage</td></tr>
+                                            <tr><td><code>&#123;Quantity:number&#125;</code></td><td>1,234</td><td>Number with commas</td></tr>
+                                            <tr><td><code>&#123;Price:#,##0.00&#125;</code></td><td>1,234.56</td><td>Custom decimal format</td></tr>
+                                        </tbody>
+                                    </table>
+                                </section>
+
+                                <section id="aggregates" class="content-section">
+                                    <h3 class="section-heading">Aggregates (SUM, COUNT, AVG)</h3>
+                                    <p>Compute totals from child record lists. Place these <strong>outside</strong> the loop -- typically below a table of line items.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Appears</th><th>How It Works</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;SUM:OpportunityLineItems.TotalPrice:currency&#125;</code></td><td>$75,000.00</td><td>Adds up TotalPrice from all line items</td></tr>
+                                            <tr><td><code>&#123;COUNT:Contacts&#125;</code></td><td>3</td><td>Number of child Contacts</td></tr>
+                                            <tr><td><code>&#123;AVG:OpportunityLineItems.UnitPrice:currency&#125;</code></td><td>$7,000.00</td><td>Average unit price across line items</td></tr>
+                                            <tr><td><code>&#123;MIN:OpportunityLineItems.Quantity&#125;</code></td><td>1</td><td>Smallest quantity</td></tr>
+                                            <tr><td><code>&#123;MAX:OpportunityLineItems.Quantity&#125;</code></td><td>10</td><td>Largest quantity</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>The pattern is <code>&#123;FUNCTION:RelationshipName.FieldName&#125;</code>. Add <code>:currency</code> or <code>:number</code> at the end for formatting.</p>
+
+                                    <div class="card-tip info">
+                                        <strong>Zero extra SOQL</strong> -- aggregates are computed from child data already in memory. No additional queries needed.
+                                    </div>
+
+                                    <p><strong>Full invoice example putting it all together:</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;#OpportunityLineItems&#125;&#123;Name&#125;</code></td><td><code>&#123;Quantity&#125;</code></td><td><code>&#123;UnitPrice:currency&#125;</code></td><td><code>&#123;TotalPrice:currency&#125;&#123;/OpportunityLineItems&#125;</code></td></tr>
+                                            <tr><td colspan="3"><strong>Grand Total:</strong></td><td><code>&#123;SUM:OpportunityLineItems.TotalPrice:currency&#125;</code></td></tr>
+                                        </tbody>
+                                    </table>
+                                </section>
+
+                                <section id="images" class="content-section">
+                                    <h3 class="section-heading">Dynamic Images</h3>
+                                    <p>Insert images from Salesforce Files into your document. Store a ContentVersion ID (starts with <code>068</code>) in a text field on the record, then reference it with the <code>%</code> prefix:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Happens</th><th>Use Case</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;%Logo__c&#125;</code></td><td>Image at original size</td><td>General use</td></tr>
+                                            <tr><td><code>&#123;%Logo__c:200x60&#125;</code></td><td>Fixed at 200px wide, 60px tall</td><td>Letterhead logo</td></tr>
+                                            <tr><td><code>&#123;%Logo__c:100%x&#125;</code></td><td>Full page width, auto height</td><td>Banner image</td></tr>
+                                            <tr><td><code>&#123;%Logo__c:m100%x&#125;</code></td><td>Shrink to fit page, never upscale</td><td>Variable-size images</td></tr>
+                                            <tr><td><code>&#123;%Logo__c:m100%xm50%&#125;</code></td><td>Max width + max height</td><td>Constrained area</td></tr>
+                                            <tr><td><code>&#123;%Photo__c:150x150&#125;</code></td><td>Square thumbnail</td><td>Contact photo</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Dynamic images work in both PDF and DOCX output. You can also embed static images directly in your Word template (company logos, watermarks, etc.) -- they render in PDFs automatically without any tags.</p>
+                                </section>
+
+                                <section id="barcodes-qr" class="content-section">
+                                    <h3 class="section-heading">Barcodes &amp; QR Codes</h3>
+                                    <p>Render scannable codes from any field value. <strong>PDF output only</strong> -- no external services required.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Appears</th><th>Use Case</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;*ProductCode&#125;</code></td><td>Code 128 barcode (default size)</td><td>Product labels</td></tr>
+                                            <tr><td><code>&#123;*SKU:code128:300x80&#125;</code></td><td>Barcode at 300px x 80px</td><td>Shipping labels</td></tr>
+                                            <tr><td><code>&#123;*Website:qr&#125;</code></td><td>QR code at 150px square</td><td>Link to website</td></tr>
+                                            <tr><td><code>&#123;*TrackingUrl:qr:200&#125;</code></td><td>QR code at 200px square</td><td>Package tracking</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>QR codes support up to 255 characters. Both types render as pure CSS -- generated entirely in Apex, no external services needed.</p>
+                                </section>
+
+                                <section id="rich-text" class="content-section">
+                                    <h3 class="section-heading">Rich Text Fields</h3>
+                                    <p>Rich Text Area fields automatically preserve formatting. Just use a standard tag -- no special syntax:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Appears</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;Description&#125;</code></td><td>The field content with <strong>bold</strong>, <em>italic</em>, bulleted lists, numbered lists, images, hyperlinks, and tables -- all preserved.</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Works in both PDF and DOCX output. Images inside rich text fields render in PDFs. PowerPoint strips rich text to plain text.</p>
+                                </section>
+
+                                <section id="page-breaks" class="content-section">
+                                    <h3 class="section-heading">Page Breaks in Loops</h3>
+                                    <p>Generate one page per child record by inserting a Word page break inside the loop:</p>
+
+                                    <div class="pro-tip-box">
+                                        <strong>The Page Break Pattern:</strong>
+                                        <ol>
+                                            <li>Start your loop: <code>&#123;#Opportunities&#125;</code></li>
+                                            <li>Design your page layout with merge tags.</li>
+                                            <li>Insert a standard Word Page Break (Insert &gt; Page Break in Word).</li>
+                                            <li>Add your closing tag: <code>&#123;/Opportunities&#125;</code></li>
+                                        </ol>
+                                    </div>
+
+                                    <p>Each child record gets its own full page. Works with any child loop -- invoices, receipts, certificates, packing slips.</p>
+                                </section>
+
+                                <!-- ============================================ -->
+                                <!-- PDF FEATURES -->
+                                <!-- ============================================ -->
+
+                                <section id="cover-pages" class="content-section">
+                                    <h3 class="section-heading">Cover Pages &amp; Section Breaks</h3>
+                                    <p>Create professional documents with clean title pages and proper page structure:</p>
+
+                                    <ul class="bullet-list">
+                                        <li><strong>Title pages</strong> -- Enable "Different First Page" in your Word template (Layout &gt; Different First Page). DocGen suppresses headers and footers on page 1 so your cover page stays clean.</li>
+                                        <li><strong>Section breaks</strong> -- Section breaks in your Word template create proper page breaks in the PDF. Use Insert &gt; Page Break or Insert &gt; Section Break in Word.</li>
+                                    </ul>
+
+                                    <div class="card-tip info">
+                                        <strong>Tip:</strong> Cover page detection uses the <code>&lt;w:titlePg/&gt;</code> flag in your document's section properties. No extra configuration needed -- just enable it in Word.
+                                    </div>
+                                </section>
+
+                                <section id="headers-footers" class="content-section">
+                                    <h3 class="section-heading">Headers &amp; Footers in PDFs</h3>
+                                    <p>Headers and footers from your Word template carry into PDF output. They repeat on every page of the generated PDF.</p>
+
+                                    <ul class="bullet-list">
+                                        <li>Full formatting supported -- bold, italic, colors, borders, font sizes</li>
+                                        <li>Merge tags work in headers and footers (<code>&#123;Name&#125;</code>, <code>&#123;Account.Name&#125;</code>)</li>
+                                        <li>Images work in headers and footers (company logos, etc.)</li>
+                                        <li>Add them in Word: Insert &gt; Header or Footer</li>
+                                        <li>Use "Different First Page" to suppress headers on a cover page</li>
+                                    </ul>
+                                </section>
+
+                                <section id="page-numbers" class="content-section">
+                                    <h3 class="section-heading">Dynamic Page Numbers</h3>
+                                    <p>Add "Page X of Y" numbering to your PDF headers or footers:</p>
+
+                                    <div class="step-visual">
+                                        <div class="step-card">
+                                            <div class="num">1</div>
+                                            <strong>Edit</strong>
+                                            <p>In Word, double-click the header or footer to edit it.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">2</div>
+                                            <strong>Insert</strong>
+                                            <p>Go to Insert &gt; Page Number and pick a position.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">3</div>
+                                            <strong>Total</strong>
+                                            <p>Add "of Y" via Insert &gt; Quick Parts &gt; Field &gt; NumPages.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Generate</strong>
+                                            <p>Generate as PDF -- numbers increment dynamically on every page.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="card-tip info">
+                                        <strong>Tip:</strong> DocGen detects Word's PAGE and NUMPAGES field codes and converts them to dynamic CSS counters. Page numbers honor the font size, color, bold, and other formatting from your Word template.
+                                    </div>
+                                </section>
+
+                                <section id="pdf-vs-docx" class="content-section">
+                                    <h3 class="section-heading">PDF vs DOCX -- What Works Where</h3>
+                                    <p>Most features work in both output formats. Here are the differences:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Feature</th><th>PDF</th><th>DOCX</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>All merge tags and formatting</td><td>Yes</td><td>Yes</td></tr>
+                                            <tr><td>Bold, italic, underline, colors, font sizes</td><td>Yes</td><td>Yes</td></tr>
+                                            <tr><td>Tables with borders, shading, column widths</td><td>Yes</td><td>Yes</td></tr>
+                                            <tr><td>Template-embedded images</td><td>Yes</td><td>Yes</td></tr>
+                                            <tr><td>Dynamic images from record fields</td><td>Yes</td><td>Yes</td></tr>
+                                            <tr><td>Rich text field formatting</td><td>Yes</td><td>Yes</td></tr>
+                                            <tr><td>Rich text images</td><td>Yes</td><td>No -- use <code>&#123;%Field&#125;</code> image tags</td></tr>
+                                            <tr><td>Barcodes and QR codes</td><td>Yes</td><td>No</td></tr>
+                                            <tr><td>Page numbers in headers/footers</td><td>Yes</td><td>N/A (Word handles natively)</td></tr>
+                                            <tr><td>Cover page (no header on page 1)</td><td>Yes</td><td>N/A (Word handles natively)</td></tr>
+                                            <tr><td>Custom fonts (Calibri, branded, etc.)</td><td>No -- falls back to Helvetica</td><td>Yes -- preserves original fonts</td></tr>
+                                            <tr><td>Clickable hyperlinks</td><td>No -- rendered as styled text</td><td>Yes</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>Rule of thumb:</strong> If you need barcodes, QR codes, or dynamic page numbers -- generate as PDF. If you need custom fonts or clickable hyperlinks -- generate as DOCX.
+                                    </div>
+                                </section>
+
+                                <section id="pdf-fonts" class="content-section">
+                                    <h3 class="section-heading">PDF Fonts</h3>
+                                    <p>Salesforce's PDF engine supports these built-in fonts:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Font</th><th>CSS Name</th><th>When It's Used</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Helvetica</td><td><code>sans-serif</code></td><td>Default for all text</td></tr>
+                                            <tr><td>Times</td><td><code>serif</code></td><td>If explicitly set in template</td></tr>
+                                            <tr><td>Courier</td><td><code>monospace</code></td><td>Fixed-width text</td></tr>
+                                            <tr><td>Arial Unicode MS</td><td>(automatic)</td><td>Chinese, Japanese, Korean, Thai, Arabic, Hebrew</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Custom fonts from your Word template (Calibri, Cambria, branded typefaces) <strong>fall back to Helvetica</strong> in PDF output. If custom fonts matter, generate as DOCX -- Word preserves the original fonts.</p>
+                                </section>
+
+                                <section id="pdf-limitations" class="content-section">
+                                    <h3 class="section-heading">PDF Limitations</h3>
+                                    <p>These are Salesforce platform limitations, not DocGen bugs:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Not Supported in PDF</th><th>Workaround</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Custom fonts (<code>@font-face</code>)</td><td>Generate as DOCX</td></tr>
+                                            <tr><td>Text boxes and shapes</td><td>Use tables for layout</td></tr>
+                                            <tr><td>SmartArt and charts</td><td>Insert as images in your template</td></tr>
+                                            <tr><td>Clickable hyperlinks</td><td>Links work in DOCX output</td></tr>
+                                            <tr><td>CSS Grid / Flexbox</td><td>Use tables (CSS 2.1 only)</td></tr>
+                                            <tr><td>Even/odd page headers</td><td>Same header on all pages</td></tr>
+                                            <tr><td>Multiple section-specific headers</td><td>One header/footer set per document</td></tr>
+                                        </tbody>
+                                    </table>
+                                </section>
+
+                                <section id="rtl" class="content-section">
+                                    <h3 class="section-heading">RTL Languages (Hebrew / Arabic)</h3>
+                                    <p>DocGen supports right-to-left text in PDF output:</p>
+
+                                    <ul class="bullet-list">
+                                        <li>Hebrew and Arabic characters render correctly using Arial Unicode MS</li>
+                                        <li>Paragraphs with <code>&lt;w:bidi/&gt;</code> align right automatically</li>
+                                        <li>Tables with RTL layout reverse column order</li>
+                                        <li>Mixed content (Hebrew label + English merge value) works correctly</li>
+                                    </ul>
+
+                                    <div class="card-tip warning">
+                                        <strong>Known limitation:</strong> Long RTL paragraphs that wrap to multiple lines may have continuation lines starting from the left. This is a Salesforce PDF engine limitation.
+                                    </div>
+                                </section>
+
+                                <!-- ============================================ -->
+                                <!-- E-SIGNATURES -->
+                                <!-- ============================================ -->
+
+                                <section id="sig-overview" class="content-section">
+                                    <h3 class="section-heading">Electronic Signatures</h3>
+                                    <p>DocGen includes a built-in Simple Electronic Signature (SES) system. Signers receive an email, verify their identity with a PIN, review the document, type their name, and agree to sign. Every step is recorded in a tamper-evident audit trail.</p>
+
+                                    <div class="card-tip info">
+                                        <strong>Legal Standard</strong>
+                                        <p>Typed-name signatures are legally valid under the US ESIGN Act and UETA. They carry the same legal weight as drawn signatures for SES use cases. DocGen captures consent, email verification, IP address, and user agent for every signature.</p>
+                                    </div>
+
+                                    <div class="limit-grid">
+                                        <div class="limit-card info">
+                                            <strong>Email PIN Verification</strong>
+                                            <p>Signers enter their email and receive a 6-digit code. This proves they control the inbox at the moment of signing. PINs expire after 10 minutes and lock after 3 failed attempts.</p>
+                                        </div>
+                                        <div class="limit-card info">
+                                            <strong>Consent Capture</strong>
+                                            <p>Every signer must check an explicit consent checkbox before signing. The consent timestamp is recorded on the audit record with field history tracking.</p>
+                                        </div>
+                                        <div class="limit-card info">
+                                            <strong>Document Hash</strong>
+                                            <p>A SHA-256 hash of the final PDF is computed and stored on the audit record. This proves the document has not been modified since signing.</p>
+                                        </div>
+                                        <div class="limit-card info">
+                                            <strong>Verification Certificate</strong>
+                                            <p>Every signed PDF includes a certificate block showing signer names, roles, timestamps, and a verification URL. Anyone can verify the document's authenticity.</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="sig-templates" class="content-section">
+                                    <h3 class="section-heading">Setting Up Signature Templates</h3>
+                                    <p>Add signature placeholders to your Word template using the <code>&#123;@Signature_Role&#125;</code> syntax.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Placeholder</th><th>Replaced With</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;@Signature_Buyer&#125;</code></td><td>Electronically signed by John Smith on 2026-04-08 10:30:00 PDT</td></tr>
+                                            <tr><td><code>&#123;@Signature_Seller&#125;</code></td><td>Electronically signed by Jane Doe on 2026-04-08 14:15:00 PDT</td></tr>
+                                            <tr><td><code>&#123;@Signature&#125;</code></td><td>Used for single-signer documents (no role name needed)</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip">
+                                        <strong>Template Tip</strong>
+                                        <p>Place signature tags on their own line with a label, like: <code>Buyer Signature: &#123;@Signature_Buyer&#125;</code>. The tag is replaced with the signer's typed name and timestamp. Use any role name -- it maps to the Signer Role picklist (Buyer, Seller, Witness, Guarantor, etc.).</p>
+                                    </div>
+
+                                    <div class="card-tip info">
+                                        <strong>Multi-Signer Documents</strong>
+                                        <p>Add multiple signature placeholders for different roles. Each signer gets their own email with a unique link. The PDF is only generated after <strong>all</strong> signers have completed. Unsigned placeholders are preserved until the signer completes.</p>
+                                    </div>
+                                </section>
+
+                                <section id="sig-flow" class="content-section">
+                                    <h3 class="section-heading">The Signing Flow</h3>
+                                    <p>Here is what each signer experiences when they receive a signature request.</p>
+
+                                    <div class="step-visual">
+                                        <div class="step-card">
+                                            <div class="num">1</div>
+                                            <strong>Email</strong>
+                                            <p>Signer receives a branded email with a secure link.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">2</div>
+                                            <strong>Verify</strong>
+                                            <p>Enter email, receive a 6-digit PIN, enter it to prove inbox control.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">3</div>
+                                            <strong>Review</strong>
+                                            <p>Expand the document preview to read the full document before signing.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Sign</strong>
+                                            <p>Type full name, check consent box, click Sign Document.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="limit-grid">
+                                        <div class="limit-card warning">
+                                            <strong>Token Expiry</strong>
+                                            <p>Signing links expire after <strong>48 hours</strong>. If a signer misses the window, create a new signature request.</p>
+                                        </div>
+                                        <div class="limit-card warning">
+                                            <strong>PIN Security</strong>
+                                            <p>PINs are hashed with SHA-256 before storage -- plaintext is never saved. After 3 failed attempts, the link is locked permanently.</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="sig-verify" class="content-section">
+                                    <h3 class="section-heading">Document Verification</h3>
+                                    <p>Every signed PDF includes an Electronic Signature Certificate at the bottom with signer details and a verification URL.</p>
+
+                                    <div class="limit-grid">
+                                        <div class="limit-card info">
+                                            <strong>Certificate on PDF</strong>
+                                            <p>The certificate shows: Document ID, completion date, each signer's name, role, email, and email verification timestamp. It also includes the verification page URL.</p>
+                                        </div>
+                                        <div class="limit-card info">
+                                            <strong>Online Verification</strong>
+                                            <p>The verify page (<code>/apex/DocGenVerify</code>) accepts a Document ID to show the full audit trail. It also has a file upload -- drag any PDF onto it to compute a SHA-256 hash and check if it matches a signed document.</p>
+                                        </div>
+                                        <div class="limit-card info">
+                                            <strong>Field History Tracking</strong>
+                                            <p>All key audit fields (signer name, email, signed date, hash, IP, consent, PIN verification) have field history tracking enabled. If an admin modifies an audit record, Salesforce logs the change.</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="sig-admin" class="content-section">
+                                    <h3 class="section-heading">Signature Admin Setup</h3>
+                                    <p>Complete these steps to enable signatures in your org.</p>
+
+                                    <div class="pro-tip-box">
+                                        <strong>Setup Checklist:</strong>
+                                        <ol>
+                                            <li><strong>Enable the Blob.toPdf() Release Update</strong> -- Go to Setup &gt; Release Updates and enable "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations". This is REQUIRED for PDF generation -- both for documents and signed PDFs.</li>
+                                            <li><strong>Create a Salesforce Site</strong> -- Setup &gt; Sites &gt; create a site pointing to <code>DocGenSignature</code> as the active page. This is the public page signers access.</li>
+                                            <li><strong>Assign Guest Permissions</strong> -- Assign the <strong>DocGen Guest Signature</strong> permission set to the site's guest user profile. This grants access to signature Apex classes and objects.</li>
+                                            <li><strong>Configure Email Branding</strong> -- Go to the <strong>Signatures</strong> tab in the Command Hub. Set your company name, brand color, logo URL, and customize the email subject/message.</li>
+                                            <li><strong>Set the Site URL</strong> -- In Signature Settings, enter your site's base URL so signing links and verification URLs resolve correctly.</li>
+                                            <li><strong>Assign User Permissions</strong> -- Users who create signature requests need the <strong>DocGen Admin</strong> or <strong>DocGen User</strong> permission set.</li>
+                                        </ol>
+                                    </div>
+
+                                    <div class="card-tip info">
+                                        <strong>Email Deliverability</strong>
+                                        <p>Ensure your org's email deliverability is set to <strong>All Email</strong> (Setup &gt; Email &gt; Deliverability). PIN verification emails will not be delivered if this is set to System Email Only.</p>
+                                    </div>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Object</th><th>Purpose</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><strong>DocGen Signature Request</strong></td><td>Parent record for a signing session. Links to a template and related record.</td></tr>
+                                            <tr><td><strong>DocGen Signer</strong></td><td>One per signer per request. Tracks status, typed name, PIN verification, consent.</td></tr>
+                                            <tr><td><strong>DocGen Signature Audit</strong></td><td>Immutable audit record created at signing time. IP, user agent, hash, consent, PIN timestamp.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </section>
+
+                                <!-- ============================================ -->
+                                <!-- DOCUMENT GENERATION -->
+                                <!-- ============================================ -->
+
+                                <section id="generate-single" class="content-section">
+                                    <h3 class="section-heading">Generate from a Record</h3>
+                                    <div class="step-visual">
+                                        <div class="step-card">
+                                            <div class="num">1</div>
+                                            <strong>Navigate</strong>
+                                            <p>Go to any record page (Account, Opportunity, Contact, etc.).</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">2</div>
+                                            <strong>Select</strong>
+                                            <p>Find the Document Generator component and select a template from the dropdown.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">3</div>
+                                            <strong>Choose</strong>
+                                            <p>Pick Download or Save to Record.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Generate</strong>
+                                            <p>Click Generate Document.</p>
+                                        </div>
+                                    </div>
+
+                                    <p>Your template selection persists if you switch between the Create Document, Document Packet, and Combine PDFs tabs.</p>
+                                </section>
+
+                                <section id="document-packets" class="content-section">
+                                    <h3 class="section-heading">Document Packets</h3>
+                                    <p>Generate multiple templates at once and merge them into a single PDF:</p>
+
+                                    <div class="step-visual">
+                                        <div class="step-card">
+                                            <div class="num">1</div>
+                                            <strong>Tab</strong>
+                                            <p>Switch to the Create Packet tab in the Document Generator.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">2</div>
+                                            <strong>Select</strong>
+                                            <p>Select multiple templates using the dual-listbox.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">3</div>
+                                            <strong>Include</strong>
+                                            <p>Optionally include existing PDFs already on the record.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Merge</strong>
+                                            <p>Click Generate Packet -- all documents merge into one PDF.</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="pdf-merge" class="content-section">
+                                    <h3 class="section-heading">PDF Merge &amp; Child Record PDFs</h3>
+                                    <p>Five ways to combine PDFs:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Mode</th><th>What It Does</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><strong>Generate &amp; Merge</strong></td><td>Generate a doc, then append existing PDFs from the record</td></tr>
+                                            <tr><td><strong>Document Packets</strong></td><td>Generate from multiple templates, merge into one PDF</td></tr>
+                                            <tr><td><strong>Merge Only</strong></td><td>Combine existing PDFs on the record with drag-and-drop ordering</td></tr>
+                                            <tr><td><strong>Child Record PDFs</strong></td><td>Pull PDFs from child records (e.g., all Opportunity PDFs under an Account)</td></tr>
+                                            <tr><td><strong>Bulk Merge</strong></td><td>After bulk generation, merge all generated PDFs into one download</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>For <strong>Child Record PDFs</strong>: select the child relationship, optionally filter with a WHERE clause (e.g., <code>StageName = 'Closed Won'</code>), browse PDFs grouped by child record, select the ones you want, and merge.</p>
+
+                                    <p>All merging runs client-side in your browser -- no server-side size limits on the merged output.</p>
+                                </section>
+
+                                <section id="bulk-generation" class="content-section">
+                                    <h3 class="section-heading">Bulk Generation</h3>
+                                    <p>Generate documents for hundreds of records at once from the Bulk Generation tab in the Command Hub.</p>
+
+                                    <div class="step-visual">
+                                        <div class="step-card">
+                                            <div class="num">1</div>
+                                            <strong>Template</strong>
+                                            <p>Select a template and optionally preview with a sample record.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">2</div>
+                                            <strong>Filter</strong>
+                                            <p>Enter a SOQL WHERE clause. Click Validate to check syntax and see matching record count.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">3</div>
+                                            <strong>Configure</strong>
+                                            <p>Set batch size, output mode (individual files, merged packet, or both), and give it a name.</p>
+                                        </div>
+                                        <div class="step-card">
+                                            <div class="num">4</div>
+                                            <strong>Submit</strong>
+                                            <p>Real-time progress tracking with auto-refresh. View results in Recent Jobs.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="limit-grid">
+                                        <div class="limit-card info">
+                                            <strong>Saved Queries</strong>
+                                            <p>Save frequently-used WHERE clauses with a name and description. Load them with one click when setting up future bulk jobs. Great for monthly invoices, quarterly reports, or any recurring generation task.</p>
+                                        </div>
+                                        <div class="limit-card info">
+                                            <strong>Bulk Merge</strong>
+                                            <p>After a bulk job completes, click the merge icon on the job row to download all generated PDFs combined into a single file.</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section id="giant-query" class="content-section">
+                                    <h3 class="section-heading">Giant Query (2,000+ Rows)</h3>
+                                    <p>DocGen automatically detects large datasets and switches to batch processing. Same template, same button -- the complexity is invisible to the user.</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th></th><th>Standard Engine</th><th>Giant Query Engine</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><strong>When</strong></td><td>&lt; 2,000 child records</td><td>&gt; 2,000 child records</td></tr>
+                                            <tr><td><strong>Detection</strong></td><td>Automatic</td><td>Automatic</td></tr>
+                                            <tr><td><strong>Speed</strong></td><td>2-5 seconds</td><td>1-5 minutes (async)</td></tr>
+                                            <tr><td><strong>Output</strong></td><td>Download or save</td><td>Saved to record automatically</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Tested up to 28,000+ rows. Ideal for transaction logs, price books, audit trails, and bulk data reports. Uses cursor-based pagination (500 rows per page) so it never hits heap limits.</p>
+
+                                    <div class="card-tip warning">
+                                        <strong>Giant Query limitation:</strong> ORDER BY in child subqueries is not yet supported in Giant Query mode. Records will be returned in Salesforce's default order. If sort order matters, use the standard engine (under 2,000 rows) or sort in your template's table after generation.
+                                    </div>
+                                </section>
+
+                                <!-- ============================================ -->
+                                <!-- AUTOMATION -->
+                                <!-- ============================================ -->
+
+                                <section id="flow-actions" class="content-section">
+                                    <h3 class="section-heading">Flow Actions</h3>
+                                    <p>Three invocable actions for Salesforce Flow -- use in Record-Triggered Flows, Screen Flows, Scheduled Flows, and Subflows:</p>
+
                                     <div class="flow-card">
                                         <div class="flow-header">
                                             <lightning-icon icon-name="standard:flow" size="small" class="slds-var-m-right_x-small"></lightning-icon>
-                                            <strong>DocGenFlowAction</strong>
+                                            <strong>Generate Document</strong>
                                         </div>
-                                        <p>Generates a single document and returns the File ID.</p>
+                                        <p><strong>Input:</strong> Template ID, Record ID. <strong>Output:</strong> Content Document ID.</p>
+                                        <p>Generates a single document synchronously. Use for automating document creation on record events -- for example, auto-generate a welcome PDF when a new Contact is created.</p>
                                     </div>
                                     <div class="flow-card slds-var-m-top_medium">
                                         <div class="flow-header">
                                             <lightning-icon icon-name="standard:flow" size="small" class="slds-var-m-right_x-small"></lightning-icon>
-                                            <strong>DocGenBulkFlowAction</strong>
+                                            <strong>Generate Bulk Documents</strong>
                                         </div>
-                                        <p>Triggers a bulk background job for multiple records.</p>
+                                        <p><strong>Input:</strong> Template ID, WHERE Condition, Batch Size. <strong>Output:</strong> Job ID.</p>
+                                        <p>Launches async batch generation. Returns a Job ID to poll for completion. Use in Scheduled Flows for recurring document generation (monthly invoices, quarterly reports).</p>
+                                    </div>
+                                    <div class="flow-card slds-var-m-top_medium">
+                                        <div class="flow-header">
+                                            <lightning-icon icon-name="standard:flow" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                                            <strong>Giant Query Auto-Detect</strong>
+                                        </div>
+                                        <p><strong>Input:</strong> Template ID, Record ID. <strong>Output:</strong> Content Doc ID or Job ID.</p>
+                                        <p>Auto-detects dataset size. Under 2K rows: generates sync. Over 2K: launches async batch. Ideal for Experience Cloud portals where dataset size is unknown.</p>
                                     </div>
                                 </section>
 
-                                <!-- Bulk Strategies -->
-                                <section id="bulk-docs" class="content-section">
-                                    <h3 class="section-heading">Bulk Generation Strategies</h3>
-                                    <p>Generate documents for hundreds or thousands of records in one job.</p>
+                                <section id="apex-provider" class="content-section">
+                                    <h3 class="section-heading">Custom Apex Data Provider</h3>
+                                    <p>For advanced use cases, implement the <code>DocGenDataProvider</code> interface to supply custom data from external APIs, computed fields, or cross-object aggregations. Select "Apex Provider" as the query type in the template configuration and specify your class name.</p>
+                                </section>
 
-                                    <div class="limit-grid">
-                                        <div class="limit-card info">
-                                            <strong>Batch Size</strong>
-                                            <p>Start with <strong>batch size 1</strong> for complex templates (images, child loops). Increase to 10-50 for simple text-only templates. If jobs fail, reduce the batch size.</p>
-                                        </div>
-                                        <div class="limit-card info">
-                                            <strong>SOQL Filters</strong>
-                                            <p>Use the WHERE clause filter to target specific records. Example: <code>StageName = 'Closed Won' AND CloseDate = THIS_QUARTER</code>.</p>
-                                        </div>
-                                        <div class="limit-card warning">
-                                            <strong>Merge PDFs</strong>
-                                            <p>Check <strong>Merge PDFs</strong> to combine all generated documents into a single file, attached to the Job record. Use <strong>Merge Only</strong> to skip individual files.</p>
-                                        </div>
-                                        <div class="limit-card info">
-                                            <strong>Saved Queries</strong>
-                                            <p>Save frequently used filters per template. Filters from report imports are auto-saved for reuse.</p>
-                                        </div>
+                                <!-- ============================================ -->
+                                <!-- ADMIN -->
+                                <!-- ============================================ -->
+
+                                <section id="permissions" class="content-section">
+                                    <h3 class="section-heading">Permissions &amp; Sharing</h3>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Permission Set</th><th>Who</th><th>Access</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><strong>DocGen Admin</strong></td><td>Template builders, admins</td><td>Full access -- create, edit, delete templates, bulk generate</td></tr>
+                                            <tr><td><strong>DocGen User</strong></td><td>End users</td><td>Generate documents, use templates (no admin)</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>Field-level security is enforced -- users only see fields they have permission to read. Record sharing follows standard Salesforce rules. Generated files are visible to anyone with access to the record.</p>
+
+                                    <p>Template access uses standard Salesforce sharing -- sharing rules, manual sharing, and role hierarchy. No custom sharing UI needed.</p>
+                                </section>
+
+                                <section id="governor-limits" class="content-section">
+                                    <h3 class="section-heading">Governor Limits</h3>
+                                    <p>DocGen is designed to work within Salesforce governor limits. Here's how it handles them:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Limit</th><th>How DocGen Handles It</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><strong>6 MB heap (sync)</strong></td><td>DOCX uses client-side assembly; PDF uses zero-heap image pipeline</td></tr>
+                                            <tr><td><strong>12 MB heap (async)</strong></td><td>Bulk generation uses batch size 1 = fresh heap per record</td></tr>
+                                            <tr><td><strong>~3 MB PDF save</strong></td><td>Download has no size limit; only saving to record has this cap</td></tr>
+                                            <tr><td><strong>4 MB Aura payload</strong></td><td>Download works for any size DOCX; saving has this limit</td></tr>
+                                            <tr><td><strong>100 SOQL queries</strong></td><td>Multi-level queries use 1 SOQL per relationship depth</td></tr>
+                                            <tr><td><strong>50,000+ child records</strong></td><td>Giant Query auto-detected, processed async with cursor pagination</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>Tip:</strong> If bulk generation is slow, reduce batch size to 1. Each batch gets a fresh heap limit, so complex templates with images or many child records process reliably.
                                     </div>
                                 </section>
 
-                                <!-- Sharing & Versions -->
-                                <section id="admin" class="content-section">
-                                    <h3 class="section-heading">Sharing &amp; Template Versions</h3>
-                                    <p>Control who can use templates and manage template history.</p>
+                                <section id="known-limitations" class="content-section">
+                                    <h3 class="section-heading">Known Limitations</h3>
+                                    <p>These are things DocGen does <strong>not</strong> support. Most are Salesforce platform constraints, not DocGen bugs.</p>
 
-                                    <div class="limit-grid">
-                                        <div class="limit-card info">
-                                            <strong>Template Visibility</strong>
-                                            <p>Templates are stored as <strong>DocGen_Template__c</strong> records. Use standard Salesforce sharing rules, profiles, and permission sets to control who can see and use each template.</p>
-                                        </div>
-                                        <div class="limit-card info">
-                                            <strong>Template Versions</strong>
-                                            <p>Each template upload creates a new <strong>ContentVersion</strong>. The most recently uploaded version is always the active one. Previous versions are preserved in Salesforce Files history.</p>
-                                        </div>
-                                        <div class="limit-card warning">
-                                            <strong>Generated Documents</strong>
-                                            <p>Output files are saved as <strong>ContentVersion</strong> records linked to the source record. They follow standard Salesforce file sharing — visible to anyone with access to the record.</p>
-                                        </div>
+                                    <p><strong>PDF Output -- What Doesn't Work</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Does NOT Work</th><th>Why</th><th>Workaround</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Custom fonts (Calibri, branded typefaces)</td><td><code>Blob.toPdf()</code> only has 4 built-in fonts</td><td>Generate as DOCX</td></tr>
+                                            <tr><td><code>@font-face</code> CSS</td><td>Not supported by the PDF renderer</td><td>Generate as DOCX</td></tr>
+                                            <tr><td>Text boxes and Word shapes</td><td>Drawing objects aren't converted to HTML</td><td>Use tables for layout</td></tr>
+                                            <tr><td>SmartArt and charts</td><td>Not rendered in the HTML conversion</td><td>Insert as a static image in your template</td></tr>
+                                            <tr><td>Clickable hyperlinks</td><td>PDF renderer outputs styled text, not real links</td><td>Links work in DOCX output</td></tr>
+                                            <tr><td>CSS Grid / Flexbox</td><td>PDF renderer only supports CSS 2.1</td><td>Use tables</td></tr>
+                                            <tr><td>JavaScript in templates</td><td>Ignored by the renderer</td><td>N/A</td></tr>
+                                            <tr><td>Even/odd page headers</td><td>Not currently supported</td><td>Same header on all pages</td></tr>
+                                            <tr><td>Multiple section-specific headers</td><td>One header/footer set per document</td><td>Use page breaks, not section-specific headers</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p><strong>DOCX Output -- What Doesn't Work</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Does NOT Work</th><th>Why</th><th>Workaround</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Barcodes and QR codes</td><td>These are rendered as CSS in the PDF pipeline only</td><td>Generate as PDF for barcodes/QR</td></tr>
+                                            <tr><td>Rich text images</td><td>Images inside Rich Text Area fields don't carry into DOCX</td><td>Use <code>&#123;%Field&#125;</code> image tags or generate as PDF</td></tr>
+                                            <tr><td>Dynamic page numbers</td><td>PAGE/NUMPAGES are PDF-only features</td><td>Word handles page numbers natively -- add them in Word's header</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p><strong>Excel &amp; PowerPoint -- What Doesn't Work</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Does NOT Work</th><th>Notes</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>PDF output</td><td>Excel and PowerPoint output in their native format only (.xlsx, .pptx)</td></tr>
+                                            <tr><td>Images</td><td>Dynamic images and barcodes are Word/PDF only</td></tr>
+                                            <tr><td>Rich text formatting</td><td>Rich text fields are stripped to plain text in PowerPoint</td></tr>
+                                            <tr><td>Headers and footers</td><td>Headers/footers are a Word/PDF feature</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p><strong>General Limitations</strong></p>
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>Limitation</th><th>Details</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>~3 MB PDF save limit</td><td>Saving a PDF to a record is capped at ~3 MB by Salesforce. Download has no limit. Use Download for large PDFs.</td></tr>
+                                            <tr><td>4 MB Aura payload limit</td><td>Saving a DOCX to a record is capped at 4 MB. Download works for any size.</td></tr>
+                                            <tr><td>RTL text wrapping</td><td>Long Hebrew/Arabic paragraphs that wrap to multiple lines may have continuation lines starting from the left.</td></tr>
+                                            <tr><td>No live preview before generating</td><td>You generate the document to see results. Use the sample record preview on step 2 to verify your query returns the right data.</td></tr>
+                                            <tr><td>Giant Query: no ORDER BY</td><td>ORDER BY in child subqueries is not yet supported when Giant Query mode activates (2,000+ rows). Standard engine supports ORDER BY.</td></tr>
+                                            <tr><td>One header/footer set</td><td>PDFs support one header and one footer across the entire document. "Different First Page" is supported (cover pages), but section-specific headers are not.</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>Rule of thumb:</strong> If something doesn't work in PDF, try DOCX. If it doesn't work in DOCX, try PDF. Between the two formats, most use cases are covered.
                                     </div>
                                 </section>
 
-                                <!-- Limits -->
-                                <section id="limits" class="content-section">
-                                    <h3 class="section-heading">Limits & Workarounds</h3>
-                                    <div class="limit-grid">
-                                        <div class="limit-card warning">
-                                            <strong>Heap Size</strong>
-                                            <p>For very large documents, output as <strong>Word (.docx)</strong> to bypass memory limits.</p>
-                                        </div>
-                                        <div class="limit-card info">
-                                            <strong>PDF Fonts</strong>
-                                            <p>Only standard fonts are supported for PDF. Word output preserves custom branding.</p>
-                                        </div>
+                                <section id="troubleshooting" class="content-section">
+                                    <h3 class="section-heading">Troubleshooting</h3>
+
+                                    <div class="card-tip">
+                                        <strong>PDF shows raw CSS text instead of formatted content</strong>
+                                        <p>Enable the <strong>Blob.toPdf() Release Update</strong> in Setup &gt; Release Updates. This is the most common issue and the first thing to check.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Images appear broken in PDF</strong>
+                                        <p>Make sure the image field contains a ContentVersion ID (starts with <code>068</code>). The file must be committed (not just uploaded) in Salesforce Files.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Fields show as blank in output</strong>
+                                        <p>Check that the field is included in the template's query configuration (step 2) and that the running user has FLS access to the field. Open the template, go to step 2, and verify the field is in the query.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Bulk generation is slow or hitting limits</strong>
+                                        <p>Reduce batch size to 1 for complex templates with images or many child records. Each batch gets a fresh 12 MB heap limit.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Page numbers not showing in PDF</strong>
+                                        <p>Use Word's built-in Insert &gt; Page Number feature (not typed text). DocGen detects the PAGE and NUMPAGES field codes automatically.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Hebrew/Arabic text is blank in PDF</strong>
+                                        <p>Ensure the Word template has RTL paragraph properties set (<code>&lt;w:bidi/&gt;</code>). DocGen auto-detects RTL and applies Arial Unicode MS font. Generate as DOCX if the PDF engine can't render specific glyphs.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Custom fonts look different in PDF</strong>
+                                        <p>This is expected. PDF output only supports Helvetica, Times, Courier, and Arial Unicode MS. All other fonts fall back to Helvetica. Generate as DOCX if you need branded fonts.</p>
+                                    </div>
+
+                                    <div class="card-tip">
+                                        <strong>Cover page has headers/footers showing</strong>
+                                        <p>In Word, go to Layout &gt; check "Different First Page". This tells DocGen to suppress headers and footers on page 1.</p>
                                     </div>
                                 </section>
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>All</fullName>
+    <columns>NAME</columns>
+    <columns>Signer_Name__c</columns>
+    <columns>Signer_Email__c</columns>
+    <columns>Signed_Date__c</columns>
+    <columns>IP_Address__c</columns>
+    <columns>Consent_Captured__c</columns>
+    <columns>PIN_Verified_At__c</columns>
+    <columns>Document_Hash_SHA256__c</columns>
+    <columns>Signature_Request__c</columns>
+    <filterScope>Everything</filterScope>
+    <label>All</label>
+</ListView>

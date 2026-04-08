@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Signer__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Links this audit record to the specific signer who signed the document. Used for multi-signer compliance tracking.</description>
+    <label>Signer</label>
+    <referenceTo>DocGen_Signer__c</referenceTo>
+    <relationshipLabel>Signature Audits</relationshipLabel>
+    <relationshipName>Signature_Audits</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

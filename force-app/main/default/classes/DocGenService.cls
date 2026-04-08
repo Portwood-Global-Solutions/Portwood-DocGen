@@ -1701,11 +1701,18 @@ public with sharing class DocGenService {
             String rawTag = xml.substring(cursor + 1, tagClose);
             String tagContent = rawTag.trim();
 
+            // Preserve {@Signature_*} tags — handled by the signature service after merge
+            if (tagContent.startsWith('@')) {
+                output += '{' + rawTag + '}';
+                cursor = tagClose + 1;
+                continue;
+            }
+
             // Strip Salesforce-style {!Field} prefix — treat {!X} the same as {X}
             if (tagContent.startsWith('!')) {
                 tagContent = tagContent.substring(1).trim();
             }
-            
+
             if (tagContent.startsWith('#')) {
                 String key = tagContent.substring(1).trim();
                 Integer sectionEnd = findBalancedEnd(xml, tagClose + 1, key);
@@ -3302,13 +3309,25 @@ public with sharing class DocGenService {
     // =========================================================================
 
     /**
-     * Backward-compatibility stub — always throws. Signatures have been removed from DocGen.
-     * @param templateId Unused — stub only
-     * @param recordIdStr Unused — stub only
-     * @return Never returns — always throws DocGenException
+     * Merges a template with record data and returns intermediate XML parts + image map.
+     * Used by the signature flow to pre-compute merge data and render signed PDFs.
      */
     public static Map<String, Object> mergeTemplateForSignature(Id templateId, String recordIdStr) {
-        throw new DocGenException('Signatures have been removed from DocGen. Please delete the old signature classes from your org.');
+        MergeResult mr = mergeTemplate(templateId, recordIdStr, null, 'PDF');
+
+        if (mr.templateType == 'PowerPoint') {
+            throw new DocGenException('Signature PDF generation is only supported for Word templates.');
+        }
+
+        Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
+
+        return new Map<String, Object>{
+            'documentXml' => mr.documentXml,
+            'relsXml' => mr.relsXml,
+            'contentTypesXml' => mr.contentTypesXml,
+            'pdfImageMap' => pdfImages,
+            'docTitle' => mr.docTitle
+        };
     }
 
     // ──────────────────────────────────────────────────────────────────────────

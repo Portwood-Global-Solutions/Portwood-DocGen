@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Signature_Data__c</fullName>
+    <description>Base64-encoded image of the captured signature (legacy single-signer flow).</description>
+    <externalId>false</externalId>
+    <label>Signature Data</label>
+    <length>131072</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

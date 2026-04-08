@@ -3773,4 +3773,349 @@ private class DocGenControllerTests {
             System.assert(caughtException, 'Should throw AuraHandledException for invalid template');
         }
     }
+
+    // =======================================================================
+    // NEW COVERAGE — getSortedChildIds
+    // =======================================================================
+
+    @IsTest
+    static void testGetSortedChildIds_success() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+            insert new Contact(FirstName = 'Sort', LastName = 'Test', AccountId = acc.Id);
+
+            Test.startTest();
+            List<Id> ids = DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', null);
+            Test.stopTest();
+
+            System.assert(!ids.isEmpty(), 'Should return at least one contact ID');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_withWhereClause() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+            insert new Contact(FirstName = 'Filter', LastName = 'Me', AccountId = acc.Id);
+
+            Test.startTest();
+            List<Id> ids = DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', 'LastName = \'Me\'');
+            Test.stopTest();
+
+            System.assert(!ids.isEmpty(), 'Should return filtered contact IDs');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_invalidObject() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getSortedChildIds('FakeObject__xyz', 'AccountId', acc.Id, 'Name ASC', null);
+            } catch (AuraHandledException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for invalid object');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_blankOrderBy() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, '', null);
+            } catch (DocGenException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for blank ORDER BY');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_injectionAttempt() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'Name; DELETE FROM Contact', null);
+            } catch (DocGenException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for SQL injection attempt in ORDER BY');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_disallowedKeyword() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'Name INSERT INTO foo', null);
+            } catch (DocGenException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for disallowed keyword in ORDER BY');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_invalidWhereClause() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', 'Name; DROP TABLE foo');
+            } catch (DocGenException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for injection in WHERE clause');
+        }
+    }
+
+    @IsTest
+    static void testGetSortedChildIds_whereDeleteKeyword() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', 'Name DELETE FROM Contact');
+            } catch (DocGenException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for disallowed keyword in WHERE clause');
+        }
+    }
+
+    // =======================================================================
+    // NEW COVERAGE — getChildRecordsByIds
+    // =======================================================================
+
+    @IsTest
+    static void testGetChildRecordsByIds_success() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+            Contact con = new Contact(FirstName = 'ById', LastName = 'Test', AccountId = acc.Id);
+            insert con;
+
+            Test.startTest();
+            List<Map<String, Object>> results = DocGenController.getChildRecordsByIds(
+                'Contact', 'Id, FirstName, LastName', new List<Id>{ con.Id }
+            );
+            Test.stopTest();
+
+            System.assertEquals(1, results.size(), 'Should return one contact');
+            System.assertEquals('ById', results[0].get('FirstName'), 'FirstName should match');
+        }
+    }
+
+    @IsTest
+    static void testGetChildRecordsByIds_emptyList() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Test.startTest();
+            List<Map<String, Object>> results = DocGenController.getChildRecordsByIds(
+                'Contact', 'Id, FirstName', new List<Id>()
+            );
+            Test.stopTest();
+
+            System.assertEquals(0, results.size(), 'Should return empty list for empty IDs');
+        }
+    }
+
+    @IsTest
+    static void testGetChildRecordsByIds_nullList() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Test.startTest();
+            List<Map<String, Object>> results = DocGenController.getChildRecordsByIds(
+                'Contact', 'Id, FirstName', null
+            );
+            Test.stopTest();
+
+            System.assertEquals(0, results.size(), 'Should return empty list for null IDs');
+        }
+    }
+
+    @IsTest
+    static void testGetChildRecordsByIds_invalidObject() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.getChildRecordsByIds('FakeObj__xyz', 'Id', new List<Id>{ UserInfo.getUserId() });
+            } catch (AuraHandledException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for invalid object');
+        }
+    }
+
+    // =======================================================================
+    // NEW COVERAGE — launchGiantQueryPdfBatch
+    // =======================================================================
+
+    @IsTest
+    static void testLaunchGiantQueryPdfBatch_nullTemplate() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.launchGiantQueryPdfBatch(null, acc.Id, 'Contacts', '{}');
+            } catch (AuraHandledException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for null template');
+        }
+    }
+
+    @IsTest
+    static void testLaunchGiantQueryPdfBatch_nullRecord() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.launchGiantQueryPdfBatch(tpl.Id, null, 'Contacts', '{}');
+            } catch (AuraHandledException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw for null record');
+        }
+    }
+
+    @IsTest
+    static void testLaunchGiantQueryPdfBatch_noPreDecomposed() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            Account acc = TestDataFactory.getTestAccount();
+            String configJson = '{"object":"Contact","lookupField":"AccountId","fields":["FirstName"],"parentFields":[]}';
+
+            Test.startTest();
+            Boolean caught = false;
+            try {
+                DocGenController.launchGiantQueryPdfBatch(tpl.Id, acc.Id, 'Contacts', configJson);
+            } catch (AuraHandledException e) {
+                caught = true;
+            }
+            Test.stopTest();
+
+            System.assert(caught, 'Should throw when no pre-decomposed parts found');
+        }
+    }
+
+    // =======================================================================
+    // NEW COVERAGE — deprecated sharing stubs
+    // =======================================================================
+
+    @IsTest
+    static void testDeprecatedSharingStubs() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+
+            Test.startTest();
+            List<Map<String, String>> shares = DocGenController.getTemplateShares(tpl.Id);
+            DocGenController.shareTemplate(tpl.Id, UserInfo.getUserId(), 'Read');
+            DocGenController.removeShare(tpl.Id);
+            List<Map<String, String>> usersAndGroups = DocGenController.searchUsersAndGroups('test');
+            Test.stopTest();
+
+            System.assertEquals(0, shares.size(), 'Deprecated getTemplateShares should return empty');
+            System.assertEquals(0, usersAndGroups.size(), 'Deprecated searchUsersAndGroups should return empty');
+        }
+    }
+
+    // =======================================================================
+    // NEW COVERAGE — Option four-arg constructor with lookupField
+    // =======================================================================
+
+    @IsTest
+    static void testOptionFourArgConstructorWithLookup() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGenController.Option opt = new DocGenController.Option('Label', 'Value', 'ChildObj', 'LookupField');
+            System.assertEquals('Label', opt.label);
+            System.assertEquals('Value', opt.value);
+            System.assertEquals('ChildObj', opt.childObjectApiName);
+            System.assertEquals('LookupField', opt.lookupField);
+        }
+    }
+
+    // =======================================================================
+    // NEW COVERAGE — scoutChildCounts with V1 flat config (exercises V1 path)
+    // =======================================================================
+
+    @IsTest
+    static void testScoutChildCounts_v1FlatConfig() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+
+            DocGen_Template__c tpl = new DocGen_Template__c(
+                Name = 'V1 Flat Template',
+                Base_Object_API__c = 'Account',
+                Query_Config__c = 'Name, (SELECT FirstName, LastName FROM Contacts WHERE LastName != null ORDER BY LastName LIMIT 100)',
+                Type__c = 'Word'
+            );
+            insert tpl;
+
+            Test.startTest();
+            Map<String, Object> result = DocGenController.scoutChildCounts(acc.Id, tpl.Id);
+            Test.stopTest();
+
+            System.assertNotEquals(null, result, 'Result should not be null');
+            Map<String, Map<String, Object>> childNodes = (Map<String, Map<String, Object>>) result.get('childNodes');
+            System.assert(childNodes.containsKey('Contacts'), 'Should contain Contacts node from V1 flat config');
+        }
+    }
 }

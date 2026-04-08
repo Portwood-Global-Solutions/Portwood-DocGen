@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Signature_Email_Logo_Url__c</fullName>
+    <description>URL to the company logo image displayed at the top of signature request emails. Recommended size: 200x60px.</description>
+    <label>Signature Email Logo URL</label>
+    <required>false</required>
+    <type>Url</type>
+</CustomField>

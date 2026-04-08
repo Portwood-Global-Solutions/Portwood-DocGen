@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Role_Name__c</fullName>
+    <description>The signer role. Maps to the document placeholder {@Signature_RoleName}.</description>
+    <externalId>false</externalId>
+    <label>Signer Role</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>false</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>Buyer</fullName><default>false</default><label>Buyer</label></value>
+            <value><fullName>Seller</fullName><default>false</default><label>Seller</label></value>
+            <value><fullName>Husband</fullName><default>false</default><label>Husband</label></value>
+            <value><fullName>Wife</fullName><default>false</default><label>Wife</label></value>
+            <value><fullName>Borrower</fullName><default>false</default><label>Borrower</label></value>
+            <value><fullName>Co-Borrower</fullName><default>false</default><label>Co-Borrower</label></value>
+            <value><fullName>Lender</fullName><default>false</default><label>Lender</label></value>
+            <value><fullName>Guarantor</fullName><default>false</default><label>Guarantor</label></value>
+            <value><fullName>Witness</fullName><default>false</default><label>Witness</label></value>
+            <value><fullName>Notary</fullName><default>false</default><label>Notary</label></value>
+            <value><fullName>Agent</fullName><default>false</default><label>Agent</label></value>
+            <value><fullName>Attorney</fullName><default>false</default><label>Attorney</label></value>
+            <value><fullName>Applicant</fullName><default>false</default><label>Applicant</label></value>
+            <value><fullName>Co-Applicant</fullName><default>false</default><label>Co-Applicant</label></value>
+            <value><fullName>Trustee</fullName><default>false</default><label>Trustee</label></value>
+            <value><fullName>Beneficiary</fullName><default>false</default><label>Beneficiary</label></value>
+            <value><fullName>Landlord</fullName><default>false</default><label>Landlord</label></value>
+            <value><fullName>Tenant</fullName><default>false</default><label>Tenant</label></value>
+            <value><fullName>Partner</fullName><default>false</default><label>Partner</label></value>
+            <value><fullName>Signer</fullName><default>false</default><label>Signer</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

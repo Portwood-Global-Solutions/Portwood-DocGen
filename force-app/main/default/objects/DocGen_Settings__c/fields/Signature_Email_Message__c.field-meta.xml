@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Signature_Email_Message__c</fullName>
+    <description>Custom message body for signature request emails. Supports merge fields: {SignerName}, {DocumentTitle}, {SenderName}. If blank, defaults to "[SenderName] has sent you a document that requires your signature:"</description>
+    <label>Signature Email Message</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+</CustomField>
