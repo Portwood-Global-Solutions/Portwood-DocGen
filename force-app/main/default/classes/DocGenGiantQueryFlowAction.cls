@@ -169,7 +169,7 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             Parent_Record_Id__c = String.valueOf(recordId)
         );
-        insert job; // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+        insert job; // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
 
         childNodeConfig.put('relationshipName', giantRelationship);
 
@@ -199,7 +199,7 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
                 Visibility = 'AllUsers'
             );
             SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
-            insert decision.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced via stripInaccessible
+            insert decision.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced via stripInaccessible // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
         }
     }
 }

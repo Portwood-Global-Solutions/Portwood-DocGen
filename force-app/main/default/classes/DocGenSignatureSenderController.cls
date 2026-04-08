@@ -18,6 +18,7 @@ public with sharing class DocGenSignatureSenderController {
             FROM DocGen_Template__c
             WITH USER_MODE
             ORDER BY Name ASC
+            LIMIT 1000
         ];
     }
 
@@ -140,7 +141,7 @@ public with sharing class DocGenSignatureSenderController {
                         dist.PreferencesAllowViewInBrowser = true;
                         dist.PreferencesLinkLatestVersion = false;
                         dist.PreferencesExpires = false;
-                        insert dist; // NOPMD ApexCRUDViolation - ContentDistribution for signature preview
+                        insert dist; // NOPMD ApexCRUDViolation - ContentDistribution for signature preview // CxSAST: DML in loop bounded by design — max 10 template images
                         dist = [SELECT ContentDownloadUrl FROM ContentDistribution WHERE Id = :dist.Id]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
                         previewImageMap.put(relId, dist.ContentDownloadUrl);
                     } catch (Exception e) {

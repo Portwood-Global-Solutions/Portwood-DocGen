@@ -1215,7 +1215,7 @@ public with sharing class DocGenService {
         // can find the image ContentVersions via SOQL.
         if (!newCvs.isEmpty()) {
             SObjectAccessDecision preDec = Security.stripInaccessible(AccessType.CREATABLE, newCvs);
-            insert preDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            insert preDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible // CxSAST: DML is outside loop — bulk insert of collected CVs
             newCvs.clear();
         }
 
@@ -1275,7 +1275,7 @@ public with sharing class DocGenService {
 
         if (!newCvs.isEmpty()) {
             SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, newCvs);
-            insert cvDecision.getRecords();
+            insert cvDecision.getRecords(); // CxSAST: DML is outside loop — bulk insert of collected CVs
         }
 
     }
@@ -3232,14 +3232,14 @@ public with sharing class DocGenService {
         Id savedCvId;
         try {
             SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-            insert cvDecision.getRecords();
+            insert cvDecision.getRecords(); // CxSAST: Not in a loop — called once per document save
             savedCvId = cvDecision.getRecords()[0].Id;
         } catch (DmlException dml) {
             // FirstPublishLocationId rejected (e.g., Pricebook2) — insert without link, then create CDL
             if (dml.getMessage().contains('FIELD_INTEGRITY_EXCEPTION') && dml.getMessage().containsIgnoreCase('FirstPublishLocationId')) {
                 cv.FirstPublishLocationId = null;
                 SObjectAccessDecision cvDecision2 = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-                insert cvDecision2.getRecords();
+                insert cvDecision2.getRecords(); // CxSAST: Not in a loop — fallback path for objects that reject FirstPublishLocationId
                 savedCvId = cvDecision2.getRecords()[0].Id;
 
                 Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH USER_MODE].ContentDocumentId;
@@ -3252,7 +3252,7 @@ public with sharing class DocGenService {
                         Visibility = 'AllUsers'
                     );
                     SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
-                    insert cdlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+                    insert cdlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible // CxSAST: Not in a loop — fallback CDL creation
                 } catch (DmlException linkErr) {
                     // Intentionally swallowed — object may not support ContentDocumentLink
                     String noop = linkErr.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule

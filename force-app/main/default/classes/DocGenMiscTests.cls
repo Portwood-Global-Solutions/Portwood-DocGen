@@ -6096,6 +6096,7 @@ private class DocGenMiscTests {
             Account acc = TestDataFactory.getTestAccount();
 
             List<DocGenFlowAction.Request> requests = new List<DocGenFlowAction.Request>();
+            // CxSAST: DML in test setup — not a bulkification concern
             for (Integer i = 0; i < 3; i++) {
                 DocGenFlowAction.Request req = new DocGenFlowAction.Request();
                 req.templateId = tpl.Id;

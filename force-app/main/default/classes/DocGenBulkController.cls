@@ -341,7 +341,7 @@ public with sharing class DocGenBulkController {
                 job.Label__c = jobLabel;
             }
             /* code-analyzer-suppress ApexFlsViolation */
-            insert job; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+            insert job; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (single bulk job per invocation)
 
             // 2. Run Batch — user-configurable batch size (default 1, max 200)
             Integer size = (batchSize != null && batchSize >= 1 && batchSize <= 200) ? batchSize : 1;

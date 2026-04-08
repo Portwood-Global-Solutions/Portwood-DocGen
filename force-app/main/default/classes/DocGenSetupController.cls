@@ -47,7 +47,7 @@ public with sharing class DocGenSetupController {
         List<Map<String, String>> results = new List<Map<String, String>>();
         results.add(new Map<String, String>{ 'label' => '-- Running User (default) --', 'value' => '' });
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
-        for (OrgWideEmailAddress owa : [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress ORDER BY DisplayName]) { // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+        for (OrgWideEmailAddress owa : [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress ORDER BY DisplayName LIMIT 1000]) { // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
             String label = String.isNotBlank(owa.DisplayName)
                 ? owa.DisplayName + ' <' + owa.Address + '>'
                 : owa.Address;

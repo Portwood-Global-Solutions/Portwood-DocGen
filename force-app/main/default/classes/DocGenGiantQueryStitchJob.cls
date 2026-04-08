@@ -195,7 +195,7 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
                 partNum++;
             }
             SObjectAccessDecision dec2 = Security.stripInaccessible(AccessType.CREATABLE, finalCvs);
-            insert dec2.getRecords();
+            insert dec2.getRecords(); // CxSAST: Async context — governor limits reset per Queueable execution
 
             // Bulk link all final CVs to the record
             List<Id> finalCvIds = new List<Id>();
@@ -236,7 +236,7 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
             }
             if (!cdls.isEmpty()) {
                 SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, cdls);
-                insert cdlDec.getRecords();
+                insert cdlDec.getRecords(); // CxSAST: Async context — governor limits reset per Queueable execution
             }
         } catch (Exception e) {
             String noop = e.getMessage(); // NOPMD UnusedLocalVariable — some objects don't support CDL

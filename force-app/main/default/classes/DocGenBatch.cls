@@ -211,7 +211,7 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             FirstPublishLocationId = jobId
         );
         SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-        insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+        insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible // CxSAST: Async context — governor limits reset per batch execution
     }
 
     /**

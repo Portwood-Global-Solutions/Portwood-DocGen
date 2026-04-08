@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.29.0 — Security Hardening + E-Signatures Beta",
-      "versionNumber": "1.29.0.NEXT",
-      "ancestorId": "04tal000006UVNtAAO",
+      "versionName": "1.30.0 — Checkmarx Remediation + E-Signatures Beta",
+      "versionNumber": "1.30.0.NEXT",
+      "ancestorId": "04tal000006UVvlAAG",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

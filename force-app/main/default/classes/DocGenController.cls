@@ -114,7 +114,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             cv.VersionData = EncodingUtil.base64Decode(base64Data);
             cv.IsMajorVersion = true;
             SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-            insert cvDecision.getRecords();
+            insert cvDecision.getRecords(); // CxSAST: Not in a loop — called once per document save
             Id cvId = cvDecision.getRecords()[0].Id;
 
             Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cvId WITH USER_MODE].ContentDocumentId; // NOPMD — internal doc lookup
@@ -125,7 +125,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             cdl.ShareType = 'V';
             cdl.Visibility = 'AllUsers';
             SObjectAccessDecision cdlDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
-            insert cdlDecision.getRecords();
+            insert cdlDecision.getRecords(); // CxSAST: Not in a loop — called once per document save
 
             return contentDocId;
         } catch (System.NoAccessException e) {
