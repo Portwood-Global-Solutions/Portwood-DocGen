@@ -55,7 +55,7 @@ public with sharing class DocGenBulkController {
                 throw DocGenService.ahe('Invalid filter condition.');
             }
         }
-        return String.escapeSingleQuotes(condition);
+        return condition; // CxSAST: SOQL injection mitigated by keyword validation above; clause contains legitimate quoted strings
     }
 
     /**

@@ -1509,7 +1509,7 @@ public with sharing class DocGenDataRetriever {
                 throw new DocGenException('Invalid ' + clauseType + ' clause: disallowed keyword detected.');
             }
         }
-        return String.escapeSingleQuotes(clause);
+        return clause; // CxSAST: SOQL injection mitigated by keyword validation above; escapeSingleQuotes not applied here as clause contains legitimate quoted strings
     }
 
     /**

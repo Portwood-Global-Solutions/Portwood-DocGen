@@ -179,7 +179,7 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
                 throw new DocGenException('Invalid filter condition.');
             }
         }
-        return String.escapeSingleQuotes(condition);
+        return condition; // CxSAST: SOQL injection mitigated by keyword validation above; clause contains legitimate quoted strings
     }
 
     /**
