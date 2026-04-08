@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ApexComponent xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <description>Shared header nav for all DocGen public site pages</description>
+    <label>DocGen Site Header</label>
+</ApexComponent>
