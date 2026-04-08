@@ -4,11 +4,11 @@ Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes
 
 [Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)
 
-[![Version](https://img.shields.io/badge/version-1.26.0-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.28.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
-[![Apex Tests](https://img.shields.io/badge/Apex_Tests-630%2F630_passing-brightgreen)](#code-quality)
+[![Apex Tests](https://img.shields.io/badge/Apex_Tests-850%2F850_passing-brightgreen)](#code-quality)
 [![Website](https://img.shields.io/badge/website-portwoodglobalsolutions.com-blue)](https://portwoodglobalsolutions.com)
 
 ---
@@ -16,10 +16,10 @@ Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes
 ## Install
 
 ```bash
-sf package install --package 04tal000006UNyDAAW --wait 10 --target-org <your-org>
+sf package install --package 04tal000006UVNtAAO --wait 10 --target-org <your-org>
 ```
 
-[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006UNyDAAW) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006UNyDAAW)
+[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006UVNtAAO) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006UVNtAAO)
 
 **Then:** Assign **DocGen Admin** permission set | Enable **Blob.toPdf() Release Update** | Open the **DocGen** app
 
@@ -149,6 +149,34 @@ Five ways to combine PDFs:
 
 Records with **2,000 to 50,000+ child records** are detected automatically. Same template, same button — the engine handles pagination and async processing behind the scenes.
 
+### E-Signatures (Beta)
+
+> **This feature is in beta.** We welcome feedback, bug reports, and feature requests. Please share your experience in the [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) or open a [GitHub Issue](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues).
+
+Collect legally valid electronic signatures directly from DocGen — no third-party tools required. Built-in Simple Electronic Signature (SES) support that's valid under the US ESIGN Act and UETA.
+
+**How it works:**
+
+1. Add `{@Signature_Buyer}` and `{@Signature_Seller}` placeholders to your Word template
+2. Create a signature request from any record — each signer gets a branded email with a secure link
+3. Signers verify their email with a 6-digit PIN, review the document, type their name, and check the consent box
+4. After all signers complete, DocGen generates the signed PDF with an Electronic Signature Certificate
+
+**What's captured for every signature:**
+
+| Data Point | How |
+|---|---|
+| Signer identity | Email PIN verification (SHA-256 hashed, 10-min expiry, 3 attempts max) |
+| Consent | Explicit checkbox — timestamp recorded |
+| IP address | Server-side capture via request headers |
+| User agent | Browser fingerprint |
+| Document integrity | SHA-256 hash of the final PDF |
+| Tamper evidence | Field history tracking on all audit fields |
+
+**Verification:** Every signed PDF includes a certificate block with signer details and a verification URL. The verify page lets anyone upload a PDF to check its hash against the audit record — the file never leaves the browser.
+
+**Admin setup:** Configure a Salesforce Site, assign the Guest Signature permission set, set an Org-Wide Email Address, and customize email branding — all from the Signatures tab in the Command Hub. See the [User Guide](https://portwoodglobalsolutions.com/DocGenGuide#sig-admin) for step-by-step instructions.
+
 ### Query Builder
 
 The query builder accepts full SOQL statements with unlimited nesting depth. Paste a query like:
@@ -234,7 +262,7 @@ These are Salesforce platform limitations, not DocGen bugs:
 | JavaScript | Ignored by the renderer | N/A |
 | Even/odd page headers | Not currently supported | Same header on all pages |
 | Multiple section headers | One header/footer set per document | Use page breaks, not section-specific headers |
-| E-signatures | Intentionally excluded | Use DocuSign, Adobe Sign after generation |
+| E-signatures (QES) | SES signatures are built-in; Qualified Electronic Signatures (EU eIDAS) require a certified provider | Use built-in SES for most use cases |
 
 ---
 
@@ -270,6 +298,9 @@ Decompress → Merge XML tags → Recompress
 | `BarcodeGenerator` | Code 128 + QR code generation (pure Apex) |
 | `DocGenController` | LWC controller — template CRUD, generation endpoints |
 | `DocGenBatch` | Batch Apex for bulk document generation |
+| `DocGenSignatureController` | Signing page — token validation, PIN verification, signature capture |
+| `DocGenSignatureService` | Typed-name stamping, PDF generation, verification certificate |
+| `DocGenSignatureEmailService` | Branded signature request and PIN emails with OWA support |
 | `docGenPdfMerger.js` | Client-side PDF merge engine (pure JS) |
 | `docGenZipWriter.js` | Client-side DOCX/XLSX assembly (pure JS) |
 
