@@ -39,8 +39,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             ];
 
             if (snippets.isEmpty()) {
-                SObjectAccessDecision emptyDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed') });
-                update emptyDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
                 return;
             }
 
@@ -78,8 +77,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             pdfCv.Id = cvDec.getRecords()[0].Id;
 
             // Update Job with merged PDF CV Id
-            SObjectAccessDecision jobDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed', Merged_PDF_CV__c = pdfCv.Id) });
-            update jobDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed', Merged_PDF_CV__c = pdfCv.Id); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
             // Clean up HTML snippets
             List<ContentDocument> docsToDelete = new List<ContentDocument>();
@@ -94,8 +92,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             sendCompletionNotification(job, fileName, snippets.size());
 
         } catch (Exception e) {
-            SObjectAccessDecision errDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors') });
-            update errDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
         }
     }
 
@@ -130,8 +127,7 @@ public with sharing class DocGenMergeJob implements Queueable {
         public void execute(FinalizerContext ctx) {
             if (ctx.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
                 try {
-                    SObjectAccessDecision failDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed') });
-                    update failDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+                    update new DocGen_Job__c(Id = jobId, Status__c = 'Failed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
                 } catch (Exception e) {
                     // Intentionally swallowed — best-effort; job record may not exist
                     String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule

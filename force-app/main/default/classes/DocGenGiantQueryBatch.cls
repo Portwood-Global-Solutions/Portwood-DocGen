@@ -102,8 +102,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             List<SObject> sortedRecords = Database.query(sortQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — object/field validated by Schema.getGlobalDescribe; orderBy sanitized by sanitizeOrderByClause(); runs with USER_MODE
 
             Integer totalChildren = sortedRecords.size();
-            SObjectAccessDecision harvestDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Harvesting', Total_Records__c = totalChildren) });
-            update harvestDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Harvesting', Total_Records__c = totalChildren); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
             // Chunk the sorted Ids for execute() to page through
             this.sortedIdChunks = new List<List<Id>>();
@@ -131,8 +130,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             Integer totalChildren = Database.countQuery(countQuery, AccessLevel.USER_MODE);
 
             Integer totalPages = (Integer) Math.ceil((Decimal) totalChildren / batchSize);
-            SObjectAccessDecision harvestDec2 = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Harvesting', Total_Records__c = totalChildren) });
-            update harvestDec2.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Harvesting', Total_Records__c = totalChildren); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
             for (Integer i = 0; i < totalPages; i++) {
                 pages.add('page:' + i);
@@ -236,8 +234,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             insert cvDec.getRecords();
         }
         // Update progress
-        SObjectAccessDecision fragDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Success_Count__c = fragmentSequence) });
-        update fragDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+        update new DocGen_Job__c(Id = jobId, Success_Count__c = fragmentSequence); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
     }
 
     /**
@@ -382,12 +379,10 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 // Chain to assembler Queueable — finish() heap is too constrained
                 System.enqueueJob(new DocGenGiantQueryAssembler(jobId, templateId, recordId, giantRelationshipName));
             } else {
-                SObjectAccessDecision completeDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed') });
-                update completeDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             }
         } catch (Exception e) {
-            SObjectAccessDecision failDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)) });
-            update failDec.getRecords(); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
         }
     }
 

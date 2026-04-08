@@ -115,7 +115,7 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
 
             if (!linksToInsert.isEmpty()) {
                 SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, linksToInsert);
-                insert decision.getRecords(); // NOPMD ApexCRUDViolation - FLS enforced via stripInaccessible // CxSAST: DML is outside loop — bulk insert after collecting all links
+                insert decision.getRecords(); // NOPMD ApexCRUDViolation - FLS enforced via stripInaccessible
             }
         }
 

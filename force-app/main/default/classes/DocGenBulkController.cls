@@ -24,7 +24,7 @@ public with sharing class DocGenBulkController {
             throw DocGenService.ahe('Invalid or inaccessible object.');
         }
         String sanitizedCondition = sanitizeCondition(condition);
-        String query = 'SELECT Count() FROM ' + String.escapeSingleQuotes(objectName);
+        String query = 'SELECT Count() FROM ' + objectName;
         if (String.isNotBlank(sanitizedCondition)) {
             query += ' WHERE ' + sanitizedCondition;
         }
@@ -55,7 +55,7 @@ public with sharing class DocGenBulkController {
                 throw DocGenService.ahe('Invalid filter condition.');
             }
         }
-        return condition; // CxSAST: SOQL injection mitigated by keyword validation above; clause contains legitimate quoted strings
+        return condition;
     }
 
     /**
@@ -341,9 +341,7 @@ public with sharing class DocGenBulkController {
                 job.Label__c = jobLabel;
             }
             /* code-analyzer-suppress ApexFlsViolation */
-            SObjectAccessDecision jobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
-            insert jobDec.getRecords(); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (single bulk job per invocation)
-            job.Id = jobDec.getRecords()[0].Id;
+            insert job; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // 2. Run Batch — user-configurable batch size (default 1, max 200)
             Integer size = (batchSize != null && batchSize >= 1 && batchSize <= 200) ? batchSize : 1;
@@ -477,8 +475,7 @@ public with sharing class DocGenBulkController {
                 Query_Condition__c = condition
             );
             /* code-analyzer-suppress ApexFlsViolation */
-            SObjectAccessDecision sqDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Saved_Query__c>{ sq });
-            insert sqDec.getRecords(); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+            insert sq; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error saving query.');
         }

@@ -33,8 +33,7 @@ public with sharing class DocGenSetupController {
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         settings.Experience_Site_Url__c = experienceSiteUrl;
         // Package-internal object — CRUD controlled by DocGen permission sets
-        SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, new List<SObject>{ settings });
-        upsert decision.getRecords(); // NOPMD ApexCRUDViolation - package-internal custom setting; CRUD checked on lines 15-18 above
+        upsert settings; // NOPMD ApexCRUDViolation - package-internal custom setting; CRUD checked on lines 15-18 above
     }
 
     /**
@@ -48,7 +47,7 @@ public with sharing class DocGenSetupController {
         List<Map<String, String>> results = new List<Map<String, String>>();
         results.add(new Map<String, String>{ 'label' => '-- Running User (default) --', 'value' => '' });
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
-        for (OrgWideEmailAddress owa : [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress ORDER BY DisplayName LIMIT 1000]) { // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+        for (OrgWideEmailAddress owa : [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress ORDER BY DisplayName]) { // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
             String label = String.isNotBlank(owa.DisplayName)
                 ? owa.DisplayName + ' <' + owa.Address + '>'
                 : owa.Address;
@@ -80,7 +79,6 @@ public with sharing class DocGenSetupController {
         settings.Company_Name__c = companyName;
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         settings.Signature_OWA_Id__c = owaId;
-        SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, new List<SObject>{ settings });
-        upsert decision.getRecords(); // NOPMD ApexCRUDViolation - package-internal custom setting
+        upsert settings; // NOPMD ApexCRUDViolation - package-internal custom setting
     }
 }

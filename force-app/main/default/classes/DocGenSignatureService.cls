@@ -319,7 +319,7 @@ public without sharing class DocGenSignatureService {
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         req.Status__c = 'In Progress';
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-        update req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
+        update req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         if (Test.isRunningTest()) {
             try {
@@ -333,7 +333,7 @@ public without sharing class DocGenSignatureService {
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 req.Signature_Data__c = null;
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                update req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
+                update req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
             } catch (Exception e) {
                 System.debug(LoggingLevel.ERROR, 'DocGen: Test path signature error: ' + e.getMessage());
             }
@@ -409,7 +409,7 @@ public without sharing class DocGenSignatureService {
                             imgCv.VersionData = EncodingUtil.base64Decode(base64Val);
                             imgCv.FirstPublishLocationId = requestId;
                             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                            Database.insert(new List<ContentVersion>{ imgCv }, false, AccessLevel.SYSTEM_MODE); // CxSAST: DML in loop bounded by design — max 10 template images
+                            Database.insert(new List<ContentVersion>{ imgCv }, false, AccessLevel.SYSTEM_MODE);
                             imageUrlMap.put(relId, '/sfc/servlet.shepherd/version/download/' + imgCv.Id);
                         }
                     }
