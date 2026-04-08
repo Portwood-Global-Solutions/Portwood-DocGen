@@ -451,6 +451,108 @@ public with sharing class DocGenSignatureSenderController {
         return results;
     }
 
+    /**
+     * Resends signature request emails to all pending/viewed signers on a request.
+     * Generates new tokens for security (old links become invalid).
+     */
+    @AuraEnabled
+    public static void resendSignatureRequest(Id requestId) {
+        DocGen_Signature_Request__c req = [
+            SELECT Id, Status__c, Template__r.Name, Source_Document_Id__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :requestId
+            WITH SYSTEM_MODE LIMIT 1
+        ];
+
+        if (req.Status__c == 'Signed' || req.Status__c == 'Cancelled') {
+            throw new AuraHandledException('Cannot resend a ' + req.Status__c.toLowerCase() + ' request.');
+        }
+
+        List<DocGen_Signer__c> signers = [
+            SELECT Id, Signer_Name__c, Signer_Email__c, Role_Name__c, Contact__c, Status__c
+            FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :requestId AND Status__c != 'Signed'
+            WITH SYSTEM_MODE
+            ORDER BY Sort_Order__c ASC
+        ];
+
+        if (signers.isEmpty()) {
+            throw new AuraHandledException('All signers have already signed.');
+        }
+
+        String siteUrl = getSiteBaseUrl();
+        String documentTitle = req.Template__r != null ? req.Template__r.Name : 'Document';
+        if (String.isBlank(documentTitle) && req.Source_Document_Id__c != null) {
+            documentTitle = getDocumentTitle(req.Source_Document_Id__c);
+        }
+
+        List<DocGenSignatureEmailService.SignerEmail> emailList = new List<DocGenSignatureEmailService.SignerEmail>();
+
+        for (DocGen_Signer__c s : signers) {
+            // Generate new token
+            Blob randomBytes = Crypto.generateAesKey(256);
+            Blob hash = Crypto.generateDigest('SHA-256',
+                Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + s.Signer_Email__c + System.now())
+            );
+            String newToken = EncodingUtil.convertToHex(hash);
+            s.Secure_Token__c = newToken;
+            s.Status__c = 'Pending';
+            s.PIN_Hash__c = null;
+            s.PIN_Expires_At__c = null;
+            s.PIN_Attempts__c = 0;
+            s.PIN_Verified_At__c = null;
+
+            String sigUrl = siteUrl + '/apex/DocGenSignature?token=' + newToken;
+            emailList.add(new DocGenSignatureEmailService.SignerEmail(
+                s.Signer_Name__c, s.Signer_Email__c, s.Role_Name__c, sigUrl, s.Contact__c
+            ));
+        }
+
+        Database.update(signers, false, AccessLevel.SYSTEM_MODE);
+        req.Status__c = 'Sent';
+        Database.update(req, false, AccessLevel.SYSTEM_MODE);
+
+        DocGenSignatureEmailService.sendSignatureRequestEmails(emailList, documentTitle);
+    }
+
+    /**
+     * Cancels a signature request. All pending signers are marked cancelled.
+     * Already-signed signers are preserved in the audit trail.
+     */
+    @AuraEnabled
+    public static void cancelSignatureRequest(Id requestId) {
+        DocGen_Signature_Request__c req = [
+            SELECT Id, Status__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :requestId
+            WITH SYSTEM_MODE LIMIT 1
+        ];
+
+        if (req.Status__c == 'Signed') {
+            throw new AuraHandledException('Cannot cancel a completed signature request.');
+        }
+        if (req.Status__c == 'Cancelled') {
+            throw new AuraHandledException('This request is already cancelled.');
+        }
+
+        req.Status__c = 'Cancelled';
+        Database.update(req, false, AccessLevel.SYSTEM_MODE);
+
+        // Invalidate all unsigned signers
+        List<DocGen_Signer__c> unsignedSigners = [
+            SELECT Id, Status__c FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :requestId AND Status__c != 'Signed'
+            WITH SYSTEM_MODE
+        ];
+        for (DocGen_Signer__c s : unsignedSigners) {
+            s.Status__c = 'Cancelled';
+            s.Secure_Token__c = null; // Invalidate token
+        }
+        if (!unsignedSigners.isEmpty()) {
+            Database.update(unsignedSigners, false, AccessLevel.SYSTEM_MODE);
+        }
+    }
+
     private static String getDocumentTitle(Id contentVersionId) {
         List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE Id = :contentVersionId WITH USER_MODE LIMIT 1];
         return !cvs.isEmpty() ? cvs[0].Title : 'Document';

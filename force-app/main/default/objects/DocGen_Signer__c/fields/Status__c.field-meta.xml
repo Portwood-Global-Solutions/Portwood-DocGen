@@ -12,6 +12,7 @@
             <value><fullName>Pending</fullName><default>true</default><label>Pending</label></value>
             <value><fullName>Viewed</fullName><default>false</default><label>Viewed</label></value>
             <value><fullName>Signed</fullName><default>false</default><label>Signed</label></value>
+            <value><fullName>Cancelled</fullName><default>false</default><label>Cancelled</label></value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
