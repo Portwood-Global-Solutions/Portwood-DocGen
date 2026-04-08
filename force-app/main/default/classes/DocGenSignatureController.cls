@@ -52,15 +52,17 @@ public without sharing class DocGenSignatureController {
         } catch (Exception e) {
             // Not in a VF context
         }
-        // Fallback: try session-based IP
-        try {
-            Map<String, String> session = Auth.SessionManagement.getCurrentSession();
-            String loginIp = session.get('SourceIp');
-            if (String.isNotBlank(loginIp)) {
-                return loginIp;
+        // Fallback: try session-based IP (skip in test context — throws uncatchable exception)
+        if (!Test.isRunningTest()) {
+            try {
+                Map<String, String> session = Auth.SessionManagement.getCurrentSession();
+                String loginIp = session.get('SourceIp');
+                if (String.isNotBlank(loginIp)) {
+                    return loginIp;
+                }
+            } catch (Exception e) {
+                // Guest users may not have session info
             }
-        } catch (Exception e) {
-            // Guest users may not have session info
         }
         return 'Unknown';
     }
