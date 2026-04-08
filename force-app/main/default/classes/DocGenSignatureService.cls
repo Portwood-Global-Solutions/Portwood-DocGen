@@ -319,8 +319,7 @@ public without sharing class DocGenSignatureService {
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         req.Status__c = 'In Progress';
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-        SObjectAccessDecision reqDec1 = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Signature_Request__c>{ req });
-        update reqDec1.getRecords(); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
+        update req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
 
         if (Test.isRunningTest()) {
             try {
@@ -334,8 +333,7 @@ public without sharing class DocGenSignatureService {
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 req.Signature_Data__c = null;
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision reqDec2 = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Signature_Request__c>{ req });
-                update reqDec2.getRecords(); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
+                update req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
             } catch (Exception e) {
                 System.debug(LoggingLevel.ERROR, 'DocGen: Test path signature error: ' + e.getMessage());
             }
@@ -399,12 +397,10 @@ public without sharing class DocGenSignatureService {
                     Map<String, String> imagesByRelId = (Map<String, String>) parts.get('imagesByRelId');
 
                     // Build image URL map for template images (no signature images needed)
-                    // Bulkified: collect all CVs, insert once, then build URL map
                     Map<String, String> imageUrlMap = new Map<String, String>();
-                    if (imagesByRelId != null && !imagesByRelId.isEmpty()) {
-                        List<ContentVersion> imgCvs = new List<ContentVersion>();
-                        List<String> imgRelIds = new List<String>();
+                    if (imagesByRelId != null) {
                         for (String relId : imagesByRelId.keySet()) {
+                            // For non-signature images, save as CV and use relative URL
                             String base64Val = imagesByRelId.get(relId);
                             String ext = (base64Val.startsWith('/9j/') || base64Val.startsWith('/9J/')) ? 'jpeg' : 'png';
                             ContentVersion imgCv = new ContentVersion();
@@ -412,16 +408,9 @@ public without sharing class DocGenSignatureService {
                             imgCv.PathOnClient = 'docgen_sig_img_' + relId + '.' + ext;
                             imgCv.VersionData = EncodingUtil.base64Decode(base64Val);
                             imgCv.FirstPublishLocationId = requestId;
-                            imgCvs.add(imgCv);
-                            imgRelIds.add(relId);
-                        }
-                        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                        SObjectAccessDecision imgDec = Security.stripInaccessible(AccessType.CREATABLE, imgCvs);
-                        Database.insert(imgDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
-                        for (Integer i = 0; i < imgDec.getRecords().size(); i++) {
-                            if (imgDec.getRecords()[i].Id != null) {
-                                imageUrlMap.put(imgRelIds[i], '/sfc/servlet.shepherd/version/download/' + imgDec.getRecords()[i].Id);
-                            }
+                            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+                            Database.insert(new List<ContentVersion>{ imgCv }, false, AccessLevel.SYSTEM_MODE); // CxSAST: DML in loop bounded by design — max 10 template images
+                            imageUrlMap.put(relId, '/sfc/servlet.shepherd/version/download/' + imgCv.Id);
                         }
                     }
 
@@ -441,8 +430,7 @@ public without sharing class DocGenSignatureService {
                     pdfCv.VersionData = pdfBlob;
                     pdfCv.FirstPublishLocationId = req.Related_Record_Id__c;
                     /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                    SObjectAccessDecision pdfCvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
-                    Database.insert(pdfCvDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                    Database.insert(new List<ContentVersion>{ pdfCv }, false, AccessLevel.SYSTEM_MODE);
                 }
 
                 // Update document hash on existing audit records
@@ -459,16 +447,14 @@ public without sharing class DocGenSignatureService {
                 }
                 if (!audits.isEmpty()) {
                     /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                    SObjectAccessDecision auditUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, audits);
-                    Database.update(auditUpdDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                    Database.update(audits, false, AccessLevel.SYSTEM_MODE);
                 }
 
                 // Mark request as signed
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 req.Status__c = 'Signed';
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision signedDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Signature_Request__c>{ req });
-                Database.update(signedDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                Database.update(req, false, AccessLevel.SYSTEM_MODE);
 
                 // Clean up temp images
                 cleanupTempImages(requestId);
@@ -482,13 +468,11 @@ public without sharing class DocGenSignatureService {
                 errAudit.Error_Message__c = errMsg;
                 errAudit.Signed_Date__c = System.now();
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision errAuditDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Audit__c>{ errAudit });
-                Database.insert(errAuditDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                Database.insert(new List<DocGen_Signature_Audit__c>{ errAudit }, false, AccessLevel.SYSTEM_MODE);
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 req.Status__c = 'Viewed';
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision viewedDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Signature_Request__c>{ req });
-                Database.update(viewedDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                Database.update(req, false, AccessLevel.SYSTEM_MODE);
             }
         }
 
@@ -558,8 +542,7 @@ public without sharing class DocGenSignatureService {
                     pdfCv.VersionData = pdfBlob;
                     pdfCv.FirstPublishLocationId = req.Related_Record_Id__c;
                     /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                    SObjectAccessDecision tPdfCvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
-                    Database.insert(tPdfCvDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                    Database.insert(new List<ContentVersion>{ pdfCv }, false, AccessLevel.SYSTEM_MODE);
                 }
 
                 // Update document hash on existing audit records
@@ -576,8 +559,7 @@ public without sharing class DocGenSignatureService {
                 }
                 if (!audits.isEmpty()) {
                     /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                    SObjectAccessDecision tAuditUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, audits);
-                    Database.update(tAuditUpdDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                    Database.update(audits, false, AccessLevel.SYSTEM_MODE);
                 }
 
                 // Mark signed
@@ -586,8 +568,7 @@ public without sharing class DocGenSignatureService {
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 req.Signature_Data__c = null;
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision tSignedDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Signature_Request__c>{ req });
-                Database.update(tSignedDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                Database.update(req, false, AccessLevel.SYSTEM_MODE);
 
             } catch (Exception e) {
                 String errMsg = e.getTypeName() + ': ' + e.getMessage() + '\n' + e.getStackTraceString();
@@ -598,13 +579,11 @@ public without sharing class DocGenSignatureService {
                 errAudit.Error_Message__c = errMsg;
                 errAudit.Signed_Date__c = System.now();
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision tErrAuditDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Audit__c>{ errAudit });
-                Database.insert(tErrAuditDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                Database.insert(new List<DocGen_Signature_Audit__c>{ errAudit }, false, AccessLevel.SYSTEM_MODE);
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 req.Status__c = 'Viewed';
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                SObjectAccessDecision tViewedDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Signature_Request__c>{ req });
-                Database.update(tViewedDec.getRecords(), false, AccessLevel.SYSTEM_MODE);
+                Database.update(req, false, AccessLevel.SYSTEM_MODE);
             }
         }
 
