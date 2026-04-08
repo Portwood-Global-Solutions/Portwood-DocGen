@@ -9,6 +9,7 @@
     <label>DocGen</label>
     <navType>Standard</navType>
     <tabs>DocGen_Command_Hub</tabs>
+    <tabs>DocGen_Template__c</tabs>
     <tabs>DocGen_Job__c</tabs>
     <tabs>DocGen_Signature_Request__c</tabs>
     <tabs>DocGen_Signer__c</tabs>
