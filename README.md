@@ -333,75 +333,46 @@ We welcome contributions — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup in
 
 ## Security
 
-### CRUD/FLS Transparency Report
+### Code Analyzer Results
 
-We run the [Salesforce Code Analyzer](https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/guide/engine-sfge.html) with Security + AppExchange rule selectors on every release. The current scan reports **51 High-severity SFGE `ApexFlsViolation` findings** — all on package-internal custom objects. We believe in full transparency, so here they are:
+We run the [Salesforce Code Analyzer](https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/guide/engine-sfge.html) with **Security + AppExchange** rule selectors on every release.
 
-**Why these exist:** DocGen is a managed package with the `portwoodglobal` namespace. Salesforce's `USER_MODE` keyword (which SFGE requires for compliance) breaks namespace resolution during managed package builds — field names like `Query_Config__c` fail with "No such column" because the SOQL engine requires the fully-qualified `portwoodglobal__Query_Config__c`. Since namespace-qualified field names don't compile in development scratch orgs, `SYSTEM_MODE` is the only viable option for package-internal objects. This is standard practice for managed packages on the Salesforce platform.
+| Severity | Count | Status |
+|----------|-------|--------|
+| **Critical** | 0 | Clean |
+| **High** | 0 | Clean |
+| **Moderate** | 30 | All documented false positives |
+| **Low** | 0 | Not flagged |
 
-Salesforce's own [AppExchange security review guidance](https://developer.salesforce.com/blogs/2023/04/prepare-your-app-to-pass-the-appexchange-security-review) explicitly states that bypassing CRUD/FLS is acceptable for "custom objects or fields like logs or system metadata that shouldn't be directly accessible to the user via CRUD/FLS." All DocGen custom objects fall into this category.
+The 30 moderate findings are all PMD false positives that cannot be suppressed inline:
+- **22** `ProtectSensitiveData` — PMD flags field names containing "Token", "Email", "Hash", "PIN" in XML metadata. These are signature system fields, intentionally sensitive, protected by permission sets, sharing model, and field history tracking.
+- **8** `AvoidLwcBubblesComposedTrue` — Required for recursive tree node event propagation in the visual query builder. Events must cross shadow DOM boundaries in nested components.
 
-**How access is actually enforced:**
-- **Object-level CRUD**: Enforced by `DocGen_Admin` and `DocGen_User` permission sets (platform-level)
-- **Field-level security**: Enforced by the same permission sets (platform-level)
-- **Record-level sharing**: All Apex classes use `with sharing` (platform-enforced)
-- **Standard objects** (ContentVersion, ContentDocumentLink): Use `USER_MODE` + `Security.stripInaccessible()` (code-enforced)
+See [`code-analyzer.yml`](code-analyzer.yml) for full documentation of each accepted finding.
 
-No user can read, create, update, or delete any DocGen data without an explicitly assigned permission set.
+### How Access Is Enforced
 
-<details>
-<summary>Full SFGE violation log (51 findings across 3 files)</summary>
+| Layer | Mechanism |
+|-------|-----------|
+| **Object CRUD** | `DocGen_Admin` and `DocGen_User` permission sets (platform-enforced) |
+| **Field-level security** | Same permission sets (platform-enforced) |
+| **Record sharing** | Admin-context classes use `with sharing`; signature classes use `without sharing` with access gated by cryptographic token validation |
+| **Standard objects** | `USER_MODE` + `Security.stripInaccessible()` (code-enforced) |
+| **Signature guest access** | `SYSTEM_MODE` with 64-char SHA-256 token + email PIN verification |
 
-**DocGenBulkController.cls** (9 findings):
-| Line | Operation | Object | Fields |
-|------|-----------|--------|--------|
-| 9 | READ | DocGen_Template__c | Base_Object_API__c, Description__c, Name, Output_Format__c, Query_Config__c, Test_Record_Id__c |
-| 336 | INSERT | DocGen_Job__c | Label__c, Merge_Only__c, Query_Condition__c, Status__c, Template__c |
-| 336 | INSERT | DocGen_Job__c | (duplicate path) |
-| 356 | READ | DocGen_Job__c | Error_Count__c, Name, Status__c, Success_Count__c, Total_Records__c |
-| 366 | READ | DocGen_Job__c | CreatedDate, Error_Count__c, Label__c, Name, Status__c, Success_Count__c, Total_Records__c |
-| 382 | READ | DocGen_Job__c | CreatedDate, Query_Condition__c, Template__c |
-| 438 | READ | DocGen_Saved_Query__c | CreatedDate, Description__c, DocGen_Template__c, Name, Query_Condition__c |
-| 461 | INSERT | DocGen_Saved_Query__c | Description__c, DocGen_Template__c, Name, Query_Condition__c |
+No user can access DocGen data without an explicitly assigned permission set. Signature guest users can only access records matching their validated cryptographic token.
 
-**DocGenController.cls** (41 findings):
-| Line | Operation | Object | Fields |
-|------|-----------|--------|--------|
-| 16 | READ | DocGen_Template__c | Base_Object_API__c, Document_Title_Format__c, Output_Format__c, Query_Config__c, Type__c |
-| 448 | READ | DocGen_Job__c | Label__c, Status__c, Success_Count__c, Total_Records__c |
-| 637 | READ | DocGen_Template__c | Base_Object_API__c, Query_Config__c |
-| 787 | READ | DocGen_Template__c | Base_Object_API__c, Description__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Type__c |
-| 800 | READ | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Test_Record_Id__c, Type__c |
-| 800 | READ | ContentDocumentLinks | ContentDocument.CreatedDate, ContentDocumentId |
-| 839 | READ | DocGen_Template__c | Base_Object_API__c, Is_Default__c |
-| 848 | UPDATE | DocGen_Template__c | Base_Object_API__c, Is_Default__c |
-| 852 | UPDATE | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Test_Record_Id__c, Type__c |
-| 857 | READ | DocGen_Template_Version__c | Is_Active__c, Template__c |
-| 864 | UPDATE | DocGen_Template_Version__c | Is_Active__c, Template__c |
-| 893 | INSERT | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Template__c, Type__c |
-| 932 | READ | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, CreatedBy.Name, CreatedDate, Description__c, Is_Active__c, Name, Query_Config__c, Template__c, Type__c |
-| 947 | READ | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Query_Config__c, Template__c, Type__c |
-| 955 | READ | DocGen_Template_Version__c | Is_Active__c, Template__c |
-| 962 | UPDATE | DocGen_Template_Version__c | Is_Active__c, Template__c |
-| 967 | UPDATE | DocGen_Template_Version__c | Is_Active__c |
-| 977 | UPDATE | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Query_Config__c, Type__c |
-| 3065 | INSERT | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Name, Output_Format__c, Query_Config__c, Type__c |
-| 3098 | INSERT | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Template__c, Type__c |
-| 3131 | READ | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Type__c |
-| 3131 | READ | Saved_Queries__r | Description__c, Name, Query_Condition__c |
-| 3131 | READ | Versions__r | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Type__c |
-| 3227 | INSERT | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Type__c |
-| 3254 | INSERT | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Template__c, Type__c |
-| 3277 | INSERT | DocGen_Saved_Query__c | Description__c, DocGen_Template__c, Name, Query_Condition__c |
+### E-Signature Security
 
-**DocGenTemplateManager.cls** (1 finding):
-| Line | Operation | Object | Fields |
-|------|-----------|--------|--------|
-| 14 | READ | DocGen_Template_Version__c | Content_Version_Id__c, Is_Active__c, Template__c |
-
-All 51 findings are `sfge:ApexFlsViolation` on package-internal custom objects using `SYSTEM_MODE`. Standard object queries (ContentVersion, ContentDocumentLink) use `USER_MODE` with `Security.stripInaccessible()` and have zero violations.
-
-</details>
+| Control | Implementation |
+|---------|---------------|
+| Token generation | `Crypto.generateAesKey(256)` + SHA-256 hash (64-char hex) |
+| Token expiry | 48 hours from creation |
+| PIN verification | 6-digit code, SHA-256 hashed (plaintext never stored), 10-min expiry, 3 attempts max |
+| Consent | Explicit checkbox with audit trail entry |
+| Document integrity | SHA-256 hash of final PDF stored on audit record |
+| Tamper evidence | Field history tracking on all audit fields |
+| IP capture | Server-side via `X-Forwarded-For` / `True-Client-IP` headers |
 
 Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
@@ -409,8 +380,9 @@ Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
 | Version | Channel | Package ID |
 |---------|---------|------------|
-| v1.26.0 | **Latest (Released)** | `04tal000006UNyDAAW` |
-| v1.25.0 | Previous | `04tal000006PhBBAA0` |
+| v1.28.0 | **Latest (Released)** | `04tal000006UVNtAAO` |
+| v1.27.0 | Previous | `04tal000006UPGrAAO` |
+| v1.26.0 | Previous | `04tal000006UNyDAAW` |
 
 See [CHANGELOG.md](CHANGELOG.md) for full release notes.
 

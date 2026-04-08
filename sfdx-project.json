@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.28.0 — E-Signatures v2 (Beta)",
-      "versionNumber": "1.28.0.NEXT",
-      "ancestorId": "04tal000006UPGrAAO",
+      "versionName": "1.29.0 — Security Hardening + E-Signatures Beta",
+      "versionNumber": "1.29.0.NEXT",
+      "ancestorId": "04tal000006UVNtAAO",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
