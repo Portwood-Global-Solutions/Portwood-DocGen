@@ -330,6 +330,13 @@ public without sharing class DocGenSignatureController {
         email2.setSubject('Your DocGen Signature Verification Code');
         email2.setHtmlBody(html);
         email2.setSaveAsActivity(false);
+
+        // Use Org-Wide Email Address if configured
+        String owaId = settings.Signature_OWA_Id__c;
+        if (String.isNotBlank(owaId)) {
+            email2.setOrgWideEmailAddressId(owaId);
+        }
+
         Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ email2 }, false);
     }
 

@@ -36,6 +36,7 @@ public with sharing class DocGenSignatureEmailService {
         String messageTemplate = settings.Signature_Email_Message__c;
         String subjectTemplate = String.isNotBlank(settings.Signature_Email_Subject__c)
             ? settings.Signature_Email_Subject__c : 'Action Required: Please Sign {DocumentTitle}';
+        String owaId = settings.Signature_OWA_Id__c;
 
         List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
@@ -47,6 +48,11 @@ public with sharing class DocGenSignatureEmailService {
             email.setSubject(subject);
             email.setHtmlBody(htmlBody);
             email.setSaveAsActivity(false);
+
+            // Use Org-Wide Email Address if configured
+            if (String.isNotBlank(owaId)) {
+                email.setOrgWideEmailAddressId(owaId);
+            }
 
             // Use Contact as recipient if available (enables activity tracking)
             if (signer.contactId != null) {

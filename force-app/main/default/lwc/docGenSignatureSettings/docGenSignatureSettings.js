@@ -2,6 +2,7 @@ import { LightningElement, track, wire } from 'lwc';
 import getSettings from '@salesforce/apex/DocGenSetupController.getSettings';
 import saveSettings from '@salesforce/apex/DocGenSetupController.saveSettings';
 import saveSignatureSettings from '@salesforce/apex/DocGenSetupController.saveSignatureSettings';
+import getOrgWideEmailAddresses from '@salesforce/apex/DocGenSetupController.getOrgWideEmailAddresses';
 
 export default class DocGenSignatureSettings extends LightningElement {
     @track isLoaded = false;
@@ -16,6 +17,8 @@ export default class DocGenSignatureSettings extends LightningElement {
     @track emailSubject = '';
     @track emailMessage = '';
     @track footerText = '';
+    @track owaId = '';
+    @track owaOptions = [];
 
     @wire(getSettings)
     wiredSettings({ error, data }) {
@@ -27,9 +30,17 @@ export default class DocGenSignatureSettings extends LightningElement {
             this.emailSubject = data.Signature_Email_Subject__c || '';
             this.emailMessage = data.Signature_Email_Message__c || '';
             this.footerText = data.Signature_Email_Footer_Text__c || '';
+            this.owaId = data.Signature_OWA_Id__c || '';
             this.isLoaded = true;
         } else if (error) {
             this.isLoaded = true;
+        }
+    }
+
+    @wire(getOrgWideEmailAddresses)
+    wiredOwas({ data }) {
+        if (data) {
+            this.owaOptions = data;
         }
     }
 
@@ -37,6 +48,7 @@ export default class DocGenSignatureSettings extends LightningElement {
     handleCompanyNameChange(e) { this.companyName = e.target.value; }
     handleBrandColorChange(e) { this.brandColor = e.target.value; }
     handleLogoUrlChange(e) { this.logoUrl = e.target.value; }
+    handleOwaChange(e) { this.owaId = e.detail.value; }
     handleEmailSubjectChange(e) { this.emailSubject = e.target.value; }
     handleEmailMessageChange(e) { this.emailMessage = e.target.value; }
     handleFooterTextChange(e) { this.footerText = e.target.value; }
@@ -85,7 +97,8 @@ export default class DocGenSignatureSettings extends LightningElement {
                 emailSubject: this.emailSubject,
                 emailMessage: this.emailMessage,
                 footerText: this.footerText,
-                companyName: this.companyName
+                companyName: this.companyName,
+                owaId: this.owaId
             });
             this.saveSuccess = true;
             this.saveMessage = 'Settings saved successfully.';

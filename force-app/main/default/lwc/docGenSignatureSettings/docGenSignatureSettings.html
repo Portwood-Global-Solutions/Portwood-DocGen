@@ -20,6 +20,14 @@
                             onchange={handleSiteUrlChange}
                             field-level-help="The public site URL where signers access the signing page. Configure under Setup > Sites.">
                         </lightning-input>
+                        <lightning-combobox
+                            label="Send Emails From"
+                            value={owaId}
+                            options={owaOptions}
+                            onchange={handleOwaChange}
+                            field-level-help="Select an Org-Wide Email Address for signature request and PIN verification emails. If not set, emails are sent from the running user."
+                            class="slds-m-top_small">
+                        </lightning-combobox>
                     </div>
                 </div>
 

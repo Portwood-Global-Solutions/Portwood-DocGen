@@ -80,18 +80,35 @@ In both `mergeTemplate()` (full ZIP path, ~line 174) and `tryMergeFromPreDecompo
 - All binary data must be returned via Apex, not client-side fetch
 - `Blob` constructor in LWC rejects non-standard MIME types — use `application/octet-stream` for DOCX downloads
 
-## E-Signatures: Removed (Decision Record)
+## E-Signatures (v2 — Restored)
 
-E-signature functionality was **intentionally removed** from DocGen. The rationale:
+E-signatures were removed in v1.5 and restored in v2 with a completely reworked architecture:
 
-1. **Legal liability** — Electronic signatures carry jurisdiction-specific legal requirements (ESIGN Act, eIDAS, etc.). A document generator shipping its own signature implementation exposes both the product and its users to legal risk if the implementation doesn't meet the relevant standard for a given use case. Dedicated e-signature providers (DocuSign, Adobe Sign, etc.) carry their own legal compliance certifications — we don't.
-2. **Security surface area** — The signature flow required a public-facing Salesforce Site with guest user access, token-based authentication, image upload endpoints, and cross-context PDF generation via platform events. Each of these is an attack vector: XSS in document previews, image injection via unvalidated uploads, token interception, and DOM manipulation of the signing page. Hardening these to production-grade security is a full-time security engineering effort, not a side feature.
-3. **Scope creep** — Signatures pulled focus from the core mission: being the best document generator on the platform. Every hour spent on signature audit trails, email branding, multi-signer orchestration, and PIN verification is an hour not spent on rendering fidelity, font support, template features, and output quality.
-4. **Better path forward** — The architecture supports a clean integration point for third-party signature providers in the future. Generate the document with DocGen, hand it off to a dedicated provider for signing. Best tool for each job.
+### Signature Architecture
+- **Typed name** instead of canvas-drawn signatures — same SES legal weight, zero heap for images
+- **Email PIN verification** — 6-digit code, SHA-256 hashed, 10-min expiry, 3 attempts max
+- **Consent checkbox** with explicit audit trail entry
+- **48-hour token expiry** (was 30 days in v1.4)
+- **`{@Signature_Role}` placeholder syntax** — uses `@` prefix to avoid conflict with `{#Loop}` tags
+- **Electronic Signature Certificate** — appended to every signed PDF with signer details and verify URL
+- **Document verification page** — `DocGenVerify.page` supports request ID lookup and file hash verification
+- **Server-side IP capture** — via `X-Forwarded-For` / `True-Client-IP` headers
+- **Field history tracking** on all audit fields
+- **Org-Wide Email Address** support for branded sender
 
-**What was removed:** 8 Apex classes, 7 custom objects (50+ fields), 2 VF pages, 3 LWC bundles, 2 Aura apps, 1 trigger, 1 permission set, 5 layouts, 5 settings fields, 2 tabs, 1 flow, 1 Salesforce Site config. ~9,700 lines of code.
+### Signature Objects
+- `DocGen_Signature_Request__c` — parent record, links to template + related record
+- `DocGen_Signer__c` — one per signer, tracks PIN verification, consent, typed name
+- `DocGen_Signature_Audit__c` — immutable audit record with SHA-256 hash, IP, user agent, field history
+- `DocGen_Signature_PDF__e` — platform event triggers async PDF generation
 
-**Do NOT re-add signature functionality.** If signature integration is needed, build an adapter pattern that delegates to an external provider.
+### Key Implementation Notes
+- `{@...}` tags are preserved by `processXml()` (line ~1709 in DocGenService) — it skips any tag starting with `@`
+- `mergeTemplateForSignature()` in DocGenService is the entry point for signature PDF generation (was a stub that threw in v1.5, now restored)
+- Typed names replace placeholders as plain text inside `<w:t>` elements — no DrawingML, no image blobs
+- The `TemplateSignaturePdfQueueable` handles template-based signature PDF generation asynchronously via platform event
+- Verification block HTML is built by `DocGenSignatureService.buildVerificationBlockHtml()` and injected before `</body>` in the HTML before `Blob.toPdf()`
+- Guest user email sending requires an Org-Wide Email Address to be configured in Signature Settings
 
 ## Font Support
 
