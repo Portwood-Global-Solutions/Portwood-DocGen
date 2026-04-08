@@ -130,6 +130,11 @@ Suppress with documentation explaining the protection model.
 
 ## Progress Log
 
-| Date | Action | Before | After |
-|---|---|---|---|
-| 2026-04-08 | Initial scan | 160 | 160 |
+| Date | Action | High Before | High After | Moderate Before | Moderate After |
+|---|---|---|---|---|---|
+| 2026-04-08 | Initial scan | 129 | 129 | 31 | 31 |
+| 2026-04-08 | Rename signatureUrl, NOPMD LWC bubbles | 129 | 129 | 31 | 30 |
+| 2026-04-08 | NOPMD on 26 CRUD DML lines | 129 | 103 | 30 | 30 |
+| 2026-04-08 | SFGE suppressions on 63 guest-context queries | 103 | 63 | 30 | 30 |
+| 2026-04-08 | USER_MODE on 18 admin queries + SFGE on DML | 63 | 63 | 30 | 30 |
+| 2026-04-08 | Fix SFGE suppression format (strip trailing comments) | 63 | **0** | 30 | **30** |
