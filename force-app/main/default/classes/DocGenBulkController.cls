@@ -6,7 +6,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getBulkTemplates() {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c, Test_Record_Id__c FROM DocGen_Template__c WITH SYSTEM_MODE ORDER BY Name LIMIT 2000];
     }
 
@@ -83,7 +83,7 @@ public with sharing class DocGenBulkController {
         Boolean isMerge = (mergePdf == true);
 
         try {
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template__c> tempList = [SELECT Query_Config__c, Test_Record_Id__c, Output_Format__c
                 FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
             DocGen_Template__c temp = tempList[0];
@@ -335,7 +335,7 @@ public with sharing class DocGenBulkController {
             if (String.isNotBlank(jobLabel)) {
                 job.Label__c = jobLabel;
             }
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             insert job; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // 2. Run Batch — user-configurable batch size (default 1, max 200)
@@ -356,7 +356,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static DocGen_Job__c getJobStatus(Id jobId) {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Job__c> jsRecords = [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
         return jsRecords[0];
     }
@@ -367,7 +367,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static List<DocGen_Job__c> getRecentJobs() {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, Label__c, Status__c, Success_Count__c, Error_Count__c, Total_Records__c,
                    CreatedDate, Template__r.Name, Template__r.Output_Format__c
             FROM DocGen_Job__c
@@ -384,7 +384,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static List<Map<String, String>> getJobGeneratedPdfs(Id jobId) {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Job__c> gpRecords = [SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Name,
                    Query_Condition__c, CreatedDate
             FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
@@ -441,7 +441,7 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Saved_Query__c> getSavedQueries(Id templateId) {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, Description__c, Query_Condition__c
             FROM DocGen_Saved_Query__c
             WHERE DocGen_Template__c = :templateId
@@ -465,7 +465,7 @@ public with sharing class DocGenBulkController {
                 Description__c = description,
                 Query_Condition__c = condition
             );
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             insert sq; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error saving query.');
@@ -482,7 +482,7 @@ public with sharing class DocGenBulkController {
             if (!Schema.sObjectType.DocGen_Saved_Query__c.isDeletable()) {
                 throw DocGenService.ahe('Insufficient access.');
             }
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             delete new DocGen_Saved_Query__c(Id = queryId);
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error deleting query.');

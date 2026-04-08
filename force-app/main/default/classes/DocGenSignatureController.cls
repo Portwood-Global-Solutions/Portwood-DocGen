@@ -89,7 +89,7 @@ public without sharing class DocGenSignatureController {
         }
 
         // Try multi-signer path first
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
             SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Role_Name__c, Sort_Order__c,
                    CreatedDate, PIN_Verified_At__c,
@@ -112,7 +112,7 @@ public without sharing class DocGenSignatureController {
         }
 
         // Legacy fallback: single-signer on DocGen_Signature_Request__c
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Request__c> requests = [
             SELECT Id, Status__c, Signer_Name__c, Source_Document_Id__c, Related_Record_Id__c, CreatedDate
             FROM DocGen_Signature_Request__c
@@ -150,7 +150,7 @@ public without sharing class DocGenSignatureController {
             return result;
         }
 
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
             SELECT Id, Signer_Email__c, PIN_Attempts__c, Status__c, CreatedDate
             FROM DocGen_Signer__c
@@ -200,7 +200,7 @@ public without sharing class DocGenSignatureController {
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(PIN_EXPIRATION_MINUTES);
         signer.PIN_Attempts__c = 0; // Reset attempts on new PIN
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.update(signer, false, AccessLevel.SYSTEM_MODE);
 
         // Send PIN via email
@@ -232,7 +232,7 @@ public without sharing class DocGenSignatureController {
             return result;
         }
 
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
             SELECT Id, PIN_Hash__c, PIN_Expires_At__c, PIN_Attempts__c, Status__c
             FROM DocGen_Signer__c
@@ -277,7 +277,7 @@ public without sharing class DocGenSignatureController {
         if (submittedHash != signer.PIN_Hash__c) {
             // Increment failed attempts
             signer.PIN_Attempts__c = (signer.PIN_Attempts__c == null ? 0 : signer.PIN_Attempts__c) + 1;
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             Database.update(signer, false, AccessLevel.SYSTEM_MODE);
 
             Integer remaining = MAX_PIN_ATTEMPTS - Integer.valueOf(signer.PIN_Attempts__c);
@@ -299,7 +299,7 @@ public without sharing class DocGenSignatureController {
         if (signer.Status__c == 'Pending') {
             signer.Status__c = 'Viewed';
         }
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.update(signer, false, AccessLevel.SYSTEM_MODE);
 
         result.put('success', true);
@@ -367,7 +367,7 @@ public without sharing class DocGenSignatureController {
         // Update signer status to Viewed (SYSTEM_MODE for guest user CRUD bypass)
         if (signer.Status__c == 'Pending') {
             signer.Status__c = 'Viewed';
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             Database.update(signer, false, AccessLevel.SYSTEM_MODE);
         }
 
@@ -380,7 +380,7 @@ public without sharing class DocGenSignatureController {
         res.requiresPin = (signer.PIN_Verified_At__c == null);
 
         // Count total and signed signers
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> allSigners = [
             SELECT Status__c FROM DocGen_Signer__c
             WHERE Signature_Request__c = :parentReq.Id
@@ -399,7 +399,7 @@ public without sharing class DocGenSignatureController {
             // No public link needed — preview is rendered from template merge
         } else {
             Id sourceDocId = parentReq.Source_Document_Id__c;
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<ContentVersion> cvs = [SELECT Id, Title FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
             if (!cvs.isEmpty()) {
                 res.documentTitle = cvs[0].Title;
@@ -427,7 +427,7 @@ public without sharing class DocGenSignatureController {
 
         if (req.Status__c == 'Sent') {
             req.Status__c = 'Viewed';
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             Database.update(req, false, AccessLevel.SYSTEM_MODE);
         }
 
@@ -437,7 +437,7 @@ public without sharing class DocGenSignatureController {
         res.totalSigners = 1;
         res.signedCount = 0;
 
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<ContentVersion> cvs = [SELECT Id, Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
         if (!cvs.isEmpty()) {
             res.documentTitle = cvs[0].Title;
@@ -450,7 +450,7 @@ public without sharing class DocGenSignatureController {
     }
 
     private static String getOrCreatePublicLink(ContentVersion cv) {
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<ContentDistribution> dists = [
             SELECT DistributionPublicUrl
             FROM ContentDistribution
@@ -466,10 +466,10 @@ public without sharing class DocGenSignatureController {
         cd.PreferencesAllowViewInBrowser = true;
         cd.PreferencesLinkLatestVersion = true;
         cd.PreferencesExpires = false;
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.insert(new List<ContentDistribution>{ cd }, false, AccessLevel.SYSTEM_MODE);
         cd = new ContentDistribution(Id = cd.Id);
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         cd = [SELECT DistributionPublicUrl FROM ContentDistribution WHERE Id = :cd.Id WITH SYSTEM_MODE LIMIT 1];
         return cd.DistributionPublicUrl;
     }
@@ -486,7 +486,7 @@ public without sharing class DocGenSignatureController {
         if (!res.isValid) return res;
 
         // Try multi-signer path
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
             SELECT Signature_Request__r.Source_Document_Id__c, Signature_Request__r.Related_Record_Id__c,
                    Signature_Request__r.Template__c
@@ -507,7 +507,7 @@ public without sharing class DocGenSignatureController {
             res.recordId = recordId;
         } else {
             // Legacy fallback
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signature_Request__c> requests = [
                 SELECT Id, Source_Document_Id__c, Related_Record_Id__c, Template__c
                 FROM DocGen_Signature_Request__c
@@ -527,7 +527,7 @@ public without sharing class DocGenSignatureController {
         // or generate on-the-fly if cache is empty.
         if (templateId != null && requestId != null) {
             // Try cached preview first
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signature_Request__c> reqs = [
                 SELECT Signature_Data__c FROM DocGen_Signature_Request__c
                 WHERE Id = :requestId WITH SYSTEM_MODE LIMIT 1
@@ -564,7 +564,7 @@ public without sharing class DocGenSignatureController {
 
         // Legacy: convert source DOCX to HTML
         if (sourceDocId != null) {
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
             if (!cvs.isEmpty()) {
                 res.templateBase64 = getDocumentHtml(cvs[0].VersionData);
@@ -615,7 +615,7 @@ public without sharing class DocGenSignatureController {
             throw new AuraHandledException('You must agree to sign electronically.');
         }
 
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
             SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Signature_Request__c,
                    Role_Name__c, Contact__c, CreatedDate, PIN_Verified_At__c, Consent_Captured__c
@@ -645,7 +645,7 @@ public without sharing class DocGenSignatureController {
         signer.Signature_Data__c = typedName;
         signer.Status__c = 'Signed';
         signer.Consent_Captured__c = true;
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.update(signer, false, AccessLevel.SYSTEM_MODE);
 
         // Create audit trail immediately with all available data
@@ -661,11 +661,11 @@ public without sharing class DocGenSignatureController {
         audit.Consent_Captured__c = true;
         audit.PIN_Verified_At__c = signer.PIN_Verified_At__c;
         // Document hash is set later when PDF is generated
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.insert(new List<DocGen_Signature_Audit__c>{ audit }, false, AccessLevel.SYSTEM_MODE);
 
         // Check if all signers are now complete
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> allSigners = [
             SELECT Status__c FROM DocGen_Signer__c
             WHERE Signature_Request__c = :signer.Signature_Request__c
@@ -683,7 +683,7 @@ public without sharing class DocGenSignatureController {
         // Update parent request status
         DocGen_Signature_Request__c parentReq = new DocGen_Signature_Request__c(Id = signer.Signature_Request__c);
         parentReq.Status__c = 'In Progress';
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.update(parentReq, false, AccessLevel.SYSTEM_MODE);
 
         return result;
@@ -703,7 +703,7 @@ public without sharing class DocGenSignatureController {
         }
 
         // Determine if this is a multi-signer or legacy request
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signerList = [
             SELECT Id, Signature_Request__c,
                    Signature_Request__r.Source_Document_Id__c,
@@ -735,7 +735,7 @@ public without sharing class DocGenSignatureController {
             // limitations on ContentVersion access for image URLs.
             DocGen_Signature_PDF__e pdfEvent = new DocGen_Signature_PDF__e();
             pdfEvent.Request_Id__c = requestId;
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             EventBus.publish(pdfEvent);
 
             // Return title for the UI
@@ -743,7 +743,7 @@ public without sharing class DocGenSignatureController {
             if (templateId != null) {
                 docTitle = triggerSigner.Signature_Request__r.Template__r.Name;
             } else if (sourceDocId != null) {
-                /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+                /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
                 ContentVersion sourceDoc = [SELECT Title FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
                 docTitle = sourceDoc.Title;
             } else {
@@ -769,7 +769,7 @@ public without sharing class DocGenSignatureController {
         if (String.isBlank(token) || token.length() != 64 || !Pattern.matches('[a-fA-F0-9]{64}', token)) {
             throw new AuraHandledException('Invalid security token.');
         }
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Request__c> requests = [
             SELECT Id, Status__c
             FROM DocGen_Signature_Request__c
@@ -781,12 +781,12 @@ public without sharing class DocGenSignatureController {
         }
         requests[0].Signature_Data__c = typedName;
         requests[0].Status__c = 'Viewed';
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.update(requests[0], false, AccessLevel.SYSTEM_MODE);
     }
 
     private static Map<String, String> stampLegacySignerAndSavePdf(String token) {
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Request__c> requests = [
             SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Source_Document_Id__c, Related_Record_Id__c
             FROM DocGen_Signature_Request__c
@@ -804,7 +804,7 @@ public without sharing class DocGenSignatureController {
             // PDF generation via VF page (stamps signatures internally, no DML before callout)
             Blob pdfBlob = convertSignatureRequestToPdf(req.Id);
 
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             ContentVersion sourceDoc = [SELECT Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
             String fileName = sourceDoc.Title + ' - Signed';
             String base64Pdf = EncodingUtil.base64Encode(pdfBlob);
@@ -815,7 +815,7 @@ public without sharing class DocGenSignatureController {
             // Update request status and clear signature data
             req.Status__c = 'Signed';
             req.Signature_Data__c = null;
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             Database.update(req, false, AccessLevel.SYSTEM_MODE);
 
             // Create audit trail
@@ -828,7 +828,7 @@ public without sharing class DocGenSignatureController {
             audit.Document_Hash_SHA256__c = pdfHash;
             audit.IP_Address__c = 'Server-Side';
             audit.User_Agent__c = 'VF renderAs=pdf - Server-Side PDF Generation';
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             Database.insert(new List<DocGen_Signature_Audit__c>{ audit }, false, AccessLevel.SYSTEM_MODE);
 
             return new Map<String, String>{
@@ -852,10 +852,10 @@ public without sharing class DocGenSignatureController {
         cv.PathOnClient = fileName + (extension.startsWith('.') ? extension : '.' + extension);
         cv.VersionData = EncodingUtil.base64Decode(base64Data);
         cv.IsMajorVersion = true;
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.insert(new List<ContentVersion>{ cv }, false, AccessLevel.SYSTEM_MODE);
 
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH SYSTEM_MODE].ContentDocumentId;
 
         ContentDocumentLink cdl = new ContentDocumentLink();
@@ -863,7 +863,7 @@ public without sharing class DocGenSignatureController {
         cdl.LinkedEntityId = recordId;
         cdl.ShareType = 'V';
         cdl.Visibility = 'AllUsers';
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.insert(new List<ContentDocumentLink>{ cdl }, false, AccessLevel.SYSTEM_MODE);
 
         return contentDocId;
@@ -889,7 +889,7 @@ public without sharing class DocGenSignatureController {
             return Blob.toPdf('<html><body><p>Test PDF - Signed Document</p></body></html>');
         }
 
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Request__c> requests = [
             SELECT Source_Document_Id__c
             FROM DocGen_Signature_Request__c
@@ -903,7 +903,7 @@ public without sharing class DocGenSignatureController {
         Id sourceDocId = requests[0].Source_Document_Id__c;
 
         // Get typed-name signatures from signers
-        /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
             SELECT Id, Role_Name__c, Signature_Data__c
             FROM DocGen_Signer__c
@@ -936,7 +936,7 @@ public without sharing class DocGenSignatureController {
         // For any remaining template images, use relative CV URLs
         Map<String, String> imageUrlMap = new Map<String, String>();
         if (imagesByRelId != null) {
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<ContentVersion> allTmplCvs = [
                 SELECT Id, Title FROM ContentVersion
                 WHERE Title LIKE 'docgen_tmpl_img_%'
@@ -1040,7 +1040,7 @@ public without sharing class DocGenSignatureController {
     private static void cleanupSignatureTempImages(String batchKey) {
         if (String.isBlank(batchKey)) return;
         try {
-            /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<ContentVersion> tempCvs = [
                 SELECT ContentDocumentId FROM ContentVersion
                 WHERE Title LIKE :('docgen_sig_' + batchKey + '_%')
@@ -1051,7 +1051,7 @@ public without sharing class DocGenSignatureController {
                 for (ContentVersion cv : tempCvs) {
                     docIds.add(cv.ContentDocumentId);
                 }
-                /* sfge-disable-next-line ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+                /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
                 delete [SELECT Id FROM ContentDocument WHERE Id IN :docIds];
             }
         } catch (Exception e) {

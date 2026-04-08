@@ -11,7 +11,7 @@ public with sharing class DocGenTemplateManager {
         }
 
         // 1. Check for Active Version first
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template_Version__c> activeVersions = [SELECT Content_Version_Id__c
             FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId

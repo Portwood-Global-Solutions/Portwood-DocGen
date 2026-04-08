@@ -13,7 +13,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     public static Map<String, Object> generateDocumentData(Id templateId, Id recordId) {
         if (templateId == null) { throw new DocGenException('Template ID is missing.'); }
 
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
             FROM DocGen_Template__c
             WHERE Id = :templateId
@@ -68,7 +68,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
 
         // Cache template metadata + file content on first call
         if (cachedTemplateId != templateId || cachedTemplateEnvelope == null) {
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
                 FROM DocGen_Template__c
                 WHERE Id = :templateId
@@ -291,7 +291,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             if (recordId == null) { throw new DocGenException('Record ID is missing.'); }
 
             // Get template config
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c
                 FROM DocGen_Template__c
                 WHERE Id = :templateId
@@ -360,7 +360,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
 
             // Giant Query path: create Job, extract loop body, launch batch
             // Use pre-decomposed XML to get document.xml — avoids ZIP decompression heap cost
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template_Version__c> activeVersions = [SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :templateId AND Is_Active__c = true
                 WITH SYSTEM_MODE LIMIT 1];
@@ -410,7 +410,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     'childCount' => counts.get(giantRelationship)
                 })
             );
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             insert job; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // Launch batch — shell PDF generation happens in start() with fresh heap
@@ -442,7 +442,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled
     public static Map<String, Object> getGiantQueryJobStatus(Id jobId) {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Job__c> jobs = [SELECT Status__c, Success_Count__c, Total_Records__c, Label__c
             FROM DocGen_Job__c
             WHERE Id = :jobId
@@ -561,7 +561,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             Map<String, Object> childNodeConfig = (Map<String, Object>) JSON.deserializeUntyped(childNodeConfigJson);
 
             // Get document XML from pre-decomposed parts (no ZIP decompression)
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template_Version__c> activeVersions = [SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :templateId AND Is_Active__c = true
                 WITH SYSTEM_MODE LIMIT 1];
@@ -593,7 +593,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Label__c = 'Giant Query PDF',
                 Parent_Record_Id__c = String.valueOf(recordId)
             );
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             insert job; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // Ensure relationshipName is in the config (V1 scout doesn't include it)
@@ -634,7 +634,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         if (recordId == null || templateId == null) {
             return result;
         }
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template__c> templates = [SELECT Query_Config__c, Base_Object_API__c FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
         if (templates.isEmpty() || String.isBlank(templates[0].Query_Config__c)) {
             return result;
@@ -894,7 +894,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getTemplatesForObject(String objectApiName) {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c, Query_Config__c
             FROM DocGen_Template__c
             WHERE Base_Object_API__c = :objectApiName
@@ -908,7 +908,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getAllTemplates() {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c,
                    Test_Record_Id__c, Output_Format__c, Document_Title_Format__c, Is_Default__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
@@ -948,7 +948,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 template.Is_Default__c = isDefault;
                 if (isDefault == true && template.Base_Object_API__c != null) {
                     String baseObj = (String) fields.get('Base_Object_API__c');
-                    /* sfge-disable-next-line ApexFlsViolation */
+                    /* code-analyzer-suppress ApexFlsViolation */
                     List<DocGen_Template__c> otherDefaults = [SELECT Id FROM DocGen_Template__c
                         WHERE Base_Object_API__c = :baseObj
                         AND Is_Default__c = true
@@ -958,18 +958,18 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                         other.Is_Default__c = false;
                     }
                     if (!otherDefaults.isEmpty()) {
-                        /* sfge-disable-next-line ApexFlsViolation */
+                        /* code-analyzer-suppress ApexFlsViolation */
                     update otherDefaults; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
                     }
                 }
             }
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             update template; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // 2. Create Version if requested
             if (createVersion == true) {
                 // Deactivate current active versions
-                /* sfge-disable-next-line ApexFlsViolation */
+                /* code-analyzer-suppress ApexFlsViolation */
                 List<DocGen_Template_Version__c> activeVersions = [SELECT Id FROM DocGen_Template_Version__c
                     WHERE Template__c = :templateId AND Is_Active__c = true
                     WITH SYSTEM_MODE];
@@ -977,7 +977,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     av.Is_Active__c = false;
                 }
                 if (!activeVersions.isEmpty()) {
-                    /* sfge-disable-next-line ApexFlsViolation */
+                    /* code-analyzer-suppress ApexFlsViolation */
                     update activeVersions; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
                 }
 
@@ -1007,7 +1007,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
 
-                /* sfge-disable-next-line ApexFlsViolation */
+                /* code-analyzer-suppress ApexFlsViolation */
                 insert version; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
                 // Extract images from DOCX/PPTX and save as ContentVersions linked to the version.
@@ -1034,7 +1034,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             if (!Schema.sObjectType.DocGen_Template__c.isDeletable()) {
                 throw DocGenService.ahe('Insufficient access.');
             }
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             delete new DocGen_Template__c(Id = templateId); // NOPMD ApexCRUDViolation - isDeletable() checked above; package-internal custom object
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error deleting template. Please check your permissions.');
@@ -1048,7 +1048,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled
     public static List<DocGen_Template_Version__c> getTemplateVersions(Id templateId) {
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Content_Version_Id__c,
                    Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c
             FROM DocGen_Template_Version__c
@@ -1064,7 +1064,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     @AuraEnabled
     public static void activateVersion(Id versionId) {
         try {
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template_Version__c> actVerList = [SELECT Template__c, Query_Config__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
                 FROM DocGen_Template_Version__c
                 WHERE Id = :versionId
@@ -1073,7 +1073,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             DocGen_Template_Version__c version = actVerList[0];
 
             // 1. Deactivate others
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template_Version__c> others = [SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :version.Template__c AND Is_Active__c = true
                 WITH SYSTEM_MODE];
@@ -1081,13 +1081,13 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 v.Is_Active__c = false;
             }
             if (!others.isEmpty()) {
-                /* sfge-disable-next-line ApexFlsViolation */
+                /* code-analyzer-suppress ApexFlsViolation */
                 update others; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
             }
 
             // 2. Activate this one
             version.Is_Active__c = true;
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             update version; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // 3. Update Template Record Headline
@@ -1098,7 +1098,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             template.Type__c = version.Type__c;
             template.Base_Object_API__c = version.Base_Object_API__c;
 
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             update template; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         } catch (Exception e) {
@@ -3275,7 +3275,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Description__c = d.get('desc')
             ));
         }
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         insert templates; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         // Create ContentVersions (DOCX files) linked to templates
@@ -3309,7 +3309,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Base_Object_API__c = templates[i].Base_Object_API__c
             ));
         }
-        /* sfge-disable-next-line ApexFlsViolation */
+        /* code-analyzer-suppress ApexFlsViolation */
         insert versions; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         // Extract and save template images for PDF rendering
@@ -3343,7 +3343,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     @AuraEnabled
     public static String exportTemplate(Id templateId) {
         try {
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template__c> templates = [SELECT Name, Base_Object_API__c, Type__c, Output_Format__c, Category__c,
                        Description__c, Query_Config__c, Document_Title_Format__c, Is_Default__c,
                        (SELECT Id, Is_Active__c, Query_Config__c, Content_Version_Id__c,
@@ -3440,7 +3440,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             tmpl.Query_Config__c = (String) tmplData.get('Query_Config__c');
             tmpl.Document_Title_Format__c = (String) tmplData.get('Document_Title_Format__c');
             tmpl.Is_Default__c = tmplData.get('Is_Default__c') == true;
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             insert tmpl; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // 2. Upload template file if present
@@ -3468,7 +3468,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             ver.Description__c = (String) tmplData.get('Description__c');
             ver.Type__c = (String) tmplData.get('Type__c');
             ver.Base_Object_API__c = (String) tmplData.get('Base_Object_API__c');
-            /* sfge-disable-next-line ApexFlsViolation */
+            /* code-analyzer-suppress ApexFlsViolation */
             insert ver; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
             // 4. Extract images and pre-decompose (non-fatal)
@@ -3492,7 +3492,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     newSq.Description__c = (String) sq.get('Description__c');
                     sqs.add(newSq);
                 }
-                /* sfge-disable-next-line ApexFlsViolation */
+                /* code-analyzer-suppress ApexFlsViolation */
                 insert sqs; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
             }
 
