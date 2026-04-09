@@ -210,16 +210,19 @@ public with sharing class DocGenBulkController {
                     Integer heapBefore = Limits.getHeapSize();
                     String html = DocGenService.generateHtmlForRecord(templateId, temp.Test_Record_Id__c, null);
                     Integer heapAfter = Limits.getHeapSize();
-                    // Use the larger of: measured heap delta or HTML size × 2 (UTF-16)
-                    // The delta captures query objects, template parsing, image metadata, etc.
-                    Long measuredBytes = Math.max(heapAfter - heapBefore, html.length() * 2);
+                    // Generation heap = full cost (queries + parsing + rendering) — used for batch estimate
+                    Long generationBytes = Math.max(heapAfter - heapBefore, html.length() * 2);
+                    // Snippet size = just the HTML output — used for merge estimate
+                    // Merge Queueable only reads back saved HTML snippets, not full generation heap
+                    Long snippetBytes = html.length() * 2; // UTF-16
 
                     if (isMerge) {
-                        // Merge heap: all HTML snippets concatenated in one Queueable
+                        // Merge heap: Queueable reads all HTML snippets + concatenates + Blob.toPdf()
                         AnalysisItem heapItem = new AnalysisItem();
                         heapItem.label = 'Merge Heap';
                         heapItem.limitVal = 12;
-                        Decimal totalMb = ((measuredBytes * recordCount) * 1.3) / (1024.0 * 1024.0);
+                        // snippetBytes × records × 1.5 (overhead for string concat + PDF render)
+                        Decimal totalMb = ((snippetBytes * recordCount) * 1.5) / (1024.0 * 1024.0);
                         heapItem.estimated = totalMb.setScale(2);
 
                         if (totalMb >= 10.0) {
@@ -240,7 +243,7 @@ public with sharing class DocGenBulkController {
                     AnalysisItem batchHeapItem = new AnalysisItem();
                     batchHeapItem.label = 'Batch Heap';
                     batchHeapItem.limitVal = 12;
-                    Decimal batchMb = ((measuredBytes * safeBatchSize) * 1.3) / (1024.0 * 1024.0);
+                    Decimal batchMb = ((generationBytes * safeBatchSize) * 1.3) / (1024.0 * 1024.0);
                     batchHeapItem.estimated = batchMb.setScale(2);
 
                     if (batchMb >= 10.0) {
