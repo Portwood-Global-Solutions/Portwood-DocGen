@@ -1816,7 +1816,9 @@ public with sharing class DocGenService {
                          for (Object item : listVal) {
                               if (item instanceof Map<String, Object>) { sectionResult += processXml(innerXml, (Map<String, Object>) item); }
                          }
-                    } else if (val != null) {
+                    } else if (val != null && !(val instanceof Boolean)) {
+                         // Non-null, non-boolean, non-list, non-map value (e.g., non-blank string)
+                         // Boolean false is explicitly excluded — only Boolean true shows content
                          sectionResult = processXml(innerXml, data);
                     }
                     output += sectionResult;
@@ -1913,10 +1915,11 @@ public with sharing class DocGenService {
                         DateTime dt = DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
                         strVal = dt.format(dateFormat);
                     } else if (dateFormat != null && dateFormat.toLowerCase().trim() == 'checkbox') {
-                        // {IsActive:checkbox} → ☑ or ☐
+                        // {IsActive:checkbox} → [X] or [ ]
+                        // Uses ASCII representation for universal font compatibility in PDF/DOCX
                         Boolean checked = val instanceof Boolean ? (Boolean) val :
                             String.valueOf(val).equalsIgnoreCase('true');
-                        strVal = checked ? '\u2611' : '\u2610';
+                        strVal = checked ? '[X]' : '[ ]';
                     } else if (dateFormat != null && isNumericFormat(dateFormat)) {
                         strVal = formatNumber(val, dateFormat);
                     } else {
