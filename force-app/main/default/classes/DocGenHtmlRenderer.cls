@@ -1300,13 +1300,13 @@ public with sharing class DocGenHtmlRenderer {
                 val = extractAttr(xml, 'w:pgSz', 'w:h');
                 if (val != null && val.isNumeric()) { pgH = Integer.valueOf(val); }
                 val = extractAttr(xml, 'w:pgMar', 'w:top');
-                if (val != null && val.isNumeric()) { mTop = Integer.valueOf(val); }
+                if (val != null && Pattern.matches('-?\\d+', val)) { mTop = Math.abs(Integer.valueOf(val)); }
                 val = extractAttr(xml, 'w:pgMar', 'w:right');
-                if (val != null && val.isNumeric()) { mRight = Integer.valueOf(val); }
+                if (val != null && Pattern.matches('-?\\d+', val)) { mRight = Math.abs(Integer.valueOf(val)); }
                 val = extractAttr(xml, 'w:pgMar', 'w:bottom');
-                if (val != null && val.isNumeric()) { mBottom = Integer.valueOf(val); }
+                if (val != null && Pattern.matches('-?\\d+', val)) { mBottom = Math.abs(Integer.valueOf(val)); }
                 val = extractAttr(xml, 'w:pgMar', 'w:left');
-                if (val != null && val.isNumeric()) { mLeft = Integer.valueOf(val); }
+                if (val != null && Pattern.matches('-?\\d+', val)) { mLeft = Math.abs(Integer.valueOf(val)); }
             } catch (Exception e) {
                 // Intentionally swallowed — page dimension parsing failed, using defaults
                 String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
