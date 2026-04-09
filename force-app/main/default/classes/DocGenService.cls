@@ -1587,8 +1587,8 @@ public with sharing class DocGenService {
      * After merging, processXml can find complete tags like {#QuoteLineItems}.
      */
     private static String mergeRunsInTags(String xml) {
-        // 1. Find all <w:t...>text</w:t> elements and their text content positions
-        Pattern wtPattern = Pattern.compile('<w:t(?:\\s[^>]*)?>([^<]*)</w:t>');
+        // 1. Find all <w:t...>text</w:t> and <a:t>text</a:t> elements (Word + PowerPoint)
+        Pattern wtPattern = Pattern.compile('<[wa]:t(?:\\s[^>]*)?>([^<]*)</[wa]:t>');
         Matcher m = wtPattern.matcher(xml);
 
         List<Integer> contentStarts = new List<Integer>();
@@ -1968,7 +1968,7 @@ public with sharing class DocGenService {
                 return -1;
             }
             String content = xml.substring(nextStart + 1, nextClose).trim();
-            if (content.equals('#' + key)) {
+            if (content.equals('#' + key) || content.equals('^' + key)) {
                 depth++;
             }
             else if (content.equals('/' + key)) {
