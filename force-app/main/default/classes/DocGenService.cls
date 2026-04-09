@@ -1822,6 +1822,34 @@ public with sharing class DocGenService {
                     output += sectionResult;
                 }
                 
+            } else if (tagContent.startsWith('^')) {
+                // Inverse conditional: {^BoolField}content{/BoolField}
+                // Shows content when field is false, null, blank, or empty list
+                String key = tagContent.substring(1).trim();
+                Integer sectionEnd = findBalancedEnd(xml, tagClose + 1, key);
+                if (sectionEnd == -1) {
+                    throw new DocGenException(
+                        'Malformed inverse tag: missing closing "{/' + key + '}" for "{^' + key + '}".'
+                    );
+                } else {
+                    Integer contentStart = tagClose + 1;
+                    Integer contentEnd = sectionEnd;
+                    String innerXml = xml.substring(contentStart, contentEnd);
+                    Integer closeTagEnd = xml.indexOf('}', sectionEnd);
+                    String sectionResult = '';
+                    Object val = resolveValue(data, key);
+                    // Show content when value is falsy
+                    Boolean isFalsy = (val == null) ||
+                        (val instanceof Boolean && !(Boolean)val) ||
+                        (val instanceof String && String.isBlank((String)val)) ||
+                        (val instanceof List<Object> && ((List<Object>)val).isEmpty());
+                    if (isFalsy) {
+                        sectionResult = processXml(innerXml, data);
+                    }
+                    output += sectionResult;
+                    cursor = (closeTagEnd != -1 ? closeTagEnd + 1 : sectionEnd);
+                }
+
             } else if (tagContent.startsWith('/')) {
                 output += '{' + rawTag + '}';
                 cursor = tagClose + 1;
@@ -1884,6 +1912,11 @@ public with sharing class DocGenService {
                     } else if (dateFormat != null && val instanceof Date) {
                         DateTime dt = DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
                         strVal = dt.format(dateFormat);
+                    } else if (dateFormat != null && dateFormat.toLowerCase().trim() == 'checkbox') {
+                        // {IsActive:checkbox} → ☑ or ☐
+                        Boolean checked = val instanceof Boolean ? (Boolean) val :
+                            String.valueOf(val).equalsIgnoreCase('true');
+                        strVal = checked ? '\u2611' : '\u2610';
                     } else if (dateFormat != null && isNumericFormat(dateFormat)) {
                         strVal = formatNumber(val, dateFormat);
                     } else {
