@@ -119,7 +119,10 @@ public without sharing class DocGenSignatureService {
             if (siteUrl.endsWith('/')) {
                 siteUrl = siteUrl.substring(0, siteUrl.length() - 1);
             }
-            String verifyUrl = siteUrl + '/apex/DocGenVerify?id=' + String.valueOf(requestId);
+            // Build namespace-aware VF page path for subscriber orgs
+            String ns = DocGenSignatureService.class.getName().substringBefore('.');
+            String verifyPage = (String.isNotBlank(ns) && ns != 'DocGenSignatureService') ? '/apex/' + ns + '__DocGenVerify' : '/apex/DocGenVerify';
+            String verifyUrl = siteUrl + verifyPage + '?id=' + String.valueOf(requestId);
             html += 'Verify authenticity at: ' + verifyUrl.escapeHtml4();
         }
         html += '</td></tr>';

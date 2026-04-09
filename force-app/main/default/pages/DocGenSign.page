@@ -6,10 +6,11 @@
     <title>Document Signature</title>
     <script>
         // Redirect to the main signature page, preserving the token
+        // Use Visualforce $Page reference to get namespace-aware URL
         var params = new URLSearchParams(window.location.search);
         var token = params.get('token');
         if (token) {
-            window.location.replace('/apex/DocGenSignature?token=' + encodeURIComponent(token));
+            window.location.replace('{!URLFOR($Page.DocGenSignature)}' + '?token=' + encodeURIComponent(token));
         } else {
             document.body.textContent = 'Invalid signature link. Please check your email for the correct URL.';
         }

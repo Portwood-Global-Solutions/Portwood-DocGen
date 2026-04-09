@@ -243,7 +243,7 @@ public with sharing class DocGenSignatureSenderController {
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         String token = EncodingUtil.convertToHex(hash);
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-        String signingPageUrl = getSiteBaseUrl() + '/apex/DocGenSignature?token=' + token;
+        String signingPageUrl = getSiteBaseUrl() + getSigningPagePath() + '?token=' + token;
 
 
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
@@ -360,7 +360,7 @@ public with sharing class DocGenSignatureSenderController {
                 signerMap.put('signerEmail', signer.Signer_Email__c);
                 signerMap.put('roleName', signer.Role_Name__c);
                 signerMap.put('status', signer.Status__c);
-                signerMap.put('signerUrl', siteUrl + '/apex/DocGenSignature?token=' + signer.Secure_Token__c);
+                signerMap.put('signerUrl', siteUrl + getSigningPagePath() + '?token=' + signer.Secure_Token__c);
                 signerList.add(signerMap);
             }
             reqMap.put('signers', signerList);
@@ -470,7 +470,7 @@ public with sharing class DocGenSignatureSenderController {
             sr.signerName = signerName;
             sr.roleName = roleName;
             sr.signerEmail = signerEmail;
-            sr.signerUrl = siteUrl + '/apex/DocGenSignature?token=' + token;
+            sr.signerUrl = siteUrl + getSigningPagePath() + '?token=' + token;
             results.add(sr);
         }
 
@@ -558,7 +558,7 @@ public with sharing class DocGenSignatureSenderController {
             s.PIN_Attempts__c = 0;
             s.PIN_Verified_At__c = null;
 
-            String sigUrl = siteUrl + '/apex/DocGenSignature?token=' + newToken;
+            String sigUrl = siteUrl + getSigningPagePath() + '?token=' + newToken;
             emailList.add(new DocGenSignatureEmailService.SignerEmail(
                 s.Signer_Name__c, s.Signer_Email__c, s.Role_Name__c, sigUrl, s.Contact__c
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
@@ -622,6 +622,15 @@ public with sharing class DocGenSignatureSenderController {
     private static String getDocumentTitle(Id contentVersionId) {
         List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE Id = :contentVersionId WITH USER_MODE LIMIT 1];
         return !cvs.isEmpty() ? cvs[0].Title : 'Document';
+    }
+
+    private static String getSigningPagePath() {
+        // In managed packages, VF pages need the namespace prefix in subscriber orgs
+        String ns = DocGenSignatureSenderController.class.getName().substringBefore('.');
+        if (String.isNotBlank(ns) && ns != 'DocGenSignatureSenderController') {
+            return '/apex/' + ns + '__DocGenSignature';
+        }
+        return '/apex/DocGenSignature';
     }
 
     private static String getSiteBaseUrl() {
