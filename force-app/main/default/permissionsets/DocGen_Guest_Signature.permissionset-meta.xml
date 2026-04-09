@@ -199,6 +199,14 @@
         <apexPage>DocGenSignature</apexPage>
         <enabled>true</enabled>
     </pageAccesses>
+    <pageAccesses>
+        <apexPage>DocGenSign</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
+    <pageAccesses>
+        <apexPage>DocGenVerify</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
     <label>DocGen Guest Signature</label>
     <objectPermissions>
         <allowCreate>true</allowCreate>
