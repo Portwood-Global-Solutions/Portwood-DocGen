@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.31.0 — Security Hardening + E-Signatures",
-      "versionNumber": "1.31.0.NEXT",
-      "ancestorId": "04tal000006UWTdAAO",
+      "versionName": "1.33.0 — Namespace URL Fix + Security Hardening",
+      "versionNumber": "1.33.0.NEXT",
+      "ancestorId": "04tal000006UXZNAA4",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -53,6 +53,8 @@
     "Portwood DocGen Managed@1.28.0-5": "04tal000006UVNtAAO",
     "Portwood DocGen Managed@1.29.0-1": "04tal000006UVvlAAG",
     "Portwood DocGen Managed@1.30.0-1": "04tal000006UWTdAAO",
-    "Portwood DocGen Managed@1.31.0-1": "04tal000006UX37AAG"
+    "Portwood DocGen Managed@1.31.0-2": "04tal000006UX4jAAG",
+    "Portwood DocGen Managed@1.33.0-1": "04tal000006UXj3AAG",
+    "Portwood DocGen Managed@1.34.0-1": "04tal000006UXkfAAG"
   }
 }
