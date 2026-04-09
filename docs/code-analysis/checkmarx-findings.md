@@ -22,26 +22,22 @@
 
 ## High Severity Findings (28)
 
-### 1. SOQL_SOSL_Injection — 9 findings
+### 1. SOQL_SOSL_Injection — 6 findings (was 9, reduced by 3)
 
-| # | File | Line | Method | Status | Fix |
-|---|---|---|---|---|---|
-| 1 | DocGenBulkController.cls | 20 | validateFilter | Suppressed | Object validated by Schema.getGlobalDescribe(); condition sanitized by sanitizeCondition(); USER_MODE enforced. Added CxSAST suppression comment. |
-| 2 | DocGenBulkController.cls | 20 | validateFilter | Suppressed | Same as #1 — duplicate finding on same method. |
-| 3 | DocGenController.cls | 516 | getSortedChildIds | Suppressed | Object validated by Schema; orderBy/whereClause sanitized for dangerous keywords; escapeSingleQuotes on object/field names; USER_MODE. Added CxSAST comment. |
-| 4 | DocGenController.cls | 556 | getChildRecordsByIds | Suppressed | Object validated by Schema.getGlobalDescribe(); fields escaped with escapeSingleQuotes; USER_MODE. Added CxSAST comment. |
-| 5 | DocGenController.cls | 793 | scoutChildCounts | Suppressed | queryConfig sourced from DB record (not user input); delegated to DataRetriever which uses Schema validation + escapeSingleQuotes + USER_MODE. Added CxSAST comment. |
-| 6 | DocGenController.cls | 793 | scoutChildCounts | Suppressed | Same as #5 — duplicate finding on same method. |
-| 7 | DocGenController.cls | 878 | previewRecordData | Fixed | Added Schema.getGlobalDescribe() validation for baseObject param. DataRetriever validates all objects/fields via Schema + escapeSingleQuotes + USER_MODE. Added CxSAST comment. |
-| 8 | DocGenController.cls | 878 | previewRecordData | Fixed | Same as #7 — duplicate finding on same method. |
-| 9 | DocGenController.cls | 516 | generateDocumentPartsGiantQuery | Suppressed | giantRelationshipName not used in SOQL (only XML loop extraction). Added escapeSingleQuotes as defense-in-depth + CxSAST comment. |
+**Why these can't be fully resolved:** Salesforce dynamic SOQL does not support bind variables for object names (`FROM :obj`), field names (`SELECT :field`), or ORDER BY clauses. Every dynamic SOQL tool on the platform has these findings. Mitigation is Schema validation + keyword sanitization + USER_MODE.
 
-### 2. Client_DOM_XSS — 8 findings
+| # | SimilarityId | File | Line | Sink | Mitigation | Status |
+|---|---|---|---|---|---|---|
+| 1 | 1549217116 | DocGenBulkController.cls | 27→31 | Database.countQuery() | `objectName` validated by `Schema.getGlobalDescribe()` (rejects non-existent objects); `condition` sanitized by `sanitizeCondition()` (rejects INSERT/DELETE/SELECT/etc.); query runs with `USER_MODE` | FalsePositive — can't bind object names |
+| 2 | 244622418 | DocGenController.cls | 836→840 | Database.query() | `objectName` validated by Schema; `orderByClause` sanitized by `sanitizeOrderByClause()` (rejects dangerous keywords + chars); `whereClause` sanitized by same; runs with `USER_MODE` | FalsePositive — can't bind ORDER BY |
+| 3 | 2090091031 | DocGenController.cls | 1659→1664 | Database.query() | `childObject` validated by Schema; `displayField` validated by `Schema.describeSObjects()` field map; runs with `USER_MODE`; hardcoded `LIMIT 200` | FalsePositive — can't bind field names |
+| 4 | -1369514376 | DocGenService.cls | 3359 | Pattern.matcher() | **Not SOQL at all** — this is regex matching on template XML. No database query involved. | FalsePositive — not a SOQL operation |
+| 5 | 413155410 | DocGenDataRetriever.cls | 322→327 | Database.query() | Field names from V2 query config (stored in DB, admin-authored); each field validated by `validateField()` against `Schema.describeSObjects()` field map; object validated by Schema; runs with `USER_MODE` | FalsePositive — admin-authored config, Schema-validated |
+| 6 | 1135342328 | DocGenDataRetriever.cls | 399→407 | Database.query() | Junction target fields validated by `validateField()`; targetObject validated by Schema; WHERE/ORDER BY sanitized by `sanitizeClause()` (rejects dangerous keywords); runs with `USER_MODE` | FalsePositive — Schema-validated + keyword sanitization |
 
-| # | File | Line | Status | Fix |
-|---|---|---|---|---|
-| 1-8 | docGenAuthenticator.js | 13 | FalsePositive | LWC does not use innerHTML — uses reactive properties and Apex @wire. The real XSS vector was in DocGenVerify.page (VF page). |
-| 1-8 | DocGenVerify.page | 76+ | Fixed | Replaced all innerHTML assignments with programmatic DOM element creation (createElement, textContent, appendChild). All user data rendered via textContent (auto-escaped). Removed esc() helper function. |
+### 2. Client_DOM_XSS — 0 findings (was 8, ELIMINATED)
+
+**Fixed in v1.31.0:** Added Salesforce ID regex validation (`/^[a-zA-Z0-9]{15,18}$/`) on URL parameters before passing to Apex in both `docGenAuthenticator.js` and `DocGenVerify.page`. All server data rendered via LWC template expressions (auto-escaped) or `textContent` (auto-escaped).
 
 ### 3. Apex_CRUD_Violation — 9 findings
 
