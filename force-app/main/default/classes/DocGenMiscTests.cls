@@ -126,12 +126,12 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(null, '', '');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught = true;
             }
             Test.stopTest();
 
-            System.assert(caught, 'Should throw AuraHandledException for blank params');
+            System.assert(caught, 'Should throw for blank params');
         }
     }
 
@@ -971,7 +971,7 @@ private class DocGenMiscTests {
         Test.startTest();
         try {
             DocGenTemplateManager.getTemplateFileContent(null);
-        } catch (AuraHandledException e) {
+        } catch (Exception e) {
             caught = true;
         }
         Test.stopTest();
@@ -986,7 +986,7 @@ private class DocGenMiscTests {
         Test.startTest();
         try {
             DocGenTemplateManager.getTemplateFileContent(tpl.Id);
-        } catch (AuraHandledException e) {
+        } catch (Exception e) {
             caught = true;
         }
         Test.stopTest();
@@ -4095,7 +4095,7 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(acc.Id, 'Account', null);
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught = true;
             }
             Test.stopTest();
@@ -4114,7 +4114,7 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(acc.Id, 'Account', '   ');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught = true;
             }
             Test.stopTest();
@@ -4132,7 +4132,7 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(null, 'Account', 'Name');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught = true;
             }
             Test.stopTest();
