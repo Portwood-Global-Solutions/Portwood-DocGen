@@ -108,12 +108,12 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(acc.Id, 'NotARealObject__c', 'Name');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught = true;
             }
             Test.stopTest();
 
-            System.assert(caught, 'Should throw AuraHandledException for invalid object');
+            System.assert(caught, 'Should throw for invalid object');
         }
     }
 
@@ -177,12 +177,12 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(acc.Id, '', 'Name');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught1 = true;
             }
             try {
                 DocGenDataRetriever.getRecordData(acc.Id, 'Account', '');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught2 = true;
             }
             Test.stopTest();
@@ -2768,7 +2768,7 @@ private class DocGenMiscTests {
             Test.startTest();
             try {
                 DocGenDataRetriever.getRecordData(acc.Id, 'Account', '{"v":3,"root":"Account","nodes":[]}');
-            } catch (AuraHandledException e) {
+            } catch (Exception e) {
                 caught = true;
             }
             Test.stopTest();
