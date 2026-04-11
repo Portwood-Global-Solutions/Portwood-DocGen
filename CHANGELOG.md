@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.42.0 — Permission Audit & Signature Flow Action
+
+### Signature Automation from Flow
+- **New invocable: `DocGen: Create Signature Request`** — kick off a full DocGen signature request from any Flow. Pass a template Id, a related record Id, and parallel lists of signer names / emails / (optional) roles / (optional) contact Ids. The action returns the signature request Id and one signing URL per signer, in input order.
+- **Flow-native notification** — the invocable defaults to `sendEmails = false` from Flow so your Flow owns the notification path (Send Email action, Slack, Teams, etc.). Set `Send Branded Emails = true` to use the package's built-in branded invitation emails instead. The LWC signature sender path is unchanged and still sends the branded emails by default.
+- **End-to-end automation** — record-triggered Flow → create signature request → post signing links to your channel of choice → track completion via `signatureRequestId` on the record.
+
+### Permission Set Audit
+- **Added missing class grants** across `DocGen_Admin` and `DocGen_User`: `DocGenSignatureFlowAction`, `DocGenGiantQueryFlowAction`, `DocGenGiantQueryAssembler`, and `DocGenAuthenticatorController` (User). The two Flow invocables were previously un-granted, meaning Flows calling them would fail with `INSUFFICIENT_ACCESS`.
+- **Added missing field grants** for all 8 `DocGen_Settings__c` fields to Admin (read/write) and User (read-only). Configuring signature email branding, OWA id, experience site URL, and company name no longer requires a system administrator.
+- **Added missing audit field grants** to User: `Contact__c`, `Error_Message__c`, `Signer__c`. The signature audit related list on a record page now shows full context.
+- **Added missing VF page grants** to both Admin and User: `DocGenGuide` and `DocGenVerify`. Non-sysadmin users can now reach the in-app admin guide and the document verification page.
+- **Added missing tabs**: Signer tab for Admin; Signature Request tab for User.
+- **Intentional blocks confirmed**: User remains explicitly denied on `DocGen_Signer__c.PIN_Hash__c`, `PIN_Attempts__c`, `PIN_Expires_At__c`, `Secure_Token__c`, and `DocGen_Signature_Request__c.Secure_Token__c`. Only Admin and the token-gated Guest path can read PIN hashes or signing tokens.
+
+### Security Review Pack
+- **Four reviewer-ready documents** in `docs/appexchange/` (each in `.md`, `.doc`, and `.pdf`):
+  - `DocGen_Solution_Architecture_and_Usage` — security-focused architecture, threat model, sharing model, controls matrix.
+  - `DocGen_Architecture_and_Usage` — feature/component inventory and usage walkthroughs.
+  - `DocGen_False_Positive_Report` — per-category disposition of the 335 Checkmarx CxSAST findings (Scan `a0OKX000001JEZY2A4`).
+  - `DocGen_Code_Analyzer_Report` — Salesforce Code Analyzer run: **0 High, 30 Moderate** (documented false positives).
+
+### Testing
+- `scripts/e2e-01-permissions.apex` expanded from 29 to **37 assertions** — covers the new class grants, page accesses, and `DocGenSignatureFlowAction` visibility on both Admin and User permsets.
+- Full e2e suite (8 scripts) passes clean: **138/0 PASS**.
+- `RunLocalTests` clean (850+ tests, ≥ 75% coverage).
+- Code Analyzer Security + AppExchange: **0 High**, same 30 Moderate documented false positives as v1.41.0.
+
 ## v1.26.0 — Giant Query Sort, Visual Builder & Image Fix
 
 ### Giant Query Sort Order

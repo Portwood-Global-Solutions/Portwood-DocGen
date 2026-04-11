@@ -57,6 +57,7 @@
         <field>DocGen_Signature_Audit__c.IP_Address__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <!-- DocGen_Signature_Audit__c.Signature_Request__c is a required master-detail; FLS auto-granted -->
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Signature_Audit__c.Signed_Date__c</field>

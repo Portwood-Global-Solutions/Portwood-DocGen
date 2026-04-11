@@ -426,6 +426,10 @@ public with sharing class DocGenSignatureSenderController {
      * Used by both createMultiSignerRequest (DOCX) and createTemplateSignerRequest (template).
      */
     private static List<SignerResult> createSignersAndNotify(Id requestId, Id templateId, String documentTitle, List<Map<String, Object>> signerInputs) {
+        return createSignersAndNotify(requestId, templateId, documentTitle, signerInputs, true);
+    }
+
+    private static List<SignerResult> createSignersAndNotify(Id requestId, Id templateId, String documentTitle, List<Map<String, Object>> signerInputs, Boolean sendEmails) {
         String siteUrl = getSiteBaseUrl();
         List<DocGen_Signer__c> signerRecords = new List<DocGen_Signer__c>();
         List<SignerResult> results = new List<SignerResult>();
@@ -478,23 +482,99 @@ public with sharing class DocGenSignatureSenderController {
         /* code-analyzer-suppress ApexFlsViolation */
         insert signerRecords; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
-        // Send branded signature request emails
-        List<DocGenSignatureEmailService.SignerEmail> emailList = new List<DocGenSignatureEmailService.SignerEmail>();
-        for (SignerResult sr : results) {
-            Id cId = null;
-            for (Map<String, Object> input : signerInputs) {
-                if (sr.signerEmail == (String) input.get('signerEmail') && String.isNotBlank((String) input.get('contactId'))) {
-                    cId = (Id) input.get('contactId');
-                    break;
+        // Send branded signature request emails (unless caller opts out, e.g. Flow sending its own emails)
+        if (sendEmails) {
+            List<DocGenSignatureEmailService.SignerEmail> emailList = new List<DocGenSignatureEmailService.SignerEmail>();
+            for (SignerResult sr : results) {
+                Id cId = null;
+                for (Map<String, Object> input : signerInputs) {
+                    if (sr.signerEmail == (String) input.get('signerEmail') && String.isNotBlank((String) input.get('contactId'))) {
+                        cId = (Id) input.get('contactId');
+                        break;
+                    }
                 }
+                emailList.add(new DocGenSignatureEmailService.SignerEmail(
+                    sr.signerName, sr.signerEmail, sr.roleName, sr.signerUrl, cId
+                ));
             }
-            emailList.add(new DocGenSignatureEmailService.SignerEmail(
-                sr.signerName, sr.signerEmail, sr.roleName, sr.signerUrl, cId
-            ));
+            DocGenSignatureEmailService.sendSignatureRequestEmails(emailList, documentTitle);
         }
-        DocGenSignatureEmailService.sendSignatureRequestEmails(emailList, documentTitle);
 
         return results;
+    }
+
+    /**
+     * Flow-facing variant of createTemplateSignerRequest that returns the signature request Id
+     * alongside the signer results and allows the caller to suppress the branded invitation emails.
+     * Used by DocGenSignatureFlowAction.
+     */
+    public class TemplateSignatureFlowResult {
+        public Id signatureRequestId;
+        public List<SignerResult> signers;
+        public TemplateSignatureFlowResult() { this.signers = new List<SignerResult>(); }
+    }
+
+    public static TemplateSignatureFlowResult createTemplateSignatureRequestForFlow(
+        Id templateId, Id relatedRecordId, List<Map<String, Object>> signerInputs, Boolean sendEmails
+    ) {
+        /* code-analyzer-suppress ApexFlsViolation */
+        List<DocGen_Template__c> templates = [SELECT Id, Name FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
+        if (templates.isEmpty()) {
+            throw new DocGenException('DocGen template not found: ' + templateId);
+        }
+
+        DocGen_Signature_Request__c req = new DocGen_Signature_Request__c();
+        req.Template__c = templateId;
+        req.Related_Record_Id__c = relatedRecordId;
+        req.Status__c = 'Sent';
+        /* code-analyzer-suppress ApexFlsViolation */
+        insert req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+
+        // Pre-compute merge + preview (same as createTemplateSignerRequest)
+        try {
+            Map<String, Object> mergeData = DocGenService.mergeTemplateForSignature(templateId, relatedRecordId);
+            Map<String, String> pdfImageMap = (Map<String, String>) mergeData.get('pdfImageMap');
+
+            Map<String, String> previewImageMap = new Map<String, String>();
+            for (String relId : pdfImageMap.keySet()) {
+                String url = pdfImageMap.get(relId);
+                if (url != null && url.contains('/version/download/')) {
+                    String cvId = url.substringAfterLast('/');
+                    try {
+                        ContentDistribution dist = new ContentDistribution();
+                        dist.Name = 'sig_preview_' + relId;
+                        dist.ContentVersionId = cvId;
+                        dist.PreferencesAllowViewInBrowser = true;
+                        dist.PreferencesLinkLatestVersion = false;
+                        dist.PreferencesExpires = false;
+                        insert dist; // NOPMD ApexCRUDViolation - ContentDistribution for signature preview
+                        dist = [SELECT ContentDownloadUrl FROM ContentDistribution WHERE Id = :dist.Id]; // NOPMD
+                        previewImageMap.put(relId, dist.ContentDownloadUrl);
+                    } catch (Exception e) {
+                        System.debug(LoggingLevel.WARN, 'DocGen: Flow-path ContentDistribution failed for ' + relId + ': ' + e.getMessage());
+                    }
+                }
+            }
+
+            String docXml = (String) mergeData.get('documentXml');
+            String previewHtml = DocGenHtmlRenderer.convertToHtml(docXml, previewImageMap);
+            Map<String, Object> cachedData = new Map<String, Object>{
+                'imageMap' => pdfImageMap,
+                'previewHtml' => previewHtml
+            };
+            req.Signature_Data__c = JSON.serialize(cachedData);
+            /* code-analyzer-suppress ApexFlsViolation */
+            update req; // NOPMD ApexCRUDViolation - package-internal custom object
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'DocGen: Flow-path pre-compute failed: ' + e.getMessage());
+        }
+
+        List<SignerResult> signers = createSignersAndNotify(req.Id, templateId, templates[0].Name, signerInputs, sendEmails == true);
+
+        TemplateSignatureFlowResult result = new TemplateSignatureFlowResult();
+        result.signatureRequestId = req.Id;
+        result.signers = signers;
+        return result;
     }
 
     /**

@@ -48,6 +48,27 @@ try {
         if (senderOk) { pass++; System.debug('ADMIN SENDER CLASS (DocGenSignatureSenderController): PASS'); }
         else { fail++; System.debug('ADMIN SENDER CLASS: FAIL — found: ' + cls); }
 
+        // Flow invocables (signature + giant query)
+        Boolean sigFlowOk = cls.contains('DocGenSignatureFlowAction');
+        if (sigFlowOk) { pass++; System.debug('ADMIN FLOW CLASS DocGenSignatureFlowAction: PASS'); }
+        else { fail++; System.debug('ADMIN FLOW CLASS DocGenSignatureFlowAction: FAIL — found: ' + cls); }
+
+        Boolean gqFlowOk = cls.contains('DocGenGiantQueryFlowAction');
+        if (gqFlowOk) { pass++; System.debug('ADMIN FLOW CLASS DocGenGiantQueryFlowAction: PASS'); }
+        else { fail++; System.debug('ADMIN FLOW CLASS DocGenGiantQueryFlowAction: FAIL — found: ' + cls); }
+
+        // VF page accesses
+        Set<String> apgs = new Set<String>();
+        for (SetupEntityAccess s : [SELECT SetupEntityId FROM SetupEntityAccess WHERE ParentId = :psId AND SetupEntityType = 'ApexPage']) {
+            apgs.add([SELECT Name FROM ApexPage WHERE Id = :s.SetupEntityId LIMIT 1].Name);
+        }
+        Boolean guideOk = apgs.contains('DocGenGuide');
+        if (guideOk) { pass++; System.debug('ADMIN PAGE DocGenGuide: PASS'); }
+        else { fail++; System.debug('ADMIN PAGE DocGenGuide: FAIL — found: ' + apgs); }
+        Boolean verifyOk = apgs.contains('DocGenVerify');
+        if (verifyOk) { pass++; System.debug('ADMIN PAGE DocGenVerify: PASS'); }
+        else { fail++; System.debug('ADMIN PAGE DocGenVerify: FAIL — found: ' + apgs); }
+
         // Object permissions — templates, jobs, signature objects
         Set<String> objs = new Set<String>();
         for (ObjectPermissions op : [SELECT SobjectType FROM ObjectPermissions WHERE ParentId = :psId AND PermissionsRead = true]) { objs.add(op.SobjectType); }
@@ -122,6 +143,26 @@ try {
         Boolean uClsOk = ucls.contains('DocGenController');
         if (uClsOk) { pass++; System.debug('USER CLASS DocGenController: PASS'); }
         else { fail++; System.debug('USER CLASS DocGenController: FAIL — found: ' + ucls); }
+
+        Boolean uFlowOk = ucls.contains('DocGenSignatureFlowAction');
+        if (uFlowOk) { pass++; System.debug('USER CLASS DocGenSignatureFlowAction: PASS'); }
+        else { fail++; System.debug('USER CLASS DocGenSignatureFlowAction: FAIL — found: ' + ucls); }
+
+        Boolean uGqFlowOk = ucls.contains('DocGenGiantQueryFlowAction');
+        if (uGqFlowOk) { pass++; System.debug('USER CLASS DocGenGiantQueryFlowAction: PASS'); }
+        else { fail++; System.debug('USER CLASS DocGenGiantQueryFlowAction: FAIL — found: ' + ucls); }
+
+        Boolean uAuthOk = ucls.contains('DocGenAuthenticatorController');
+        if (uAuthOk) { pass++; System.debug('USER CLASS DocGenAuthenticatorController: PASS'); }
+        else { fail++; System.debug('USER CLASS DocGenAuthenticatorController: FAIL — found: ' + ucls); }
+
+        Set<String> upgs = new Set<String>();
+        for (SetupEntityAccess s : [SELECT SetupEntityId FROM SetupEntityAccess WHERE ParentId = :upsId AND SetupEntityType = 'ApexPage']) {
+            upgs.add([SELECT Name FROM ApexPage WHERE Id = :s.SetupEntityId LIMIT 1].Name);
+        }
+        Boolean uVerifyOk = upgs.contains('DocGenVerify');
+        if (uVerifyOk) { pass++; System.debug('USER PAGE DocGenVerify: PASS'); }
+        else { fail++; System.debug('USER PAGE DocGenVerify: FAIL — found: ' + upgs); }
     }
 } catch (Exception e) { fail++; System.debug('USER PERMS: FAIL — ' + e.getMessage()); }
 

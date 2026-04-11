@@ -25,7 +25,15 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>DocGenGiantQueryAssembler</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>DocGenGiantQueryBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DocGenGiantQueryFlowAction</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
@@ -78,6 +86,10 @@
     </classAccesses>
     <classAccesses>
         <apexClass>DocGenSignatureFinalizer</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DocGenSignatureFlowAction</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
@@ -156,19 +168,62 @@
         <field>DocGen_Job__c.Success_Count__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <!-- DocGen_Job__c.Template__c is a required master-detail; FLS auto-granted, cannot declare here -->
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Job__c.Total_Records__c</field>
         <readable>true</readable>
     </fieldPermissions>
-<fieldPermissions>
+    <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Saved_Query__c.Description__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <!-- DocGen_Saved_Query__c.DocGen_Template__c is a required master-detail; FLS auto-granted -->
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Saved_Query__c.Query_Condition__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <!-- DocGen Settings (hierarchy custom setting) fields -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Company_Name__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Experience_Site_Url__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Signature_Email_Brand_Color__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Signature_Email_Footer_Text__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Signature_Email_Logo_Url__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Signature_Email_Message__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Signature_Email_Subject__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Settings__c.Signature_OWA_Id__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -201,12 +256,14 @@
         <field>DocGen_Template_Version__c.Query_Config__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <!-- DocGen_Template_Version__c.Template__c is a required master-detail; FLS auto-granted -->
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Template_Version__c.Type__c</field>
         <readable>true</readable>
     </fieldPermissions>
-<fieldPermissions>
+    <!-- DocGen_Template__c: Base_Object_API__c, Output_Format__c, Type__c are required; FLS auto-granted -->
+    <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Template__c.Category__c</field>
         <readable>true</readable>
@@ -374,6 +431,7 @@
         <field>DocGen_Signature_Audit__c.PIN_Verified_At__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <!-- DocGen_Signature_Audit__c.Signature_Request__c is a required master-detail; FLS auto-granted -->
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Signature_Audit__c.Signed_Date__c</field>
@@ -401,6 +459,14 @@
     </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>
     <label>DocGen Admin</label>
+    <pageAccesses>
+        <apexPage>DocGenGuide</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
+    <pageAccesses>
+        <apexPage>DocGenVerify</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
     <objectPermissions>
         <allowCreate>true</allowCreate>
         <allowDelete>true</allowDelete>
@@ -505,6 +571,10 @@
     </tabSettings>
     <tabSettings>
         <tab>DocGen_Signature_Request__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>DocGen_Signer__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>

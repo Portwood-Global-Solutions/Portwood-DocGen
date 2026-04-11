@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.41.0 — Fix table borders + bulk gen + heap estimator",
-      "versionNumber": "1.41.0.NEXT",
-      "ancestorId": "04tal000006UhyXAAS",
+      "versionName": "1.42.0 — Permission audit + signature Flow action",
+      "versionNumber": "1.42.0.NEXT",
+      "ancestorId": "04tal000006UiubAAC",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -62,6 +62,8 @@
     "Portwood DocGen Managed@1.38.0-1": "04tal000006UhP3AAK",
     "Portwood DocGen Managed@1.39.0-1": "04tal000006UhnFAAS",
     "Portwood DocGen Managed@1.40.0-1": "04tal000006UhyXAAS",
-    "Portwood DocGen Managed@1.41.0-1": "04tal000006UiubAAC"
+    "Portwood DocGen Managed@1.41.0-1": "04tal000006UiubAAC",
+    "Portwood DocGen Managed@1.42.0-1": "04tal000006UkoLAAS",
+    "Portwood DocGen Managed@1.42.0-2": "04tal000006UkpxAAC"
   }
 }
