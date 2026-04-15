@@ -1,5 +1,55 @@
 # Changelog
 
+## v1.46.0 — Signature consolidation, image helper, email status visibility
+
+Promoted package: `04tal000006hQ73AAE` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006hQ73AAE)
+Upgrade-safety validator: passed. v1.43.x subscribers can install directly.
+
+### Signature subsystem consolidation
+- Removed dead `createTemplateSignatureRequestForFlow` from `DocGenSignatureSenderController` — Flow path was already routed through the LWC entry point. −73 LOC.
+- Removed `Test.isRunningTest()` bypass in `DocGenSignatureEmailService`. The no-OWA branch is now properly tested with assertions on `Email_Status__c` content + zero email invocations.
+- Removed v2 signature tag fallback in `stampSignaturesInXml` (+6 obsolete tests). Bare `{@Signature_Role}` tags continue to work via the v3 placement pipeline (`parseSignaturePlacements` already auto-promotes them to `:1:Full`).
+
+### Merge engine
+- Extracted `applyPendingImages` helper in `DocGenService` — collapses 3 duplicate call sites (full-ZIP merge, pre-decomposed merge, giant-query parts builder) into one helper.
+
+### Email delivery visibility
+- New `Email_Status__c` (LongTextArea, 1000 chars) on `DocGen_Signature_Request__c` surfaces on the page layout in a new "Email Delivery" section. Admins can see per-signer email send status, OWA configuration errors, deliverability problems, and daily-limit hits without leaving the record.
+- Field added to `DocGen_Admin` (RW) and `DocGen_User` (R).
+
+### Phase 4-lite integration tests (DocGenSignatureTests)
+- `testCreateTemplateSignerRequest_integration` rewritten with real assertions on persisted state (signing order, role, sort order, token shape).
+- `testGetTemplateSignaturePlacements_integration` rewritten to exercise the pre-decomposed XML fetch + bare-v2-tag → v3 auto-promotion.
+- New `testFullSigningPipeline_integration` — placement records → `signPlacement` → stamping → asserts final XML contains signed values.
+
+### Validation
+- 928 / 928 Apex tests pass.
+- 75% org-wide code coverage.
+- Code analyzer: 0 High / 0 Critical.
+- Upgrade-safety validator: passed.
+
+### Deferred (with rationale documented in CONSOLIDATION_PLAN.md and project memory)
+- V1/V2 query parser consolidation — high risk of silent wrong-data bugs without stronger integration test safety net first.
+- Document Source mode methods (`createMultiSignerRequest`, `getRelatedDocuments`, `getDocumentSignatureRoles`) — kept as deprecated `global @AuraEnabled` for upgrade safety.
+- E2E script overhaul to validate installed packages — they only run in source-deployed dev contexts; making them install-validators is a dedicated future project.
+
+### Coming in v1.47.0
+GitHub issue [#25](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues/25) — design doc in `RUNNER_UX_PLAN.md`:
+- Per-record templates (`Specific_Record_Ids__c` comma-separated Id list)
+- Category browsing + explicit sort order
+- Output format override at runtime
+- Audience visibility via permission set lists
+
+---
+
+## v1.43.0 — Guided signatures, document packets, decline flow, sequential signing
+
+Promoted package: `04tal000006hLTxAAM` (1.43.0-11)
+
+Major signature subsystem overhaul. Full v3 tag syntax (`{@Signature_Role:Order:Type}`), guided per-placement signing UI, multi-template document packets, sequential signing order, decline flow with reason capture, reminder schedulable, OWA-based branded emails with per-signer reply-to, signature audit records, expanded setup validation checklist. See git history `v1.42.0..v1.43.0` for the full diff and `CLAUDE.md` for architectural details.
+
+---
+
 ## v1.42.0 — Permission Audit & Signature Flow Action
 
 ### Signature Automation from Flow
