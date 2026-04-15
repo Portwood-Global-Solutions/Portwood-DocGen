@@ -17,6 +17,9 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
 
         @InvocableVariable(label='Document Title' description='Override the generated file name. Leave blank to use the template default.')
         global String documentTitle;
+
+        @InvocableVariable(label='Output Format Override' description='Optional. Override the template Output Format at runtime. Allowed: PDF, Word, PowerPoint. Word templates can render to PDF or DOCX. PowerPoint templates render only to PPTX. Leave blank to use the template default. Throws if the template has Lock Output Format = true.')
+        global String outputFormatOverride;
     }
 
     global class Response {
@@ -43,7 +46,7 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
             Request req = requests[i];
             Response res = new Response();
             try {
-                Id docId = DocGenService.generateDocument(req.templateId, req.recordId);
+                Id docId = DocGenService.generateDocument(req.templateId, req.recordId, req.outputFormatOverride);
                 res.contentDocumentId = docId;
                 res.success = true;
                 docIdsByIndex.put(i, docId);

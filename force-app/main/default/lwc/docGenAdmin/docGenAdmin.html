@@ -348,6 +348,50 @@
                                 <lightning-textarea label="Description" value={editTemplateDesc} onchange={handleEditDescChange} class="slds-var-m-top_medium"></lightning-textarea>
                             </div>
 
+                            <!-- 1.47 — Visibility & sort controls -->
+                            <div class="slds-var-p-horizontal_small slds-var-m-top_large">
+                                <h3 class="slds-text-heading_small slds-var-m-bottom_x-small">Visibility &amp; Sort</h3>
+                                <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_small">
+                                    Control which records and which users see this template in the runner, signature sender, bulk picker, and Flow.
+                                </p>
+                                <div class="slds-grid slds-gutters_medium">
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            type="number"
+                                            label="Sort Order"
+                                            field-level-help="Lower numbers appear higher in the picker. Blank = sort by Default-first then Name."
+                                            value={editTemplateSortOrder}
+                                            onchange={handleEditSortOrderChange}>
+                                        </lightning-input>
+                                        <lightning-input
+                                            type="toggle"
+                                            label="Lock Output Format"
+                                            field-level-help="When ON, the runner won't let users override the Output Format at runtime."
+                                            checked={editTemplateLockOutputFormat}
+                                            onchange={handleEditLockOutputChange}
+                                            message-toggle-active="Locked"
+                                            message-toggle-inactive="Unlocked"
+                                            class="slds-var-m-top_medium">
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-textarea
+                                            label="Specific Record Ids"
+                                            field-level-help="Comma-separated 18-char record Ids (e.g. 001AB0000000001AAA, 001AB0000000002AAA). When set, the template only appears for those records. Blank = applies to ALL records of the Base Object."
+                                            value={editTemplateSpecificRecordIds}
+                                            onchange={handleEditSpecificRecordIdsChange}>
+                                        </lightning-textarea>
+                                        <lightning-textarea
+                                            label="Required Permission Sets"
+                                            field-level-help="Comma-separated permission set API names (e.g. DocGen_Executive_Templates, DocGen_Finance_Templates). Users need at least ONE assigned to see this template. Blank = visible to all DocGen users."
+                                            value={editTemplateRequiredPermissionSets}
+                                            onchange={handleEditRequiredPermSetsChange}
+                                            class="slds-var-m-top_medium">
+                                        </lightning-textarea>
+                                    </div>
+                                </div>
+                            </div>
+
                         </lightning-tab>
 
                         <!-- Tab 2: Query Configuration -->

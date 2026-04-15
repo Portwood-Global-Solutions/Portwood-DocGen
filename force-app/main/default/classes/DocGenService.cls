@@ -518,8 +518,25 @@ public with sharing class DocGenService {
      * @return Map with keys: blob, title, outputFormat, templateType
      */
     public static Map<String, Object> processDocument(Id templateId, Id recordId, Map<String, String> resolvedImages) {
-        MergeResult mr = mergeTemplate(templateId, recordId, resolvedImages);
-        Blob resultBlob = assembleZip(mr);
+        return processDocument(templateId, recordId, resolvedImages, null);
+    }
+
+    /**
+     * Processes a template with optional pre-resolved images AND an optional output format override.
+     * outputFormatOverride: 'PDF', 'Word', or 'PowerPoint'. Null = use template's Output_Format__c.
+     * Throws DocGenException if the override is incompatible with the template type
+     * (e.g. PowerPoint template + PDF override) or if the template has Lock_Output_Format__c = true.
+     */
+    public static Map<String, Object> processDocument(Id templateId, Id recordId, Map<String, String> resolvedImages, String outputFormatOverride) {
+        validateOutputFormatOverride(templateId, outputFormatOverride);
+        MergeResult mr = mergeTemplate(templateId, recordId, resolvedImages, outputFormatOverride);
+
+        Blob resultBlob;
+        if (mr.outputFormat == 'PDF' && mr.templateType == 'Word') {
+            resultBlob = renderPdf(mr, templateId, recordId);
+        } else {
+            resultBlob = assembleZip(mr);
+        }
 
         return new Map<String, Object>{
             'blob' => resultBlob,
@@ -527,6 +544,35 @@ public with sharing class DocGenService {
             'outputFormat' => mr.outputFormat,
             'templateType' => mr.templateType
         };
+    }
+
+    /**
+     * Validates that a runtime output-format override is allowed for a given template.
+     * Rules:
+     *   - If template has Lock_Output_Format__c = true, no override is permitted (must be null).
+     *   - PowerPoint templates cannot render to PDF (Blob.toPdf only handles Word source).
+     *   - Override values must be one of: 'PDF', 'Word', 'PowerPoint'.
+     * Throws DocGenException on violation.
+     */
+    @TestVisible
+    private static void validateOutputFormatOverride(Id templateId, String outputFormatOverride) {
+        if (String.isBlank(outputFormatOverride)) return;
+        if (outputFormatOverride != 'PDF' && outputFormatOverride != 'Word' && outputFormatOverride != 'PowerPoint') {
+            throw new DocGenException('Invalid output format override: ' + outputFormatOverride + '. Expected PDF, Word, or PowerPoint.');
+        }
+        /* code-analyzer-suppress ApexFlsViolation */
+        List<DocGen_Template__c> tpls = [
+            SELECT Lock_Output_Format__c, Type__c FROM DocGen_Template__c
+            WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+        ];
+        if (tpls.isEmpty()) return; // mergeTemplate will throw a clearer "template not found" error
+        DocGen_Template__c t = tpls[0];
+        if (t.Lock_Output_Format__c == true) {
+            throw new DocGenException('This template locks its output format. Override not permitted.');
+        }
+        if (t.Type__c == 'PowerPoint' && outputFormatOverride == 'PDF') {
+            throw new DocGenException('PowerPoint templates cannot render to PDF.');
+        }
     }
 
     /**
@@ -1437,7 +1483,17 @@ public with sharing class DocGenService {
      * @return ContentDocumentId of the saved file
      */
     public static Id generateDocument(Id templateId, Id recordId) {
-        MergeResult mr = mergeTemplate(templateId, recordId);
+        return generateDocument(templateId, recordId, null);
+    }
+
+    /**
+     * Same as generateDocument(templateId, recordId) but honors a runtime output-format override.
+     * outputFormatOverride: 'PDF', 'Word', or 'PowerPoint'. Null = use template's Output_Format__c.
+     * Throws DocGenException if Lock_Output_Format__c is true on the template, or if PowerPoint→PDF.
+     */
+    public static Id generateDocument(Id templateId, Id recordId, String outputFormatOverride) {
+        validateOutputFormatOverride(templateId, outputFormatOverride);
+        MergeResult mr = mergeTemplate(templateId, recordId, null, outputFormatOverride);
 
         if (mr.outputFormat == 'PDF' && mr.templateType == 'Word') {
             Blob pdfBlob = renderPdf(mr, templateId, recordId);

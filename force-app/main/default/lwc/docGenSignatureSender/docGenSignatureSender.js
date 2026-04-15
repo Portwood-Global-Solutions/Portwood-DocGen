@@ -5,7 +5,7 @@ import createTemplateSignerRequest from '@salesforce/apex/DocGenSignatureSenderC
 import createPacketSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createPacketSignerRequest';
 import getContactInfo from '@salesforce/apex/DocGenSignatureSenderController.getContactInfo';
 import getPendingSignatureRequests from '@salesforce/apex/DocGenSignatureSenderController.getPendingSignatureRequests';
-import getDocGenTemplates from '@salesforce/apex/DocGenSignatureSenderController.getDocGenTemplates';
+import getDocGenTemplates from '@salesforce/apex/DocGenSignatureSenderController.getDocGenTemplatesForRecord';
 import getTemplateSignaturePlacements from '@salesforce/apex/DocGenSignatureSenderController.getTemplateSignaturePlacements';
 import getDocumentPreviewHtml from '@salesforce/apex/DocGenSignatureSenderController.getDocumentPreviewHtml';
 
@@ -61,7 +61,7 @@ export default class DocGenSignatureSender extends LightningElement {
         this._checkInitialLoad();
     }
 
-    @wire(getDocGenTemplates)
+    @wire(getDocGenTemplates, { relatedRecordId: '$recordId' })
     wiredDocGenTemplates({ error, data }) {
         if (data) {
             this.docGenTemplateOptions = data.map(t => ({

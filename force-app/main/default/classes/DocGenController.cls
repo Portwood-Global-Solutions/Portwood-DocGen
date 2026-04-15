@@ -229,8 +229,18 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      */
     @AuraEnabled
     public static Map<String, Object> processAndReturnDocumentWithImages(Id templateId, Id recordId, Map<String, String> resolvedImages) {
+        return processAndReturnDocumentWithOverride(templateId, recordId, resolvedImages, null);
+    }
+
+    /**
+     * Processes a template with optional pre-resolved images AND an optional output format override.
+     * When outputFormatOverride is non-null, ignores the template's Output_Format__c.
+     * Throws if the template's Lock_Output_Format__c is true, or if PowerPoint→PDF is requested.
+     */
+    @AuraEnabled
+    public static Map<String, Object> processAndReturnDocumentWithOverride(Id templateId, Id recordId, Map<String, String> resolvedImages, String outputFormatOverride) {
         try {
-            Map<String, Object> result = DocGenService.processDocument(templateId, recordId, resolvedImages);
+            Map<String, Object> result = DocGenService.processDocument(templateId, recordId, resolvedImages, outputFormatOverride);
             Blob docBlob = (Blob) result.get('blob');
             return new Map<String, Object>{
                 'base64' => EncodingUtil.base64Encode(docBlob),
@@ -961,19 +971,112 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     }
 
     /**
-     * Returns all DocGen templates configured for a specific SObject type.
-     * @param objectApiName The SObject API name to filter templates by
-     * @return List of matching DocGen_Template__c records
+     * Returns templates configured for a specific SObject type, applying audience visibility
+     * (Required_Permission_Sets__c) but NO per-record filter.
+     * Backward-compatible — existing callers see the same set of templates as before plus the
+     * new audience filter (only meaningful for templates that opt in by setting the field).
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getTemplatesForObject(String objectApiName) {
+        return getTemplatesForObjectInternal(objectApiName, null);
+    }
+
+    /**
+     * Returns templates configured for a specific SObject type AND visible to the current
+     * record (Specific_Record_Ids__c) AND visible to the running user (Required_Permission_Sets__c).
+     * Sorted by Sort_Order__c ASC NULLS LAST, Is_Default__c DESC, Name ASC.
+     * @param objectApiName The SObject API name (e.g. 'Account')
+     * @param recordId The current record Id (string form). Required for per-record filter to apply.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<DocGen_Template__c> getTemplatesForObjectAndRecord(String objectApiName, String recordId) {
+        return getTemplatesForObjectInternal(objectApiName, recordId);
+    }
+
+    /**
+     * Shared filter implementation for getTemplatesForObject and getTemplatesForObjectAndRecord.
+     */
+    private static List<DocGen_Template__c> getTemplatesForObjectInternal(String objectApiName, String recordId) {
         /* code-analyzer-suppress ApexFlsViolation */
-        return [SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c, Query_Config__c
+        List<DocGen_Template__c> all = [
+            SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c,
+                   Query_Config__c, Category__c, Sort_Order__c, Lock_Output_Format__c,
+                   Specific_Record_Ids__c, Required_Permission_Sets__c
             FROM DocGen_Template__c
             WHERE Base_Object_API__c = :objectApiName
             WITH SYSTEM_MODE
-            ORDER BY Is_Default__c DESC, Name ASC];
-    // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
+            ORDER BY Sort_Order__c ASC NULLS LAST, Is_Default__c DESC, Name ASC
+        ];
+        // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
+
+        if (all.isEmpty()) return all;
+
+        String recordId18 = (recordId != null) ? String.valueOf(Id.valueOf(recordId)) : null;
+        Set<String> userPermSets = getCurrentUserPermissionSetNames();
+
+        List<DocGen_Template__c> visible = new List<DocGen_Template__c>();
+        for (DocGen_Template__c t : all) {
+            if (!templateMatchesRecord(t, recordId18)) continue;
+            if (!templateVisibleToUser(t, userPermSets)) continue;
+            visible.add(t);
+        }
+        return visible;
+    }
+
+    /**
+     * Returns the API names of every permission set currently assigned to the running user.
+     * Used by template visibility filtering.
+     */
+    @TestVisible
+    public static Set<String> getCurrentUserPermissionSetNames() {
+        Set<String> names = new Set<String>();
+        /* code-analyzer-suppress ApexFlsViolation */
+        for (PermissionSetAssignment psa : [
+            SELECT PermissionSet.Name
+            FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId()
+            WITH SYSTEM_MODE
+        ]) {
+            if (psa.PermissionSet != null && psa.PermissionSet.Name != null) {
+                names.add(psa.PermissionSet.Name);
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Returns true when the template's per-record filter is empty OR contains the given recordId18.
+     * Empty/null filter = template applies to all records of its base object.
+     */
+    private static Boolean templateMatchesRecord(DocGen_Template__c t, String recordId18) {
+        if (String.isBlank(t.Specific_Record_Ids__c)) return true;
+        if (String.isBlank(recordId18)) return false; // template is record-bound but caller didn't pass one
+        for (String rawId : t.Specific_Record_Ids__c.split(',')) {
+            String trimmed = rawId.trim();
+            if (String.isBlank(trimmed)) continue;
+            try {
+                if (String.valueOf(Id.valueOf(trimmed)) == recordId18) return true;
+            } catch (Exception e) {
+                // Bad Id in the list — skip it, don't reject the template
+                continue;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true when the template's audience filter is empty OR the user has at least one
+     * of the listed permission sets assigned.
+     */
+    private static Boolean templateVisibleToUser(DocGen_Template__c t, Set<String> userPermSets) {
+        if (String.isBlank(t.Required_Permission_Sets__c)) return true;
+        if (userPermSets == null || userPermSets.isEmpty()) return false;
+        for (String rawName : t.Required_Permission_Sets__c.split(',')) {
+            String trimmed = rawName.trim();
+            if (String.isBlank(trimmed)) continue;
+            if (userPermSets.contains(trimmed)) return true;
+        }
+        return false;
     }
 
     /**
@@ -985,6 +1088,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c,
                    Test_Record_Id__c, Output_Format__c, Document_Title_Format__c, Is_Default__c,
+                   Sort_Order__c, Lock_Output_Format__c, Specific_Record_Ids__c, Required_Permission_Sets__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
@@ -1026,6 +1130,26 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             // Update Output Format if provided
             if (fields.containsKey('Output_Format__c')) {
                 template.Output_Format__c = (String) fields.get('Output_Format__c');
+            }
+            // 1.47 — runner visibility & sort fields (only set when key is present so partial saves still work)
+            if (fields.containsKey('Sort_Order__c')) {
+                Object sortVal = fields.get('Sort_Order__c');
+                if (sortVal == null || (sortVal instanceof String && String.isBlank((String) sortVal))) {
+                    template.Sort_Order__c = null;
+                } else if (sortVal instanceof Decimal) {
+                    template.Sort_Order__c = (Decimal) sortVal;
+                } else {
+                    try { template.Sort_Order__c = Decimal.valueOf(String.valueOf(sortVal)); } catch (Exception ignored) { template.Sort_Order__c = null; }
+                }
+            }
+            if (fields.containsKey('Lock_Output_Format__c')) {
+                template.Lock_Output_Format__c = (Boolean) fields.get('Lock_Output_Format__c');
+            }
+            if (fields.containsKey('Specific_Record_Ids__c')) {
+                template.Specific_Record_Ids__c = (String) fields.get('Specific_Record_Ids__c');
+            }
+            if (fields.containsKey('Required_Permission_Sets__c')) {
+                template.Required_Permission_Sets__c = (String) fields.get('Required_Permission_Sets__c');
             }
             // Update Default flag if provided — enforce one default per object
             if (fields.containsKey('Is_Default__c')) {

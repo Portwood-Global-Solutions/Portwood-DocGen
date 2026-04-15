@@ -12,13 +12,56 @@ public with sharing class DocGenSignatureSenderController {
      */
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getDocGenTemplates() {
+        return getDocGenTemplatesForRecord(null);
+    }
+
+    /**
+     * Returns templates filtered by audience (Required_Permission_Sets__c) and optionally
+     * by per-record visibility (Specific_Record_Ids__c). Pass relatedRecordId to enable
+     * per-record filtering; pass null to apply only the audience filter.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<DocGen_Template__c> getDocGenTemplatesForRecord(String relatedRecordId) {
         /* code-analyzer-suppress ApexFlsViolation */
-        return [
-            SELECT Id, Name
+        List<DocGen_Template__c> all = [
+            SELECT Id, Name, Category__c, Sort_Order__c, Specific_Record_Ids__c, Required_Permission_Sets__c
             FROM DocGen_Template__c
             WITH USER_MODE
-            ORDER BY Name ASC
+            ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC
         ];
+
+        String recordId18 = null;
+        if (String.isNotBlank(relatedRecordId)) {
+            try { recordId18 = String.valueOf(Id.valueOf(relatedRecordId)); } catch (Exception e) { recordId18 = null; }
+        }
+        Set<String> userPermSets = DocGenController.getCurrentUserPermissionSetNames();
+
+        List<DocGen_Template__c> visible = new List<DocGen_Template__c>();
+        for (DocGen_Template__c t : all) {
+            // Per-record filter
+            if (String.isNotBlank(t.Specific_Record_Ids__c)) {
+                if (recordId18 == null) continue; // template is record-bound but no record passed
+                Boolean recordMatches = false;
+                for (String rawId : t.Specific_Record_Ids__c.split(',')) {
+                    String trimmed = rawId.trim();
+                    if (String.isBlank(trimmed)) continue;
+                    try {
+                        if (String.valueOf(Id.valueOf(trimmed)) == recordId18) { recordMatches = true; break; }
+                    } catch (Exception e) { continue; }
+                }
+                if (!recordMatches) continue;
+            }
+            // Audience filter
+            if (String.isNotBlank(t.Required_Permission_Sets__c)) {
+                Boolean audienceMatches = false;
+                for (String rawName : t.Required_Permission_Sets__c.split(',')) {
+                    if (userPermSets.contains(rawName.trim())) { audienceMatches = true; break; }
+                }
+                if (!audienceMatches) continue;
+            }
+            visible.add(t);
+        }
+        return visible;
     }
 
     /**

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lock_Output_Format__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>When true, the runner hides the output-format picker and forces the template's Output Format. Use for templates where the format is contractually fixed (PDF-only contracts, DOCX-only working drafts).</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Check to prevent users from overriding the output format at runtime.</inlineHelpText>
+    <label>Lock Output Format</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

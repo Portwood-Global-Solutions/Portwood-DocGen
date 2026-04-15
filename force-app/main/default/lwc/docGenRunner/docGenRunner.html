@@ -48,6 +48,27 @@
 
                 <!-- GENERATE MODE -->
                 <template lwc:if={isGenerateMode}>
+                    <!-- 1.47 — Empty state -->
+                    <template lwc:if={showEmptyState}>
+                        <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="text-align: center;">
+                            <p class="slds-text-body_regular slds-text-color_weak">{emptyStateMessage}</p>
+                        </div>
+                    </template>
+
+                    <!-- 1.47 — Category filter (only shown when 2+ categories exist) -->
+                    <template lwc:if={showCategoryFilter}>
+                        <div class="slds-form-element slds-var-m-bottom_medium">
+                            <label class="slds-form-element__label">Category</label>
+                            <div class="slds-form-element__control">
+                                <select class="custom-select" onchange={handleCategoryChange}>
+                                    <template for:each={categoryOptions} for:item="cat">
+                                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </template>
+
                     <div class="slds-form-element slds-var-m-bottom_medium">
                         <label class="slds-form-element__label">Select Template</label>
                         <div class="slds-form-element__control">
@@ -59,6 +80,21 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- 1.47 — Output format override (hidden when template locks format or only one format applies) -->
+                    <template lwc:if={showOutputFormatPicker}>
+                        <div class="slds-form-element slds-var-m-bottom_medium">
+                            <label class="slds-form-element__label">Output As</label>
+                            <div class="slds-form-element__control">
+                                <select class="custom-select" onchange={handleOutputFormatOverrideChange}>
+                                    <option value="">Use template default</option>
+                                    <template for:each={outputFormatPickerOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </template>
 
                     <!-- Custom Output Selector -->
                     <div class="slds-form-element slds-var-m-bottom_medium">

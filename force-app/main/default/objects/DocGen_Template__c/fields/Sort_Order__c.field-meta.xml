@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sort_Order__c</fullName>
+    <description>Explicit sort position for templates in the runner picker. Lower numbers appear higher in the list. Templates with no Sort Order fall to the end and then sort by Is Default DESC, Name ASC.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Optional. Lower numbers appear higher. Blank = sort by default-first then name.</inlineHelpText>
+    <label>Sort Order</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
