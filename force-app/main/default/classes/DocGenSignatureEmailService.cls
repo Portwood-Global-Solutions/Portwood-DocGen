@@ -24,10 +24,15 @@ public with sharing class DocGenSignatureEmailService {
      * Reads branding from DocGen_Settings__c org defaults.
      */
     public static void sendSignatureRequestEmails(List<SignerEmail> signers, String documentTitle) {
+        sendSignatureRequestEmails(signers, documentTitle, null);
+    }
+
+    public static void sendSignatureRequestEmails(List<SignerEmail> signers, String documentTitle, Id requestId) {
         if (signers == null || signers.isEmpty()) return;
 
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         String senderName = UserInfo.getName();
+        String senderEmail = UserInfo.getUserEmail();
         String brandColor = String.isNotBlank(settings.Signature_Email_Brand_Color__c)
             ? settings.Signature_Email_Brand_Color__c : '#0176D3';
         String logoUrl = settings.Signature_Email_Logo_Url__c;
@@ -37,6 +42,15 @@ public with sharing class DocGenSignatureEmailService {
         String subjectTemplate = String.isNotBlank(settings.Signature_Email_Subject__c)
             ? settings.Signature_Email_Subject__c : 'Action Required: Please Sign {DocumentTitle}';
         String owaId = settings.Signature_OWA_Id__c;
+
+        // OWA is required for signature emails — guest users cannot send without one,
+        // and consistent branding requires all emails come from the same address.
+        if (String.isBlank(owaId)) {
+            String errMsg = 'Emails not sent — no Org-Wide Email Address configured. Set one in DocGen > Signatures settings.';
+            System.debug(LoggingLevel.ERROR, 'DocGen: ' + errMsg);
+            updateEmailStatus(requestId, errMsg);
+            return;
+        }
 
         List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
 
@@ -48,10 +62,14 @@ public with sharing class DocGenSignatureEmailService {
             email.setSubject(subject);
             email.setHtmlBody(htmlBody);
             email.setSaveAsActivity(false);
-
-            // Use Org-Wide Email Address if configured
             if (String.isNotBlank(owaId)) {
                 email.setOrgWideEmailAddressId(owaId);
+            }
+
+            // Set reply-to as the user who created the signature request
+            // so signer replies go to the actual sender, not the OWA
+            if (String.isNotBlank(senderEmail)) {
+                email.setReplyTo(senderEmail);
             }
 
             // Use Contact as recipient if available (enables activity tracking)
@@ -66,7 +84,26 @@ public with sharing class DocGenSignatureEmailService {
         }
 
         if (!emails.isEmpty()) {
-            Messaging.sendEmail(emails, false);
+            List<Messaging.SendEmailResult> results = Messaging.sendEmail(emails, false);
+            List<String> statusParts = new List<String>();
+            Boolean anyFailed = false;
+            for (Integer i = 0; i < results.size(); i++) {
+                if (results[i].isSuccess()) {
+                    statusParts.add(signers[i].signerEmail + ': Sent');
+                } else {
+                    anyFailed = true;
+                    for (Messaging.SendEmailError err : results[i].getErrors()) {
+                        String errDetail = err.getMessage() + ' (code: ' + err.getStatusCode() + ')';
+                        statusParts.add(signers[i].signerEmail + ': FAILED — ' + errDetail);
+                        System.debug(LoggingLevel.ERROR, 'DocGen: Signature email failed for ' + signers[i].signerEmail + ': ' + errDetail);
+                    }
+                }
+            }
+            String statusMsg = String.join(statusParts, '\n');
+            if (anyFailed) {
+                statusMsg = 'EMAIL DELIVERY ERRORS\n' + statusMsg + '\n\nCheck: (1) Org-Wide Email Address is set to "All Profiles" (2) Email Deliverability is "All Email" (3) Daily email limit not exceeded';
+            }
+            updateEmailStatus(requestId, statusMsg);
         }
     }
 
@@ -266,6 +303,22 @@ public with sharing class DocGenSignatureEmailService {
             Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ email }, false);
         } catch (Exception e) {
             System.debug(LoggingLevel.WARN, 'DocGen: Sender notification failed: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Updates the Email_Status__c field on a signature request with delivery status.
+     * Helps admins diagnose email delivery issues without checking debug logs.
+     */
+    private static void updateEmailStatus(Id requestId, String status) {
+        if (requestId == null || String.isBlank(status)) return;
+        try {
+            DocGen_Signature_Request__c req = new DocGen_Signature_Request__c(Id = requestId);
+            req.Email_Status__c = status.left(1000);
+            /* code-analyzer-suppress ApexFlsViolation */
+            Database.update(req, false, AccessLevel.SYSTEM_MODE);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'DocGen: Could not update email status: ' + e.getMessage());
         }
     }
 

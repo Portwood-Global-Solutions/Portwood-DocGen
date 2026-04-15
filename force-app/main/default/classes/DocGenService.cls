@@ -287,42 +287,7 @@ public with sharing class DocGenService {
         }
 
         // Process pending images: update content types, rels, and collect base64 for HTML
-        if (!pendingImages.isEmpty()) {
-            if (mr.contentTypesXml != null) {
-                if (!mr.contentTypesXml.contains('Extension="png"')) {
-                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
-                }
-                if (!mr.contentTypesXml.contains('Extension="jpeg"') && !mr.contentTypesXml.contains('Extension="jpg"')) {
-                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
-                }
-            }
-            if (mr.relsXml != null) {
-                for (Map<String, Object> img : pendingImages) {
-                    // Add relationship for ALL images (blob or URL-only)
-                    String relId = (String) img.get('relId');
-                    String fName = (String) img.get('fileName');
-                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
-                    mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
-                }
-            }
-            // Collect image data for rendering paths
-            for (Map<String, Object> img : pendingImages) {
-                String relId = (String) img.get('relId');
-                if (img.containsKey('blob')) {
-                    // Base64 for DOCX ZIP embedding and fallback
-                    Blob imgBlob = (Blob) img.get('blob');
-                    mr.imageBase64ByRelId.put(relId, EncodingUtil.base64Encode(imgBlob));
-                }
-                if (img.containsKey('url')) {
-                    // URL for PDF rendering via Blob.toPdf()
-                    mr.imageUrlByRelId.put(relId, (String) img.get('url'));
-                    // Also store in base64 map so PDF image map loop finds the relId
-                    if (!img.containsKey('blob')) {
-                        mr.imageBase64ByRelId.put(relId, (String) img.get('url'));
-                    }
-                }
-            }
-        }
+        applyPendingImages(mr, true);
 
         // Generate document title
         mr.docTitle = generateDocTitle((String) dataMap.get('titleFormat'), recordDataMap);
@@ -442,16 +407,44 @@ public with sharing class DocGenService {
         }
 
         // Process pending images from merge field processing (RTF images, {%Field} images)
-        if (!pendingImages.isEmpty()) {
-            if (mr.relsXml != null) {
-                for (Map<String, Object> img : pendingImages) {
-                    // Add relationship for ALL images (blob or URL-only)
-                    String relId = (String) img.get('relId');
-                    String fName = (String) img.get('fileName');
-                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
-                    mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
-                }
+        applyPendingImages(mr, true);
+
+        return mr;
+    }
+
+    /**
+     * Applies pendingImages to the MergeResult:
+     *  - Adds PNG/JPEG declarations to [Content_Types].xml (idempotent).
+     *  - Adds a <Relationship> entry for each pending image in the rels XML.
+     *  - If collectRenderMaps is true, also populates imageBase64ByRelId / imageUrlByRelId
+     *    so the HTML renderer and PDF path can resolve each relId.
+     *
+     * Callers: mergeTemplate (full ZIP path, collectRenderMaps=true),
+     *          tryMergeFromPreDecomposed (collectRenderMaps=true),
+     *          generateDocumentPartsGiantQuery (collectRenderMaps=false — URL-only, client assembles).
+     */
+    private static void applyPendingImages(MergeResult mr, Boolean collectRenderMaps) {
+        if (pendingImages.isEmpty()) return;
+
+        if (mr.contentTypesXml != null) {
+            if (!mr.contentTypesXml.contains('Extension="png"')) {
+                mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
             }
+            if (!mr.contentTypesXml.contains('Extension="jpeg"') && !mr.contentTypesXml.contains('Extension="jpg"')) {
+                mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+            }
+        }
+
+        if (mr.relsXml != null) {
+            for (Map<String, Object> img : pendingImages) {
+                String relId = (String) img.get('relId');
+                String fName = (String) img.get('fileName');
+                String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
+                mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
+            }
+        }
+
+        if (collectRenderMaps) {
             for (Map<String, Object> img : pendingImages) {
                 String relId = (String) img.get('relId');
                 if (img.containsKey('blob')) {
@@ -466,8 +459,6 @@ public with sharing class DocGenService {
                 }
             }
         }
-
-        return mr;
     }
 
     /**
@@ -714,25 +705,8 @@ public with sharing class DocGenService {
             mr.docTitle = (String) resolveValue(recordDataMap, 'Name');
         }
 
-        // Handle pending images (rels entries needed for DOCX)
-        if (!pendingImages.isEmpty()) {
-            if (mr.contentTypesXml != null) {
-                if (!mr.contentTypesXml.contains('Extension="png"')) {
-                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
-                }
-                if (!mr.contentTypesXml.contains('Extension="jpeg"') && !mr.contentTypesXml.contains('Extension="jpg"')) {
-                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
-                }
-            }
-            if (mr.relsXml != null) {
-                for (Map<String, Object> img : pendingImages) {
-                    String relId = (String) img.get('relId');
-                    String fName = (String) img.get('fileName');
-                    String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
-                    mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
-                }
-            }
-        }
+        // Handle pending images (rels entries needed for DOCX; URL-only for client assembly)
+        applyPendingImages(mr, false);
 
         // Build return maps (same as generateDocumentParts)
         Map<String, String> allXmlParts = new Map<String, String>(mr.processedXmlEntries);

@@ -199,11 +199,13 @@ public without sharing class DocGenSignatureService {
     }
 
     /**
-     * Stamps typed-name signatures into already-merged XML strings.
+     * Stamps typed-name signatures into already-merged XML strings using placement records.
      * Pure string operations — no ZIP, no blob loading, no heap pressure.
      * Used by the template-based signature flow for direct PDF rendering.
      *
-     * Supports v3 placements (per-placement stamping) with fallback to v2 (per-signer replacement).
+     * The `signers` parameter is retained for API compatibility but is not used — all stamping
+     * is driven by the v3 placement records. Bare `{@Signature_Role}` tags are handled
+     * automatically by parseSignaturePlacements, which treats them as `{@Signature_Role:1:Full}`.
      */
     public static StampResult stampSignaturesInXml(
         String documentXml,
@@ -214,10 +216,6 @@ public without sharing class DocGenSignatureService {
         return stampSignaturesInXml(documentXml, relsXml, contentTypesXml, signers, null);
     }
 
-    /**
-     * Stamps signatures using placement records when available (v3).
-     * Falls back to v2 bulk replacement when placements is null or empty.
-     */
     public static StampResult stampSignaturesInXml(
         String documentXml,
         String relsXml,
@@ -228,7 +226,6 @@ public without sharing class DocGenSignatureService {
         Map<String, String> signatureImageUrls = new Map<String, String>();
 
         if (placements != null && !placements.isEmpty()) {
-            // v3 path: stamp each placement individually
             for (DocGen_Signature_Placement__c plc : placements) {
                 if (plc.Status__c != 'Signed' || String.isBlank(plc.Tag_Text__c)) continue;
 
@@ -236,27 +233,6 @@ public without sharing class DocGenSignatureService {
                 if (documentXml.contains(plc.Tag_Text__c)) {
                     // Replace only the FIRST occurrence of this exact tag
                     documentXml = documentXml.replaceFirst(Pattern.quote(plc.Tag_Text__c), escapeXml(replacement));
-                }
-            }
-        } else {
-            // v2 fallback: replace all instances of {@Signature_Role} per signer
-            for (SignerImageData sd : signers) {
-                String placeholder;
-                if (String.isBlank(sd.roleName)) {
-                    placeholder = '{@Signature}';
-                } else {
-                    placeholder = '{@Signature_' + sd.roleName.replaceAll(' ', '_') + '}';
-                }
-
-                if (String.isNotBlank(sd.typedName)) {
-                    String safeName = escapeXml(sd.typedName);
-                    String dateStr = sd.signedDate != null
-                        ? sd.signedDate.format('yyyy-MM-dd HH:mm:ss z')
-                        : System.now().format('yyyy-MM-dd HH:mm:ss z');
-                    String sigText = 'Electronically signed by ' + safeName + ' on ' + dateStr;
-                    if (documentXml.contains(placeholder)) {
-                        documentXml = documentXml.replace(placeholder, sigText);
-                    }
                 }
             }
         }
@@ -728,7 +704,7 @@ public without sharing class DocGenSignatureService {
                 signerImages.add(new SignerImageData(role, s.Signature_Data__c, System.now()));
             }
 
-            // Query placements for v3 stamping (null/empty = v2 fallback)
+            // Query placements for stamping
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signature_Placement__c> placements = [
                 SELECT Id, Signer__c, Placement_Type__c, Sequence_Order__c, Signed_Value__c,
@@ -785,7 +761,7 @@ public without sharing class DocGenSignatureService {
                 ORDER BY Document_Index__c ASC, Sequence_Order__c ASC
             ]; // NOPMD
 
-            // Query signers for v2 fallback
+            // Query signers for placement stamping (roles + typed names)
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signer__c> signers = [
                 SELECT Id, Role_Name__c, Signature_Data__c

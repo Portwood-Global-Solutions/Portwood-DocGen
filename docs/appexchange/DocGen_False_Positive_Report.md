@@ -57,8 +57,7 @@
 
 All 14 new findings trace directly to the v1.42.0 code delta:
 
-- **`DocGenSignatureFlowAction.cls`** *(new)* — `@InvocableMethod`, `with sharing`. Validates inputs then delegates to `DocGenSignatureSenderController.createTemplateSignatureRequestForFlow`. The class itself contains no DML, but SFGE/PMD flag the downstream call chain.
-- **`DocGenSignatureSenderController.createTemplateSignatureRequestForFlow`** *(new)* — refactored helper exposing the existing merge + preview + signer creation sequence with an optional `sendEmails` parameter. Contains the same DML sites as `createTemplateSignerRequest` (which was already in the v1.41.0 scan), but scanned as a second path because it's a new method. This is why the CRUD Create / Update / ContentDistribution counts each ticked up by the same number as the DML operations inside that method.
+- **`DocGenSignatureFlowAction.cls`** *(new)* — `@InvocableMethod`, `with sharing`. Validates inputs then delegates to `DocGenSignatureSenderController.createTemplateSignerRequestWithOrder` (the same method the LWC sender uses). The class itself contains no DML, but SFGE/PMD flag the downstream call chain.
 - **`createSignersAndNotify` overload** — new overload accepting the `sendEmails` flag. Identical DML behavior to the existing method, but a separate scanner path.
 
 **None of the new findings represent new code patterns, new trust boundaries, or new attack surface.** They are additional instances of the same patterns documented in the v1.41.0 scan disposition (sections 1–8 below).

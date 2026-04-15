@@ -342,9 +342,8 @@ Every `without sharing` class is reachable only through a token-validated entry 
 
 - **Inputs:** `templateId`, `relatedRecordId`, `signerNames[]`, `signerEmails[]`, `signerRoles[]` (optional), `signerContactIds[]` (optional), `sendEmails` (optional, **defaults to `false` from Flow**).
 - **Outputs:** `signatureRequestId`, `signerUrls[]` (one signing URL per signer, in input order), `signerNames[]`, `signerEmails[]`, `signerRoles[]`.
-- **Security:** Runs with the authenticated Flow user's sharing (`with sharing`). Validates all inputs (null/blank/length-mismatch) via `DocGenException` before touching the database. Delegates actual record creation to the refactored `DocGenSignatureSenderController.createTemplateSignatureRequestForFlow()` which honors the same permission-set gating and token generation path as the existing LWC entry point.
+- **Security:** Runs with the authenticated Flow user's sharing (`with sharing`). Validates all inputs (null/blank/length-mismatch) via `DocGenException` before touching the database. Delegates actual record creation to `DocGenSignatureSenderController.createTemplateSignerRequestWithOrder()` — the same entry point the LWC signature sender uses, so both paths share identical permission-set gating and token generation.
 - **Notification model:** The invocable defaults to **silent** (no package-sent emails) so the Flow author owns the notification path — typical use is Send Email Action with a customized template, or posting to Slack/Teams/Chatter via an HTTP-callout invocable. Setting `Send Branded Emails = true` uses the package's built-in branded invitation emails instead. The LWC signature sender path is unchanged and still sends branded emails by default.
-- **Why the refactor is trust-preserving:** `createSignersAndNotify` gained an optional `sendEmails` parameter (defaults to `true` via overload) so the LWC path is bytewise identical. The new public wrapper `createTemplateSignatureRequestForFlow` simply exposes the pre-existing merge + preview + signer creation sequence as a single call that returns both the request Id and the signer list, plus the optional email suppression flag.
 
 ---
 

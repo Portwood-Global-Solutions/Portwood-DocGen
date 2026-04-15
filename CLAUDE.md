@@ -80,35 +80,173 @@ In both `mergeTemplate()` (full ZIP path, ~line 174) and `tryMergeFromPreDecompo
 - All binary data must be returned via Apex, not client-side fetch
 - `Blob` constructor in LWC rejects non-standard MIME types — use `application/octet-stream` for DOCX downloads
 
-## E-Signatures (v2 — Restored)
+## E-Signatures (v3 — Guided Signing, Packets, Sequential)
 
-E-signatures were removed in v1.5 and restored in v2 with a completely reworked architecture:
+Major overhaul shipped in v1.43.0 (April 2026). Architecture is sophisticated but the codebase is currently fragile after a 24-hour iteration sprint. See "FRAGILITY NOTES" section below.
 
-### Signature Architecture
-- **Typed name** instead of canvas-drawn signatures — same SES legal weight, zero heap for images
-- **Email PIN verification** — 6-digit code, SHA-256 hashed, 10-min expiry, 3 attempts max
-- **Consent checkbox** with explicit audit trail entry
-- **48-hour token expiry** (was 30 days in v1.4)
-- **`{@Signature_Role}` placeholder syntax** — uses `@` prefix to avoid conflict with `{#Loop}` tags
-- **Electronic Signature Certificate** — appended to every signed PDF with signer details and verify URL
-- **Document verification page** — `DocGenVerify.page` supports request ID lookup and file hash verification
-- **Server-side IP capture** — via `X-Forwarded-For` / `True-Client-IP` headers
-- **Field history tracking** on all audit fields
-- **Org-Wide Email Address** support for branded sender
+### v3 Tag Syntax
 
-### Signature Objects
-- `DocGen_Signature_Request__c` — parent record, links to template + related record
-- `DocGen_Signer__c` — one per signer, tracks PIN verification, consent, typed name
-- `DocGen_Signature_Audit__c` — immutable audit record with SHA-256 hash, IP, user agent, field history
-- `DocGen_Signature_PDF__e` — platform event triggers async PDF generation
+Format: `{@Signature_Role:Order:Type}`
 
-### Key Implementation Notes
-- `{@...}` tags are preserved by `processXml()` (line ~1709 in DocGenService) — it skips any tag starting with `@`
-- `mergeTemplateForSignature()` in DocGenService is the entry point for signature PDF generation (was a stub that threw in v1.5, now restored)
-- Typed names replace placeholders as plain text inside `<w:t>` elements — no DrawingML, no image blobs
-- The `TemplateSignaturePdfQueueable` handles template-based signature PDF generation asynchronously via platform event
-- Verification block HTML is built by `DocGenSignatureService.buildVerificationBlockHtml()` and injected before `</body>` in the HTML before `Blob.toPdf()`
-- Guest user email sending requires an Org-Wide Email Address to be configured in Signature Settings
+- **Role** — signer role (Buyer, Seller, Witness, Loan_Officer with underscores for multi-word)
+- **Order** — sequence number per-role (optional, defaults to 1)
+- **Type** — Full | Initials | Date | DatePick (optional, defaults to Full)
+
+Backward compatible: `{@Signature_Buyer}` still works (treated as `:1:Full`).
+
+### Data Model
+- `DocGen_Signature_Request__c` — parent record. Fields: `Template__c`, `Template_Ids__c` (packet), `Status__c`, `Signing_Order__c` (Parallel/Sequential), `Email_Status__c` (delivery diagnostics), `Signature_Data__c` (cached preview HTML + image map)
+- `DocGen_Signer__c` — one per signer. Fields: `Role_Name__c`, `Status__c` (Pending/Viewed/Signed/Cancelled/Declined), `Signature_Data__c` (typed name), `PIN_Hash__c`, `PIN_Verified_At__c`, `Decline_Reason__c`, `Reminder_Sent_At__c`, `Sort_Order__c`
+- `DocGen_Signature_Placement__c` — NEW v3 child of Signer. One record per signature/initial/date placement. Fields: `Sequence_Order__c`, `Placement_Type__c`, `Status__c`, `Signed_Value__c`, `Signed_At__c`, `Tag_Text__c`, `Document_Index__c`, `Section_Context__c`
+- `DocGen_Signature_Audit__c` — immutable audit. IP, user agent, hash, consent, PIN verified timestamp
+- `DocGen_Signature_PDF__e` — platform event for async PDF generation AND notifications
+
+### Critical: Two Code Paths That Need Consolidation
+
+**This is the #1 fragility issue.** There are two methods that do almost-but-not-quite the same thing:
+
+1. `DocGenSignatureSenderController.createTemplateSignerRequestWithOrder()` — called by LWC sender
+2. `DocGenSignatureSenderController.createTemplateSignatureRequestForFlow()` — called by Flow action
+
+Both:
+- Insert request record
+- Call `mergeTemplateForSignature()` for preview
+- Build preview HTML with placement spans
+- Call `createSignersAndNotify()` which creates signers + placements
+- Send branded emails
+
+Differences (each a potential bug):
+- LWC version sets `Signing_Order__c`, Flow version doesn't
+- LWC version calls `injectPlacementSpans()`, Flow version calls `convertToHtml()` directly
+- Default `sendEmails` value differs
+
+**Next session must consolidate these into one shared private method.**
+
+### Signing Page Flow
+
+The VF page `DocGenSignature.page` runs in guest user context and has multiple states:
+- `loading` → `error` (token invalid) | `verify` (PIN entry) | `guided` (v3 signing) | `signature` (v2 fallback)
+- Guided state: shows full document HTML, sticky action bar at bottom, arrow indicator on current placement
+- Each placement signed individually via `signPlacement()` remoting — persists to `DocGen_Signature_Placement__c.Status__c = 'Signed'`
+- Signer can leave and resume — PIN re-verification required on return
+- After all placements: consent checkbox + final submit → `saveSignature()` publishes platform event
+
+### Critical: Guest User Constraints
+
+Guest users CANNOT:
+- Send email without OWA (`setOrgWideEmailAddressId` required)
+- Call `Auth.SessionManagement.getCurrentSession()` — throws uncatchable session error
+- Query User table
+- Access ContentVersion via `/sfc/servlet.shepherd/` URLs (browser auth blocks)
+
+Guest user code paths in `DocGenSignatureController.cls`:
+- `validateToken`, `sendPin`, `verifyPin`, `getSignerPlacements`, `signPlacement`, `getImageBase64`, `saveSignature`, `declineSignature`, `stampAndReturnSource`
+
+The image proxy `getImageBase64()` returns base64 for guest users since they can't fetch /sfc/ URLs. Signing page JS replaces `<img src="/sfc/...">` with data URIs.
+
+`captureClientIp()` MUST check `UserInfo.getUserType() != 'Guest'` before calling `Auth.SessionManagement.getCurrentSession()`.
+
+### Platform Event Trigger
+
+`DocGenSignaturePdfTrigger` runs as Automated Process user (system context). Handles:
+- All-signers-complete → enqueue `TemplateSignaturePdfQueueable` for PDF generation + send `sendAllSignedNotification`
+- Some-signers-pending → send `sendSignerCompletedNotification` for last signer; if Sequential, send next signer's invite email
+- Declined → send `sendDeclineNotification`
+
+Guest users publish the event via `EventBus.publish()` from `saveSignature()` and `declineSignature()`. This bridges guest → system context for email sending and User table queries.
+
+### Email Service
+
+`DocGenSignatureEmailService` — handles ALL signature-related emails. Methods:
+- `sendSignatureRequestEmails(signers, docTitle, requestId)` — initial branded invitations
+- `sendSignerCompletedNotification(requestId, signer)` — sent to creator when one signer completes
+- `sendAllSignedNotification(requestId)` — sent to creator when all done
+- `sendDeclineNotification(requestId, signer, reason)` — sent to creator on decline
+
+OWA REQUIRED in production. There's a `Test.isRunningTest()` bypass that skips the OWA check — this is a code smell that next session should fix properly.
+
+`Email_Status__c` field on the request shows delivery diagnostics — admins check this when signers report not receiving emails. Common error messages are explained in the field value (no OWA, deliverability disabled, daily limit, etc.).
+
+Reply-to is set to the request creator's email so signer replies go to the actual sender, not the OWA.
+
+### Reminder Schedulable
+
+`DocGenSignatureReminderSchedulable` queries pending signers past `Signature_Reminder_Hours__c` threshold and sends one reminder per signer (tracked via `Reminder_Sent_At__c`). Auto-scheduled hourly when admin enables reminders in settings via `DocGenSetupController.saveReminderSettings()`.
+
+Test note: has `@TestVisible private static DateTime testThresholdOverride` for tests since CreatedDate can't be set in tests.
+
+### Setup Validation
+
+`DocGenSetupController.validateSignatureSetup()` returns a checklist of pass/fail items shown in the signature settings UI:
+1. Site URL configured
+2. Active Salesforce Site exists
+3. OWA configured and valid
+4. Guest permission set assigned
+5. VF pages deployed
+
+### Namespace Issue (PRODUCTION)
+
+In subscriber orgs, custom field API names come back from SObject `JSON.serialize` with namespace prefix: `portwoodglobal__Signature_OWA_Id__c` not `Signature_OWA_Id__c`. The LWC `getSettings()` wire returned the SObject directly which broke field access in production.
+
+Fix: `DocGenSetupController.getSettingsFresh()` returns a plain `Map<String, Object>` with unqualified field names. `docGenSignatureSettings.js` uses this method instead of the cacheable `getSettings()`.
+
+### v3 Component Map
+
+**LWC components:**
+- `docGenSignatureSender` — record-page component for creating requests. Multi-template selection, signer rows with auto-detection, preview modal, signing order toggle
+- `docGenSignatureSettings` — admin settings with setup validation checklist, OWA selector, reminder configuration
+- `docGenAdmin` — template manager (createTemplate now correctly persists `Test_Record_Id__c`)
+- `docGenAdminGuide` — DEPRECATED stub redirecting to Command Hub Learning Center
+- `docGenCommandHub` — main app tab with Learning Center containing all v3 docs
+
+**Apex classes:**
+- `DocGenSignatureController` — guest user endpoints (validateToken, sendPin, verifyPin, getSignerPlacements, signPlacement, getImageBase64, saveSignature, declineSignature, stampAndReturnSource)
+- `DocGenSignatureSenderController` — internal user endpoints (createTemplateSignerRequest*, createPacketSignerRequest, getTemplateSignaturePlacements, getDocumentPreviewHtml, plus lots of legacy)
+- `DocGenSignatureService` — stamping logic (`stampSignaturesInXml` with placement awareness), `TemplateSignaturePdfQueueable`, `buildVerificationBlockHtml`
+- `DocGenSignatureEmailService` — all email sending
+- `DocGenSignatureFlowAction` — Flow invocable with `Signer` apex type
+- `DocGenSignatureReminderSchedulable` — reminder cron job
+- `DocGenSignaturePdfTrigger` — platform event trigger (notifications, sequential signing, PDF generation enqueue)
+
+### Permission Sets
+
+Three sets, all updated for v3:
+- `DocGen_Admin` — full CRUD on all signature objects including new placement object, all new fields
+- `DocGen_User` — read/edit on most fields, no delete
+- `DocGen_Guest_Signature` — READ on requests/signers/placements; CREATE on audits; access to DocGenSign, DocGenSignature, DocGenVerify VF pages
+
+When adding new fields, update ALL THREE permission sets (this has been a recurring miss).
+
+### FRAGILITY NOTES (post v1.43-1.44 sprint)
+
+After 24 hours of iterative changes, several areas are fragile and need refactoring:
+
+1. **Two signature creation paths** (LWC vs Flow) must be consolidated into one shared method
+2. **Test coverage hovers at 74-75%** — adding new code drops it below threshold; we need integration tests that exercise full pipelines, not unit tests that mock around problems
+3. **`Test.isRunningTest()` bypass in DocGenSignatureEmailService** — code smell, should restructure to test email assembly without the OWA gate
+4. **Test assertions tweaked to pass** rather than fixing root causes — many tests assert `notEquals(null)` instead of meaningful values
+5. **Throw-vs-catch pattern in Flow action is split** — validation throws (backward compat), runtime errors return in Result. Inconsistent.
+6. **Email status tracking is new** — the `Email_Status__c` field is populated but no UI surfaces it yet on the signature request record page
+7. **Signer apex type AND legacy parallel lists** in Flow action — backward compat overhead
+8. **Image proxy untested** — `getImageBase64()` works in theory but hasn't been validated with a real template containing template images
+
+### Production Email Diagnosis
+
+When emails don't arrive, check in this order:
+1. **Setup > Deliverability** — must be "All Email" (default in scratch is "System Email Only")
+2. **OWA "Allow All Profiles"** — in OWA settings, must be checked or specific profiles listed include the sender's profile
+3. **OWA verified** — green checkmark next to the address
+4. **Daily email limit** — Setup > Company Information shows remaining sends
+5. **DNS/SPF** — domain must have `include:_spf.salesforce.com` in TXT record
+6. **DMARC** — `p=none` is fine; `p=reject` will block
+7. **DKIM** — Setup > DKIM Keys, create + activate, add CNAME records to DNS
+8. **`Email_Status__c` field** on the signature request — shows exact error per signer
+
+### Real-World Tester Feedback (April 2026)
+
+- ElFuma + Matt: first external testers, found 4 bugs (all fixed)
+- Charset issue: Arabic, Chinese, Japanese, Russian, Turkish characters fail with ISO-8859-1 default. Fix: `<meta charset="utf-8"/>` in HTML output. RTL layout already supported.
+- Google Docs DOCX export uses different XML structure than Microsoft Word — not yet supported. Future enhancement.
 
 ## Font Support
 

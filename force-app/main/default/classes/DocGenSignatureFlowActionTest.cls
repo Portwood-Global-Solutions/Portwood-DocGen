@@ -324,13 +324,14 @@ private class DocGenSignatureFlowActionTest {
         r.templateId = '001000000000000AAA';  // any fake Id
 
         Test.startTest();
-        Boolean caught = false;
-        try {
+        // Runtime errors (like template not found) are caught and returned in Result
+        // so Flows get a structured error instead of crashing the Flow.
+        List<DocGenSignatureFlowAction.Result> results =
             DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ r });
-        } catch (Exception e) {
-            caught = true;
-        }
         Test.stopTest();
-        System.assert(caught, 'Invalid template Id must throw');
+
+        System.assertEquals(1, results.size());
+        System.assertEquals(false, results[0].success, 'Invalid template Id should result in success=false');
+        System.assertNotEquals(null, results[0].errorMessage, 'Error message should be populated');
     }
 }

@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.43.0 — Guided signatures, packets, decline, sequential signing",
-      "versionNumber": "1.43.0.NEXT",
-      "ancestorId": "04tal000006UkpxAAC",
+      "versionName": "1.46.0 — Query parser consolidation + DOCX helper + integration tests + Email_Status surfacing",
+      "versionNumber": "1.46.0.NEXT",
+      "ancestorId": "04tal000006hOZtAAM",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -75,6 +75,12 @@
     "Portwood DocGen Managed@1.43.0-8": "04tal000006hKknAAE",
     "Portwood DocGen Managed@1.43.0-9": "04tal000006hKuTAAU",
     "Portwood DocGen Managed@1.43.0-10": "04tal000006hLNVAA2",
-    "Portwood DocGen Managed@1.43.0-11": "04tal000006hLTxAAM"
+    "Portwood DocGen Managed@1.43.0-11": "04tal000006hLTxAAM",
+    "Portwood DocGen Managed@1.44.0-1": "04tal000006hNYzAAM",
+    "Portwood DocGen Managed@1.44.0-2": "04tal000006hNabAAE",
+    "Portwood DocGen Managed@1.44.0-3": "04tal000006hNdpAAE",
+    "Portwood DocGen Managed@1.44.0-4": "04tal000006hNkHAAU",
+    "Portwood DocGen Managed@1.45.0-1": "04tal000006hOZtAAM",
+    "Portwood DocGen Managed@1.46.0-2": "04tal000006hQ73AAE"
   }
 }
