@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.46.0 — Query parser consolidation + DOCX helper + integration tests + Email_Status surfacing",
-      "versionNumber": "1.46.0.NEXT",
-      "ancestorId": "04tal000006hOZtAAM",
+      "versionName": "1.47.0 — Runner UX: per-record templates, category filter, output format override, audience visibility",
+      "versionNumber": "1.47.0.NEXT",
+      "ancestorId": "04tal000006hQ73AAE",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
