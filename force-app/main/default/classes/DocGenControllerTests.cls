@@ -4186,4 +4186,221 @@ private class DocGenControllerTests {
             // Expected — exercises error handling path
         }
     }
+
+    // =========================================================================
+    // 1.47.0 — runner UX (issue #25)
+    // Per-record visibility (Specific_Record_Ids__c) + audience visibility
+    // (Required_Permission_Sets__c) + sort order + output format override
+    // =========================================================================
+
+    @isTest
+    static void testGetTemplatesForObjectAndRecord_perRecordFilter() {
+        Account acc = TestDataFactory.getTestAccount();
+        Account other = new Account(Name = 'Other Acct');
+        insert other;
+
+        DocGen_Template__c tplGeneral = TestDataFactory.getTestTemplate();
+        // Create a record-bound template scoped to `acc`
+        DocGen_Template__c tplBound = new DocGen_Template__c(
+            Name = 'Account-Specific Template',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Specific_Record_Ids__c = String.valueOf(acc.Id)
+        );
+        insert tplBound;
+        // And one bound to a different record
+        DocGen_Template__c tplBoundOther = new DocGen_Template__c(
+            Name = 'Other-Specific Template',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Specific_Record_Ids__c = String.valueOf(other.Id)
+        );
+        insert tplBoundOther;
+
+        Test.startTest();
+        List<DocGen_Template__c> forAcc = DocGenController.getTemplatesForObjectAndRecord('Account', acc.Id);
+        List<DocGen_Template__c> forOther = DocGenController.getTemplatesForObjectAndRecord('Account', other.Id);
+        Test.stopTest();
+
+        Set<Id> forAccIds = new Set<Id>();
+        for (DocGen_Template__c t : forAcc) forAccIds.add(t.Id);
+        System.assert(forAccIds.contains(tplGeneral.Id), 'General (no Specific_Record_Ids) template visible everywhere');
+        System.assert(forAccIds.contains(tplBound.Id), 'Acc-bound template visible for acc');
+        System.assert(!forAccIds.contains(tplBoundOther.Id), 'Other-bound template hidden for acc');
+
+        Set<Id> forOtherIds = new Set<Id>();
+        for (DocGen_Template__c t : forOther) forOtherIds.add(t.Id);
+        System.assert(forOtherIds.contains(tplBoundOther.Id), 'Other-bound template visible for other');
+        System.assert(!forOtherIds.contains(tplBound.Id), 'Acc-bound template hidden for other');
+    }
+
+    @isTest
+    static void testGetTemplatesForObjectAndRecord_multipleIdsInList() {
+        Account acc = TestDataFactory.getTestAccount();
+        Account a2 = new Account(Name='A2'); insert a2;
+        Account a3 = new Account(Name='A3'); insert a3;
+
+        // Template bound to three records
+        DocGen_Template__c multi = new DocGen_Template__c(
+            Name = 'Multi-Bound', Base_Object_API__c = 'Account', Type__c = 'Word', Output_Format__c = 'PDF',
+            Specific_Record_Ids__c = String.valueOf(acc.Id) + ', ' + String.valueOf(a2.Id) + ',' + String.valueOf(a3.Id)
+        );
+        insert multi;
+
+        Test.startTest();
+        List<DocGen_Template__c> forA2 = DocGenController.getTemplatesForObjectAndRecord('Account', a2.Id);
+        List<DocGen_Template__c> forA3 = DocGenController.getTemplatesForObjectAndRecord('Account', a3.Id);
+        Account a4 = new Account(Name='A4'); insert a4;
+        List<DocGen_Template__c> forA4 = DocGenController.getTemplatesForObjectAndRecord('Account', a4.Id);
+        Test.stopTest();
+
+        Boolean a2HasMulti = false, a3HasMulti = false, a4HasMulti = false;
+        for (DocGen_Template__c t : forA2) if (t.Id == multi.Id) a2HasMulti = true;
+        for (DocGen_Template__c t : forA3) if (t.Id == multi.Id) a3HasMulti = true;
+        for (DocGen_Template__c t : forA4) if (t.Id == multi.Id) a4HasMulti = true;
+        System.assert(a2HasMulti && a3HasMulti, 'Multi-bound template visible for all listed records');
+        System.assert(!a4HasMulti, 'Multi-bound template hidden for unlisted record');
+    }
+
+    @isTest
+    static void testGetTemplatesForObject_audienceFilter() {
+        Account acc = TestDataFactory.getTestAccount();
+        DocGen_Template__c open = TestDataFactory.getTestTemplate(); // no audience requirement
+
+        // Template requiring a permission set the running user does NOT have
+        DocGen_Template__c gated = new DocGen_Template__c(
+            Name = 'Exec Only', Base_Object_API__c = 'Account', Type__c = 'Word', Output_Format__c = 'PDF',
+            Required_Permission_Sets__c = 'NonExistent_Permission_Set_Xyz'
+        );
+        insert gated;
+
+        // Template requiring ANY of: a real perm set the user has, OR the unreal one
+        DocGen_Template__c eitherOr = new DocGen_Template__c(
+            Name = 'Either Or', Base_Object_API__c = 'Account', Type__c = 'Word', Output_Format__c = 'PDF',
+            Required_Permission_Sets__c = 'NonExistent_Xyz, DocGen_Admin'
+        );
+        insert eitherOr;
+
+        Test.startTest();
+        List<DocGen_Template__c> visible = DocGenController.getTemplatesForObject('Account');
+        Test.stopTest();
+
+        Set<Id> visIds = new Set<Id>();
+        for (DocGen_Template__c t : visible) visIds.add(t.Id);
+        System.assert(visIds.contains(open.Id), 'Templates with no audience requirement always visible');
+        System.assert(!visIds.contains(gated.Id), 'Templates requiring an unassigned perm set are hidden');
+        System.assert(visIds.contains(eitherOr.Id),
+            'Templates with any-of audience match (DocGen_Admin assigned via test setup) are visible');
+    }
+
+    @isTest
+    static void testGetTemplatesForObjectAndRecord_sortOrder() {
+        DocGen_Template__c first = new DocGen_Template__c(
+            Name = 'Z Last Alphabetically', Base_Object_API__c = 'Account', Type__c = 'Word',
+            Output_Format__c = 'PDF', Sort_Order__c = 1
+        );
+        DocGen_Template__c third = new DocGen_Template__c(
+            Name = 'A First Alphabetically', Base_Object_API__c = 'Account', Type__c = 'Word',
+            Output_Format__c = 'PDF', Sort_Order__c = 100
+        );
+        insert new List<DocGen_Template__c>{ first, third };
+
+        Test.startTest();
+        List<DocGen_Template__c> visible = DocGenController.getTemplatesForObject('Account');
+        Test.stopTest();
+
+        Integer firstIdx = -1, thirdIdx = -1;
+        for (Integer i = 0; i < visible.size(); i++) {
+            if (visible[i].Id == first.Id) firstIdx = i;
+            if (visible[i].Id == third.Id) thirdIdx = i;
+        }
+        System.assert(firstIdx >= 0 && thirdIdx > firstIdx,
+            'Sort_Order__c = 1 should come before Sort_Order__c = 100 regardless of alphabetical order');
+    }
+
+    @isTest
+    static void testRecordIdSubstringSafety() {
+        // Two unrelated 18-char Ids should not substring-match each other.
+        // This is a property of Salesforce Ids — assert the assumption that the LIKE-style filter relies on.
+        Account a = TestDataFactory.getTestAccount();
+        Account b = new Account(Name = 'Substring Safety'); insert b;
+        String aId = String.valueOf(a.Id);
+        String bId = String.valueOf(b.Id);
+        System.assertNotEquals(aId, bId);
+        System.assert(!aId.contains(bId), 'Ids must not substring-match each other for filter safety');
+        System.assert(!bId.contains(aId), 'Ids must not substring-match each other for filter safety');
+    }
+
+    @isTest
+    static void testProcessAndReturnDocument_outputOverride_lockedTemplateThrows() {
+        DocGen_Template__c locked = new DocGen_Template__c(
+            Name = 'Locked', Base_Object_API__c = 'Account', Type__c = 'Word',
+            Output_Format__c = 'PDF', Lock_Output_Format__c = true
+        );
+        insert locked;
+        Account acc = TestDataFactory.getTestAccount();
+
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            DocGenController.processAndReturnDocumentWithOverride(locked.Id, acc.Id, null, 'Word');
+        } catch (AuraHandledException e) {
+            threw = true;
+        } catch (Exception e) {
+            threw = true; // any throw counts — Lock_Output_Format__c rejection
+        }
+        Test.stopTest();
+        System.assert(threw, 'Override on a locked-output template should throw');
+    }
+
+    @isTest
+    static void testProcessAndReturnDocument_outputOverride_powerpointToPdfThrows() {
+        DocGen_Template__c ppt = new DocGen_Template__c(
+            Name = 'PPT Template', Base_Object_API__c = 'Account', Type__c = 'PowerPoint',
+            Output_Format__c = 'Native'
+        );
+        insert ppt;
+        Account acc = TestDataFactory.getTestAccount();
+
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            DocGenController.processAndReturnDocumentWithOverride(ppt.Id, acc.Id, null, 'PDF');
+        } catch (AuraHandledException e) {
+            threw = true;
+        } catch (Exception e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'PowerPoint template + PDF override should throw');
+    }
+
+    @isTest
+    static void testProcessAndReturnDocument_outputOverride_invalidFormatThrows() {
+        DocGen_Template__c open = TestDataFactory.getTestTemplate();
+        Account acc = TestDataFactory.getTestAccount();
+
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            DocGenController.processAndReturnDocumentWithOverride(open.Id, acc.Id, null, 'NotARealFormat');
+        } catch (AuraHandledException e) {
+            threw = true;
+        } catch (Exception e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'Bogus output override value should throw');
+    }
+
+    @isTest
+    static void testGetCurrentUserPermissionSetNames_returnsAtLeastOne() {
+        // The TestDataFactory.createStandardTestData assigns DocGen_Admin to the running user.
+        Test.startTest();
+        Set<String> names = DocGenController.getCurrentUserPermissionSetNames();
+        Test.stopTest();
+        System.assert(names != null && !names.isEmpty(), 'User should have at least one permission set assigned');
+    }
 }

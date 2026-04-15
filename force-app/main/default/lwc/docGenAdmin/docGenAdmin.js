@@ -34,6 +34,11 @@ import OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Fo
 import TEST_RECORD_FIELD from '@salesforce/schema/DocGen_Template__c.Test_Record_Id__c';
 import DOC_TITLE_FIELD from '@salesforce/schema/DocGen_Template__c.Document_Title_Format__c';
 import IS_DEFAULT_FIELD from '@salesforce/schema/DocGen_Template__c.Is_Default__c';
+// 1.47 — runner visibility & sort
+import SORT_ORDER_FIELD from '@salesforce/schema/DocGen_Template__c.Sort_Order__c';
+import LOCK_OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Lock_Output_Format__c';
+import SPECIFIC_RECORD_IDS_FIELD from '@salesforce/schema/DocGen_Template__c.Specific_Record_Ids__c';
+import REQUIRED_PERM_SETS_FIELD from '@salesforce/schema/DocGen_Template__c.Required_Permission_Sets__c';
 // Version fields (DocGen_Template_Version__c)
 import VER_IS_ACTIVE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Is_Active__c';
 import VER_CV_ID_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Content_Version_Id__c';
@@ -50,6 +55,11 @@ const F = {
     TestRecordId: TEST_RECORD_FIELD.fieldApiName,
     DocTitleFormat: DOC_TITLE_FIELD.fieldApiName,
     IsDefault: IS_DEFAULT_FIELD.fieldApiName,
+    // 1.47 — runner visibility & sort
+    SortOrder: SORT_ORDER_FIELD.fieldApiName,
+    LockOutputFormat: LOCK_OUTPUT_FORMAT_FIELD.fieldApiName,
+    SpecificRecordIds: SPECIFIC_RECORD_IDS_FIELD.fieldApiName,
+    RequiredPermSets: REQUIRED_PERM_SETS_FIELD.fieldApiName,
     // Version fields
     VerIsActive: VER_IS_ACTIVE_FIELD.fieldApiName,
     VerCvId: VER_CV_ID_FIELD.fieldApiName
@@ -128,6 +138,11 @@ const VERSION_COLUMNS = [
     editTemplateTestRecordId;
     editTemplateTitleFormat;
     editTemplateIsDefault = false;
+    // 1.47 — runner visibility & sort
+    editTemplateSortOrder;
+    editTemplateLockOutputFormat = false;
+    editTemplateSpecificRecordIds;
+    editTemplateRequiredPermissionSets;
 
     @track currentFileId;
     @track uploadedFileName = '';
@@ -828,6 +843,11 @@ const VERSION_COLUMNS = [
     handleEditOutputFormatChange(event) { this.editTemplateOutputFormat = event.detail.value; }
     handleEditDescChange(event) { this.editTemplateDesc = event.detail.value; }
     handleEditDefaultChange(event) { this.editTemplateIsDefault = event.target.checked; }
+    // 1.47 — runner visibility & sort handlers
+    handleEditSortOrderChange(event) { this.editTemplateSortOrder = event.detail.value; }
+    handleEditLockOutputChange(event) { this.editTemplateLockOutputFormat = event.target.checked; }
+    handleEditSpecificRecordIdsChange(event) { this.editTemplateSpecificRecordIds = event.detail.value; }
+    handleEditRequiredPermSetsChange(event) { this.editTemplateRequiredPermissionSets = event.detail.value; }
 
     handleQueryTabActive() {
         // lightning-tab lazy-renders content — sync textarea when query tab first activates
@@ -1179,6 +1199,10 @@ const VERSION_COLUMNS = [
             this.editTemplateTestRecordId = row[F.TestRecordId];
             this.editTemplateTitleFormat = row[F.DocTitleFormat];
             this.editTemplateIsDefault = row[F.IsDefault] || false;
+            this.editTemplateSortOrder = row[F.SortOrder];
+            this.editTemplateLockOutputFormat = row[F.LockOutputFormat] || false;
+            this.editTemplateSpecificRecordIds = row[F.SpecificRecordIds];
+            this.editTemplateRequiredPermissionSets = row[F.RequiredPermSets];
 
             let cdLinks = [];
             if (row.ContentDocumentLinks) {
@@ -1440,7 +1464,11 @@ const VERSION_COLUMNS = [
             'Query_Config__c': this._sanitizeQueryConfig(this.editTemplateQuery),
             'Test_Record_Id__c': this.editTemplateTestRecordId,
             'Document_Title_Format__c': this.editTemplateTitleFormat,
-            'Is_Default__c': this.editTemplateIsDefault
+            'Is_Default__c': this.editTemplateIsDefault,
+            'Sort_Order__c': this.editTemplateSortOrder,
+            'Lock_Output_Format__c': this.editTemplateLockOutputFormat,
+            'Specific_Record_Ids__c': this.editTemplateSpecificRecordIds,
+            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 
@@ -1471,7 +1499,11 @@ const VERSION_COLUMNS = [
             'Query_Config__c': this._sanitizeQueryConfig(this.editTemplateQuery),
             'Test_Record_Id__c': this.editTemplateTestRecordId,
             'Document_Title_Format__c': this.editTemplateTitleFormat,
-            'Is_Default__c': this.editTemplateIsDefault
+            'Is_Default__c': this.editTemplateIsDefault,
+            'Sort_Order__c': this.editTemplateSortOrder,
+            'Lock_Output_Format__c': this.editTemplateLockOutputFormat,
+            'Specific_Record_Ids__c': this.editTemplateSpecificRecordIds,
+            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 

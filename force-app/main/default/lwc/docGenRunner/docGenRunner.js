@@ -1,7 +1,8 @@
 import { LightningElement, api, wire, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import getTemplatesForObject from '@salesforce/apex/DocGenController.getTemplatesForObject';
+import getTemplatesForObject from '@salesforce/apex/DocGenController.getTemplatesForObjectAndRecord';
 import processAndReturnDocument from '@salesforce/apex/DocGenController.processAndReturnDocument';
+import processAndReturnDocumentWithOverride from '@salesforce/apex/DocGenController.processAndReturnDocumentWithOverride';
 import generateDocumentParts from '@salesforce/apex/DocGenController.generateDocumentParts';
 import getContentVersionBase64 from '@salesforce/apex/DocGenController.getContentVersionBase64';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
@@ -33,6 +34,8 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
     @track templateOptions = [];
     @track selectedTemplateId = '';
+    @track selectedCategory = '__ALL__'; // 1.47 — category filter
+    @track outputFormatOverride = ''; // 1.47 — runtime output format override
     @track outputMode = 'download';
     @track isLoading = false;
     @track error = '';
@@ -142,26 +145,123 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         return count > 0 ? `Combine ${count} Files 📂✨` : 'Combine Files ✨';
     }
 
-    @wire(getTemplatesForObject, { objectApiName: '$objectApiName' })
+    @wire(getTemplatesForObject, { objectApiName: '$objectApiName', recordId: '$recordId' })
     wiredTemplates({ error, data }) {
         if (data) {
             this._templateData = data;
-            // Auto-select the default template (query returns Is_Default__c DESC, so first match is the default)
-            const defaultTemplate = data.find(t => t[IS_DEFAULT_FIELD.fieldApiName]);
-            this.templateOptions = data.map(t => ({
-                label: t.Name,
-                value: t.Id,
-                selected: defaultTemplate ? t.Id === defaultTemplate.Id : false
-            }));
-            if (defaultTemplate) {
-                this.selectedTemplateId = defaultTemplate.Id;
-            }
+            this._rebuildTemplateOptions();
             this.error = undefined;
             // Preload record PDFs for merge option
             this.loadRecordPdfs();
         } else if (error) {
             this.error = 'Error loading templates: ' + error.body.message;
         }
+    }
+
+    /**
+     * Rebuilds templateOptions from _templateData applying the current category filter,
+     * decorating default templates with a star prefix, and auto-selecting the default
+     * (or the first option if no default).
+     */
+    _rebuildTemplateOptions() {
+        const data = this._templateData || [];
+        const filtered = (this.selectedCategory && this.selectedCategory !== '__ALL__')
+            ? data.filter(t => (t.Category__c || '__UNCATEGORIZED__') === this.selectedCategory)
+            : data;
+        const defaultTemplate = filtered.find(t => t[IS_DEFAULT_FIELD.fieldApiName]);
+        this.templateOptions = filtered.map(t => {
+            const isDefault = !!t[IS_DEFAULT_FIELD.fieldApiName];
+            const cat = t.Category__c ? `[${t.Category__c}] ` : '';
+            return {
+                label: `${isDefault ? '★ ' : ''}${cat}${t.Name}`,
+                value: t.Id,
+                selected: defaultTemplate ? t.Id === defaultTemplate.Id : false
+            };
+        });
+        // If the previously-selected template is no longer in the filtered list,
+        // fall back to the new default (or first option, or empty).
+        const stillSelected = this.templateOptions.some(o => o.value === this.selectedTemplateId);
+        if (!stillSelected) {
+            this.selectedTemplateId = defaultTemplate ? defaultTemplate.Id
+                : (this.templateOptions[0] ? this.templateOptions[0].value : '');
+        }
+        // Reset override when template list changes — the new selection may be a different type
+        this.outputFormatOverride = '';
+    }
+
+    /**
+     * Distinct categories present in the loaded template list, plus an "All" sentinel.
+     * Hidden when there's only one category (no point showing a filter with one option).
+     */
+    get categoryOptions() {
+        const data = this._templateData || [];
+        const distinct = new Set();
+        for (const t of data) {
+            distinct.add(t.Category__c ? t.Category__c : '__UNCATEGORIZED__');
+        }
+        if (distinct.size <= 1) return [];
+        const opts = [{ label: 'All Categories', value: '__ALL__' }];
+        const sorted = Array.from(distinct).sort();
+        for (const c of sorted) {
+            opts.push({ label: c === '__UNCATEGORIZED__' ? '(Uncategorized)' : c, value: c });
+        }
+        return opts;
+    }
+
+    get showCategoryFilter() { return this.categoryOptions.length > 0; }
+
+    get selectedTemplate() {
+        return this._templateData.find(t => t.Id === this.selectedTemplateId);
+    }
+
+    /**
+     * Output format picker options derived from the selected template's Type__c.
+     * Word templates: PDF + Word. PowerPoint templates: PPTX only (picker hidden).
+     * Hidden entirely when the template has Lock_Output_Format__c = true.
+     */
+    get outputFormatPickerOptions() {
+        const t = this.selectedTemplate;
+        if (!t) return [];
+        if (t.Lock_Output_Format__c) return [];
+        const tplType = t[TYPE_FIELD.fieldApiName];
+        if (tplType === 'PowerPoint') return []; // PPTX only — no choice
+        if (tplType === 'Word') {
+            return [
+                { label: 'PDF', value: 'PDF' },
+                { label: 'Word (DOCX)', value: 'Word' }
+            ];
+        }
+        return [];
+    }
+
+    get showOutputFormatPicker() { return this.outputFormatPickerOptions.length > 0; }
+
+    /**
+     * Effective Output_Format__c value for THIS run — 'PDF' or 'Native'.
+     * Maps the override (PDF / Word / PowerPoint, matching template TYPE) onto the
+     * Output_Format__c vocabulary the runner branches on.
+     */
+    get effectiveOutputFormat() {
+        if (this.outputFormatOverride === 'PDF') return 'PDF';
+        if (this.outputFormatOverride === 'Word' || this.outputFormatOverride === 'PowerPoint') return 'Native';
+        return this.templateOutputFormat;
+    }
+
+    get showEmptyState() {
+        return this._templateData && this._templateData.length === 0;
+    }
+
+    get emptyStateMessage() {
+        return 'No templates available for this record. Check the template\'s Specific Record Ids and Required Permission Sets, or ask an admin to create a template for ' + (this.objectApiName || 'this object') + '.';
+    }
+
+    handleCategoryChange(event) {
+        this.selectedCategory = event.target.value;
+        this._rebuildTemplateOptions();
+    }
+
+    handleOutputFormatOverrideChange(event) {
+        this.outputFormatOverride = event.target.value || '';
     }
 
     @wire(getChildRelationships, { objectApiName: '$objectApiName' })
@@ -357,13 +457,31 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const templateType = selected ? selected[TYPE_FIELD.fieldApiName] : 'Word';
             const isPPT = templateType === 'PowerPoint';
             const isExcel = templateType === 'Excel';
-            const isPDF = this.templateOutputFormat === 'PDF' && !isPPT && !isExcel;
+            // Use effectiveOutputFormat so a runtime PDF/Word override re-routes the path.
+            const isPDF = this.effectiveOutputFormat === 'PDF' && !isPPT && !isExcel;
             const saveToRecord = this.outputMode === 'save';
             const shouldMerge = isPDF && this.mergeEnabled && this.selectedPdfCvIds.length > 0;
+            const hasOverride = !!this.outputFormatOverride;
 
             if (isPDF) {
                 if (shouldMerge) {
                     await this._generateMergedPdf(saveToRecord);
+                } else if (hasOverride) {
+                    // Override path — runs through processAndReturnDocumentWithOverride so
+                    // the template's Lock_Output_Format__c + PowerPoint→PDF guards fire.
+                    this.showToast('Info', 'Generating PDF...', 'info');
+                    const result = await processAndReturnDocumentWithOverride({
+                        templateId: this.selectedTemplateId,
+                        recordId: this.recordId,
+                        resolvedImages: null,
+                        outputFormatOverride: this.outputFormatOverride
+                    });
+                    if (saveToRecord) {
+                        await saveGeneratedDocument({ recordId: this.recordId, fileName: (result.title || 'Document'), base64Data: result.base64, extension: 'pdf' });
+                        this.showToast('Success', 'PDF saved to record.', 'success');
+                    } else {
+                        this.downloadBase64(result.base64, (result.title || 'Document') + '.pdf', 'application/pdf');
+                    }
                 } else {
                     this.showToast('Info', 'Generating PDF...', 'info');
                     const result = await generatePdf({

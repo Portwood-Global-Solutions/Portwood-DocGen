@@ -7,7 +7,32 @@ public with sharing class DocGenBulkController {
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getBulkTemplates() {
         /* code-analyzer-suppress ApexFlsViolation */
-        return [SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c, Test_Record_Id__c FROM DocGen_Template__c WITH SYSTEM_MODE ORDER BY Name LIMIT 2000];
+        List<DocGen_Template__c> all = [
+            SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c,
+                   Test_Record_Id__c, Category__c, Sort_Order__c, Lock_Output_Format__c,
+                   Required_Permission_Sets__c
+            FROM DocGen_Template__c
+            WITH SYSTEM_MODE
+            ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC
+            LIMIT 2000
+        ];
+
+        // Apply audience filter only — bulk has no single record, so per-record binding doesn't apply.
+        Set<String> userPermSets = DocGenController.getCurrentUserPermissionSetNames();
+        List<DocGen_Template__c> visible = new List<DocGen_Template__c>();
+        for (DocGen_Template__c t : all) {
+            if (String.isBlank(t.Required_Permission_Sets__c)) {
+                visible.add(t);
+                continue;
+            }
+            for (String rawName : t.Required_Permission_Sets__c.split(',')) {
+                if (userPermSets.contains(rawName.trim())) {
+                    visible.add(t);
+                    break;
+                }
+            }
+        }
+        return visible;
     }
 
     /**
