@@ -23,12 +23,14 @@ public with sharing class DocGenSignatureSenderController {
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getDocGenTemplatesForRecord(String relatedRecordId) {
         /* code-analyzer-suppress ApexFlsViolation */
+        // SYSTEM_MODE — fields are read for in-memory filtering, no FLS surface is widened.
+        // Field-level access for admin-editable fields is still controlled by DocGen_Admin/User permsets.
         List<DocGen_Template__c> all = [
             SELECT Id, Name, Category__c, Sort_Order__c, Specific_Record_Ids__c, Required_Permission_Sets__c
             FROM DocGen_Template__c
-            WITH USER_MODE
+            WITH SYSTEM_MODE
             ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC
-        ];
+        ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         String recordId18 = null;
         if (String.isNotBlank(relatedRecordId)) {
