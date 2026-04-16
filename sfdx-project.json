@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.47.0 — Runner UX: per-record templates, category filter, output format override, audience visibility",
-      "versionNumber": "1.47.0.NEXT",
-      "ancestorId": "04tal000006hQ73AAE",
+      "versionName": "1.48.0 — Record Filter (SOQL WHERE) + namespace-safe runner field access",
+      "versionNumber": "1.48.0.NEXT",
+      "ancestorId": "04tal000006hQwfAAE",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
