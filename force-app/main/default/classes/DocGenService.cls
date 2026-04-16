@@ -3490,6 +3490,18 @@ public with sharing class DocGenService {
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
 
+        // Prime the HTML renderer's static context so tables using Word "table styles"
+        // (which reference styles.xml for borders) render with their borders, and numbered
+        // lists render correctly. Without this, templates with default Word tables lose
+        // their borders in signature previews and signed PDFs. renderPdf() does the same
+        // for the regular DocGen flow — matching it here.
+        if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
+            DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
+        } else {
+            DocGenHtmlRenderer.stylesXml = null;
+        }
+        setNumberingXml(mr);
+
         return new Map<String, Object>{
             'documentXml' => mr.documentXml,
             'relsXml' => mr.relsXml,
