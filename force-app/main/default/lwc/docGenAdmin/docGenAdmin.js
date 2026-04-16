@@ -39,6 +39,8 @@ import SORT_ORDER_FIELD from '@salesforce/schema/DocGen_Template__c.Sort_Order__
 import LOCK_OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Lock_Output_Format__c';
 import SPECIFIC_RECORD_IDS_FIELD from '@salesforce/schema/DocGen_Template__c.Specific_Record_Ids__c';
 import REQUIRED_PERM_SETS_FIELD from '@salesforce/schema/DocGen_Template__c.Required_Permission_Sets__c';
+import RECORD_FILTER_FIELD from '@salesforce/schema/DocGen_Template__c.Record_Filter__c';
+import testRecordFilter from '@salesforce/apex/DocGenController.testRecordFilter';
 // Version fields (DocGen_Template_Version__c)
 import VER_IS_ACTIVE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Is_Active__c';
 import VER_CV_ID_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Content_Version_Id__c';
@@ -60,6 +62,7 @@ const F = {
     LockOutputFormat: LOCK_OUTPUT_FORMAT_FIELD.fieldApiName,
     SpecificRecordIds: SPECIFIC_RECORD_IDS_FIELD.fieldApiName,
     RequiredPermSets: REQUIRED_PERM_SETS_FIELD.fieldApiName,
+    RecordFilter: RECORD_FILTER_FIELD.fieldApiName,
     // Version fields
     VerIsActive: VER_IS_ACTIVE_FIELD.fieldApiName,
     VerCvId: VER_CV_ID_FIELD.fieldApiName
@@ -143,6 +146,10 @@ const VERSION_COLUMNS = [
     editTemplateLockOutputFormat = false;
     editTemplateSpecificRecordIds;
     editTemplateRequiredPermissionSets;
+    editTemplateRecordFilter;
+    @track editTemplateRecordFilterResult = '';
+    @track editTemplateRecordFilterResultMessage = '';
+    @track editTemplateRecordFilterTesting = false;
 
     @track currentFileId;
     @track uploadedFileName = '';
@@ -848,6 +855,51 @@ const VERSION_COLUMNS = [
     handleEditLockOutputChange(event) { this.editTemplateLockOutputFormat = event.target.checked; }
     handleEditSpecificRecordIdsChange(event) { this.editTemplateSpecificRecordIds = event.detail.value; }
     handleEditRequiredPermSetsChange(event) { this.editTemplateRequiredPermissionSets = event.detail.value; }
+    handleEditRecordFilterChange(event) {
+        this.editTemplateRecordFilter = event.detail.value;
+        this.editTemplateRecordFilterResult = '';
+        this.editTemplateRecordFilterResultMessage = '';
+    }
+
+    async handleTestRecordFilter() {
+        if (!this.editTemplateRecordFilter || !this.editTemplateTestRecordId || !this.editTemplateObject) {
+            this.editTemplateRecordFilterResult = 'error';
+            this.editTemplateRecordFilterResultMessage = 'Need Base Object, Sample Test Record Id (set on the template), and a Record Filter clause to test.';
+            return;
+        }
+        this.editTemplateRecordFilterTesting = true;
+        this.editTemplateRecordFilterResult = '';
+        this.editTemplateRecordFilterResultMessage = '';
+        try {
+            const res = await testRecordFilter({
+                baseObjectApiName: this.editTemplateObject,
+                sampleRecordId: this.editTemplateTestRecordId,
+                whereClause: this.editTemplateRecordFilter
+            });
+            if (res.error) {
+                this.editTemplateRecordFilterResult = 'error';
+                this.editTemplateRecordFilterResultMessage = res.error;
+            } else if (res.matched) {
+                this.editTemplateRecordFilterResult = 'matched';
+                this.editTemplateRecordFilterResultMessage = '✓ Match — this template would appear for the test record.';
+            } else {
+                this.editTemplateRecordFilterResult = 'nomatch';
+                this.editTemplateRecordFilterResultMessage = '✗ No match — the test record does not satisfy this filter.';
+            }
+        } catch (e) {
+            this.editTemplateRecordFilterResult = 'error';
+            this.editTemplateRecordFilterResultMessage = (e.body && e.body.message) ? e.body.message : e.message;
+        } finally {
+            this.editTemplateRecordFilterTesting = false;
+        }
+    }
+
+    get recordFilterResultClass() {
+        if (this.editTemplateRecordFilterResult === 'matched') return 'slds-text-color_success slds-var-m-top_x-small';
+        if (this.editTemplateRecordFilterResult === 'nomatch') return 'slds-text-color_weak slds-var-m-top_x-small';
+        if (this.editTemplateRecordFilterResult === 'error') return 'slds-text-color_error slds-var-m-top_x-small';
+        return 'slds-hide';
+    }
 
     handleQueryTabActive() {
         // lightning-tab lazy-renders content — sync textarea when query tab first activates
@@ -1203,6 +1255,9 @@ const VERSION_COLUMNS = [
             this.editTemplateLockOutputFormat = row[F.LockOutputFormat] || false;
             this.editTemplateSpecificRecordIds = row[F.SpecificRecordIds];
             this.editTemplateRequiredPermissionSets = row[F.RequiredPermSets];
+            this.editTemplateRecordFilter = row[F.RecordFilter];
+            this.editTemplateRecordFilterResult = '';
+            this.editTemplateRecordFilterResultMessage = '';
 
             let cdLinks = [];
             if (row.ContentDocumentLinks) {
@@ -1468,7 +1523,8 @@ const VERSION_COLUMNS = [
             'Sort_Order__c': this.editTemplateSortOrder,
             'Lock_Output_Format__c': this.editTemplateLockOutputFormat,
             'Specific_Record_Ids__c': this.editTemplateSpecificRecordIds,
-            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets
+            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets,
+            'Record_Filter__c': this.editTemplateRecordFilter
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 
@@ -1503,7 +1559,8 @@ const VERSION_COLUMNS = [
             'Sort_Order__c': this.editTemplateSortOrder,
             'Lock_Output_Format__c': this.editTemplateLockOutputFormat,
             'Specific_Record_Ids__c': this.editTemplateSpecificRecordIds,
-            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets
+            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets,
+            'Record_Filter__c': this.editTemplateRecordFilter
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 

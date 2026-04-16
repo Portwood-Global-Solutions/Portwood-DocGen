@@ -390,6 +390,29 @@
                                         </lightning-textarea>
                                     </div>
                                 </div>
+
+                                <!-- 1.48 — Record Filter (SOQL WHERE clause) — power users -->
+                                <div class="slds-var-m-top_medium">
+                                    <lightning-textarea
+                                        label="Record Filter (SOQL WHERE clause)"
+                                        field-level-help="Advanced / power users. SOQL WHERE clause evaluated against the current record. Examples: Type = 'Customer'  |  Industry IN ('Technology','Media')  |  Annual_Revenue__c > 1000000 AND BillingCountry = 'US'. Wins over Specific Record Ids when both set. Blank = no filter."
+                                        value={editTemplateRecordFilter}
+                                        onchange={handleEditRecordFilterChange}>
+                                    </lightning-textarea>
+                                    <div class="slds-var-m-top_x-small">
+                                        <lightning-button
+                                            label="Test Against Sample Record"
+                                            icon-name="utility:check"
+                                            variant="neutral"
+                                            onclick={handleTestRecordFilter}
+                                            disabled={editTemplateRecordFilterTesting}>
+                                        </lightning-button>
+                                        <span class="slds-text-body_small slds-text-color_weak slds-var-m-left_small">Tests the clause against the Sample Test Record Id on this template.</span>
+                                    </div>
+                                    <div class={recordFilterResultClass}>
+                                        {editTemplateRecordFilterResultMessage}
+                                    </div>
+                                </div>
                             </div>
 
                         </lightning-tab>

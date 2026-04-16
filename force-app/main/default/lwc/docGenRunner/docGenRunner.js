@@ -27,6 +27,8 @@ import { mergePdfs } from './docGenPdfMerger';
 import OUT_FMT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__c';
 import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 import IS_DEFAULT_FIELD from '@salesforce/schema/DocGen_Template__c.Is_Default__c';
+import CATEGORY_FIELD from '@salesforce/schema/DocGen_Template__c.Category__c';
+import LOCK_OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Lock_Output_Format__c';
 
 export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -166,12 +168,13 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     _rebuildTemplateOptions() {
         const data = this._templateData || [];
         const filtered = (this.selectedCategory && this.selectedCategory !== '__ALL__')
-            ? data.filter(t => (t.Category__c || '__UNCATEGORIZED__') === this.selectedCategory)
+            ? data.filter(t => (t[CATEGORY_FIELD.fieldApiName] || '__UNCATEGORIZED__') === this.selectedCategory)
             : data;
         const defaultTemplate = filtered.find(t => t[IS_DEFAULT_FIELD.fieldApiName]);
         this.templateOptions = filtered.map(t => {
             const isDefault = !!t[IS_DEFAULT_FIELD.fieldApiName];
-            const cat = t.Category__c ? `[${t.Category__c}] ` : '';
+            const catVal = t[CATEGORY_FIELD.fieldApiName];
+            const cat = catVal ? `[${catVal}] ` : '';
             return {
                 label: `${isDefault ? '★ ' : ''}${cat}${t.Name}`,
                 value: t.Id,
@@ -197,7 +200,8 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         const data = this._templateData || [];
         const distinct = new Set();
         for (const t of data) {
-            distinct.add(t.Category__c ? t.Category__c : '__UNCATEGORIZED__');
+            const v = t[CATEGORY_FIELD.fieldApiName];
+            distinct.add(v ? v : '__UNCATEGORIZED__');
         }
         if (distinct.size <= 1) return [];
         const opts = [{ label: 'All Categories', value: '__ALL__' }];
@@ -222,7 +226,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     get outputFormatPickerOptions() {
         const t = this.selectedTemplate;
         if (!t) return [];
-        if (t.Lock_Output_Format__c) return [];
+        if (t[LOCK_OUTPUT_FORMAT_FIELD.fieldApiName]) return [];
         const tplType = t[TYPE_FIELD.fieldApiName];
         if (tplType === 'PowerPoint') return []; // PPTX only — no choice
         if (tplType === 'Word') {
