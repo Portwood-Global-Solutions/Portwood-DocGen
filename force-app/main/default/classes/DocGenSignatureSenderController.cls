@@ -23,47 +23,15 @@ public with sharing class DocGenSignatureSenderController {
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getDocGenTemplatesForRecord(String relatedRecordId) {
         /* code-analyzer-suppress ApexFlsViolation */
-        // SYSTEM_MODE — fields are read for in-memory filtering, no FLS surface is widened.
-        // Field-level access for admin-editable fields is still controlled by DocGen_Admin/User permsets.
         List<DocGen_Template__c> all = [
-            SELECT Id, Name, Category__c, Sort_Order__c, Specific_Record_Ids__c, Required_Permission_Sets__c
+            SELECT Id, Name, Category__c, Sort_Order__c, Specific_Record_Ids__c,
+                   Required_Permission_Sets__c, Record_Filter__c, Base_Object_API__c
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
             ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC
         ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
-        String recordId18 = null;
-        if (String.isNotBlank(relatedRecordId)) {
-            try { recordId18 = String.valueOf(Id.valueOf(relatedRecordId)); } catch (Exception e) { recordId18 = null; }
-        }
-        Set<String> userPermSets = DocGenController.getCurrentUserPermissionSetNames();
-
-        List<DocGen_Template__c> visible = new List<DocGen_Template__c>();
-        for (DocGen_Template__c t : all) {
-            // Per-record filter
-            if (String.isNotBlank(t.Specific_Record_Ids__c)) {
-                if (recordId18 == null) continue; // template is record-bound but no record passed
-                Boolean recordMatches = false;
-                for (String rawId : t.Specific_Record_Ids__c.split(',')) {
-                    String trimmed = rawId.trim();
-                    if (String.isBlank(trimmed)) continue;
-                    try {
-                        if (String.valueOf(Id.valueOf(trimmed)) == recordId18) { recordMatches = true; break; }
-                    } catch (Exception e) { continue; }
-                }
-                if (!recordMatches) continue;
-            }
-            // Audience filter
-            if (String.isNotBlank(t.Required_Permission_Sets__c)) {
-                Boolean audienceMatches = false;
-                for (String rawName : t.Required_Permission_Sets__c.split(',')) {
-                    if (userPermSets.contains(rawName.trim())) { audienceMatches = true; break; }
-                }
-                if (!audienceMatches) continue;
-            }
-            visible.add(t);
-        }
-        return visible;
+        return DocGenController.filterTemplatesForSender(all, relatedRecordId);
     }
 
     /**

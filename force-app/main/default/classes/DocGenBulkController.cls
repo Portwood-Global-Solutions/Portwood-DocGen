@@ -10,7 +10,7 @@ public with sharing class DocGenBulkController {
         List<DocGen_Template__c> all = [
             SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c,
                    Test_Record_Id__c, Category__c, Sort_Order__c, Lock_Output_Format__c,
-                   Required_Permission_Sets__c
+                   Required_Permission_Sets__c, Record_Filter__c
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
             ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC

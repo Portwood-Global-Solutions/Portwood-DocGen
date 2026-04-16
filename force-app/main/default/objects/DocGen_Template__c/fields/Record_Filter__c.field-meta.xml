@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Record_Filter__c</fullName>
+    <description>SOQL WHERE clause applied to the current record. When set, this template only appears in the runner / signature sender / Flow when the current record matches the clause. Evaluated against the template's Base Object. Examples: Type = 'Customer' | Industry IN ('Technology','Media') | Annual_Revenue__c &gt; 1000000 AND BillingCountry = 'US'. Leave blank for no filter. If both Record Filter and Specific Record Ids are set, Record Filter wins.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>SOQL WHERE clause (e.g. Type = &apos;Customer&apos;). Runs against the current record. Blank = no filter.</inlineHelpText>
+    <label>Record Filter (WHERE clause)</label>
+    <length>32768</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

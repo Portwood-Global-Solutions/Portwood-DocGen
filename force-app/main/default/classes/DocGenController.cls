@@ -1001,7 +1001,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         List<DocGen_Template__c> all = [
             SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c,
                    Query_Config__c, Category__c, Sort_Order__c, Lock_Output_Format__c,
-                   Specific_Record_Ids__c, Required_Permission_Sets__c
+                   Specific_Record_Ids__c, Required_Permission_Sets__c, Record_Filter__c,
+                   Base_Object_API__c
             FROM DocGen_Template__c
             WHERE Base_Object_API__c = :objectApiName
             WITH SYSTEM_MODE
@@ -1014,9 +1015,13 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         String recordId18 = (recordId != null) ? String.valueOf(Id.valueOf(recordId)) : null;
         Set<String> userPermSets = getCurrentUserPermissionSetNames();
 
+        // Cache results of per-record-filter evaluations so templates sharing the same
+        // clause incur only one SOQL query per (clause, record) combo.
+        Map<String, Boolean> filterCache = new Map<String, Boolean>();
+
         List<DocGen_Template__c> visible = new List<DocGen_Template__c>();
         for (DocGen_Template__c t : all) {
-            if (!templateMatchesRecord(t, recordId18)) continue;
+            if (!templateMatchesRecord(t, recordId18, filterCache)) continue;
             if (!templateVisibleToUser(t, userPermSets)) continue;
             visible.add(t);
         }
@@ -1045,23 +1050,129 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     }
 
     /**
-     * Returns true when the template's per-record filter is empty OR contains the given recordId18.
-     * Empty/null filter = template applies to all records of its base object.
+     * Returns true when the template applies to the given record.
+     * Precedence:
+     *   1. Record_Filter__c (SOQL WHERE clause) — if set, evaluate it against the record; wins over Specific_Record_Ids__c.
+     *   2. Specific_Record_Ids__c (comma-separated Ids) — match if recordId is in the list.
+     *   3. Neither set — template applies to all records of its Base Object.
      */
-    private static Boolean templateMatchesRecord(DocGen_Template__c t, String recordId18) {
+    private static Boolean templateMatchesRecord(DocGen_Template__c t, String recordId18, Map<String, Boolean> filterCache) {
+        // Record Filter (WHERE clause) takes precedence when set
+        if (String.isNotBlank(t.Record_Filter__c)) {
+            if (String.isBlank(recordId18)) return false; // filter is set but no record context
+            if (String.isBlank(t.Base_Object_API__c)) return false; // misconfigured template
+            return recordMatchesFilter(t.Base_Object_API__c, recordId18, t.Record_Filter__c, filterCache);
+        }
+        // Fall back to Id list
         if (String.isBlank(t.Specific_Record_Ids__c)) return true;
-        if (String.isBlank(recordId18)) return false; // template is record-bound but caller didn't pass one
+        if (String.isBlank(recordId18)) return false;
         for (String rawId : t.Specific_Record_Ids__c.split(',')) {
             String trimmed = rawId.trim();
             if (String.isBlank(trimmed)) continue;
             try {
                 if (String.valueOf(Id.valueOf(trimmed)) == recordId18) return true;
             } catch (Exception e) {
-                // Bad Id in the list — skip it, don't reject the template
                 continue;
             }
         }
         return false;
+    }
+
+    /**
+     * Evaluates a SOQL WHERE clause against a specific record.
+     * Runs `SELECT Id FROM {base} WHERE Id = :recordId AND ({whereClause}) LIMIT 1` and returns
+     * true when a row comes back. Uses DocGenDataRetriever.sanitizeWhereClause to block DML
+     * keywords / semicolons / subqueries before the clause reaches dynamic SOQL.
+     *
+     * Malformed clauses (throws on sanitize or at query time) return false — the template hides
+     * rather than exposing every record. This is the safer default for a noise-reduction feature.
+     *
+     * filterCache dedupes lookups when multiple templates share the same clause for the same record.
+     */
+    private static Boolean recordMatchesFilter(String baseObjectApiName, String recordId18, String whereClause, Map<String, Boolean> filterCache) {
+        String cacheKey = baseObjectApiName + '|' + recordId18 + '|' + whereClause;
+        if (filterCache != null && filterCache.containsKey(cacheKey)) {
+            return filterCache.get(cacheKey);
+        }
+
+        Boolean matched = false;
+        try {
+            String safeClause = DocGenDataRetriever.sanitizeWhereClause(whereClause);
+            SObjectType objType = Schema.getGlobalDescribe().get(baseObjectApiName);
+            if (objType == null) {
+                matched = false;
+            } else {
+                Id recordId = Id.valueOf(recordId18);
+                String soql = 'SELECT Id FROM ' + String.escapeSingleQuotes(baseObjectApiName) +
+                    ' WHERE Id = :recordId AND (' + safeClause + ') LIMIT 1';
+                /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+                List<SObject> rows = Database.query(soql, AccessLevel.SYSTEM_MODE); // NOPMD ApexSOQLInjection — clause sanitized via DocGenDataRetriever.sanitizeWhereClause; object name escaped; Id param bound
+                matched = !rows.isEmpty();
+            }
+        } catch (Exception e) {
+            // Malformed clause, inaccessible object, or Id parse failure — hide the template.
+            matched = false;
+        }
+
+        if (filterCache != null) filterCache.put(cacheKey, matched);
+        return matched;
+    }
+
+    /**
+     * Shared filter path for the signature sender's template picker.
+     * Applies per-record filter (Record_Filter__c wins over Specific_Record_Ids__c) and
+     * audience filter (Required_Permission_Sets__c). Called from DocGenSignatureSenderController
+     * to avoid duplicating the filter logic in two places.
+     */
+    public static List<DocGen_Template__c> filterTemplatesForSender(List<DocGen_Template__c> all, String relatedRecordId) {
+        if (all == null || all.isEmpty()) return all;
+        String recordId18 = null;
+        if (String.isNotBlank(relatedRecordId)) {
+            try { recordId18 = String.valueOf(Id.valueOf(relatedRecordId)); } catch (Exception e) { recordId18 = null; }
+        }
+        Set<String> userPermSets = getCurrentUserPermissionSetNames();
+        Map<String, Boolean> filterCache = new Map<String, Boolean>();
+
+        List<DocGen_Template__c> visible = new List<DocGen_Template__c>();
+        for (DocGen_Template__c t : all) {
+            if (!templateMatchesRecord(t, recordId18, filterCache)) continue;
+            if (!templateVisibleToUser(t, userPermSets)) continue;
+            visible.add(t);
+        }
+        return visible;
+    }
+
+    /**
+     * Admin utility — lets the template editor test a WHERE clause against a sample record
+     * before saving. Returns { matched: Boolean, error: String|null } so the LWC can show a
+     * green/red indicator with the error text on failure.
+     */
+    @AuraEnabled
+    public static Map<String, Object> testRecordFilter(String baseObjectApiName, String sampleRecordId, String whereClause) {
+        Map<String, Object> result = new Map<String, Object>{ 'matched' => false, 'error' => null };
+        if (String.isBlank(baseObjectApiName) || String.isBlank(sampleRecordId) || String.isBlank(whereClause)) {
+            result.put('error', 'Base Object, Sample Record Id, and WHERE clause are all required.');
+            return result;
+        }
+        try {
+            String safeClause = DocGenDataRetriever.sanitizeWhereClause(whereClause);
+            SObjectType objType = Schema.getGlobalDescribe().get(baseObjectApiName);
+            if (objType == null) {
+                result.put('error', 'Unknown Base Object: ' + baseObjectApiName);
+                return result;
+            }
+            Id recordId = Id.valueOf(sampleRecordId);
+            String soql = 'SELECT Id FROM ' + String.escapeSingleQuotes(baseObjectApiName) +
+                ' WHERE Id = :recordId AND (' + safeClause + ') LIMIT 1';
+            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+            List<SObject> rows = Database.query(soql, AccessLevel.SYSTEM_MODE); // NOPMD ApexSOQLInjection — clause sanitized, object escaped, Id bound
+            result.put('matched', !rows.isEmpty());
+        } catch (DocGenException e) {
+            result.put('error', e.getMessage());
+        } catch (Exception e) {
+            result.put('error', 'Filter invalid or record not accessible: ' + e.getMessage());
+        }
+        return result;
     }
 
     /**
@@ -1089,6 +1200,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         return [SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c,
                    Test_Record_Id__c, Output_Format__c, Document_Title_Format__c, Is_Default__c,
                    Sort_Order__c, Lock_Output_Format__c, Specific_Record_Ids__c, Required_Permission_Sets__c,
+                   Record_Filter__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
@@ -1150,6 +1262,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             }
             if (fields.containsKey('Required_Permission_Sets__c')) {
                 template.Required_Permission_Sets__c = (String) fields.get('Required_Permission_Sets__c');
+            }
+            if (fields.containsKey('Record_Filter__c')) {
+                template.Record_Filter__c = (String) fields.get('Record_Filter__c');
             }
             // Update Default flag if provided — enforce one default per object
             if (fields.containsKey('Is_Default__c')) {

@@ -1504,6 +1504,14 @@ public with sharing class DocGenDataRetriever {
     }
 
     /**
+     * Public wrapper so other controllers (e.g. DocGenController's template WHERE-clause evaluator)
+     * can reuse the same sanitize rules without duplicating the keyword blocklist.
+     */
+    public static String sanitizeWhereClause(String clause) {
+        return sanitizeClause(clause, 'WHERE');
+    }
+
+    /**
      * Sanitizes a SOQL clause (WHERE, ORDER BY, LIMIT) with keyword blocklist
      * and optional Schema allowlist validation for ORDER BY field names.
      * @param clause The raw clause value

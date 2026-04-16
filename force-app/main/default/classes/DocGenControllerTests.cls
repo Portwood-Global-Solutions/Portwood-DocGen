@@ -4403,4 +4403,144 @@ private class DocGenControllerTests {
         Test.stopTest();
         System.assert(names != null && !names.isEmpty(), 'User should have at least one permission set assigned');
     }
+
+    // =========================================================================
+    // 1.48 — Record Filter (SOQL WHERE clause) feature
+    // =========================================================================
+
+    @isTest
+    static void testRecordFilter_matchesCurrentRecord() {
+        Account matching = TestDataFactory.getTestAccount();
+        matching.Industry = 'Technology';
+        update matching;
+
+        DocGen_Template__c t = new DocGen_Template__c(
+            Name = 'Tech-Only Template', Base_Object_API__c = 'Account',
+            Type__c = 'Word', Output_Format__c = 'PDF',
+            Record_Filter__c = 'Industry = \'Technology\''
+        );
+        insert t;
+
+        Test.startTest();
+        List<DocGen_Template__c> visible = DocGenController.getTemplatesForObjectAndRecord('Account', matching.Id);
+        Test.stopTest();
+
+        Boolean found = false;
+        for (DocGen_Template__c v : visible) if (v.Id == t.Id) found = true;
+        System.assert(found, 'Template with Industry=Technology filter should appear for a Tech account');
+    }
+
+    @isTest
+    static void testRecordFilter_hidesNonMatchingRecord() {
+        Account nonMatching = TestDataFactory.getTestAccount();
+        nonMatching.Industry = 'Retail';
+        update nonMatching;
+
+        DocGen_Template__c t = new DocGen_Template__c(
+            Name = 'Tech-Only Template', Base_Object_API__c = 'Account',
+            Type__c = 'Word', Output_Format__c = 'PDF',
+            Record_Filter__c = 'Industry = \'Technology\''
+        );
+        insert t;
+
+        Test.startTest();
+        List<DocGen_Template__c> visible = DocGenController.getTemplatesForObjectAndRecord('Account', nonMatching.Id);
+        Test.stopTest();
+
+        for (DocGen_Template__c v : visible) {
+            System.assertNotEquals(t.Id, v.Id, 'Tech-only template should NOT appear for a Retail account');
+        }
+    }
+
+    @isTest
+    static void testRecordFilter_precedenceOverSpecificRecordIds() {
+        // When both Record_Filter__c and Specific_Record_Ids__c are set,
+        // Record_Filter__c wins. Set contradictory values and verify.
+        Account a = TestDataFactory.getTestAccount();
+        Account other = new Account(Name = 'Other Ind', Industry = 'Retail'); insert other;
+        a.Industry = 'Retail'; update a;
+
+        DocGen_Template__c t = new DocGen_Template__c(
+            Name = 'Filter Wins', Base_Object_API__c = 'Account',
+            Type__c = 'Word', Output_Format__c = 'PDF',
+            Specific_Record_Ids__c = String.valueOf(a.Id),           // says "appears for a"
+            Record_Filter__c = 'Industry = \'Technology\''           // says "appears for Tech only"
+        );
+        insert t;
+
+        Test.startTest();
+        List<DocGen_Template__c> forA = DocGenController.getTemplatesForObjectAndRecord('Account', a.Id);
+        Test.stopTest();
+
+        for (DocGen_Template__c v : forA) {
+            System.assertNotEquals(t.Id, v.Id,
+                'Record_Filter__c (Industry=Technology) should win over Specific_Record_Ids__c — Retail account hidden');
+        }
+    }
+
+    @isTest
+    static void testRecordFilter_malformedClauseHidesTemplate() {
+        Account acc = TestDataFactory.getTestAccount();
+        DocGen_Template__c t = new DocGen_Template__c(
+            Name = 'Malformed', Base_Object_API__c = 'Account',
+            Type__c = 'Word', Output_Format__c = 'PDF',
+            Record_Filter__c = 'this is ; not valid SOQL'
+        );
+        insert t;
+
+        Test.startTest();
+        List<DocGen_Template__c> visible = DocGenController.getTemplatesForObjectAndRecord('Account', acc.Id);
+        Test.stopTest();
+
+        for (DocGen_Template__c v : visible) {
+            System.assertNotEquals(t.Id, v.Id, 'Malformed clause = template hidden (safer default than exposing every record)');
+        }
+    }
+
+    @isTest
+    static void testRecordFilter_emptyFilterFallsBackToIdList() {
+        Account acc = TestDataFactory.getTestAccount();
+        DocGen_Template__c t = new DocGen_Template__c(
+            Name = 'Id Binding Only', Base_Object_API__c = 'Account',
+            Type__c = 'Word', Output_Format__c = 'PDF',
+            Specific_Record_Ids__c = String.valueOf(acc.Id)
+            // Record_Filter__c intentionally blank
+        );
+        insert t;
+
+        Test.startTest();
+        List<DocGen_Template__c> visible = DocGenController.getTemplatesForObjectAndRecord('Account', acc.Id);
+        Test.stopTest();
+
+        Boolean found = false;
+        for (DocGen_Template__c v : visible) if (v.Id == t.Id) found = true;
+        System.assert(found, 'With blank Record_Filter__c, Specific_Record_Ids__c behavior preserved');
+    }
+
+    @isTest
+    static void testTestRecordFilter_sanitizesBlockedKeywords() {
+        Account acc = TestDataFactory.getTestAccount();
+        Test.startTest();
+        Map<String, Object> res = DocGenController.testRecordFilter('Account', acc.Id, 'Id != null; DELETE Account');
+        Test.stopTest();
+
+        System.assertEquals(false, (Boolean) res.get('matched'), 'Blocked keyword should prevent a match');
+        System.assertNotEquals(null, res.get('error'), 'Error message should explain the block');
+    }
+
+    @isTest
+    static void testTestRecordFilter_happyPath() {
+        Account acc = TestDataFactory.getTestAccount();
+        acc.Industry = 'Technology'; update acc;
+
+        Test.startTest();
+        Map<String, Object> match = DocGenController.testRecordFilter('Account', acc.Id, 'Industry = \'Technology\'');
+        Map<String, Object> noMatch = DocGenController.testRecordFilter('Account', acc.Id, 'Industry = \'Retail\'');
+        Test.stopTest();
+
+        System.assertEquals(true, (Boolean) match.get('matched'));
+        System.assertEquals(null, match.get('error'));
+        System.assertEquals(false, (Boolean) noMatch.get('matched'));
+        System.assertEquals(null, noMatch.get('error'));
+    }
 }
