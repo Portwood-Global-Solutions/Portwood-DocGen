@@ -4708,4 +4708,119 @@ private class DocGenSignatureTests {
         Test.stopTest();
         // Exercises line 43-44: Viewed status counts as remaining (not Signed, not Pending)
     }
+
+    // =========================================================================
+    // 1.49 — #28 style-attribute resolvers + Sign In Person
+    // =========================================================================
+
+    @isTest
+    static void testExtractTableStyleBorderMap_happyPath() {
+        String styles = '<w:styles>'
+            + '<w:style w:type="table" w:styleId="TableGrid">'
+            + '<w:tblPr><w:tblBorders>'
+            + '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            + '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
+            + '</w:tblBorders></w:tblPr>'
+            + '</w:style>'
+            + '<w:style w:type="table" w:styleId="PlainTable"></w:style>'
+            + '</w:styles>';
+        Map<String, String> out = DocGenHtmlRenderer.extractTableStyleBorderMap(styles);
+        System.assert(out.containsKey('TableGrid'), 'TableGrid with tblBorders should be extracted');
+        System.assert(!out.containsKey('PlainTable'), 'Style without tblBorders should be skipped');
+        System.assert(String.isNotBlank(out.get('TableGrid')), 'Border CSS should be non-empty');
+    }
+
+    @isTest
+    static void testExtractTableStyleBorderMap_blank() {
+        System.assert(DocGenHtmlRenderer.extractTableStyleBorderMap(null).isEmpty());
+        System.assert(DocGenHtmlRenderer.extractTableStyleBorderMap('').isEmpty());
+    }
+
+    @isTest
+    static void testExtractStyleTextAttributeMap_happyPath() {
+        String styles = '<w:styles>'
+            + '<w:style w:type="paragraph" w:styleId="Heading1">'
+            + '<w:rPr>'
+            + '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>'
+            + '<w:b/>'
+            + '<w:color w:val="2E74B5"/>'
+            + '<w:sz w:val="32"/>'
+            + '</w:rPr>'
+            + '</w:style>'
+            + '<w:style w:type="paragraph" w:styleId="PlainStyle"></w:style>'
+            + '</w:styles>';
+        Map<String, Map<String, String>> out = DocGenHtmlRenderer.extractStyleTextAttributeMap(styles);
+        System.assert(out.containsKey('Heading1'), 'Heading1 attributes should be extracted');
+        Map<String, String> heading = out.get('Heading1');
+        System.assertEquals('2E74B5', heading.get('color'));
+        System.assertEquals('Calibri', heading.get('fontFamily'));
+        System.assertEquals('32', heading.get('fontSize'));
+        System.assertEquals('true', heading.get('bold'));
+        System.assert(!out.containsKey('PlainStyle'), 'Style with no attrs should be skipped');
+    }
+
+    @isTest
+    static void testResolveStyleTextAttrs_asyncFallback_viaMap() {
+        // Simulate the async queueable context: stylesXml is null, but a cached map is provided.
+        DocGenHtmlRenderer.stylesXml = null;
+        DocGenHtmlRenderer.styleTextAttrsMap = new Map<String, Map<String, String>>{
+            'CustomHeading' => new Map<String, String>{ 'color' => 'FF0000', 'bold' => 'true' }
+        };
+
+        // Render a paragraph using CustomHeading style. Color from the map should appear in HTML.
+        String xml = '<w:body><w:p><w:pPr><w:pStyle w:val="CustomHeading"/></w:pPr>'
+            + '<w:r><w:t>Colored Text</w:t></w:r></w:p></w:body>';
+        Test.startTest();
+        String html = DocGenHtmlRenderer.convertToHtml(xml, new Map<String, String>());
+        Test.stopTest();
+
+        System.assert(html.contains('color:#FF0000'),
+            'Color from styleTextAttrsMap should render when stylesXml is null. Got: ' + html);
+
+        // Cleanup statics so other tests aren't affected
+        DocGenHtmlRenderer.styleTextAttrsMap = null;
+    }
+
+    @isTest
+    static void testMarkSignerVerifiedInPerson_happyPath() {
+        // Running user has DocGen_Admin from TestDataFactory.createStandardTestData
+        DocGen_Signer__c signer = getTestSigner();
+
+        Test.startTest();
+        String url = DocGenSignatureSenderController.markSignerVerifiedInPerson(signer.Id);
+        Test.stopTest();
+
+        DocGen_Signer__c updated = [SELECT PIN_Verified_At__c, Status__c FROM DocGen_Signer__c WHERE Id = :signer.Id];
+        System.assertNotEquals(null, updated.PIN_Verified_At__c, 'PIN should now be marked verified');
+        System.assertEquals('Viewed', updated.Status__c, 'Status should advance to Viewed');
+        System.assert(url != null && url.contains('token='), 'Signing URL with token returned: ' + url);
+
+        // Audit record captures the bypass
+        List<DocGen_Signature_Audit__c> audits = [
+            SELECT Id, IP_Address__c, User_Agent__c, Consent_Captured__c
+            FROM DocGen_Signature_Audit__c
+            WHERE Signer__c = :signer.Id AND IP_Address__c LIKE 'in-person-bypass:%'
+        ];
+        System.assertEquals(1, audits.size(), 'Exactly one in-person bypass audit row should exist');
+        System.assertEquals(true, audits[0].Consent_Captured__c);
+        System.assert(audits[0].User_Agent__c.contains('in-person signing'),
+            'Audit user-agent should record in-person bypass: ' + audits[0].User_Agent__c);
+    }
+
+    @isTest
+    static void testMarkSignerVerifiedInPerson_alreadySignedThrows() {
+        DocGen_Signer__c signer = getTestSigner();
+        signer.Status__c = 'Signed';
+        update signer;
+
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            DocGenSignatureSenderController.markSignerVerifiedInPerson(signer.Id);
+        } catch (Exception e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'Should refuse to bypass PIN on an already-signed signer');
+    }
 }

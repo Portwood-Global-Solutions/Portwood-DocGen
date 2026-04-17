@@ -36,6 +36,10 @@ public with sharing class DocGenHtmlRenderer {
     // parsing stylesXml, so queueables running as Automated Process (which can't access
     // the pre-decomposed ContentVersions) still render table-style borders correctly.
     public static Map<String, String> tableStyleBorderMap;
+    // #28 async fallback: styleName → {color, fontFamily, fontSize, bold, italic} — pre-
+    // extracted in admin context, cached in Signature_Data__c, consulted by
+    // resolveStyleTextAttributes before parsing stylesXml. Same rationale as the borders map.
+    public static Map<String, Map<String, String>> styleTextAttrsMap;
 
     /**
      * Extracts a compact borders map from styles.xml for async fallback use.
@@ -44,6 +48,35 @@ public with sharing class DocGenHtmlRenderer {
      * serialize this to JSON and stash it on a record for later retrieval — useful when
      * the async render context can't re-query the full styles.xml ContentVersion.
      */
+    /**
+     * Extracts a compact styleName → text-attributes map from styles.xml for async
+     * fallback use. Covers color, font, size, bold, italic — enough to fix
+     * styles.xml-dependent text rendering in the signature PDF queueable context
+     * where the full stylesXml can't be loaded (Automated Process user + ContentVersion).
+     */
+    public static Map<String, Map<String, String>> extractStyleTextAttributeMap(String stylesXmlSource) {
+        Map<String, Map<String, String>> out = new Map<String, Map<String, String>>();
+        if (String.isBlank(stylesXmlSource)) return out;
+        Pattern p = Pattern.compile('<w:style [^>]*w:styleId="([^"]+)"[^>]*>([\\s\\S]*?)</w:style>');
+        Matcher m = p.matcher(stylesXmlSource);
+        while (m.find()) {
+            String styleName = m.group(1);
+            String styleDef = m.group(2);
+            Map<String, String> attrs = new Map<String, String>();
+            String color = extractAttr(styleDef, 'w:color', 'w:val');
+            if (color != null && color != 'auto' && color.length() >= 6) attrs.put('color', color);
+            String font = extractAttr(styleDef, 'w:rFonts', 'w:ascii');
+            if (font == null) font = extractAttr(styleDef, 'w:rFonts', 'w:hAnsi');
+            if (String.isNotBlank(font)) attrs.put('fontFamily', font);
+            String sz = extractAttr(styleDef, 'w:sz', 'w:val');
+            if (sz != null && sz.isNumeric()) attrs.put('fontSize', sz);
+            if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b ')) attrs.put('bold', 'true');
+            if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i ')) attrs.put('italic', 'true');
+            if (!attrs.isEmpty()) out.put(styleName, attrs);
+        }
+        return out;
+    }
+
     public static Map<String, String> extractTableStyleBorderMap(String stylesXmlSource) {
         Map<String, String> out = new Map<String, String>();
         if (String.isBlank(stylesXmlSource)) return out;
@@ -566,6 +599,16 @@ public with sharing class DocGenHtmlRenderer {
                     // Render subtitle as styled paragraph
                     style += (String.isNotBlank(style) ? ';' : '') + 'font-size:14pt;color:#595959';
                 }
+                // Resolve additional attributes (color, font) from the referenced style —
+                // applied at paragraph level so runs without explicit rPr inherit them. Inline
+                // rPr on runs still overrides these via parseRunStyle.
+                Map<String, String> pAttrs = resolveStyleTextAttributes(pStyleVal);
+                if (pAttrs.containsKey('color')) {
+                    style += (String.isNotBlank(style) ? ';' : '') + 'color:#' + pAttrs.get('color');
+                }
+                if (pAttrs.containsKey('fontFamily')) {
+                    style += (String.isNotBlank(style) ? ';' : '') + 'font-family:\'' + pAttrs.get('fontFamily').escapeHtml4() + '\',sans-serif';
+                }
             }
 
             // Check for page break before
@@ -1039,15 +1082,61 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     /**
+     * Resolves the key text-formatting attributes (color, font, size, bold, italic) from a
+     * named style in styles.xml. Used to fill in values missing from inline rPr/pPr when
+     * the run/paragraph references a named Word style (e.g. Heading 1 with a built-in color).
+     * Returns a Map with keys: color, fontFamily, fontSize, bold, italic (any subset of those
+     * that the style defines).
+     */
+    private static Map<String, String> resolveStyleTextAttributes(String styleName) {
+        Map<String, String> out = new Map<String, String>();
+        if (String.isBlank(styleName)) return out;
+        // Async-safe fast path — cached from admin context at request creation.
+        if (styleTextAttrsMap != null && styleTextAttrsMap.containsKey(styleName)) {
+            Map<String, String> cached = styleTextAttrsMap.get(styleName);
+            if (cached != null) return cached;
+        }
+        if (String.isBlank(stylesXml)) return out;
+        // Find <w:style ... w:styleId="STYLENAME"> ... </w:style>
+        String searchKey = 'w:styleId="' + styleName + '"';
+        Integer idx = stylesXml.indexOf(searchKey);
+        if (idx < 0) return out;
+        Integer startIdx = stylesXml.lastIndexOf('<w:style', idx);
+        Integer endIdx = stylesXml.indexOf('</w:style>', idx);
+        if (startIdx < 0 || endIdx < 0) return out;
+        String styleDef = stylesXml.substring(startIdx, endIdx);
+
+        String color = extractAttr(styleDef, 'w:color', 'w:val');
+        if (color != null && color != 'auto' && color.length() >= 6) {
+            out.put('color', color);
+        }
+        String font = extractAttr(styleDef, 'w:rFonts', 'w:ascii');
+        if (font == null) font = extractAttr(styleDef, 'w:rFonts', 'w:hAnsi');
+        if (String.isNotBlank(font)) out.put('fontFamily', font);
+        String sz = extractAttr(styleDef, 'w:sz', 'w:val');
+        if (sz != null && sz.isNumeric()) out.put('fontSize', sz);
+        if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b ')) out.put('bold', 'true');
+        if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i ')) out.put('italic', 'true');
+        return out;
+    }
+
+    /**
      * Parses <w:rPr> into CSS style string.
      */
     private static String parseRunStyle(String rPr) {
         List<String> styles = new List<String>();
 
+        // Resolve run-style reference first — inline attributes can still override below.
+        String rStyleVal = extractAttr(rPr, 'w:rStyle', 'w:val');
+        Map<String, String> styleAttrs = (rStyleVal != null)
+            ? resolveStyleTextAttributes(rStyleVal)
+            : new Map<String, String>();
+
         // Font: <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="David"/>
         // w:cs = Complex Script font (Hebrew, Arabic) — try this first for RTL content
         String font = extractAttr(rPr, 'w:rFonts', 'w:ascii');
         if (font == null) { font = extractAttr(rPr, 'w:rFonts', 'w:hAnsi'); }
+        if (font == null) { font = styleAttrs.get('fontFamily'); }
         String fontCs = extractAttr(rPr, 'w:rFonts', 'w:cs');
         // RTL run detection: <w:rtl/> marks a run as right-to-left
         Boolean isRtlRun = rPr.contains('<w:rtl/>') || rPr.contains('<w:rtl ');
@@ -1077,6 +1166,9 @@ public with sharing class DocGenHtmlRenderer {
                 if (resolved != null) {
                     styles.add('color:#' + resolved);
                 }
+            } else if (styleAttrs.containsKey('color')) {
+                // Fall back to the color defined on the referenced style (Heading 1 / custom style / etc)
+                styles.add('color:#' + styleAttrs.get('color'));
             }
         }
 

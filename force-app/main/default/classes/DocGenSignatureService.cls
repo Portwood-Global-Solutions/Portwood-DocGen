@@ -687,9 +687,10 @@ public without sharing class DocGenSignatureService {
                         }
                     }
                 }
-                // 1.49 (#28): hydrate the table-style border map cached at request creation.
+                // 1.49 (#28): hydrate the style maps cached at request creation.
                 // Async context (Automated Process user) can't re-query the pre-decomposed
-                // styles.xml ContentVersion, so the renderer falls back to this map.
+                // styles.xml ContentVersion, so the renderer falls back to these maps for
+                // table borders + text attributes (color, font, size, bold, italic).
                 Object bordersObj = cachedData.get('tableBordersMap');
                 if (bordersObj instanceof Map<String, Object>) {
                     Map<String, String> borders = new Map<String, String>();
@@ -697,6 +698,21 @@ public without sharing class DocGenSignatureService {
                         borders.put(k, (String) ((Map<String, Object>) bordersObj).get(k));
                     }
                     DocGenHtmlRenderer.tableStyleBorderMap = borders;
+                }
+                Object textAttrsObj = cachedData.get('styleTextAttrsMap');
+                if (textAttrsObj instanceof Map<String, Object>) {
+                    Map<String, Map<String, String>> textAttrs = new Map<String, Map<String, String>>();
+                    Map<String, Object> raw = (Map<String, Object>) textAttrsObj;
+                    for (String styleName : raw.keySet()) {
+                        Object attrsObj = raw.get(styleName);
+                        if (attrsObj instanceof Map<String, Object>) {
+                            Map<String, String> attrs = new Map<String, String>();
+                            Map<String, Object> attrsRaw = (Map<String, Object>) attrsObj;
+                            for (String k : attrsRaw.keySet()) attrs.put(k, (String) attrsRaw.get(k));
+                            textAttrs.put(styleName, attrs);
+                        }
+                    }
+                    DocGenHtmlRenderer.styleTextAttrsMap = textAttrs;
                 }
             }
 

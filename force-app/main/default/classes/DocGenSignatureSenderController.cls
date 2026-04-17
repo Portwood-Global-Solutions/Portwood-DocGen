@@ -320,18 +320,20 @@ public with sharing class DocGenSignatureSenderController {
             // Inject interactive placement spans for the guided signing UI
             previewHtml = injectPlacementSpans(previewHtml);
 
-            // 1.49 (#28): pre-extract a compact table-style→border map while we're in
-            // admin context. The signed-PDF queueable runs as Automated Process which
-            // can't query the pre-decomposed styles.xml ContentVersion regardless of
-            // sharing model — so we cache just the borders the renderer needs here.
+            // 1.49 (#28): pre-extract compact style maps while we're in admin context.
+            // The signed-PDF queueable runs as Automated Process which can't query the
+            // pre-decomposed styles.xml ContentVersion regardless of sharing model — so we
+            // cache just the attributes the renderer needs for async fallback.
             Map<String, String> tableBordersMap = DocGenHtmlRenderer.extractTableStyleBorderMap(DocGenHtmlRenderer.stylesXml);
+            Map<String, Map<String, String>> textAttrsMap = DocGenHtmlRenderer.extractStyleTextAttributeMap(DocGenHtmlRenderer.stylesXml);
 
-            // Store image map (for Queueable) + preview HTML (for guest VF page) + borders map (for async render)
+            // Store image map (for Queueable) + preview HTML (for guest VF page) + style maps (for async render)
             Map<String, Object> cachedData = new Map<String, Object>{
                 'imageMap' => pdfImageMap,
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 'previewHtml' => previewHtml,
-                'tableBordersMap' => tableBordersMap
+                'tableBordersMap' => tableBordersMap,
+                'styleTextAttrsMap' => textAttrsMap
             };
             req.Signature_Data__c = JSON.serialize(cachedData);
             /* code-analyzer-suppress ApexFlsViolation */
