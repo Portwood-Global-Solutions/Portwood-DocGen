@@ -2,6 +2,7 @@ import { LightningElement, api, wire, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getSignerRolePicklistValues from '@salesforce/apex/DocGenSignatureSenderController.getSignerRolePicklistValues';
 import createTemplateSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createTemplateSignerRequestWithOrder';
+import markSignerVerifiedInPerson from '@salesforce/apex/DocGenSignatureSenderController.markSignerVerifiedInPerson';
 import createPacketSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createPacketSignerRequest';
 import getContactInfo from '@salesforce/apex/DocGenSignatureSenderController.getContactInfo';
 import getPendingSignatureRequests from '@salesforce/apex/DocGenSignatureSenderController.getPendingSignatureRequests';
@@ -456,6 +457,30 @@ export default class DocGenSignatureSender extends LightningElement {
     handleCopyUrl(event) {
         this._copyToClipboard(event.currentTarget.dataset.url);
         this.showToast('Copied', 'Link copied to clipboard.', 'success');
+    }
+
+    async handleSignInPerson(event) {
+        const signerId = event.currentTarget.dataset.signerId;
+        const signerName = event.currentTarget.dataset.signerName || 'this signer';
+        if (!signerId) {
+            this.showToast('Error', 'Signer record is not available. Re-create the request to use In-Person Signing.', 'error');
+            return;
+        }
+        const confirmed = window.confirm(
+            `Confirm you have verified the identity of ${signerName} in person.\n\n` +
+            `This bypasses email PIN verification. Your action will be recorded in the signature audit log.`
+        );
+        if (!confirmed) return;
+        try {
+            const url = await markSignerVerifiedInPerson({ signerId });
+            if (url) {
+                window.open(url, '_blank', 'noopener');
+            }
+            this.showToast('Verified', `${signerName} marked as verified. Signing page opened in a new tab.`, 'success');
+        } catch (e) {
+            const msg = (e.body && e.body.message) ? e.body.message : e.message || 'Unknown error.';
+            this.showToast('Unable to mark verified', msg, 'error');
+        }
     }
 
     handleCopyAllUrls() {

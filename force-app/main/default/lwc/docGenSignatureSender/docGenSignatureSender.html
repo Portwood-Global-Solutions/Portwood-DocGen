@@ -199,6 +199,14 @@
                             <lightning-button icon-name="utility:copy" label="Copy" variant="neutral"
                                 data-url={result.signerUrl} onclick={handleCopyUrl} class="slds-var-m-left_small">
                             </lightning-button>
+                            <lightning-button icon-name="utility:user" label="Sign In Person" variant="brand-outline"
+                                title="Bypass email PIN verification — use only when the signer's identity is verified in person. Action is recorded in the signature audit log."
+                                data-signer-id={result.signerId}
+                                data-url={result.signerUrl}
+                                data-signer-name={result.signerName}
+                                onclick={handleSignInPerson}
+                                class="slds-var-m-left_x-small">
+                            </lightning-button>
                         </div>
                     </div>
                 </div>

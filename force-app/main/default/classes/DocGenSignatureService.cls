@@ -687,6 +687,33 @@ public without sharing class DocGenSignatureService {
                         }
                     }
                 }
+                // 1.49 (#28): hydrate the style maps cached at request creation.
+                // Async context (Automated Process user) can't re-query the pre-decomposed
+                // styles.xml ContentVersion, so the renderer falls back to these maps for
+                // table borders + text attributes (color, font, size, bold, italic).
+                Object bordersObj = cachedData.get('tableBordersMap');
+                if (bordersObj instanceof Map<String, Object>) {
+                    Map<String, String> borders = new Map<String, String>();
+                    for (String k : ((Map<String, Object>) bordersObj).keySet()) {
+                        borders.put(k, (String) ((Map<String, Object>) bordersObj).get(k));
+                    }
+                    DocGenHtmlRenderer.tableStyleBorderMap = borders;
+                }
+                Object textAttrsObj = cachedData.get('styleTextAttrsMap');
+                if (textAttrsObj instanceof Map<String, Object>) {
+                    Map<String, Map<String, String>> textAttrs = new Map<String, Map<String, String>>();
+                    Map<String, Object> raw = (Map<String, Object>) textAttrsObj;
+                    for (String styleName : raw.keySet()) {
+                        Object attrsObj = raw.get(styleName);
+                        if (attrsObj instanceof Map<String, Object>) {
+                            Map<String, String> attrs = new Map<String, String>();
+                            Map<String, Object> attrsRaw = (Map<String, Object>) attrsObj;
+                            for (String k : attrsRaw.keySet()) attrs.put(k, (String) attrsRaw.get(k));
+                            textAttrs.put(styleName, attrs);
+                        }
+                    }
+                    DocGenHtmlRenderer.styleTextAttrsMap = textAttrs;
+                }
             }
 
             // Get signer typed names
@@ -717,6 +744,10 @@ public without sharing class DocGenSignatureService {
 
             // Stamp typed-name signatures into merged XML
             StampResult stamped = stampSignaturesInXml(documentXml, relsXml, contentTypesXml, signerImages, placements);
+
+            // Re-prime the HTML renderer context immediately before convertToHtml.
+            DocGenHtmlRenderer.stylesXml = (String) mergeData.get('stylesXml');
+            DocGenHtmlRenderer.numberingXml = (String) mergeData.get('numberingXml');
 
             // Render PDF with template images only (no signature images needed)
             String html = DocGenHtmlRenderer.convertToHtml(stamped.documentXml, pdfImageMap);
@@ -811,6 +842,10 @@ public without sharing class DocGenSignatureService {
                 }
 
                 StampResult stamped = stampSignaturesInXml(documentXml, relsXml, contentTypesXml, signerImages, docPlacements);
+                // Re-prime renderer context for this document (see #28 — statics don't survive
+                // intermediate calls reliably in async context).
+                DocGenHtmlRenderer.stylesXml = (String) mergeData.get('stylesXml');
+                DocGenHtmlRenderer.numberingXml = (String) mergeData.get('numberingXml');
                 String docHtml = DocGenHtmlRenderer.convertToHtml(stamped.documentXml, pdfImageMap);
 
                 if (docIdx > 0) {

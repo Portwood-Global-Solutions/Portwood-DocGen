@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.48.0 — Record Filter (SOQL WHERE) + namespace-safe runner field access",
-      "versionNumber": "1.48.0.NEXT",
-      "ancestorId": "04tal000006hQwfAAE",
+      "versionName": "1.49.0 — Signature PDF table-border fix (#28) + Sign In Person",
+      "versionNumber": "1.49.0.NEXT",
+      "ancestorId": "04tal000006hhhNAAQ",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -81,6 +81,7 @@
     "Portwood DocGen Managed@1.44.0-3": "04tal000006hNdpAAE",
     "Portwood DocGen Managed@1.44.0-4": "04tal000006hNkHAAU",
     "Portwood DocGen Managed@1.45.0-1": "04tal000006hOZtAAM",
-    "Portwood DocGen Managed@1.46.0-2": "04tal000006hQ73AAE"
+    "Portwood DocGen Managed@1.46.0-2": "04tal000006hQ73AAE",
+    "Portwood DocGen Managed@1.49.0-1": "04tal000006hlZhAAI"
   }
 }
