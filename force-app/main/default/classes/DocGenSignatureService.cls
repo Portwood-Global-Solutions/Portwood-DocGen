@@ -687,6 +687,17 @@ public without sharing class DocGenSignatureService {
                         }
                     }
                 }
+                // 1.49 (#28): hydrate the table-style border map cached at request creation.
+                // Async context (Automated Process user) can't re-query the pre-decomposed
+                // styles.xml ContentVersion, so the renderer falls back to this map.
+                Object bordersObj = cachedData.get('tableBordersMap');
+                if (bordersObj instanceof Map<String, Object>) {
+                    Map<String, String> borders = new Map<String, String>();
+                    for (String k : ((Map<String, Object>) bordersObj).keySet()) {
+                        borders.put(k, (String) ((Map<String, Object>) bordersObj).get(k));
+                    }
+                    DocGenHtmlRenderer.tableStyleBorderMap = borders;
+                }
             }
 
             // Get signer typed names
@@ -717,6 +728,10 @@ public without sharing class DocGenSignatureService {
 
             // Stamp typed-name signatures into merged XML
             StampResult stamped = stampSignaturesInXml(documentXml, relsXml, contentTypesXml, signerImages, placements);
+
+            // Re-prime the HTML renderer context immediately before convertToHtml.
+            DocGenHtmlRenderer.stylesXml = (String) mergeData.get('stylesXml');
+            DocGenHtmlRenderer.numberingXml = (String) mergeData.get('numberingXml');
 
             // Render PDF with template images only (no signature images needed)
             String html = DocGenHtmlRenderer.convertToHtml(stamped.documentXml, pdfImageMap);
@@ -811,6 +826,10 @@ public without sharing class DocGenSignatureService {
                 }
 
                 StampResult stamped = stampSignaturesInXml(documentXml, relsXml, contentTypesXml, signerImages, docPlacements);
+                // Re-prime renderer context for this document (see #28 — statics don't survive
+                // intermediate calls reliably in async context).
+                DocGenHtmlRenderer.stylesXml = (String) mergeData.get('stylesXml');
+                DocGenHtmlRenderer.numberingXml = (String) mergeData.get('numberingXml');
                 String docHtml = DocGenHtmlRenderer.convertToHtml(stamped.documentXml, pdfImageMap);
 
                 if (docIdx > 0) {

@@ -1,7 +1,7 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.49.0 — Fix signature preview + signed PDF losing table borders (#28)",
+      "versionName": "1.49.0 — Signature PDF table-border fix (#28) + Sign In Person",
       "versionNumber": "1.49.0.NEXT",
       "ancestorId": "04tal000006hhhNAAQ",
       "path": "force-app",

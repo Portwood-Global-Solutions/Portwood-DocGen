@@ -19,6 +19,25 @@ public with sharing class DocGenService {
     // to accumulate HTML without re-merging the template. Cleared after reading.
     public static String lastRenderedHtml;
 
+    /**
+     * without-sharing helper for loading package-internal pre-decomposed XML ContentVersions.
+     * Required because the signature PDF queueable runs as Automated Process user, which
+     * can't see ContentVersion records under `with sharing` — no ContentDocumentLink rows
+     * associate it with the files. The CVs are internal package metadata (not user data),
+     * so bypassing sharing is safe. Template access is still gated by DocGen_Admin/User
+     * permsets at the upstream entry points. (#28)
+     */
+    private without sharing class PreDecompXmlLoader {
+        public List<ContentVersion> loadByTitlePrefix(String titlePrefix) {
+            String likePattern = titlePrefix + '%';
+            return [
+                SELECT Id, Title, VersionData FROM ContentVersion
+                WHERE Title LIKE :likePattern
+                WITH SYSTEM_MODE // NOPMD — package-internal pre-decomposed parts
+            ];
+        }
+    }
+
     private static final Set<String> AGGREGATE_FUNCTIONS = new Set<String>{
         'SUM', 'COUNT', 'AVG', 'MIN', 'MAX'
     };
@@ -356,11 +375,12 @@ public with sharing class DocGenService {
             }
 
             String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
-            List<ContentVersion> xmlCvs = [
-                SELECT Id, Title, VersionData FROM ContentVersion
-                WHERE Title LIKE :(xmlPrefix + '%')
-                WITH USER_MODE
-            ];
+            // Use `without sharing` helper: in async contexts (Automated Process user from
+            // platform-event-triggered queueable), `with sharing` + SYSTEM_MODE combined
+            // still can't see these ContentVersions due to Salesforce's ContentVersion
+            // sharing quirk — the user has no ContentDocumentLink rows. Bypass sharing
+            // for this internal package-metadata read. (#28)
+            List<ContentVersion> xmlCvs = new PreDecompXmlLoader().loadByTitlePrefix(xmlPrefix);
 
             if (xmlCvs.isEmpty()) {
                 return null;
@@ -977,9 +997,16 @@ public with sharing class DocGenService {
             WITH SYSTEM_MODE LIMIT 1
         ];
         String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
+        // SYSTEM_MODE is required: this runs in async contexts (signature PDF queueable
+        // triggered by platform event → Automated Process user) that don't have FLS access
+        // to the package-internal pre-decomposed XML ContentVersions. USER_MODE silently
+        // returned empty in that context, which is why the signed PDF path lost table-style
+        // borders for guest-triggered signatures (#28). Template access is already gated by
+        // DocGen permission sets; reading the pre-decomposed artifacts in system mode is safe.
+        /* code-analyzer-suppress ApexFlsViolation */
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData FROM ContentVersion
-            WHERE Title LIKE :(xmlPrefix + '%') WITH USER_MODE // NOPMD
+            WHERE Title LIKE :(xmlPrefix + '%') WITH SYSTEM_MODE // NOPMD — package-internal pre-decomposed parts
         ];
 
         String rawDocumentXml = null;
@@ -3492,22 +3519,29 @@ public with sharing class DocGenService {
 
         // Prime the HTML renderer's static context so tables using Word "table styles"
         // (which reference styles.xml for borders) render with their borders, and numbered
-        // lists render correctly. Without this, templates with default Word tables lose
-        // their borders in signature previews and signed PDFs. renderPdf() does the same
-        // for the regular DocGen flow — matching it here.
+        // lists render correctly. Side-effect priming covers sync callers that call
+        // convertToHtml immediately after. Also return the XMLs in the map so async callers
+        // (queueables) can re-prime right before their convertToHtml call — statics can
+        // silently fail to survive intermediate calls in some async execution contexts.
+        String stylesXml = null;
+        String numberingXml = null;
         if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
-            DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
-        } else {
-            DocGenHtmlRenderer.stylesXml = null;
+            stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
-        setNumberingXml(mr);
+        if (mr.passthroughEntries != null && mr.passthroughEntries.containsKey('word/numbering.xml')) {
+            numberingXml = mr.passthroughEntries.get('word/numbering.xml').toString();
+        }
+        DocGenHtmlRenderer.stylesXml = stylesXml;
+        DocGenHtmlRenderer.numberingXml = numberingXml;
 
         return new Map<String, Object>{
             'documentXml' => mr.documentXml,
             'relsXml' => mr.relsXml,
             'contentTypesXml' => mr.contentTypesXml,
             'pdfImageMap' => pdfImages,
-            'docTitle' => mr.docTitle
+            'docTitle' => mr.docTitle,
+            'stylesXml' => stylesXml,
+            'numberingXml' => numberingXml
         };
     }
 

@@ -31,6 +31,35 @@ public with sharing class DocGenHtmlRenderer {
 
     // Styles XML from template — set before calling convertToHtml for style resolution
     public static String stylesXml;
+    // #28 async-safe fallback: map of table-style-name → border CSS, pre-extracted in admin
+    // context and cached in Signature_Data__c. Checked by resolveTableStyleBorder BEFORE
+    // parsing stylesXml, so queueables running as Automated Process (which can't access
+    // the pre-decomposed ContentVersions) still render table-style borders correctly.
+    public static Map<String, String> tableStyleBorderMap;
+
+    /**
+     * Extracts a compact borders map from styles.xml for async fallback use.
+     * Walks every <w:style w:type="table" w:styleId="X"> element, captures the first-found
+     * border side if the style has <w:tblBorders>, and returns a name→CSS map. Callers can
+     * serialize this to JSON and stash it on a record for later retrieval — useful when
+     * the async render context can't re-query the full styles.xml ContentVersion.
+     */
+    public static Map<String, String> extractTableStyleBorderMap(String stylesXmlSource) {
+        Map<String, String> out = new Map<String, String>();
+        if (String.isBlank(stylesXmlSource)) return out;
+        Pattern p = Pattern.compile('<w:style [^>]*w:styleId="([^"]+)"[^>]*>([\\s\\S]*?)</w:style>');
+        Matcher m = p.matcher(stylesXmlSource);
+        while (m.find()) {
+            String styleName = m.group(1);
+            String styleDef = m.group(2);
+            if (!styleDef.contains('<w:tblBorders')) continue;
+            String border = parseBorderSide(styleDef, 'w:top');
+            if (border == null) border = parseBorderSide(styleDef, 'w:insideH');
+            if (border == null) border = '0.5pt solid #000';
+            out.put(styleName, border);
+        }
+        return out;
+    }
 
     // Numbering XML from template — set before calling convertToHtml for list type resolution
     public static String numberingXml;
@@ -1689,7 +1718,12 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static String resolveTableStyleBorder(String styleName) {
-        if (String.isBlank(stylesXml) || String.isBlank(styleName)) { return null; }
+        if (String.isBlank(styleName)) return null;
+        // Async-safe fast path — borders map pre-extracted in admin context and cached.
+        if (tableStyleBorderMap != null && tableStyleBorderMap.containsKey(styleName)) {
+            return tableStyleBorderMap.get(styleName);
+        }
+        if (String.isBlank(stylesXml)) { return null; }
 
         // Find the style definition: <w:style ... w:styleId="TableGrid">
         String searchKey = 'w:styleId="' + styleName + '"';

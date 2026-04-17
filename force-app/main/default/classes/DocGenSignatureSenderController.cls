@@ -5,6 +5,7 @@ public with sharing class DocGenSignatureSenderController {
         @AuraEnabled public String roleName;
         @AuraEnabled public String signerUrl;
         @AuraEnabled public String signerEmail;
+        @AuraEnabled public Id signerId; // 1.49 — LWC uses this for in-person PIN bypass
     }
 
     /**
@@ -319,11 +320,18 @@ public with sharing class DocGenSignatureSenderController {
             // Inject interactive placement spans for the guided signing UI
             previewHtml = injectPlacementSpans(previewHtml);
 
-            // Store image map (for Queueable) + preview HTML (for guest VF page)
+            // 1.49 (#28): pre-extract a compact table-style→border map while we're in
+            // admin context. The signed-PDF queueable runs as Automated Process which
+            // can't query the pre-decomposed styles.xml ContentVersion regardless of
+            // sharing model — so we cache just the borders the renderer needs here.
+            Map<String, String> tableBordersMap = DocGenHtmlRenderer.extractTableStyleBorderMap(DocGenHtmlRenderer.stylesXml);
+
+            // Store image map (for Queueable) + preview HTML (for guest VF page) + borders map (for async render)
             Map<String, Object> cachedData = new Map<String, Object>{
                 'imageMap' => pdfImageMap,
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-                'previewHtml' => previewHtml
+                'previewHtml' => previewHtml,
+                'tableBordersMap' => tableBordersMap
             };
             req.Signature_Data__c = JSON.serialize(cachedData);
             /* code-analyzer-suppress ApexFlsViolation */
@@ -633,6 +641,71 @@ public with sharing class DocGenSignatureSenderController {
     }
 
     /**
+     * Marks a signer's PIN as verified without requiring email PIN entry.
+     * Admin-only — gated by the DocGen_Admin permission set assignment. Intended for
+     * in-person signing: the admin has verified the signer's identity face-to-face,
+     * so the email PIN step is redundant. Writes a signature audit record capturing
+     * who bypassed, when, and the attestation string so compliance has a trail.
+     *
+     * @param signerId The DocGen_Signer__c record Id to mark verified
+     * @return Signing URL (same URL that would arrive via email) ready to use immediately
+     */
+    @AuraEnabled
+    public static String markSignerVerifiedInPerson(Id signerId) {
+        // Permission check — only DocGen_Admin users can bypass PIN
+        Boolean isAdmin = false;
+        for (PermissionSetAssignment psa : [
+            SELECT PermissionSet.Name FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId()
+            WITH SYSTEM_MODE
+        ]) {
+            if (psa.PermissionSet.Name == 'DocGen_Admin') { isAdmin = true; break; }
+        }
+        if (!isAdmin) {
+            throw new AuraHandledException('Only DocGen Admin users can mark signers as verified in person.');
+        }
+
+        /* code-analyzer-suppress ApexFlsViolation */
+        List<DocGen_Signer__c> signers = [
+            SELECT Id, Signature_Request__c, Signer_Name__c, Signer_Email__c, Secure_Token__c, Status__c
+            FROM DocGen_Signer__c WHERE Id = :signerId WITH SYSTEM_MODE LIMIT 1
+        ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+        if (signers.isEmpty()) {
+            throw new AuraHandledException('Signer not found.');
+        }
+        DocGen_Signer__c signer = signers[0];
+        if (signer.Status__c == 'Signed' || signer.Status__c == 'Cancelled' || signer.Status__c == 'Declined') {
+            throw new AuraHandledException('Cannot verify a signer whose status is ' + signer.Status__c + '.');
+        }
+
+        signer.PIN_Verified_At__c = System.now();
+        signer.Status__c = 'Viewed';
+        /* code-analyzer-suppress ApexFlsViolation */
+        update signer; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+
+        // Audit record — capture the bypass for compliance
+        try {
+            DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c(
+                Signature_Request__c = signer.Signature_Request__c,
+                Signer__c = signer.Id,
+                Signer_Name__c = signer.Signer_Name__c,
+                Signer_Email__c = signer.Signer_Email__c,
+                PIN_Verified_At__c = System.now(),
+                IP_Address__c = 'in-person-bypass:' + UserInfo.getUserId(),
+                User_Agent__c = 'PIN bypassed for in-person signing by ' + UserInfo.getName() + ' (' + UserInfo.getUserEmail() + ')',
+                Consent_Captured__c = true
+            );
+            /* code-analyzer-suppress ApexFlsViolation */
+            insert audit; // NOPMD ApexCRUDViolation - audit record for compliance trail
+        } catch (Exception e) {
+            // Audit failure shouldn't block the admin's bypass action — log and continue
+            System.debug(LoggingLevel.WARN, 'DocGen: In-person audit write failed: ' + e.getMessage());
+        }
+
+        return getSiteBaseUrl() + getSigningPagePath() + '?token=' + signer.Secure_Token__c;
+    }
+
+    /**
      * Returns Contact Name and Email for auto-filling signer fields.
      */
     @AuraEnabled(cacheable=true)
@@ -862,6 +935,12 @@ public with sharing class DocGenSignatureSenderController {
         // Package-internal object — CRUD controlled by DocGen permission sets
         /* code-analyzer-suppress ApexFlsViolation */
         insert signerRecords; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+
+        // 1.49 — back-fill signer record Ids onto the SignerResult DTOs so the LWC
+        // can use the "Mark Verified (In-Person)" action without a second SOQL.
+        for (Integer i = 0; i < signerRecords.size() && i < results.size(); i++) {
+            results[i].signerId = signerRecords[i].Id;
+        }
 
         // Create signature placements from template tags (v3 tag support)
         if (templateId != null) {
