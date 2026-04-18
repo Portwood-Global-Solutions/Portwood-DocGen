@@ -842,4 +842,122 @@ private class DocGenGiantQueryTest {
         res.success = true;
         System.assertEquals(true, res.success);
     }
+
+    // =========================================================================
+    // Grand-total aggregate tag resolution ({SUM:Rel.Field}, {COUNT:Rel})
+    // =========================================================================
+
+    @IsTest
+    static void testGiantAggregateCountTag() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job;
+
+            DocGenGiantQueryAssembler assembler =
+                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+
+            String html = '<html><body>Total contacts: {COUNT:Contacts}</body></html>';
+
+            Test.startTest();
+            String resolved = assembler.resolveGiantAggregateTags(html);
+            Test.stopTest();
+
+            System.assert(resolved.contains('Total contacts: 10'),
+                'COUNT should equal 10 contacts; got: ' + resolved);
+            System.assert(!resolved.contains('{COUNT:Contacts}'),
+                'Tag should be replaced; got: ' + resolved);
+        }
+    }
+
+    @IsTest
+    static void testGiantAggregateSumTag() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+
+            // Set numeric field on contacts so SUM has something to aggregate
+            List<Contact> contacts = [SELECT Id FROM Contact WHERE AccountId = :acc.Id];
+            for (Integer i = 0; i < contacts.size(); i++) {
+                contacts[i].MailingLatitude = 10.0;
+                contacts[i].MailingLongitude = 20.0; // paired field required
+            }
+            update contacts;
+
+            // Rewrite query_config to declare MailingLatitude so the aggregate resolver accepts it
+            String v3Config = JSON.serialize(new Map<String, Object>{
+                'v' => 3,
+                'root' => 'Account',
+                'nodes' => new List<Object>{
+                    new Map<String, Object>{
+                        'id' => 'n0', 'object' => 'Account',
+                        'fields' => new List<String>{ 'Name' },
+                        'parentFields' => new List<String>(),
+                        'parentNode' => null, 'lookupField' => null, 'relationshipName' => null
+                    },
+                    new Map<String, Object>{
+                        'id' => 'n1', 'object' => 'Contact',
+                        'fields' => new List<String>{ 'FirstName', 'MailingLatitude' },
+                        'parentFields' => new List<String>(),
+                        'parentNode' => 'n0', 'lookupField' => 'AccountId',
+                        'relationshipName' => 'Contacts'
+                    }
+                }
+            });
+            tpl.Query_Config__c = v3Config;
+            update tpl;
+
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job;
+
+            DocGenGiantQueryAssembler assembler =
+                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+
+            String html = '<html><body>Sum: {SUM:Contacts.MailingLatitude} Count: {COUNT:Contacts}</body></html>';
+
+            Test.startTest();
+            String resolved = assembler.resolveGiantAggregateTags(html);
+            Test.stopTest();
+
+            System.assert(resolved.contains('Count: 10'), 'COUNT should be 10; got: ' + resolved);
+            System.assert(!resolved.contains('{SUM:'), 'SUM tag should be replaced; got: ' + resolved);
+            System.assert(resolved.contains('Sum: 100'), 'SUM of 10 contacts × 10.0 = 100; got: ' + resolved);
+        }
+    }
+
+    @IsTest
+    static void testGiantAggregateNonMatchingRelationshipIgnored() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job;
+
+            DocGenGiantQueryAssembler assembler =
+                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+
+            // Tag references a different relationship — should pass through untouched
+            String html = '<html><body>{SUM:OpportunityLineItems.Quantity}</body></html>';
+
+            Test.startTest();
+            String resolved = assembler.resolveGiantAggregateTags(html);
+            Test.stopTest();
+
+            System.assertEquals(html, resolved,
+                'Tags for other relationships must be left untouched for downstream resolvers');
+        }
+    }
 }

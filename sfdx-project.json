@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.49.0 — Signature PDF table-border fix (#28) + Sign In Person",
-      "versionNumber": "1.49.0.NEXT",
-      "ancestorId": "04tal000006hhhNAAQ",
+      "versionName": "1.50.0 — Locale-aware formatting + grand-total aggregates for giant queries",
+      "versionNumber": "1.50.0.NEXT",
+      "ancestorId": "04tal000006hlZhAAI",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

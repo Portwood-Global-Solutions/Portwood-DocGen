@@ -256,6 +256,8 @@
 .doc-table th { text-align: left; padding: var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-4, 1rem); font-size: var(--slds-g-font-scale-neg-1, 0.8rem); text-transform: uppercase; color: var(--slds-g-color-neutral-base-50, #6b7280); border-bottom: 2px solid var(--slds-g-color-surface-2, #f3f4f6); }
 .doc-table td { padding: var(--slds-g-spacing-4, 1rem); border-bottom: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-surface-2, #f3f4f6); font-size: var(--slds-g-font-scale-1, 0.9rem); }
 .doc-table code { background: var(--slds-g-color-surface-2, #f3f4f6); padding: var(--slds-g-spacing-1, 0.25rem) var(--slds-g-spacing-2, 0.5rem); border-radius: var(--slds-g-radius-border-1, 4px); font-family: ui-monospace, monospace; color: var(--slds-g-color-accent-2, #1d4ed8); }
+.table-group-header { background: var(--slds-g-color-surface-2, #f3f4f6); font-size: var(--slds-g-font-scale-neg-1, 0.8rem); text-transform: uppercase; color: var(--slds-g-color-neutral-base-50, #6b7280); letter-spacing: 0.05em; }
+.subsection-heading { font-size: var(--slds-g-font-scale-2, 1rem); font-weight: var(--slds-g-font-weight-6, 600); margin-top: var(--slds-g-spacing-7, 2rem); margin-bottom: var(--slds-g-spacing-3, 0.75rem); color: var(--docgen-color-neutral-10, #111827); }
 
 .format-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--slds-g-spacing-4, 1rem); margin-top: var(--slds-g-spacing-5, 1.5rem); }
 .format-item { background: var(--docgen-color-neutral-base-2, #f9fafb); padding: var(--slds-g-spacing-4, 1rem); border-radius: var(--slds-g-radius-border-2, 8px); display: flex; justify-content: space-between; align-items: center; font-size: var(--slds-g-font-scale-1, 0.9rem); }

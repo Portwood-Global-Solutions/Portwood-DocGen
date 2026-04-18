@@ -52,13 +52,12 @@ try {
             fail++; System.debug('PDF GEN NON-EMPTY: FAIL — empty base64');
         }
 
-        // processAndReturnDocument returns DOCX (client-side assembly) — verify it's a valid ZIP
-        // For actual PDF, use generatePdf() below
+        // Template was set to PDF above — verify processAndReturnDocument returns PDF bytes (%PDF header = hex 2550)
         if (String.isNotBlank(base64Pdf)) {
             Blob docBlob = EncodingUtil.base64Decode(base64Pdf);
             String hexStart = EncodingUtil.convertToHex(docBlob).substring(0, 4).toUpperCase();
-            if (hexStart == '504B') { pass++; System.debug('DOCX OUTPUT VALID ZIP: PASS'); }
-            else { fail++; System.debug('DOCX OUTPUT VALID ZIP: FAIL — got hex: ' + hexStart); }
+            if (hexStart == '2550') { pass++; System.debug('PDF OUTPUT VALID: PASS'); }
+            else { fail++; System.debug('PDF OUTPUT VALID: FAIL — got hex: ' + hexStart); }
 
             // Verify non-trivial size (a real PDF with content should be > 500 bytes)
             if (docBlob.size() > 500) { pass++; System.debug('PDF SIZE > 500 bytes: PASS — ' + docBlob.size() + ' bytes'); }

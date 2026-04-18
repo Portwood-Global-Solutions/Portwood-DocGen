@@ -3576,6 +3576,83 @@ private class DocGenMiscTests {
     }
 
     // =========================================================================
+    // DocGenService — Locale-aware formatting (currency:ISO, number:locale, date keyword)
+    // =========================================================================
+
+    @IsTest
+    static void testCurrencyEUR() {
+        Map<String, Object> data = new Map<String, Object>{ 'Amount' => 1234.56 };
+        String result = DocGenService.processXmlForTest('{Amount:currency:EUR}', data);
+        System.assert(result.contains('\u20AC'), 'EUR should contain euro sign, got: ' + result);
+        System.assert(result.contains('1,234.56') || result.contains('1.234,56'),
+            'EUR should have formatted number, got: ' + result);
+    }
+
+    @IsTest
+    static void testCurrencyGBP() {
+        Map<String, Object> data = new Map<String, Object>{ 'Amount' => 5000 };
+        String result = DocGenService.processXmlForTest('{Amount:currency:GBP}', data);
+        System.assert(result.contains('\u00A3'), 'GBP should contain pound sign, got: ' + result);
+    }
+
+    @IsTest
+    static void testCurrencyJPY() {
+        Map<String, Object> data = new Map<String, Object>{ 'Amount' => 1234.56 };
+        String result = DocGenService.processXmlForTest('{Amount:currency:JPY}', data);
+        System.assert(result.contains('\u00A5'), 'JPY should contain yen sign, got: ' + result);
+        System.assert(!result.contains('.'), 'JPY should have no decimals, got: ' + result);
+    }
+
+    @IsTest
+    static void testCurrencyEUR_deDE() {
+        Map<String, Object> data = new Map<String, Object>{ 'Amount' => 1234.56 };
+        String result = DocGenService.processXmlForTest('{Amount:currency:EUR:de_DE}', data);
+        System.assert(result.contains('\u20AC'), 'EUR de_DE should contain euro sign, got: ' + result);
+        System.assert(result.contains('1.234,56'), 'EUR de_DE should use German separators, got: ' + result);
+    }
+
+    @IsTest
+    static void testNumberLocale_deDE() {
+        Map<String, Object> data = new Map<String, Object>{ 'Qty' => 1234567 };
+        String result = DocGenService.processXmlForTest('{Qty:number:de_DE}', data);
+        System.assert(result.contains('1.234.567'), 'German number should use dots, got: ' + result);
+    }
+
+    @IsTest
+    static void testPercentLocale_deDE() {
+        Map<String, Object> data = new Map<String, Object>{ 'Rate' => 15.5 };
+        String result = DocGenService.processXmlForTest('{Rate:percent:de_DE}', data);
+        System.assert(result.contains('15,5%'), 'German percent should use comma decimal, got: ' + result);
+    }
+
+    @IsTest
+    static void testDateKeyword_deDE() {
+        Map<String, Object> data = new Map<String, Object>{
+            'D' => DateTime.newInstance(2026, 4, 17, 12, 0, 0)
+        };
+        String result = DocGenService.processXmlForTest('{D:date:de_DE}', data);
+        System.assert(result.contains('17.04.2026'), 'German date should be dd.MM.yyyy, got: ' + result);
+    }
+
+    @IsTest
+    static void testDateKeywordWithDateType() {
+        Map<String, Object> data = new Map<String, Object>{
+            'D' => Date.newInstance(2026, 4, 17)
+        };
+        String result = DocGenService.processXmlForTest('{D:date:de_DE}', data);
+        // Date→DateTime at midnight can shift day by timezone, so check dd.MM.yyyy pattern
+        System.assert(result.contains('.04.2026'), 'German date from Date type should use dd.MM.yyyy pattern, got: ' + result);
+    }
+
+    @IsTest
+    static void testBackwardCompatCurrency() {
+        // Regression guard: bare :currency must still produce $ with US formatting
+        Map<String, Object> data = new Map<String, Object>{ 'Amount' => 500000 };
+        String result = DocGenService.processXmlForTest('{Amount:currency}', data);
+        System.assert(result.contains('$500,000.00'), 'Bare currency must stay $, got: ' + result);
+    }
+
+    // =========================================================================
     // DocGenService — Excel shared strings (parseSharedStrings, inlineSharedStrings)
     // =========================================================================
 

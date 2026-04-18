@@ -46,6 +46,24 @@ public with sharing class DocGenService {
         'currency', 'percent', 'number'
     };
 
+    // Currency ISO code → display symbol (top ~35 world currencies)
+    private static final Map<String, String> CURRENCY_SYMBOLS = new Map<String, String>{
+        'USD'=>'$', 'EUR'=>'\u20AC', 'GBP'=>'\u00A3', 'JPY'=>'\u00A5', 'CNY'=>'\u00A5',
+        'CHF'=>'CHF ', 'CAD'=>'C$', 'AUD'=>'A$', 'INR'=>'\u20B9', 'KRW'=>'\u20A9',
+        'BRL'=>'R$', 'MXN'=>'MX$', 'SEK'=>'kr ', 'NOK'=>'kr ', 'DKK'=>'kr ',
+        'PLN'=>'z\u0142', 'CZK'=>'K\u010D', 'HUF'=>'Ft ', 'TRY'=>'\u20BA', 'ZAR'=>'R ',
+        'SGD'=>'S$', 'HKD'=>'HK$', 'NZD'=>'NZ$', 'THB'=>'\u0E3F', 'MYR'=>'RM ',
+        'PHP'=>'\u20B1', 'IDR'=>'Rp ', 'TWD'=>'NT$', 'ILS'=>'\u20AA', 'RUB'=>'\u20BD',
+        'NGN'=>'\u20A6', 'KES'=>'KSh ', 'AED'=>'AED ', 'SAR'=>'SAR ',
+        'COP'=>'COL$', 'CLP'=>'CLP$', 'PEN'=>'S/', 'ARS'=>'ARS$',
+        'EGP'=>'E\u00A3', 'GHS'=>'GH\u20B5'
+    };
+
+    // Currencies that use 0 decimal places
+    private static final Set<String> ZERO_DECIMAL_CURRENCIES = new Set<String>{
+        'JPY', 'KRW', 'CLP', 'VND', 'HUF', 'ISK', 'TWD'
+    };
+
     /**
      * Creates an AuraHandledException with a user-facing message.
      * Centralizes exception creation for consistent error handling.
@@ -2007,7 +2025,18 @@ public with sharing class DocGenService {
                 if (val != null) {
                     String strVal;
                     // Apply formatting if a format specifier was provided
-                    if (dateFormat != null && val instanceof DateTime) {
+                    if (dateFormat != null && dateFormat.toLowerCase().trim().startsWith('date') &&
+                        (val instanceof DateTime || val instanceof Date)) {
+                        // {Field:date} → user's locale default | {Field:date:locale} → explicit locale
+                        String dateTrimmed = dateFormat.trim();
+                        String dateLocale = dateTrimmed.contains(':')
+                            ? dateTrimmed.substring(dateTrimmed.indexOf(':') + 1).trim()
+                            : UserInfo.getLocale();
+                        String pattern = getLocaleDatePattern(dateLocale);
+                        DateTime dt = val instanceof DateTime ? (DateTime) val :
+                            DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
+                        strVal = dt.format(pattern);
+                    } else if (dateFormat != null && val instanceof DateTime) {
                         strVal = ((DateTime) val).format(dateFormat);
                     } else if (dateFormat != null && val instanceof Date) {
                         DateTime dt = DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
@@ -2361,19 +2390,130 @@ public with sharing class DocGenService {
     }
 
     // ---------------------------------------------------------------------------
-    // Number/Currency Formatting
-    // {Amount:currency} → $500,000.00
-    // {Quantity:#,##0} → 1,234
-    // {Price:#,##0.00} → 1,234.56
-    // {Rate:percent} → 15.5%
+    // Number/Currency/Date Formatting with Locale Support
+    // {Amount:currency} → $500,000.00  (backward compat)
+    // {Amount:currency:EUR} → €500,000.00  (ISO code → symbol)
+    // {Amount:currency:EUR:de_DE} → 500.000,00 €  (full locale override)
+    // {Amount:number:de_DE} → 500.000  (locale separators)
+    // {Rate:percent:de_DE} → 15,5%  (locale decimal)
+    // {CloseDate:date} → user locale default date
+    // {CloseDate:date:de_DE} → 17.04.2026
+    // {Quantity:#,##0} → 1,234  (custom pattern, unchanged)
     // ---------------------------------------------------------------------------
+
+    /** Returns the thousands grouping separator for a locale. */
+    private static String getLocaleGroupSep(String locale) {
+        if (locale == null) { return ','; }
+        String loc = locale.toLowerCase();
+        // Dot-as-thousands: German, French, Spanish, Italian, Portuguese, Dutch, Scandinavian
+        if (loc.startsWith('de_') || loc.startsWith('fr_') || loc.startsWith('es_') ||
+            loc.startsWith('it_') || loc.startsWith('pt_') || loc.startsWith('nl_') ||
+            loc.startsWith('da_') || loc.startsWith('sv_') || loc.startsWith('nb_') ||
+            loc.startsWith('nn_') || loc.startsWith('pl_') || loc.startsWith('cs_') ||
+            loc.startsWith('hu_') || loc.startsWith('tr_') || loc.startsWith('ro_') ||
+            loc.startsWith('el_') || loc.startsWith('ru_') || loc.startsWith('uk_') ||
+            loc.startsWith('id_') || loc.startsWith('vi_')) {
+            return '.';
+        }
+        // Apostrophe-as-thousands: Swiss French/German
+        if (loc == 'fr_ch' || loc == 'de_ch' || loc == 'it_ch') {
+            return '\'';
+        }
+        // Comma-as-thousands: English, Japanese, Chinese, Korean, and default
+        return ',';
+    }
+
+    /** Returns the decimal separator for a locale. */
+    private static String getLocaleDecSep(String locale) {
+        if (locale == null) { return '.'; }
+        String loc = locale.toLowerCase();
+        // Comma-as-decimal: same set that uses dot-as-thousands
+        if (loc.startsWith('de_') || loc.startsWith('fr_') || loc.startsWith('es_') ||
+            loc.startsWith('it_') || loc.startsWith('pt_') || loc.startsWith('nl_') ||
+            loc.startsWith('da_') || loc.startsWith('sv_') || loc.startsWith('nb_') ||
+            loc.startsWith('nn_') || loc.startsWith('pl_') || loc.startsWith('cs_') ||
+            loc.startsWith('hu_') || loc.startsWith('tr_') || loc.startsWith('ro_') ||
+            loc.startsWith('el_') || loc.startsWith('ru_') || loc.startsWith('uk_') ||
+            loc.startsWith('id_') || loc.startsWith('vi_')) {
+            // Exception: Swiss locales use dot as decimal
+            if (loc == 'fr_ch' || loc == 'de_ch' || loc == 'it_ch') {
+                return '.';
+            }
+            return ',';
+        }
+        return '.';
+    }
+
+    /** Returns whether currency symbol goes after the number for a locale. */
+    private static Boolean isCurrencyAfter(String locale) {
+        if (locale == null) { return false; }
+        String loc = locale.toLowerCase();
+        return loc.startsWith('de_') || loc.startsWith('fr_') || loc.startsWith('es_') ||
+               loc.startsWith('it_') || loc.startsWith('pt_') || loc.startsWith('nl_') ||
+               loc.startsWith('da_') || loc.startsWith('sv_') || loc.startsWith('nb_') ||
+               loc.startsWith('nn_') || loc.startsWith('pl_') || loc.startsWith('cs_') ||
+               loc.startsWith('hu_') || loc.startsWith('tr_') || loc.startsWith('ro_') ||
+               loc.startsWith('el_') || loc.startsWith('ru_') || loc.startsWith('uk_');
+    }
+
+    /** Returns the default date format pattern for a locale. */
+    private static String getLocaleDatePattern(String locale) {
+        if (locale == null) { return 'yyyy-MM-dd'; }
+        String loc = locale.toLowerCase();
+        if (loc.startsWith('en_us')) { return 'MM/dd/yyyy'; }
+        if (loc.startsWith('en_gb') || loc.startsWith('en_au') || loc.startsWith('en_nz') ||
+            loc.startsWith('en_ie') || loc.startsWith('en_in')) { return 'dd/MM/yyyy'; }
+        if (loc.startsWith('de_')) { return 'dd.MM.yyyy'; }
+        if (loc.startsWith('fr_')) { return 'dd/MM/yyyy'; }
+        if (loc.startsWith('es_')) { return 'dd/MM/yyyy'; }
+        if (loc.startsWith('it_')) { return 'dd/MM/yyyy'; }
+        if (loc.startsWith('pt_')) { return 'dd/MM/yyyy'; }
+        if (loc.startsWith('nl_')) { return 'dd-MM-yyyy'; }
+        if (loc.startsWith('ja_')) { return 'yyyy/MM/dd'; }
+        if (loc.startsWith('zh_')) { return 'yyyy-MM-dd'; }
+        if (loc.startsWith('ko_')) { return 'yyyy. MM. dd'; }
+        if (loc.startsWith('ru_')) { return 'dd.MM.yyyy'; }
+        if (loc.startsWith('pl_') || loc.startsWith('cs_') || loc.startsWith('hu_')) { return 'dd.MM.yyyy'; }
+        if (loc.startsWith('da_') || loc.startsWith('sv_') || loc.startsWith('nb_') || loc.startsWith('nn_')) { return 'yyyy-MM-dd'; }
+        if (loc.startsWith('tr_')) { return 'dd.MM.yyyy'; }
+        // ISO 8601 as safe default
+        return 'yyyy-MM-dd';
+    }
+
+    /** Formats a number with locale-aware group and decimal separators. */
+    private static String formatNumberLocale(Decimal num, String groupSep, String decSep) {
+        Boolean negative = num < 0;
+        String raw = (negative ? num.abs() : num).toPlainString();
+
+        String intPart = raw;
+        String decPart = '';
+        if (raw.contains('.')) {
+            intPart = raw.substringBefore('.');
+            decPart = decSep + raw.substringAfter('.');
+        }
+
+        // Insert group separators every 3 digits from the right
+        String result = '';
+        Integer count = 0;
+        for (Integer i = intPart.length() - 1; i >= 0; i--) {
+            if (count > 0 && Math.mod(count, 3) == 0) {
+                result = groupSep + result;
+            }
+            result = intPart.substring(i, i + 1) + result;
+            count++;
+        }
+
+        return (negative ? '-' : '') + result + decPart;
+    }
 
     private static Boolean isNumericFormat(String fmt) {
         if (fmt == null) {
             return false;
         }
         String lower = fmt.toLowerCase().trim();
-        return NUMERIC_FORMATS.contains(lower) || lower.startsWith('#') || lower.startsWith('0');
+        // Check first segment before colon to match extended forms like currency:EUR:de_DE
+        String base = lower.contains(':') ? lower.substringBefore(':') : lower;
+        return NUMERIC_FORMATS.contains(base) || lower.startsWith('#') || lower.startsWith('0');
     }
 
     private static String formatNumber(Object val, String fmt) {
@@ -2384,52 +2524,94 @@ public with sharing class DocGenService {
             return String.valueOf(val); // Not a number — return as-is
         }
 
-        String lower = fmt.toLowerCase().trim();
+        // Split format into segments: currency:EUR:de_DE → ['currency', 'EUR', 'de_DE']
+        List<String> segments = fmt.trim().split(':');
+        String baseFormat = segments[0].toLowerCase().trim();
 
-        if (lower == 'currency') {
-            // $1,234.56
-            return '$' + formatWithCommas(num.setScale(2, RoundingMode.HALF_UP));
-        } else if (lower == 'percent') {
-            // 15.5%
-            return num.stripTrailingZeros().toPlainString() + '%';
-        } else if (lower == 'number') {
-            // 1,234 (no decimals)
-            return formatWithCommas(num.setScale(0, RoundingMode.HALF_UP));
+        if (baseFormat == 'currency') {
+            return formatCurrency(num, segments);
+        } else if (baseFormat == 'percent') {
+            return formatPercent(num, segments);
+        } else if (baseFormat == 'number') {
+            return formatPlainNumber(num, segments);
         } else {
-            // Custom pattern: #,##0 or #,##0.00
+            // Custom pattern: #,##0 or #,##0.00 — unchanged behavior, always US separators
             Integer decimals = 0;
+            String lower = fmt.toLowerCase().trim();
             if (lower.contains('.')) {
-                String afterDot = lower.substringAfter('.');
-                decimals = afterDot.length();
+                decimals = lower.substringAfter('.').length();
             }
-            return formatWithCommas(num.setScale(decimals, RoundingMode.HALF_UP));
+            return formatNumberLocale(num.setScale(decimals, RoundingMode.HALF_UP), ',', '.');
         }
     }
 
+    /** {Amount:currency} | {Amount:currency:EUR} | {Amount:currency:EUR:de_DE} */
+    private static String formatCurrency(Decimal num, List<String> segments) {
+        // Bare :currency → backward compat: hardcoded $ with US separators
+        if (segments.size() == 1) {
+            return '$' + formatNumberLocale(num.setScale(2, RoundingMode.HALF_UP), ',', '.');
+        }
+
+        // :currency:ISO or :currency:ISO:locale
+        String iso = segments[1].trim().toUpperCase();
+        String locale = segments.size() >= 3 ? segments[2].trim() : null;
+
+        // Resolve symbol
+        String symbol = CURRENCY_SYMBOLS.containsKey(iso) ? CURRENCY_SYMBOLS.get(iso) : iso + ' ';
+
+        // Determine decimal places (0 for JPY, KRW, etc.)
+        Integer scale = ZERO_DECIMAL_CURRENCIES.contains(iso) ? 0 : 2;
+        Decimal scaled = num.setScale(scale, RoundingMode.HALF_UP);
+
+        // Determine separators and placement from locale
+        String groupSep = getLocaleGroupSep(locale);
+        String decSep = getLocaleDecSep(locale);
+        Boolean symbolAfter = locale != null && isCurrencyAfter(locale);
+
+        String formatted = formatNumberLocale(scaled, groupSep, decSep);
+
+        if (symbolAfter) {
+            return formatted + ' ' + symbol.trim();
+        }
+        return symbol + formatted;
+    }
+
+    /** {Rate:percent} | {Rate:percent:de_DE} */
+    private static String formatPercent(Decimal num, List<String> segments) {
+        // Bare :percent → backward compat
+        if (segments.size() == 1) {
+            return num.stripTrailingZeros().toPlainString() + '%';
+        }
+
+        // :percent:locale
+        String locale = segments[1].trim();
+        String decSep = getLocaleDecSep(locale);
+        String raw = num.stripTrailingZeros().toPlainString();
+        if (decSep != '.') {
+            raw = raw.replace('.', decSep);
+        }
+        return raw + '%';
+    }
+
+    /** {Qty:number} | {Qty:number:de_DE} */
+    private static String formatPlainNumber(Decimal num, List<String> segments) {
+        // Bare :number → backward compat: US commas, no decimals
+        if (segments.size() == 1) {
+            return formatNumberLocale(num.setScale(0, RoundingMode.HALF_UP), ',', '.');
+        }
+
+        // :number:locale
+        String locale = segments[1].trim();
+        return formatNumberLocale(
+            num.setScale(0, RoundingMode.HALF_UP),
+            getLocaleGroupSep(locale),
+            getLocaleDecSep(locale)
+        );
+    }
+
+    /** Legacy helper — kept for backward compat with any external callers. */
     private static String formatWithCommas(Decimal num) {
-        Boolean negative = num < 0;
-        String raw = (negative ? num.abs() : num).toPlainString();
-
-        // Split on decimal point
-        String intPart = raw;
-        String decPart = '';
-        if (raw.contains('.')) {
-            intPart = raw.substringBefore('.');
-            decPart = '.' + raw.substringAfter('.');
-        }
-
-        // Insert commas every 3 digits from the right
-        String result = '';
-        Integer count = 0;
-        for (Integer i = intPart.length() - 1; i >= 0; i--) {
-            if (count > 0 && Math.mod(count, 3) == 0) {
-                result = ',' + result;
-            }
-            result = intPart.substring(i, i + 1) + result;
-            count++;
-        }
-
-        return (negative ? '-' : '') + result + decPart;
+        return formatNumberLocale(num, ',', '.');
     }
 
     private static Boolean isAggregateTag(String tagContent) {
@@ -2439,6 +2621,19 @@ public with sharing class DocGenService {
         }
         String fn = tagContent.substring(0, colonIdx).trim().toUpperCase();
         return AGGREGATE_FUNCTIONS.contains(fn);
+    }
+
+    /**
+     * Public helper — applies the same numeric-format logic used by in-memory
+     * aggregates to a pre-computed Decimal (e.g. from a SOQL aggregate query).
+     * Used by DocGenGiantQueryAssembler to resolve grand-total tags.
+     */
+    public static String formatAggregateValue(Decimal value, String fmt) {
+        if (value == null) { return '0'; }
+        if (String.isNotBlank(fmt) && isNumericFormat(fmt)) {
+            return formatNumber(value, fmt);
+        }
+        return String.valueOf(value);
     }
 
     /**

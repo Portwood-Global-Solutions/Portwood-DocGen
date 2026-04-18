@@ -183,6 +183,10 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             // Resolve parent merge tags on the template (~2KB, before row injection)
             html = resolveParentMergeTags(html);
 
+            // Resolve grand-total aggregate tags ({SUM:Rel.Field}, {COUNT:Rel}, etc.)
+            // via a single SOQL aggregate query — works for datasets of any size.
+            html = resolveGiantAggregateTags(html);
+
             // Replace the loop row with a placeholder
             String openTag = '{#' + giantRelationshipName + '}';
             if (html.contains(openTag)) {
@@ -355,6 +359,133 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             }
         } catch (Exception mergeErr) {
             String noop = mergeErr.getMessage(); // NOPMD
+        }
+        return html;
+    }
+
+    /**
+     * Resolves grand-total aggregate tags that reference the giant relationship:
+     *   {SUM:Rel.Field}, {COUNT:Rel}, {AVG:Rel.Field}, {MIN:Rel.Field}, {MAX:Rel.Field}
+     * with optional numeric format: {SUM:Rel.Field:currency}.
+     *
+     * One SOQL aggregate query covers all referenced fn/field pairs. Honors the
+     * same lookup + WHERE clause used for the row pages, so totals match the rows.
+     * Unlike in-memory aggregates this is accurate for arbitrarily large datasets
+     * (60K+ rows) because the DB does the math.
+     */
+    @TestVisible
+    private String resolveGiantAggregateTags(String html) {
+        if (String.isBlank(html) || String.isBlank(giantRelationshipName)) { return html; }
+
+        Pattern p = Pattern.compile('\\{(SUM|COUNT|AVG|MIN|MAX):([A-Za-z0-9_]+)(?:\\.([A-Za-z0-9_]+))?(?::([^}]+))?\\}');
+        Matcher m = p.matcher(html);
+
+        List<String> fullMatches = new List<String>();
+        List<String> fns = new List<String>();
+        List<String> fields = new List<String>();
+        List<String> fmts = new List<String>();
+        Set<String> neededPairs = new Set<String>();
+
+        while (m.find()) {
+            String rel = m.group(2);
+            if (!giantRelationshipName.equalsIgnoreCase(rel)) { continue; }
+            String fn = m.group(1).toUpperCase();
+            String field = m.group(3);
+            fullMatches.add(m.group(0));
+            fns.add(fn);
+            fields.add(field == null ? '' : field);
+            fmts.add(m.group(4));
+            neededPairs.add(fn + '|' + (field == null ? '' : field));
+        }
+        if (fullMatches.isEmpty()) { return html; }
+
+        // Load giant node config from the template
+        String childObj = null;
+        String lookupFld = null;
+        String whereCls = null;
+        Set<String> allowedFields = new Set<String>();
+        try {
+            List<DocGen_Template__c> tpls = [
+                SELECT Query_Config__c FROM DocGen_Template__c
+                WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+            ];
+            if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) { return html; }
+            Map<String, Object> cfg = (Map<String, Object>) JSON.deserializeUntyped(tpls[0].Query_Config__c);
+            List<Object> nodes = (List<Object>) cfg.get('nodes');
+            if (nodes == null) { return html; }
+            for (Object nodeObj : nodes) {
+                Map<String, Object> node = (Map<String, Object>) nodeObj;
+                if (giantRelationshipName.equalsIgnoreCase((String) node.get('relationshipName'))) {
+                    childObj = (String) node.get('object');
+                    lookupFld = (String) node.get('lookupField');
+                    whereCls = (String) node.get('where');
+                    if (whereCls == null) { whereCls = (String) node.get('whereClause'); }
+                    List<Object> flds = (List<Object>) node.get('fields');
+                    if (flds != null) { for (Object f : flds) { allowedFields.add(String.valueOf(f)); } }
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            String noop = e.getMessage(); // NOPMD — aggregate resolution is non-fatal
+            return html;
+        }
+
+        if (String.isBlank(childObj) || String.isBlank(lookupFld)) { return html; }
+        if (Schema.getGlobalDescribe().get(childObj) == null) { return html; }
+
+        // Build aggregate SELECT clauses — each unique (fn, field) pair gets one alias
+        List<String> selectClauses = new List<String>();
+        Map<String, String> pairToAlias = new Map<String, String>();
+        Integer aliasIdx = 0;
+        for (String pair : neededPairs) {
+            List<String> parts = pair.split('\\|', 2);
+            String fn = parts[0];
+            String field = parts.size() > 1 ? parts[1] : '';
+            String alias = 'agg' + aliasIdx++;
+            if (fn == 'COUNT' && String.isBlank(field)) {
+                selectClauses.add('COUNT(Id) ' + alias);
+                pairToAlias.put(pair, alias);
+            } else if (String.isNotBlank(field) && allowedFields.contains(field)) {
+                selectClauses.add(fn + '(' + String.escapeSingleQuotes(field) + ') ' + alias);
+                pairToAlias.put(pair, alias);
+            }
+        }
+        if (selectClauses.isEmpty()) { return html; }
+
+        String soql = 'SELECT ' + String.join(selectClauses, ', ') +
+            ' FROM ' + String.escapeSingleQuotes(childObj) +
+            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId';
+        if (String.isNotBlank(whereCls)) { soql += ' AND ' + whereCls; }
+
+        AggregateResult agg;
+        try {
+            List<AggregateResult> results = Database.query(soql, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — child object + fields validated against Schema + declared template fields; lookup and where re-use the same sanitized clauses as row queries
+            if (results.isEmpty()) { return html; }
+            agg = results[0];
+        } catch (Exception qErr) {
+            String noop = qErr.getMessage(); // NOPMD — fall through, tags stay unresolved
+            return html;
+        }
+
+        // Replace each tag occurrence
+        for (Integer i = 0; i < fullMatches.size(); i++) {
+            String pair = fns[i] + '|' + fields[i];
+            String alias = pairToAlias.get(pair);
+            if (alias == null) { continue; }
+            Object raw = agg.get(alias);
+            String replacement;
+            if (raw == null) {
+                replacement = '0';
+            } else if (fmts[i] != null) {
+                try {
+                    replacement = DocGenService.formatAggregateValue(Decimal.valueOf(String.valueOf(raw)), fmts[i]);
+                } catch (Exception fmtErr) {
+                    replacement = String.valueOf(raw);
+                }
+            } else {
+                replacement = String.valueOf(raw);
+            }
+            html = html.replace(fullMatches[i], replacement);
         }
         return html;
     }

@@ -276,6 +276,43 @@ try {
     else { fail++; System.debug('MULTI FIELD SINGLE NODE: FAIL — ' + r); }
 } catch (Exception e) { fail++; System.debug('MULTI FIELD SINGLE NODE: FAIL — ' + e.getMessage()); }
 
+// ===== Locale formatting: currency:EUR =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Amt:currency:EUR}</w:t>', new Map<String, Object>{'Amt'=>1234.56});
+    if (r.contains('\u20AC')) { pass++; System.debug('CURRENCY EUR: PASS'); }
+    else { fail++; System.debug('CURRENCY EUR: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('CURRENCY EUR: FAIL — ' + e.getMessage()); }
+
+// ===== currency:JPY zero decimal =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Amt:currency:JPY}</w:t>', new Map<String, Object>{'Amt'=>1234.56});
+    if (r.contains('\u00A5') && !r.contains('.')) { pass++; System.debug('CURRENCY JPY: PASS'); }
+    else { fail++; System.debug('CURRENCY JPY: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('CURRENCY JPY: FAIL — ' + e.getMessage()); }
+
+// ===== number:de_DE =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Qty:number:de_DE}</w:t>', new Map<String, Object>{'Qty'=>1234567});
+    if (r.contains('1.234.567')) { pass++; System.debug('NUMBER de_DE: PASS'); }
+    else { fail++; System.debug('NUMBER de_DE: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('NUMBER de_DE: FAIL — ' + e.getMessage()); }
+
+// ===== SUM:Items.Amount:currency:GBP =====
+try {
+    Map<String, Object> ad = new Map<String, Object>{'Items' => new List<Object>{
+        new Map<String, Object>{'Amount'=>1000}, new Map<String, Object>{'Amount'=>2000}}};
+    r = DocGenService.processXmlForTest('<w:t>{SUM:Items.Amount:currency:GBP}</w:t>', ad);
+    if (r.contains('\u00A3')) { pass++; System.debug('SUM GBP: PASS'); }
+    else { fail++; System.debug('SUM GBP: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('SUM GBP: FAIL — ' + e.getMessage()); }
+
+// ===== date:de_DE =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{D:date:de_DE}</w:t>', new Map<String, Object>{'D'=>DateTime.newInstance(2026,4,17,12,0,0)});
+    if (r.contains('17.04.2026')) { pass++; System.debug('DATE de_DE: PASS'); }
+    else { fail++; System.debug('DATE de_DE: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('DATE de_DE: FAIL — ' + e.getMessage()); }
+
 System.debug('========================================');
 System.debug('E2E-07 SYNTAX — PASS: ' + pass + '  FAIL: ' + fail + (fail == 0 ? '  ALL TESTS PASSED' : '  FAILURES DETECTED'));
 System.debug('========================================');

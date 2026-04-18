@@ -184,6 +184,8 @@
                                     <div class="tag-gallery">
                                         <button class="pill-tag" data-tag="\{Name}" onclick={handleCopyTag}>&#123;Name&#125;</button>
                                         <button class="pill-tag" data-tag="\{Amount:currency}" onclick={handleCopyTag}>&#123;Amount:currency&#125;</button>
+                                        <button class="pill-tag" data-tag="\{Amount:currency:EUR}" onclick={handleCopyTag}>&#123;Amount:currency:EUR&#125;</button>
+                                        <button class="pill-tag" data-tag="\{CloseDate:date}" onclick={handleCopyTag}>&#123;CloseDate:date&#125;</button>
                                         <button class="pill-tag" data-tag="loop-contacts" onclick={handleCopyTag}>&#123;#List&#125;...&#123;/List&#125;</button>
                                         <button class="pill-tag" data-tag="\{*Barcode}" onclick={handleCopyTag}>&#123;*Barcode&#125;</button>
                                         <button class="pill-tag" data-tag="\{@Signature_Buyer}" onclick={handleCopyTag}>&#123;@Signature_Buyer&#125;</button>
@@ -529,10 +531,10 @@
                                             <tr><th>What You Type</th><th>What Appears</th><th>Format Type</th></tr>
                                         </thead>
                                         <tbody>
-                                            <tr><td><code>&#123;CloseDate:MM/dd/yyyy&#125;</code></td><td>03/18/2026</td><td>US date</td></tr>
-                                            <tr><td><code>&#123;CloseDate:dd/MM/yyyy&#125;</code></td><td>18/03/2026</td><td>International date</td></tr>
-                                            <tr><td><code>&#123;CreatedDate:MMMM d, yyyy&#125;</code></td><td>March 18, 2026</td><td>Long date</td></tr>
-                                            <tr><td><code>&#123;Amount:currency&#125;</code></td><td>$500,000.00</td><td>Currency</td></tr>
+                                            <tr><td><code>&#123;CloseDate:MM/dd/yyyy&#125;</code></td><td>03/18/2026</td><td>US date pattern</td></tr>
+                                            <tr><td><code>&#123;CloseDate:dd/MM/yyyy&#125;</code></td><td>18/03/2026</td><td>International date pattern</td></tr>
+                                            <tr><td><code>&#123;CreatedDate:MMMM d, yyyy&#125;</code></td><td>March 18, 2026</td><td>Long date pattern</td></tr>
+                                            <tr><td><code>&#123;Amount:currency&#125;</code></td><td>$500,000.00</td><td>Currency (USD default)</td></tr>
                                             <tr><td><code>&#123;Rate:percent&#125;</code></td><td>15.5%</td><td>Percentage</td></tr>
                                             <tr><td><code>&#123;Quantity:number&#125;</code></td><td>1,234</td><td>Number with commas</td></tr>
                                             <tr><td><code>&#123;Price:#,##0.00&#125;</code></td><td>1,234.56</td><td>Custom decimal format</td></tr>
@@ -540,6 +542,47 @@
                                         </tbody>
                                     </table>
                                     <p><strong>Checkbox format</strong> renders <code>[X]</code> for truthy values and <code>[ ]</code> for false/blank. Use it inline: <code>Active: &#123;IsActive:checkbox&#125;  Discount: &#123;HasDiscount:checkbox&#125;</code></p>
+
+                                    <h4 class="subsection-heading">International Currency &amp; Locale Formatting</h4>
+                                    <p>For global documents, add an ISO currency code and/or locale after the format keyword. This lets you control currency symbols, number separators, and date layouts per-tag:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Appears</th><th>Notes</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td colspan="3" class="table-group-header"><strong>Currency with ISO Code</strong></td></tr>
+                                            <tr><td><code>&#123;Amount:currency:EUR&#125;</code></td><td>&euro;1,234.56</td><td>Euro symbol, your locale's separators</td></tr>
+                                            <tr><td><code>&#123;Amount:currency:GBP&#125;</code></td><td>&pound;1,234.56</td><td>British Pound</td></tr>
+                                            <tr><td><code>&#123;Amount:currency:JPY&#125;</code></td><td>&yen;1,235</td><td>Japanese Yen (no decimals)</td></tr>
+                                            <tr><td><code>&#123;Amount:currency:INR&#125;</code></td><td>&#8377;1,234.56</td><td>Indian Rupee</td></tr>
+                                            <tr><td><code>&#123;Amount:currency:CHF&#125;</code></td><td>CHF 1,234.56</td><td>Swiss Franc</td></tr>
+                                            <tr><td colspan="3" class="table-group-header"><strong>Currency with ISO Code + Locale</strong></td></tr>
+                                            <tr><td><code>&#123;Amount:currency:EUR:de_DE&#125;</code></td><td>1.234,56 &euro;</td><td>German style: dot thousands, comma decimal, symbol after</td></tr>
+                                            <tr><td><code>&#123;Amount:currency:GBP:en_GB&#125;</code></td><td>&pound;1,234.56</td><td>British English formatting</td></tr>
+                                            <tr><td><code>&#123;Amount:currency:BRL:pt_BR&#125;</code></td><td>1.234,56 R$</td><td>Brazilian Real in Portuguese format</td></tr>
+                                            <tr><td colspan="3" class="table-group-header"><strong>Numbers with Locale</strong></td></tr>
+                                            <tr><td><code>&#123;Quantity:number:de_DE&#125;</code></td><td>1.234.567</td><td>German: dots as thousands separators</td></tr>
+                                            <tr><td><code>&#123;Quantity:number:fr_FR&#125;</code></td><td>1.234.567</td><td>French: dots as thousands separators</td></tr>
+                                            <tr><td colspan="3" class="table-group-header"><strong>Percentages with Locale</strong></td></tr>
+                                            <tr><td><code>&#123;Rate:percent:de_DE&#125;</code></td><td>15,5%</td><td>German: comma as decimal separator</td></tr>
+                                            <tr><td colspan="3" class="table-group-header"><strong>Dates with Locale</strong></td></tr>
+                                            <tr><td><code>&#123;CloseDate:date&#125;</code></td><td><em>(your locale's default)</em></td><td>Auto-detects from running user's locale</td></tr>
+                                            <tr><td><code>&#123;CloseDate:date:de_DE&#125;</code></td><td>18.03.2026</td><td>German date format (dd.MM.yyyy)</td></tr>
+                                            <tr><td><code>&#123;CloseDate:date:ja_JP&#125;</code></td><td>2026/03/18</td><td>Japanese date format (yyyy/MM/dd)</td></tr>
+                                            <tr><td><code>&#123;CloseDate:date:en_GB&#125;</code></td><td>18/03/2026</td><td>British date format (dd/MM/yyyy)</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>Supported currencies:</strong> USD, EUR, GBP, JPY, CNY, CHF, CAD, AUD, INR, KRW, BRL, MXN, SEK, NOK, DKK, PLN, CZK, HUF, TRY, ZAR, SGD, HKD, NZD, THB, MYR, PHP, IDR, TWD, ILS, RUB, NGN, KES, AED, SAR, COP, CLP, PEN, ARS, EGP, GHS
+                                    </div>
+
+                                    <div class="card-tip info">
+                                        <strong>Supported locales:</strong> en_US, en_GB, en_AU, de_DE, de_CH, fr_FR, fr_CH, es_ES, it_IT, pt_BR, nl_NL, da_DK, sv_SE, nb_NO, ja_JP, zh_CN, ko_KR, ru_RU, pl_PL, cs_CZ, hu_HU, tr_TR, ro_RO, el_GR, uk_UA, id_ID, vi_VN, and more. When no locale is specified, the running user's Salesforce locale is used for the <code>:date</code> keyword.
+                                    </div>
+
+                                    <p><strong>How it works:</strong> The base tag (<code>:currency</code>, <code>:number</code>, <code>:percent</code>) without any locale uses US-style formatting for backward compatibility. Add an ISO currency code to change the symbol. Add a locale code to change the number separators and symbol placement. The <code>:date</code> keyword uses the running user's locale by default, or an explicit locale if provided.</p>
                                 </section>
 
                                 <section id="aggregates" class="content-section">
@@ -559,7 +602,7 @@
                                         </tbody>
                                     </table>
 
-                                    <p>The pattern is <code>&#123;FUNCTION:RelationshipName.FieldName&#125;</code>. Add <code>:currency</code> or <code>:number</code> at the end for formatting.</p>
+                                    <p>The pattern is <code>&#123;FUNCTION:RelationshipName.FieldName&#125;</code>. Add <code>:currency</code> or <code>:number</code> at the end for formatting. Locale-aware formats work here too: <code>&#123;SUM:OpportunityLineItems.TotalPrice:currency:EUR&#125;</code> or <code>&#123;SUM:OpportunityLineItems.TotalPrice:currency:EUR:de_DE&#125;</code>.</p>
 
                                     <div class="card-tip info">
                                         <strong>Zero extra SOQL</strong> -- aggregates are computed from child data already in memory. No additional queries needed.
