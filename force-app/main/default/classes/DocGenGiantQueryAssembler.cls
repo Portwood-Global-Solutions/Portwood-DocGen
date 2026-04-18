@@ -302,7 +302,13 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
 
     /**
-     * Resolves parent merge tags in the HTML template (e.g., {Name}, {Owner.Name}).
+     * Resolves parent merge tags in the HTML template:
+     *   {Name}, {Owner.Name}              — raw value
+     *   {AnnualRevenue:currency}          — via DocGenService formatter
+     *   {CloseDate:date:de_DE}            — via DocGenService formatter
+     *
+     * Aggregate tags ({SUM:...}, {COUNT:...}, etc.) are handled separately by
+     * resolveGiantAggregateTags and are skipped here.
      */
     private String resolveParentMergeTags(String html) {
         try {
@@ -312,16 +318,33 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             ];
             if (tpls.isEmpty()) { return html; }
             String baseObj = tpls[0].Base_Object_API__c;
-            Set<String> fieldNames = new Set<String>{'Name'};
-            Pattern p = Pattern.compile('\\{(\\w[\\w.]*)\\}');
+
+            // Collect unique field paths and the full match → format map
+            Set<String> fieldPaths = new Set<String>{'Name'};
+            // fullMatch → [fieldPath, format-or-null]
+            List<String> fullMatches = new List<String>();
+            List<String> matchedPaths = new List<String>();
+            List<String> matchedFormats = new List<String>();
+
+            Pattern p = Pattern.compile('\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)(?::([^}]+))?\\}');
             Matcher m = p.matcher(html);
-            while (m.find()) { fieldNames.add(m.group(1)); }
+            Set<String> aggFns = new Set<String>{'SUM','COUNT','AVG','MIN','MAX'};
+            while (m.find()) {
+                String path = m.group(1);
+                // Skip aggregate tags — handled by resolveGiantAggregateTags
+                if (aggFns.contains(path.toUpperCase())) { continue; }
+                fullMatches.add(m.group(0));
+                matchedPaths.add(path);
+                matchedFormats.add(m.group(2));
+                fieldPaths.add(path);
+            }
+
+            // Validate field paths against schema
             List<String> validFields = new List<String>();
             Map<String, Schema.SObjectField> fieldMap = Schema.getGlobalDescribe().get(baseObj)?.getDescribe()?.fields?.getMap();
             if (fieldMap != null) {
-                for (String fn : fieldNames) {
+                for (String fn : fieldPaths) {
                     if (fn.contains('.')) {
-                        // Validate parent lookup: Owner.Name → check 'ownerid' exists in field map
                         String relName = fn.substringBefore('.');
                         Boolean relFound = false;
                         for (Schema.SObjectField sof : fieldMap.values()) {
@@ -337,25 +360,61 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                     }
                 }
             }
-            if (!validFields.isEmpty()) {
-                String soql = 'SELECT ' + String.join(validFields, ', ') + ' FROM ' + String.escapeSingleQuotes(baseObj) + ' WHERE Id = :recordId LIMIT 1';
-                List<SObject> recs = Database.query(soql, AccessLevel.USER_MODE);
-                if (!recs.isEmpty()) {
-                    for (String fn : validFields) {
-                        Object val = null;
-                        try {
-                            if (fn.contains('.')) {
-                                List<String> parts = fn.split('\\.');
-                                SObject cur = recs[0];
-                                for (Integer i = 0; i < parts.size() - 1 && cur != null; i++) { cur = cur.getSObject(parts[i]); }
-                                if (cur != null) { val = cur.get(parts[parts.size() - 1]); }
-                            } else {
-                                val = recs[0].get(fn);
-                            }
-                        } catch (Exception fieldErr) { String noop = fieldErr.getMessage(); } // NOPMD
-                        html = html.replace('{' + fn + '}', val != null ? String.valueOf(val) : '');
+            if (validFields.isEmpty()) { return html; }
+
+            String soql = 'SELECT ' + String.join(validFields, ', ') + ' FROM ' + String.escapeSingleQuotes(baseObj) + ' WHERE Id = :recordId LIMIT 1';
+            List<SObject> recs = Database.query(soql, AccessLevel.USER_MODE);
+            if (recs.isEmpty()) { return html; }
+            SObject rec = recs[0];
+
+            // Resolve + format each matched tag. For format-suffix tags we build a
+            // 1-field data map and hand the tag to DocGenService.processXmlForTest
+            // so currency/number/date formatters stay centralized.
+            Set<String> validFieldSet = new Set<String>(validFields);
+            for (Integer i = 0; i < fullMatches.size(); i++) {
+                String path = matchedPaths.get(i);
+                if (!validFieldSet.contains(path)) { continue; }
+                String fmt = matchedFormats.get(i);
+
+                Object val = null;
+                try {
+                    if (path.contains('.')) {
+                        List<String> parts = path.split('\\.');
+                        SObject cur = rec;
+                        for (Integer j = 0; j < parts.size() - 1 && cur != null; j++) { cur = cur.getSObject(parts[j]); }
+                        if (cur != null) { val = cur.get(parts[parts.size() - 1]); }
+                    } else {
+                        val = rec.get(path);
+                    }
+                } catch (Exception fieldErr) { String noop = fieldErr.getMessage(); } // NOPMD
+
+                String replacement;
+                if (val == null) {
+                    replacement = '';
+                } else if (String.isBlank(fmt)) {
+                    replacement = String.valueOf(val);
+                } else {
+                    // Build a nested 1-field data map shaped like the path
+                    Map<String, Object> miniMap = new Map<String, Object>();
+                    if (path.contains('.')) {
+                        List<String> parts = path.split('\\.');
+                        Map<String, Object> cur = miniMap;
+                        for (Integer j = 0; j < parts.size() - 1; j++) {
+                            Map<String, Object> next = new Map<String, Object>();
+                            cur.put(parts[j], next);
+                            cur = next;
+                        }
+                        cur.put(parts[parts.size() - 1], val);
+                    } else {
+                        miniMap.put(path, val);
+                    }
+                    try {
+                        replacement = DocGenService.processXmlForTest('{' + path + ':' + fmt + '}', miniMap);
+                    } catch (Exception procErr) {
+                        replacement = String.valueOf(val);
                     }
                 }
+                html = html.replace(fullMatches.get(i), replacement);
             }
         } catch (Exception mergeErr) {
             String noop = mergeErr.getMessage(); // NOPMD

@@ -935,6 +935,77 @@ private class DocGenGiantQueryTest {
     }
 
     @IsTest
+    static void testAssemblerParentFieldFormatting() {
+        // Parent-level tags on the template wrapper (outside the loop) must honor
+        // format specifiers: {AnnualRevenue:currency}, {CloseDate:date}, etc.
+        // Before v1.50.1 the assembler's resolveParentMergeTags regex ignored
+        // format suffixes, so these rendered as unformatted raw values.
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
+            acc.AnnualRevenue = 1234567;
+            update acc;
+
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job;
+
+            // Use a minimal HTML template via pre-baked CV. Parent tags sit in the header.
+            DocGen_Template_Version__c ver = [SELECT Id FROM DocGen_Template_Version__c
+                WHERE Template__c = :tpl.Id AND Is_Active__c = true LIMIT 1];
+            String htmlTitle = 'docgen_tmpl_html_' + ver.Id;
+            // Clean up any pre-existing html CV from a prior test
+            List<ContentDocument> old = [SELECT Id FROM ContentDocument
+                WHERE Title = :htmlTitle];
+            if (!old.isEmpty()) { delete old; }
+
+            String tmpl = '<html><head><style>td{border:1px solid #ccc}</style></head><body>' +
+                '<p>Account: {Name} | Revenue: {AnnualRevenue:currency}</p>' +
+                '<table><tr><td>{#Contacts}{FirstName}{/Contacts}</td></tr></table>' +
+                '</body></html>';
+            insert new ContentVersion(
+                Title = htmlTitle, PathOnClient = htmlTitle + '.html',
+                VersionData = Blob.valueOf(tmpl)
+            );
+
+            // Exercise via resolveGiantAggregateTags sibling path: call assembler's
+            // private method via @TestVisible by building and invoking.
+            DocGenGiantQueryAssembler assembler =
+                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+
+            // Insert a fragment so the assembler has something to render
+            String prefix = 'docgen_giant_' + job.Id + '_';
+            insert new ContentVersion(
+                Title = prefix + '00001', PathOnClient = prefix + '00001.html',
+                VersionData = Blob.valueOf('<tr><td>Test0</td></tr>')
+            );
+
+            Test.startTest();
+            System.enqueueJob(assembler);
+            Test.stopTest();
+
+            // After render, the debug HTML CV captures the wrapped output
+            List<ContentVersion> dbg = [SELECT VersionData FROM ContentVersion
+                WHERE Title = :(prefix + 'debug_html') LIMIT 1];
+            System.assert(!dbg.isEmpty(), 'Debug HTML CV should have been written');
+            String out = dbg[0].VersionData.toString();
+
+            // Raw value stays (Name)
+            System.assert(out.contains('Giant Query Test Account'),
+                'Plain parent field should resolve; got: ' + out.left(500));
+            // Formatted value should appear (currency format on AnnualRevenue)
+            System.assert(out.contains('$') && out.contains('1,234,567'),
+                'Currency format should produce $-prefixed grouped number; got: ' + out);
+            // Tag itself should be gone
+            System.assert(!out.contains('{AnnualRevenue:currency}'),
+                'Formatted tag should be replaced; got: ' + out);
+        }
+    }
+
+    @IsTest
     static void testGiantAggregateNonMatchingRelationshipIgnored() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
