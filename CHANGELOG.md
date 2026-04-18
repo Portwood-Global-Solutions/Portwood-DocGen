@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.53.0 — Giant-query aggregates for V1 flat query configs
+
+Promoted package: `04tal000006hyYXAAY` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006hyYXAAY)
+Upgrade-safety validator: passed. v1.52.x subscribers can install directly.
+
+Aggregate tags (`{SUM:...}`, `{COUNT:...}`, etc.) rendered as literal template text in giant-query PDFs when the template used the legacy V1 flat query config format (`Name, (SELECT ... FROM OpportunityLineItems)`) instead of V3 JSON.
+
+Root cause: the aggregate resolver re-parsed `Query_Config__c` as V3 JSON to find the child object, lookup field, and WHERE clause. V1's flat-string format isn't valid JSON; `JSON.deserializeUntyped` threw, the catch block returned the HTML unchanged, and every aggregate tag silently passed through.
+
+Fix: `DocGenGiantQueryBatch` now passes `childObjectName`, `lookupField`, and `whereClause` into a new 7-arg `DocGenGiantQueryAssembler` constructor. The resolver reads those from instance fields regardless of config format. The old 4-arg constructor stays in place with a V3-JSON fallback for direct invocations that bypass the batch.
+
+### Validation
+- 965 / 965 Apex tests pass, 75% org-wide coverage
+- 8 / 8 e2e scripts pass (151 assertions)
+- Code analyzer: 0 High severity violations
+- New test `testGiantAggregateV1FlatConfig` reproduces the exact V1-flat failure mode and locks in the fix
+
+---
+
 ## v1.52.0 — Giant-query aggregate-tag format fix
 
 Promoted package: `04tal000006hyVJAAY` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006hyVJAAY)
