@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.52.0 — Giant-query aggregate-tag format fix",
-      "versionNumber": "1.52.0.NEXT",
-      "ancestorId": "04tal000006hyThAAI",
+      "versionName": "1.53.0 — Giant-query aggregates for V1 flat query configs",
+      "versionNumber": "1.53.0.NEXT",
+      "ancestorId": "04tal000006hyVJAAY",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

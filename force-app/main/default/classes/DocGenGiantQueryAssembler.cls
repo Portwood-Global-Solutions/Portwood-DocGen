@@ -13,13 +13,30 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
     private Id templateId;
     private Id recordId;
     private String giantRelationshipName;
+    private String childObjectName;
+    private String lookupFieldName;
+    private String whereClauseOverride;
     private String colGroupHtml = '';
 
     public DocGenGiantQueryAssembler(Id jobId, Id templateId, Id recordId, String giantRelationshipName) {
+        this(jobId, templateId, recordId, giantRelationshipName, null, null, null);
+    }
+
+    /**
+     * 7-arg constructor used by DocGenGiantQueryBatch — passes child object, lookup,
+     * and WHERE clause through so resolveGiantAggregateTags works regardless of whether
+     * the template uses V1 flat, V2, or V3 query config format. Without these, the
+     * resolver has to reparse Query_Config__c and only V3 parses cleanly as JSON.
+     */
+    public DocGenGiantQueryAssembler(Id jobId, Id templateId, Id recordId,
+            String giantRelationshipName, String childObjectName, String lookupFieldName, String whereClauseOverride) {
         this.jobId = jobId;
         this.templateId = templateId;
         this.recordId = recordId;
         this.giantRelationshipName = giantRelationshipName;
+        this.childObjectName = childObjectName;
+        this.lookupFieldName = lookupFieldName;
+        this.whereClauseOverride = whereClauseOverride;
     }
 
     public void execute(QueueableContext ctx) {
@@ -458,33 +475,39 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         }
         if (fullMatches.isEmpty()) { return html; }
 
-        // Load giant node config from the template — we need child object, lookup,
-        // and the WHERE clause so the aggregate SOQL matches the rendered rows exactly.
-        String childObj = null;
-        String lookupFld = null;
-        String whereCls = null;
-        try {
-            List<DocGen_Template__c> tpls = [
-                SELECT Query_Config__c FROM DocGen_Template__c
-                WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
-            ];
-            if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) { return html; }
-            Map<String, Object> cfg = (Map<String, Object>) JSON.deserializeUntyped(tpls[0].Query_Config__c);
-            List<Object> nodes = (List<Object>) cfg.get('nodes');
-            if (nodes == null) { return html; }
-            for (Object nodeObj : nodes) {
-                Map<String, Object> node = (Map<String, Object>) nodeObj;
-                if (giantRelationshipName.equalsIgnoreCase((String) node.get('relationshipName'))) {
-                    childObj = (String) node.get('object');
-                    lookupFld = (String) node.get('lookupField');
-                    whereCls = (String) node.get('where');
-                    if (whereCls == null) { whereCls = (String) node.get('whereClause'); }
-                    break;
+        // Prefer the child/lookup/where passed in via constructor (the batch has them
+        // regardless of config format). Only fall back to parsing Query_Config__c if
+        // the constructor values are absent — and that path only works for V3 JSON.
+        String childObj = this.childObjectName;
+        String lookupFld = this.lookupFieldName;
+        String whereCls = this.whereClauseOverride;
+
+        if (String.isBlank(childObj) || String.isBlank(lookupFld)) {
+            try {
+                List<DocGen_Template__c> tpls = [
+                    SELECT Query_Config__c FROM DocGen_Template__c
+                    WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+                ];
+                if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) { return html; }
+                String cfgStr = tpls[0].Query_Config__c.trim();
+                if (!cfgStr.startsWith('{')) { return html; } // V1 flat — caller must pass child/lookup explicitly
+                Map<String, Object> cfg = (Map<String, Object>) JSON.deserializeUntyped(cfgStr);
+                List<Object> nodes = (List<Object>) cfg.get('nodes');
+                if (nodes == null) { return html; }
+                for (Object nodeObj : nodes) {
+                    Map<String, Object> node = (Map<String, Object>) nodeObj;
+                    if (giantRelationshipName.equalsIgnoreCase((String) node.get('relationshipName'))) {
+                        childObj = (String) node.get('object');
+                        lookupFld = (String) node.get('lookupField');
+                        whereCls = (String) node.get('where');
+                        if (whereCls == null) { whereCls = (String) node.get('whereClause'); }
+                        break;
+                    }
                 }
+            } catch (Exception e) {
+                String noop = e.getMessage(); // NOPMD — aggregate resolution is non-fatal
+                return html;
             }
-        } catch (Exception e) {
-            String noop = e.getMessage(); // NOPMD — aggregate resolution is non-fatal
-            return html;
         }
 
         if (String.isBlank(childObj) || String.isBlank(lookupFld)) { return html; }

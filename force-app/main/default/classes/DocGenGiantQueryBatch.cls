@@ -376,8 +376,12 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
     public void finish(Database.BatchableContext bc) {
         try {
             if ('PDF'.equalsIgnoreCase(outputFormat)) {
-                // Chain to assembler Queueable — finish() heap is too constrained
-                System.enqueueJob(new DocGenGiantQueryAssembler(jobId, templateId, recordId, giantRelationshipName));
+                // Chain to assembler Queueable — pass child/lookup/where so aggregate
+                // resolution works for V1/V2/V3 query configs (not just V3 JSON).
+                System.enqueueJob(new DocGenGiantQueryAssembler(
+                    jobId, templateId, recordId, giantRelationshipName,
+                    childObjectName, lookupField, whereClause
+                ));
             } else {
                 update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             }

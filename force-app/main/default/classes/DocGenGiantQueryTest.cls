@@ -935,6 +935,54 @@ private class DocGenGiantQueryTest {
     }
 
     @IsTest
+    static void testGiantAggregateV1FlatConfig() {
+        // v1.52.0 bug: assembler's aggregate resolver re-parsed Query_Config__c as
+        // V3 JSON. When the template used V1 flat string format, JSON parse threw,
+        // the catch returned html unchanged, and aggregates were silently skipped.
+        // Fix: DocGenGiantQueryBatch now passes childObj/lookup/where into the
+        // assembler's constructor directly — no config re-parsing for the happy path.
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+
+            // V1 flat config (legacy format — does NOT start with '{')
+            tpl.Query_Config__c = 'Name, (SELECT FirstName, MailingLatitude FROM Contacts)';
+            update tpl;
+
+            List<Contact> contacts = [SELECT Id FROM Contact WHERE AccountId = :acc.Id];
+            for (Contact c : contacts) {
+                c.MailingLatitude = 5.0;
+                c.MailingLongitude = 10.0;
+            }
+            update contacts;
+
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job;
+
+            // Use the new 7-arg constructor (the batch uses this path in production)
+            DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(
+                job.Id, tpl.Id, acc.Id, 'Contacts',
+                'Contact', 'AccountId', null
+            );
+
+            String html = '<html><body>Count: {COUNT:Contacts} Sum: {SUM:Contacts.MailingLatitude}</body></html>';
+
+            Test.startTest();
+            String resolved = assembler.resolveGiantAggregateTags(html);
+            Test.stopTest();
+
+            System.assert(!resolved.contains('{COUNT:'), 'COUNT should resolve under V1 config; got: ' + resolved);
+            System.assert(!resolved.contains('{SUM:'),   'SUM should resolve under V1 config; got: '   + resolved);
+            System.assert(resolved.contains('Count: 10'), 'COUNT expected 10; got: ' + resolved);
+            System.assert(resolved.contains('Sum: 50'),   'SUM expected 5.0 × 10 = 50; got: ' + resolved);
+        }
+    }
+
+    @IsTest
     static void testGiantAggregateFormatSuffixes() {
         // v1.51.0 bug: {COUNT:Rel:number}, {AVG:Rel.Field:currency}, {SUM:Rel.Field:currency}
         // etc. rendered unresolved because the resolver only accepted fields declared
