@@ -248,6 +248,13 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 'outputFormat' => result.get('outputFormat'),
                 'templateType' => result.get('templateType')
             };
+        } catch (HeapPressureException hp) {
+            // Sync merge blew past heap threshold — return a structured signal so the
+            // runner LWC can auto-fallback to the giant-query batch path transparently.
+            return new Map<String, Object>{
+                'heapPressure' => true,
+                'giantRelationship' => hp.relationshipName
+            };
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error generating document. Please check the template configuration.');
         }
@@ -641,11 +648,23 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      * @param templateId The DocGen_Template__c record ID
      * @return Map of relationship name to child record count
      */
+    // Heap-pressure router constants — tuned from real-world breakage at
+    // ~1000 line-items × 10 fields on sync path (6MB limit). Client uses
+    // useGiantPath flag to route automatically; no hardcoded record threshold.
+    private static final Integer BYTES_PER_FIELD_RENDER = 150;  // tag + value + XML overhead
+    private static final Integer FIXED_ROW_OVERHEAD = 300;      // <w:tr><w:tc> structure
+    private static final Integer PEAK_MULTIPLIER = 3;           // string concat peaks ~3× final
+    private static final Integer SYNC_HEAP_LIMIT = 6000000;     // Apex sync heap governor
+    private static final Decimal SAFE_HEAP_RATIO = 0.6;          // leave 40% for wrapper + Blob.toPdf
+
     @AuraEnabled
     public static Map<String, Object> scoutChildCounts(Id recordId, Id templateId) {
         Map<String, Object> result = new Map<String, Object>();
         result.put('counts', new Map<String, Integer>());
         result.put('childNodes', new Map<String, Map<String, Object>>());
+        result.put('heapEstimates', new Map<String, Integer>());
+        result.put('useGiantPath', new Map<String, Boolean>());
+        result.put('heapLimitBytes', SYNC_HEAP_LIMIT);
 
         if (recordId == null || templateId == null) {
             return result;
@@ -746,6 +765,29 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         }
 
         result.put('childNodes', childNodes);
+
+        // Heap-pressure pre-flight: for each relationship with a known count, estimate
+        // peak sync-path heap. Client uses useGiantPath[rel] to auto-route without a
+        // hardcoded record threshold.
+        Map<String, Integer> heapEstimates = new Map<String, Integer>();
+        Map<String, Boolean> useGiantPath = new Map<String, Boolean>();
+        for (String relName : counts.keySet()) {
+            Integer rowCount = counts.get(relName);
+            Map<String, Object> node = childNodes.get(relName);
+            Integer fieldsPerRow = 5; // conservative default if metadata unavailable
+            if (node != null) {
+                List<Object> fields = (List<Object>) node.get('fields');
+                List<Object> parentFields = (List<Object>) node.get('parentFields');
+                Integer fc = (fields != null ? fields.size() : 0) + (parentFields != null ? parentFields.size() : 0);
+                if (fc > 0) { fieldsPerRow = fc; }
+            }
+            Integer perRowBytes = fieldsPerRow * BYTES_PER_FIELD_RENDER + FIXED_ROW_OVERHEAD;
+            Integer estimatedPeak = rowCount * perRowBytes * PEAK_MULTIPLIER;
+            heapEstimates.put(relName, estimatedPeak);
+            useGiantPath.put(relName, estimatedPeak > (Integer) (SYNC_HEAP_LIMIT * SAFE_HEAP_RATIO));
+        }
+        result.put('heapEstimates', heapEstimates);
+        result.put('useGiantPath', useGiantPath);
         return result;
     }
 
@@ -1477,6 +1519,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     'title' => docTitle
                 };
             }
+        } catch (HeapPressureException hp) {
+            return new Map<String, Object>{
+                'heapPressure' => true,
+                'giantRelationship' => hp.relationshipName
+            };
         } catch (Exception e) {
             throw DocGenService.ahe(e, 'Error generating PDF document. Please check the template configuration.');
         }

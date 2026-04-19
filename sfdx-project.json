@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.53.0 — Giant-query aggregates for V1 flat query configs",
-      "versionNumber": "1.53.0.NEXT",
-      "ancestorId": "04tal000006hyVJAAY",
+      "versionName": "1.54.0 — Heap-aware giant-path auto-routing",
+      "versionNumber": "1.54.0.NEXT",
+      "ancestorId": "04tal000006hyYXAAY",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

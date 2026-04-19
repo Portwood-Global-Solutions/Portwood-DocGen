@@ -421,8 +421,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             });
             const counts = scoutResult.counts || {};
             const childNodes = scoutResult.childNodes || {};
+            const useGiantPath = scoutResult.useGiantPath || {};
 
-            const giantRel = Object.entries(counts).find(([, count]) => count > 2000);
+            // Heap-aware routing (v1.54.0+): server estimates peak sync-path heap per
+            // relationship and flags useGiantPath[rel]=true if the estimate exceeds
+            // the safe ratio of the 6MB sync heap limit. No hardcoded record threshold.
+            const giantRel = Object.entries(counts).find(([rel]) => useGiantPath[rel]);
             if (giantRel) {
                 this.isGiantQueryMode = true;
                 this.outputMode = 'download';
@@ -437,10 +441,13 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 }
                 this.isLoading = false;
                 this.loadingMessage = '';
-                this.error = `This record has ${giantRel[1].toLocaleString()} ${giantRel[0]} records. ` +
-                    'For datasets over 2,000 rows, please generate as DOCX (Word) or PDF output.';
+                this.error = `This record has ${giantRel[1].toLocaleString()} ${giantRel[0]} records — ` +
+                    'too large for sync PowerPoint/Excel output. Please generate as DOCX (Word) or PDF.';
                 return;
             }
+            // Stash scout data so the sync fallback branch can auto-retry if processXml
+            // detects heap pressure mid-flight and returns the heapPressure signal.
+            this._scoutCache = { counts, childNodes };
         } catch (e) {
             // Scout failed — fall through to normal generation
             console.error('DocGen: SCOUT FAILED:', e.body ? e.body.message : e.message, e);
@@ -480,6 +487,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         resolvedImages: null,
                         outputFormatOverride: this.outputFormatOverride
                     });
+                    if (await this._handledHeapPressure(result)) { return; }
                     if (saveToRecord) {
                         await saveGeneratedDocument({ recordId: this.recordId, fileName: (result.title || 'Document'), base64Data: result.base64, extension: 'pdf' });
                         this.showToast('Success', 'PDF saved to record.', 'success');
@@ -493,6 +501,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         recordId: this.recordId,
                         saveToRecord: saveToRecord
                     });
+                    if (await this._handledHeapPressure(result)) { return; }
                     if (saveToRecord) {
                         this.showToast('Success', 'PDF saved to record.', 'success');
                     } else if (result.base64) {
@@ -526,6 +535,27 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             this.isLoading = false;
             this.loadingMessage = '';
         }
+    }
+
+    /**
+     * In-flight heap-pressure fallback (v1.54.0+). When sync PDF generation returns
+     * { heapPressure: true, giantRelationship: 'OpportunityLineItems' }, transparently
+     * re-route to the giant-query batch path using scout data cached during handleGenerate.
+     * Returns true if we handled the signal, false otherwise.
+     */
+    async _handledHeapPressure(result) {
+        if (!result || !result.heapPressure) { return false; }
+        const rel = result.giantRelationship;
+        if (!rel || !this._scoutCache) {
+            this.error = 'Dataset exceeds sync heap limit — open the Command Hub and generate via the bulk pipeline.';
+            return true;
+        }
+        this.showToast('Info', `Large dataset — switching to giant-query mode for ${rel}.`, 'info');
+        this.isGiantQueryMode = true;
+        this.outputMode = 'download';
+        const { counts, childNodes } = this._scoutCache;
+        await this._assembleGiantQueryPdf(rel, counts, childNodes[rel]);
+        return true;
     }
 
     async handleGiantQuery() {

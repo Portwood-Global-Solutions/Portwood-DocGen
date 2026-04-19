@@ -2953,6 +2953,109 @@ private class DocGenControllerTests {
     }
 
     @IsTest
+    static void testScoutChildCountsHeapEstimator() {
+        // v1.54.0 heap-aware routing: scoutChildCounts returns estimated peak heap +
+        // useGiantPath flag per relationship. Client uses flag to route, no record threshold.
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+            // Create enough contacts to cross the heap estimator's safe ratio.
+            // perRow = 2×150 + 300 = 600; peak = rows × 600 × 3 = 1800×rows
+            // Safe ratio: 6_000_000 × 0.6 = 3_600_000. 2001 rows → 3_601_800 > 3_600_000 → giant.
+            List<Contact> toInsert = new List<Contact>();
+            for (Integer i = 0; i < 2001; i++) {
+                toInsert.add(new Contact(FirstName = 'H', LastName = 'B' + i, AccountId = acc.Id));
+            }
+            insert toInsert;
+
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
+                '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
+                '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
+                ']}';
+            update tpl;
+
+            Test.startTest();
+            Map<String, Object> result = DocGenController.scoutChildCounts(acc.Id, tpl.Id);
+            Test.stopTest();
+
+            Map<String, Integer> estimates = (Map<String, Integer>) result.get('heapEstimates');
+            Map<String, Boolean> useGiant = (Map<String, Boolean>) result.get('useGiantPath');
+            Integer heapLimit = (Integer) result.get('heapLimitBytes');
+
+            System.assertNotEquals(null, estimates, 'heapEstimates should be present');
+            System.assert(estimates.containsKey('Contacts'), 'Contacts estimate should be present');
+            System.assert(estimates.get('Contacts') > 3000000, 'Estimate should exceed 3MB for 2001 contacts');
+            System.assertEquals(true, useGiant.get('Contacts'), 'Should flag giant path at 2001 contacts × 2 fields');
+            System.assertEquals(6000000, heapLimit, 'Heap limit should match sync governor');
+        }
+    }
+
+    @IsTest
+    static void testScoutChildCountsHeapEstimatorUnderThreshold() {
+        // Small dataset should NOT flag giant path — sync handles it fine.
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = TestDataFactory.getTestAccount();
+            insert new Contact(FirstName = 'Small', LastName = 'Dataset', AccountId = acc.Id);
+
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
+                '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
+                '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
+                ']}';
+            update tpl;
+
+            Test.startTest();
+            Map<String, Object> result = DocGenController.scoutChildCounts(acc.Id, tpl.Id);
+            Test.stopTest();
+
+            Map<String, Boolean> useGiant = (Map<String, Boolean>) result.get('useGiantPath');
+            System.assertEquals(false, useGiant.get('Contacts'), 'Single contact should not trigger giant path');
+        }
+    }
+
+    @IsTest
+    static void testProcessXmlThrowsHeapPressure() {
+        // v1.54.0 in-flight heap check: when Limits.getHeapSize() crosses 75% of the
+        // limit during loop expansion, processXml throws a typed HeapPressureException
+        // carrying the relationship name, so the controller can signal auto-fallback.
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            // Data: 3 Contact-like records under relationship "Contacts"
+            Map<String, Object> data = new Map<String, Object>{
+                'Contacts' => new List<Object>{
+                    new Map<String, Object>{ 'FirstName' => 'A' },
+                    new Map<String, Object>{ 'FirstName' => 'B' },
+                    new Map<String, Object>{ 'FirstName' => 'C' }
+                }
+            };
+            String xml = '<doc>{#Contacts}<p>{FirstName}</p>{/Contacts}</doc>';
+
+            // Force heap pressure on first iteration
+            DocGenService.forceHeapPressureForTest = true;
+            DocGenService.HEAP_CHECK_EVERY_N_ITERS = 1;
+
+            Boolean thrown = false;
+            String capturedRel = null;
+            Test.startTest();
+            try {
+                DocGenService.processXmlForTest(xml, data);
+            } catch (HeapPressureException hp) {
+                thrown = true;
+                capturedRel = hp.relationshipName;
+            }
+            Test.stopTest();
+
+            DocGenService.forceHeapPressureForTest = false;
+
+            System.assert(thrown, 'HeapPressureException should bubble up from loop expansion');
+            System.assertEquals('Contacts', capturedRel,
+                'Exception should carry the giant relationship name for the controller');
+        }
+    }
+
+    @IsTest
     static void testScoutChildCountsNullParams() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {

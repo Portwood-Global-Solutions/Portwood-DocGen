@@ -42,6 +42,18 @@ public with sharing class DocGenService {
         'SUM', 'COUNT', 'AVG', 'MIN', 'MAX'
     };
 
+    // Heap-pressure routing: check every N loop iterations during sync merge; if
+    // we're past HEAP_PRESSURE_RATIO of the limit, throw HeapPressureException so
+    // the controller can signal the runner LWC to auto-fallback to the giant path.
+    // 75% leaves headroom for the still-pending HTML conversion + Blob.toPdf() work.
+    @TestVisible
+    private static Integer HEAP_CHECK_EVERY_N_ITERS = 50;
+    @TestVisible
+    private static Decimal HEAP_PRESSURE_RATIO = 0.75;
+    // @TestVisible hook — tests set this to force checkHeapPressure into the pressure branch
+    @TestVisible
+    private static Boolean forceHeapPressureForTest = false;
+
     private static final Set<String> NUMERIC_FORMATS = new Set<String>{
         'currency', 'percent', 'number'
     };
@@ -1904,10 +1916,13 @@ public with sharing class DocGenService {
                         Map<String, Object> mapVal = (Map<String, Object>) val;
                         if (mapVal.containsKey('records') && mapVal.get('records') instanceof List<Object>) {
                             List<Object> records = (List<Object>) mapVal.get('records');
+                            Integer iterCount = 0;
                             for (Object item : records) {
                                 if (item instanceof Map<String, Object>) {
                                     sectionResult += processXml(trueBranch, (Map<String, Object>) item);
                                 }
+                                iterCount++;
+                                if (Math.mod(iterCount, HEAP_CHECK_EVERY_N_ITERS) == 0) { checkHeapPressure(key); }
                             }
                         } else {
                              sectionResult = processXml(trueBranch, mapVal);
@@ -1915,8 +1930,11 @@ public with sharing class DocGenService {
                     } else if (val instanceof List<Object>) {
                          List<Object> listVal = (List<Object>) val;
                          if (!listVal.isEmpty()) { isTruthy = true; }
+                         Integer iterCount = 0;
                          for (Object item : listVal) {
                               if (item instanceof Map<String, Object>) { sectionResult += processXml(trueBranch, (Map<String, Object>) item); }
+                              iterCount++;
+                              if (Math.mod(iterCount, HEAP_CHECK_EVERY_N_ITERS) == 0) { checkHeapPressure(key); }
                          }
                     } else if (val != null && !(val instanceof Boolean)) {
                          // Non-null, non-boolean, non-list, non-map value (e.g., non-blank string)
@@ -2621,6 +2639,29 @@ public with sharing class DocGenService {
         }
         String fn = tagContent.substring(0, colonIdx).trim().toUpperCase();
         return AGGREGATE_FUNCTIONS.contains(fn);
+    }
+
+    /**
+     * Throws HeapPressureException if the current Apex heap usage is past the
+     * configured ratio (default 75% of the limit). Called from processXml's loop
+     * expansion every HEAP_CHECK_EVERY_N_ITERS iterations — lets long child-loop
+     * expansions bail early instead of failing with an untyped heap OOM, so the
+     * controller can signal the runner LWC to auto-fallback to the giant path.
+     */
+    @TestVisible
+    private static void checkHeapPressure(String relationshipName) {
+        Integer heap = Limits.getHeapSize();
+        Integer heapLimit = Limits.getLimitHeapSize();
+        Boolean overThreshold = forceHeapPressureForTest ||
+            (heapLimit > 0 && heap >= (Integer) (heapLimit * HEAP_PRESSURE_RATIO));
+        if (overThreshold) {
+            HeapPressureException e = new HeapPressureException(
+                'Heap pressure during sync merge (heap=' + heap + ' of ' + heapLimit + ') — ' +
+                'switching to giant-query path for relationship: ' + relationshipName
+            );
+            e.relationshipName = relationshipName;
+            throw e;
+        }
     }
 
     /**
