@@ -2091,7 +2091,10 @@ public with sharing class DocGenService {
                             output += strVal.escapeXml();
                         } else {
                             // Multiline support: convert newlines to Word line breaks
-                            output += convertMultilineToXml(strVal);
+                            // Carry forward run properties (font, size, bold, etc.) so formatting
+                            // is preserved across line breaks in textarea fields (#32)
+                            String rPr = extractCurrentRunProperties(output);
+                            output += convertMultilineToXml(strVal, rPr);
                         }
                     }
                 }
@@ -2202,8 +2205,9 @@ public with sharing class DocGenService {
     /**
      * Converts a text value with newlines to Word XML with <w:br/> line breaks.
      * Properly closes and reopens <w:r> runs around each break for valid OOXML.
+     * Carries forward run properties (rPr) so formatting is preserved across breaks.
      */
-    private static String convertMultilineToXml(String inputText) {
+    private static String convertMultilineToXml(String inputText, String rPr) {
         if (inputText == null) {
             return '';
         }
@@ -2213,7 +2217,8 @@ public with sharing class DocGenService {
         }
         List<String> lines = normalized.split('\n');
         String result = '';
-        String lineBreakXml = '</w:t></w:r><w:r><w:br/></w:r><w:r><w:t xml:space="preserve">';
+        String rPrXml = String.isNotBlank(rPr) ? rPr : '';
+        String lineBreakXml = '</w:t></w:r><w:r>' + rPrXml + '<w:br/></w:r><w:r>' + rPrXml + '<w:t xml:space="preserve">';
         for (Integer i = 0; i < lines.size(); i++) {
             if (i > 0) {
                 result += lineBreakXml;
@@ -2221,6 +2226,42 @@ public with sharing class DocGenService {
             result += lines[i].escapeXml();
         }
         return result;
+    }
+
+    /**
+     * Extracts the <w:rPr>...</w:rPr> block from the current open <w:r> run in the output.
+     * Returns empty string if no run properties found.
+     */
+    @TestVisible
+    private static String extractCurrentRunProperties(String output) {
+        if (String.isBlank(output)) {
+            return '';
+        }
+        // Find the last <w:r> or <w:r > opening (start of current run)
+        Integer lastRunOpen = output.lastIndexOf('<w:r>');
+        Integer lastRunOpenAttr = output.lastIndexOf('<w:r ');
+        Integer runStart = Math.max(lastRunOpen != null ? lastRunOpen : -1, lastRunOpenAttr != null ? lastRunOpenAttr : -1);
+        if (runStart < 0) {
+            return '';
+        }
+        // If there's a </w:r> after this opening, we're not inside an open run
+        Integer lastRunClose = output.lastIndexOf('</w:r>');
+        if (lastRunClose != null && lastRunClose > runStart) {
+            return '';
+        }
+        // Find <w:rPr>...</w:rPr> within this run
+        Integer rPrStart = output.indexOf('<w:rPr>', runStart);
+        if (rPrStart < 0) {
+            rPrStart = output.indexOf('<w:rPr ', runStart);
+        }
+        if (rPrStart < 0) {
+            return '';
+        }
+        Integer rPrEnd = output.indexOf('</w:rPr>', rPrStart);
+        if (rPrEnd < 0) {
+            return '';
+        }
+        return output.substring(rPrStart, rPrEnd + 8);
     }
 
     private static Object resolveValue(Map<String, Object> data, String path) {
