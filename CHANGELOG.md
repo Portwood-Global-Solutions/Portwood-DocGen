@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.54.0 — Heap-aware giant-path auto-routing
+
+Promoted package: `04tal000006i0qTAAQ` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006i0qTAAQ)
+Upgrade-safety validator: passed. v1.53.x subscribers can install directly.
+
+Replaced the hardcoded "2000 child records = giant query" threshold with real heap-pressure signals. The runner now routes to the giant-query batch path when the *data* would overflow sync heap — regardless of record count.
+
+### Pre-flight estimator
+`DocGenController.scoutChildCounts` now returns `heapEstimates` and `useGiantPath` per child relationship. Peak sync heap is estimated as `childCount × (fieldsPerRow × 150 + 300) × 3` (peak multiplier covers string-concatenation overhead). If that exceeds 60% of the 6MB sync limit, the relationship is flagged for the giant path. No hardcoded record thresholds.
+
+### In-flight safety net
+During sync merge, `DocGenService.processXml` checks `Limits.getHeapSize()` every 50 loop iterations. If we cross 75% of the heap limit, it throws a typed `HeapPressureException` carrying the giant relationship name. `DocGenController.processAndReturnDocumentWithOverride` and `DocGenController.generatePdf` catch it and return `{ heapPressure: true, giantRelationship: 'OpportunityLineItems' }` instead of erroring out.
+
+### Runner auto-fallback
+`docGenRunner.js` reads the estimator's `useGiantPath[rel]` flag and routes upfront when it's true. For edge cases the estimator misses, the in-flight `heapPressure` signal is caught by the runner and transparently redirects to `_assembleGiantQueryPdf`, showing a "large dataset — switching to giant-query mode" toast. No manual retry required.
+
+### Validation
+- 968 / 968 Apex tests pass, 75% org-wide coverage
+- 8 / 8 e2e scripts pass (151 assertions)
+- Code analyzer: 0 High severity violations
+- Three new focused unit tests: estimator above threshold, estimator under threshold, in-flight trigger
+
+---
+
 ## v1.53.0 — Giant-query aggregates for V1 flat query configs
 
 Promoted package: `04tal000006hyYXAAY` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006hyYXAAY)
