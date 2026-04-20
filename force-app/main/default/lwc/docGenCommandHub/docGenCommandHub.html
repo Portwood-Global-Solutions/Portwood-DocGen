@@ -186,6 +186,8 @@
                                         <button class="pill-tag" data-tag="\{Amount:currency}" onclick={handleCopyTag}>&#123;Amount:currency&#125;</button>
                                         <button class="pill-tag" data-tag="\{Amount:currency:EUR}" onclick={handleCopyTag}>&#123;Amount:currency:EUR&#125;</button>
                                         <button class="pill-tag" data-tag="\{CloseDate:date}" onclick={handleCopyTag}>&#123;CloseDate:date&#125;</button>
+                                        <button class="pill-tag" data-tag="\{Today}" onclick={handleCopyTag}>&#123;Today&#125;</button>
+                                        <button class="pill-tag" data-tag="\{Now}" onclick={handleCopyTag}>&#123;Now&#125;</button>
                                         <button class="pill-tag" data-tag="loop-contacts" onclick={handleCopyTag}>&#123;#List&#125;...&#123;/List&#125;</button>
                                         <button class="pill-tag" data-tag="\{*Barcode}" onclick={handleCopyTag}>&#123;*Barcode&#125;</button>
                                         <button class="pill-tag" data-tag="\{@Signature_Buyer}" onclick={handleCopyTag}>&#123;@Signature_Buyer&#125;</button>
@@ -583,6 +585,29 @@
                                     </div>
 
                                     <p><strong>How it works:</strong> The base tag (<code>:currency</code>, <code>:number</code>, <code>:percent</code>) without any locale uses US-style formatting for backward compatibility. Add an ISO currency code to change the symbol. Add a locale code to change the number separators and symbol placement. The <code>:date</code> keyword uses the running user's locale by default, or an explicit locale if provided.</p>
+
+                                    <h4 class="subsection-heading">Built-in Date &amp; Time Tags</h4>
+                                    <p>Two special merge tags resolve to the current date or time without needing a formula field. They accept the same format suffixes as any date field, so locale and custom patterns all work:</p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr><th>What You Type</th><th>What Appears</th><th>Notes</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td><code>&#123;Today&#125;</code></td><td>2026-04-20</td><td>Current date in default ISO format</td></tr>
+                                            <tr><td><code>&#123;Today:MM/dd/yyyy&#125;</code></td><td>04/20/2026</td><td>Current date, custom pattern</td></tr>
+                                            <tr><td><code>&#123;Today:MMMM d, yyyy&#125;</code></td><td>April 20, 2026</td><td>Long date pattern</td></tr>
+                                            <tr><td><code>&#123;Today:date&#125;</code></td><td><em>(running user's locale default)</em></td><td>Auto-detects user's Salesforce locale</td></tr>
+                                            <tr><td><code>&#123;Today:date:de_DE&#125;</code></td><td>20.04.2026</td><td>Explicit locale override</td></tr>
+                                            <tr><td><code>&#123;Now&#125;</code></td><td>2026-04-20 14:30:00</td><td>Current date + time</td></tr>
+                                            <tr><td><code>&#123;Now:yyyy-MM-dd HH:mm&#125;</code></td><td>2026-04-20 14:30</td><td>Custom datetime pattern</td></tr>
+                                            <tr><td><code>&#123;Now:date:ja_JP&#125;</code></td><td>2026/04/20</td><td>Now formatted as a Japanese-locale date</td></tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="card-tip info">
+                                        <strong>When to use:</strong> Stamp a "Generated on" line in a footer, time-stamp an invoice, add the current date to a contract header. Works in sync and giant-query PDFs, bulk generation, and e-signature stamped documents.
+                                    </div>
                                 </section>
 
                                 <section id="aggregates" class="content-section">

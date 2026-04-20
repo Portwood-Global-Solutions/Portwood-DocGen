@@ -2040,7 +2040,23 @@ public with sharing class DocGenService {
                     dateFormat = tagContent.substring(colonIdx + 1).trim();
                 }
 
-                Object val = resolveValue(data, fieldName);
+                // {Today} and {Now} are built-in special tags — resolve before the
+                // data map so users don't need a formula field. Format suffixes
+                // (:MM/dd/yyyy, :date, :date:de_DE, etc.) work as with any field.
+                // For {Today} we construct the DateTime explicitly from year/month/day
+                // so downstream formatting lands on the same calendar day regardless
+                // of user timezone (DateTime.newInstance(Date, Time) can shift across
+                // midnight when user TZ differs from the scratch default).
+                Object val;
+                String upperField = fieldName.toUpperCase();
+                if (upperField == 'TODAY') {
+                    Date td = Date.today();
+                    val = DateTime.newInstance(td.year(), td.month(), td.day());
+                } else if (upperField == 'NOW') {
+                    val = DateTime.now();
+                } else {
+                    val = resolveValue(data, fieldName);
+                }
                 if (val != null) {
                     String strVal;
                     // Apply formatting if a format specifier was provided

@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.55.0 — Try-and-retry heap fallback + PDF-aware estimator",
-      "versionNumber": "1.55.0.NEXT",
-      "ancestorId": "04tal000006i0qTAAQ",
+      "versionName": "1.56.0 — {Today} and {Now} built-in tags + Learning Center sync",
+      "versionNumber": "1.56.0.NEXT",
+      "ancestorId": "04tal000006i0thAAA",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

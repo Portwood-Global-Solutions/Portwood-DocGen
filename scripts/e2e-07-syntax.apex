@@ -313,6 +313,49 @@ try {
     else { fail++; System.debug('DATE de_DE: FAIL — ' + r); }
 } catch (Exception e) { fail++; System.debug('DATE de_DE: FAIL — ' + e.getMessage()); }
 
+// ===== {Today} built-in =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Today}</w:t>', new Map<String, Object>());
+    String yearStr = String.valueOf(Date.today().year());
+    if (r.contains(yearStr) && !r.contains('{Today}')) { pass++; System.debug('TODAY BUILTIN: PASS — ' + r); }
+    else { fail++; System.debug('TODAY BUILTIN: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('TODAY BUILTIN: FAIL — ' + e.getMessage()); }
+
+// ===== {Today:MM/dd/yyyy} with format =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Today:MM/dd/yyyy}</w:t>', new Map<String, Object>());
+    Date td = Date.today();
+    String expected = String.valueOf(td.month()).leftPad(2, '0') + '/' + String.valueOf(td.day()).leftPad(2, '0') + '/' + String.valueOf(td.year());
+    if (r.contains(expected)) { pass++; System.debug('TODAY FORMATTED: PASS'); }
+    else { fail++; System.debug('TODAY FORMATTED: FAIL — got ' + r + ', expected ' + expected); }
+} catch (Exception e) { fail++; System.debug('TODAY FORMATTED: FAIL — ' + e.getMessage()); }
+
+// ===== {Today:date:de_DE} with locale format =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Today:date:de_DE}</w:t>', new Map<String, Object>());
+    Date td = Date.today();
+    String expected = String.valueOf(td.day()).leftPad(2, '0') + '.' + String.valueOf(td.month()).leftPad(2, '0') + '.' + String.valueOf(td.year());
+    if (r.contains(expected)) { pass++; System.debug('TODAY de_DE: PASS'); }
+    else { fail++; System.debug('TODAY de_DE: FAIL — got ' + r + ', expected ' + expected); }
+} catch (Exception e) { fail++; System.debug('TODAY de_DE: FAIL — ' + e.getMessage()); }
+
+// ===== {Now} built-in (DateTime) =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Now}</w:t>', new Map<String, Object>());
+    String yearStr = String.valueOf(DateTime.now().year());
+    if (r.contains(yearStr) && !r.contains('{Now}')) { pass++; System.debug('NOW BUILTIN: PASS — ' + r); }
+    else { fail++; System.debug('NOW BUILTIN: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('NOW BUILTIN: FAIL — ' + e.getMessage()); }
+
+// ===== {Now:yyyy-MM-dd HH:mm} formatted =====
+try {
+    r = DocGenService.processXmlForTest('<w:t>{Now:yyyy-MM-dd HH:mm}</w:t>', new Map<String, Object>());
+    String yearStr = String.valueOf(DateTime.now().year());
+    // Expect a value like 2026-04-20 08:33 (pattern, not exact time)
+    if (r.contains(yearStr + '-') && r.length() > 20) { pass++; System.debug('NOW FORMATTED: PASS — ' + r); }
+    else { fail++; System.debug('NOW FORMATTED: FAIL — ' + r); }
+} catch (Exception e) { fail++; System.debug('NOW FORMATTED: FAIL — ' + e.getMessage()); }
+
 System.debug('========================================');
 System.debug('E2E-07 SYNTAX — PASS: ' + pass + '  FAIL: ' + fail + (fail == 0 ? '  ALL TESTS PASSED' : '  FAILURES DETECTED'));
 System.debug('========================================');

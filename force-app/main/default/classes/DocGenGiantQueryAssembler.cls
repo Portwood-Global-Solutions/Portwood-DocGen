@@ -346,6 +346,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             Pattern p = Pattern.compile('\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)(?::([^}]+))?\\}');
             Matcher m = p.matcher(html);
             Set<String> aggFns = new Set<String>{'SUM','COUNT','AVG','MIN','MAX'};
+            Set<String> builtins = new Set<String>{'TODAY','NOW'};
             while (m.find()) {
                 String path = m.group(1);
                 // Skip aggregate tags — handled by resolveGiantAggregateTags
@@ -353,7 +354,8 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 fullMatches.add(m.group(0));
                 matchedPaths.add(path);
                 matchedFormats.add(m.group(2));
-                fieldPaths.add(path);
+                // Built-ins bypass schema field validation; the data-map fallback resolves them.
+                if (!builtins.contains(path.toUpperCase())) { fieldPaths.add(path); }
             }
 
             // Validate field paths against schema
@@ -390,20 +392,28 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             Set<String> validFieldSet = new Set<String>(validFields);
             for (Integer i = 0; i < fullMatches.size(); i++) {
                 String path = matchedPaths.get(i);
-                if (!validFieldSet.contains(path)) { continue; }
+                String upperPath = path.toUpperCase();
                 String fmt = matchedFormats.get(i);
 
                 Object val = null;
-                try {
-                    if (path.contains('.')) {
-                        List<String> parts = path.split('\\.');
-                        SObject cur = rec;
-                        for (Integer j = 0; j < parts.size() - 1 && cur != null; j++) { cur = cur.getSObject(parts[j]); }
-                        if (cur != null) { val = cur.get(parts[parts.size() - 1]); }
-                    } else {
-                        val = rec.get(path);
-                    }
-                } catch (Exception fieldErr) { String noop = fieldErr.getMessage(); } // NOPMD
+                if (upperPath == 'TODAY') {
+                    Date td = Date.today();
+                    val = DateTime.newInstance(td.year(), td.month(), td.day());
+                } else if (upperPath == 'NOW') {
+                    val = DateTime.now();
+                } else {
+                    if (!validFieldSet.contains(path)) { continue; }
+                    try {
+                        if (path.contains('.')) {
+                            List<String> parts = path.split('\\.');
+                            SObject cur = rec;
+                            for (Integer j = 0; j < parts.size() - 1 && cur != null; j++) { cur = cur.getSObject(parts[j]); }
+                            if (cur != null) { val = cur.get(parts[parts.size() - 1]); }
+                        } else {
+                            val = rec.get(path);
+                        }
+                    } catch (Exception fieldErr) { String noop = fieldErr.getMessage(); } // NOPMD
+                }
 
                 String replacement;
                 if (val == null) {
