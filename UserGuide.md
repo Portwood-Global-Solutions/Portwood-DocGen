@@ -361,6 +361,21 @@ All five functions support any format suffix (`currency`, `number`, `percent`, c
 
 ### 6.6 Images
 
+**Option 1 — record-attached (easiest, v1.58+).** `{%Image:N}` renders the Nth oldest image attached to the current record. No ContentVersion ID field, no query-builder setup — drag a photo onto the record in Files and the tag picks it up. Filters to PNG/JPG/GIF/SVG/WEBP automatically (non-image attachments are skipped).
+
+```
+{%Image:1}                First image attached to the record, natural size
+{%Image:1:200}            Max 200px in either dimension (preserves aspect)
+{%Image:1:200x200}        Explicit 200px × 200px
+{%Image:1:400x}           400px wide, auto height
+{%Image:1:x150}           Auto width, 150px tall
+{%Image:2}, {%Image:3}    Second, third, … attached image
+```
+
+Inside a `{#Relationship}` loop, `{%Image:N}` scopes to the iterating record's images — ideal for inspection reports, real estate listings, product catalogs. Out-of-range indexes render empty silently.
+
+**Option 2 — image field (advanced).** When you need to pick a specific image that isn't the Nth attachment, store the ContentVersion ID (starts with `068`) in a text field and reference it:
+
 ```
 {%ImageField}                   Embed an image from a rich text field or Files
 {%LogoImage:200x100}            Specify max width × height in pixels
@@ -374,6 +389,8 @@ Handles multiple sources automatically:
 - HTTPS URLs — embedded as URL references for PDF rendering
 
 **PDF path (special behavior).** For ContentVersion IDs, the PDF pipeline skips blob loading entirely — it uses relative Salesforce URLs (`/sfc/servlet.shepherd/version/download/<cvId>`) and `Blob.toPdf()` fetches them natively via the VF rendering engine. This is what enables unlimited images in PDFs without heap pressure.
+
+**Image size limits.** PDFs with attached images are limited to roughly **30MB of total image content** for reliable Save-to-Record. Above that threshold, the save operation will error out (Salesforce platform limits on the ContentVersion insert path). If you need to include more images than this threshold allows, use **Download** instead of Save-to-Record — downloads work at a higher ceiling because they don't go through the same save pipeline. A typical inspection report with 20–30 phone photos fits within the 30MB ceiling; 50+ high-resolution photos may need to be downloaded and attached manually.
 
 ### 6.7 Barcodes & QR codes
 

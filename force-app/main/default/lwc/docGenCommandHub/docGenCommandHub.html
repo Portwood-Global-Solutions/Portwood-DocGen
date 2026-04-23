@@ -691,6 +691,11 @@
                                     </table>
 
                                     <p>Both options work in PDF and DOCX output. You can also embed static images directly in your Word template (company logos, watermarks, etc.) -- they render in PDFs automatically without any tags.</p>
+
+                                    <div class="slds-box slds-theme_warning slds-var-m-top_medium" style="padding:0.75rem 1rem;">
+                                        <p><strong>Save-to-Record image size limit: ~30MB.</strong></p>
+                                        <p>PDFs with image-heavy templates are reliable when the total attached image content stays under about 30MB (roughly 20&ndash;30 typical phone photos). Above that, <strong>Save-to-Record will error out</strong> -- Salesforce's platform limits block the ContentVersion insert. If you need more images than that, use <strong>Download</strong> instead, which has a higher ceiling, or split the document across multiple generations.</p>
+                                    </div>
                                 </section>
 
                                 <section id="barcodes-qr" class="content-section">

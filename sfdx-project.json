@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.58.0 — {%Image:N} record-attached images + textarea newline fix + mobile signing (supersedes broken v1.57.0)",
-      "versionNumber": "1.58.0.NEXT",
-      "ancestorId": "04tal000006lplBAAQ",
+      "versionName": "1.59.0 — Image aspect/rotation, async Save-to-Record, 30MB pre-flight",
+      "versionNumber": "1.59.0.NEXT",
+      "ancestorId": "04tal000006lpoPAAQ",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

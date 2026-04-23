@@ -1,5 +1,47 @@
 # Changelog
 
+## v1.59.0 — Image aspect/rotation preservation, async Save-to-Record, 30 MB pre-flight
+
+Promoted package: **TBD** · Install URL: **TBD**
+Upgrade-safety validator: passed. v1.58.x subscribers can install directly.
+
+Three related changes that together make image-heavy PDF generation actually usable in the field — portrait phone photos render correctly, large documents save to records without silent failure, and the UI warns up-front if the attachment size exceeds the platform ceiling.
+
+### Image aspect ratio + EXIF orientation preserved in PDFs
+
+Previous versions rendered attached images with hardcoded `width="X" height="Y"` HTML attributes, which squashed phone photos (3:4 portrait) into whatever fixed box the DrawingML specified (commonly 4:3 landscape — visibly distorted). v1.59 switches to CSS `max-width + max-height + height:auto` so every image preserves its intrinsic aspect ratio, up to the declared bounds. Also added `image-orientation:from-image` so sideways-stored phone photos (EXIF `Orientation:6/8`) render upright. End result: `{%Image:1}` on a portrait inspection photo now looks like the photo you took, not a squashed landscape cousin of it.
+
+### Save-to-Record runs fully async (no more "Illegal Request" on big files)
+
+The single-call Save-to-Record path held the Aura request open through the entire render + ContentVersion insert, which for image-heavy PDFs (~15 MB+) frequently exceeded Salesforce's ~30s CSRF timeout and returned an HTML "Illegal Request" page instead of the expected JSON. v1.59 introduces:
+
+- **`DocGenController.generatePdfAsync(templateId, recordId)`** — enqueues a Queueable that does the full server-side render + CV insert + CDL creation.
+- **`DocGenPdfSaveQueueable`** — the Queueable that runs in the background. Has the full 12 MB heap and 10 minute wall-clock window of the async context.
+
+The LWC now routes Save-to-Record through this async path for PDFs. User sees an immediate "PDF is being generated. It will appear on the record in a moment — refresh the page to see it." toast; the file lands on the record when the Queueable completes (typically 30–60 s even for image-heavy cases).
+
+### Pre-flight 30 MB image-size check
+
+Rather than letting Save-to-Record fail silently inside the Queueable when the record has too many/too-large attachments, the LWC now calls `DocGenController.scoutAttachedImageSize(recordId)` before enqueueing. If total PNG/JPG/GIF/SVG/WEBP attachment size exceeds **30 MB**, the user gets a sticky error toast:
+
+> _"Cannot Save to Record. This record has 35.2 MB of attached images — above the 30 MB Save-to-Record limit. Use Download instead (no size limit), or remove some images and try again."_
+
+Download still works at a higher ceiling for these cases.
+
+### Documentation
+
+- **Learning Center** (`docGenCommandHub`) — added an orange warning callout under the Images section explaining the 30 MB Save-to-Record ceiling and the Download fallback.
+- **`UserGuide.md`** — added `{%Image:N}` documentation (was missing) and the 30 MB limit note.
+- **Website guide** (`DocGenGuide.page` in the Portwood Website repo) — mirror of the Learning Center callout.
+
+### Validation
+
+- Full e2e suite still passes
+- Code Analyzer Security + AppExchange — 0 High / Critical / Serious violations
+- Queueable tested in DevBox: image-heavy Case (29.76 MB of photos) successfully saves PDF to record after ~5–7 s
+
+---
+
 ## v1.58.0 — `{%Image:N}` record-attached images, textarea newline fix, mobile signing pinch-zoom
 
 Promoted package: `04tal000006lpoPAAQ` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006lpoPAAQ)

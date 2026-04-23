@@ -1504,6 +1504,54 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      * @param saveToRecord Whether to save the PDF as a file on the record
      * @return Map containing base64 PDF data and title, or saved content document ID
      */
+    /**
+     * Returns the total size (bytes) of image attachments linked to the record.
+     * Used as a pre-flight check before Save-to-Record so the LWC can warn the
+     * user if they're about to exceed the ~30MB ceiling, rather than failing
+     * silently inside the Queueable.
+     *
+     * Filters to PNG/JPG/GIF/SVG/WEBP so non-image attachments don't inflate the count.
+     */
+    @AuraEnabled(cacheable=true)
+    public static Long scoutAttachedImageSize(Id recordId) {
+        if (recordId == null) return 0L;
+        try {
+            List<AggregateResult> results = [
+                SELECT SUM(ContentDocument.ContentSize) totalSize
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId = :recordId
+                  AND ContentDocument.FileExtension IN ('png','jpg','jpeg','gif','svg','webp')
+                WITH USER_MODE
+            ];
+            if (results.isEmpty()) return 0L;
+            Object sz = results[0].get('totalSize');
+            if (sz == null) return 0L;
+            return Long.valueOf(String.valueOf(sz));
+        } catch (Exception e) {
+            // Never let the scout fail the generation flow — just return 0 and let
+            // the user proceed; the Queueable will handle whatever it encounters.
+            return 0L;
+        }
+    }
+
+    /**
+     * Async counterpart to generatePdf(saveToRecord=true). Enqueues a Queueable that
+     * runs the full render + ContentVersion insert + ContentDocumentLink server-side,
+     * so the LWC's Aura request returns immediately. This avoids Salesforce's
+     * ~30s CSRF timeout on long-held Aura requests when saving image-heavy PDFs.
+     *
+     * Returns the enqueued AsyncApexJob Id. File appears on the record when the
+     * job completes (typically under a minute even for large PDFs).
+     */
+    @AuraEnabled
+    public static Id generatePdfAsync(Id templateId, Id recordId) {
+        try {
+            return System.enqueueJob(new DocGenPdfSaveQueueable(templateId, recordId));
+        } catch (Exception e) {
+            throw DocGenService.ahe(e, 'Error queueing PDF generation.');
+        }
+    }
+
     @AuraEnabled
     public static Map<String, Object> generatePdf(Id templateId, Id recordId, Boolean saveToRecord) {
         try {

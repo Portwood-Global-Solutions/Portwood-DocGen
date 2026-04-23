@@ -1901,12 +1901,15 @@ public with sharing class DocGenHtmlRenderer {
         String imageValue = images.get(relId);
                 if (imageValue == null) { return ''; }
 
-        // If the value is a URL (Salesforce content path or absolute URL), use directly as img src
+        // If the value is a URL (Salesforce content path or absolute URL), use directly as img src.
+        // Use max-width + height:auto so phone photos and other non-4:3 images preserve their
+        // intrinsic aspect ratio up to the dimensions declared in wp:extent. Without this, the
+        // explicit width/height HTML attributes squash every image into whatever box the
+        // DrawingML specified (including the fallback 4"×3" default), which distorts portraits.
         if (imageValue.startsWith('/sfc/') || imageValue.startsWith('/servlet/') ||
             imageValue.startsWith('/apex/') || imageValue.startsWithIgnoreCase('http')) {
             return '<img src="' + imageValue + '" ' +
-                   'width="' + widthPx + '" height="' + heightPx + '" ' +
-                   'style="max-width:100%" />';
+                   'style="max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;height:auto;width:auto;image-orientation:from-image;" />';
         }
 
         // Otherwise treat as base64 — determine MIME type and create data URI
@@ -1916,8 +1919,7 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         return '<img src="data:' + mimeType + ';base64,' + imageValue + '" ' +
-               'width="' + widthPx + '" height="' + heightPx + '" ' +
-               'style="max-width:100%" />';
+               'style="max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;height:auto;width:auto;image-orientation:from-image;" />';
     }
 
     // ===== XML PARSING UTILITIES =====

@@ -7,6 +7,8 @@ import generateDocumentParts from '@salesforce/apex/DocGenController.generateDoc
 import getContentVersionBase64 from '@salesforce/apex/DocGenController.getContentVersionBase64';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
 import saveGeneratedDocument from '@salesforce/apex/DocGenController.saveGeneratedDocument';
+import generatePdfAsync from '@salesforce/apex/DocGenController.generatePdfAsync';
+import scoutAttachedImageSize from '@salesforce/apex/DocGenController.scoutAttachedImageSize';
 import getChildRelationships from '@salesforce/apex/DocGenController.getChildRelationships';
 import getChildRecordPdfs from '@salesforce/apex/DocGenController.getChildRecordPdfs';
 import getRecordPdfs from '@salesforce/apex/DocGenController.getRecordPdfs';
@@ -494,17 +496,41 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     } else {
                         this.downloadBase64(result.base64, (result.title || 'Document') + '.pdf', 'application/pdf');
                     }
+                } else if (saveToRecord) {
+                    // Pre-flight size check: attached images >30MB will fail the
+                    // Save-to-Record ContentVersion insert. Warn up front instead
+                    // of letting the Queueable fail silently.
+                    const imgBytes = await scoutAttachedImageSize({ recordId: this.recordId });
+                    const LIMIT_BYTES = 30 * 1024 * 1024;
+                    if (imgBytes > LIMIT_BYTES) {
+                        const mb = (imgBytes / 1024 / 1024).toFixed(1);
+                        this.showToast(
+                            'Cannot Save to Record',
+                            `This record has ${mb} MB of attached images — above the 30 MB Save-to-Record limit. Use Download instead (no size limit), or remove some images and try again.`,
+                            'error',
+                            'sticky'
+                        );
+                        return;
+                    }
+                    // Save-to-record runs fully server-side via a Queueable so the full
+                    // render + big-file DML never holds the Aura request open long enough
+                    // to trip Salesforce's CSRF timeout (which returns an "Illegal Request"
+                    // HTML page instead of the expected JSON). LWC gets back immediately.
+                    this.showToast('Info', 'Generating and saving PDF in the background...', 'info');
+                    await generatePdfAsync({
+                        templateId: this.selectedTemplateId,
+                        recordId: this.recordId
+                    });
+                    this.showToast('Success', 'PDF is being generated. It will appear on the record in a moment — refresh the page to see it.', 'success');
                 } else {
                     this.showToast('Info', 'Generating PDF...', 'info');
                     const result = await generatePdf({
                         templateId: this.selectedTemplateId,
                         recordId: this.recordId,
-                        saveToRecord: saveToRecord
+                        saveToRecord: false
                     });
                     if (await this._handledHeapPressure(result)) { return; }
-                    if (saveToRecord) {
-                        this.showToast('Success', 'PDF saved to record.', 'success');
-                    } else if (result.base64) {
+                    if (result.base64) {
                         this.downloadBase64(result.base64, (result.title || 'Document') + '.pdf', 'application/pdf');
                     }
                 }
