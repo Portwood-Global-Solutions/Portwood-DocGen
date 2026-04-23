@@ -2,7 +2,7 @@
 
 ## v1.60.0 — Correct image extension filter for `{%Image:N}`
 
-Promoted package: **TBD** · Install URL: **TBD**
+Promoted package: `04tal000006lrGjAAI` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006lrGjAAI)
 Upgrade-safety validator: passed. v1.59.x subscribers can install directly.
 
 Tightens the extension filter used by `{%Image:N}`, the giant-query parent resolver, and the 30 MB save-to-record pre-flight. v1.59's filter included `webp` (which Salesforce's Flying Saucer PDF engine does not support — Salesforce doesn't include the twelvemonkeys imageio plugin that handles it) and excluded `bmp` + `tif`/`tiff` (both are renderable by the JDK's native ImageIO).
