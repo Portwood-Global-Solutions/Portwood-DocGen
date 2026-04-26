@@ -226,6 +226,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>false</editable>
+        <field>DocGen_Template_Version__c.Watermark_Image_CV_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Template_Version__c.Description__c</field>
         <readable>true</readable>

@@ -896,19 +896,33 @@
                                 </section>
 
                                 <section id="watermarks" class="content-section">
-                                    <h3 class="section-heading">Watermarks (Word templates &rarr; PDF)</h3>
-                                    <p>Insert a picture watermark in your Word template via <strong>Design &gt; Watermark &gt; Custom Watermark &gt; Picture watermark</strong>. The image extracts when you save the template version, repeats on every page of the generated PDF, and gets a 95% white wash overlay for a "washed-out" look that doesn't compete with body text.</p>
+                                    <h3 class="section-heading">Watermarks / Page Backgrounds (PDF output)</h3>
+                                    <p>Two ways to add a full-page watermark or background image — both use the same rendering pipeline (<code>@page background-image</code>) and extend edge-to-edge across the page including margins.</p>
 
-                                    <div class="card-tip info">
-                                        <strong>Why the wash overlay:</strong> the Salesforce PDF engine doesn't honor CSS opacity on images. We layer a semi-transparent white sheet over the watermark instead -- works in pure CSS 2.1 and matches the way enterprise PDF generators have done watermarks since the 2000s.
+                                    <h4 style="margin-top:16px">Option A: Upload via the template builder <span style="color:#0070d2">(recommended)</span></h4>
+                                    <p>In the template editor, click the <strong>Watermark / Background</strong> tab and upload a pre-sized image. Bypasses Word's Watermark dialog entirely and gives exact pixel-level control.</p>
+
+                                    <h4 style="margin-top:16px">Option B: Insert via Word's Design &rarr; Watermark</h4>
+                                    <p>Word's built-in watermark works too, with these constraints:</p>
+                                    <ul class="bullet-list">
+                                        <li><strong>Scale must be 100%.</strong> Word's "Auto", "50%", etc. scale settings are ignored by the PDF renderer.</li>
+                                        <li><strong>Washout must be OFF.</strong> Leave the checkbox unchecked. To get a faded look, pre-fade the image (~15&ndash;20% opacity over white) BEFORE inserting in Word.</li>
+                                        <li><strong>No rotation.</strong> Word's 315&deg; default isn't honored. Pre-rotate the image if you need a diagonal look.</li>
+                                    </ul>
+
+                                    <div class="card-tip warning">
+                                        <strong>Pre-resize the image to your page dimensions in pixels at 96 DPI</strong> (Flying Saucer's rendering resolution &mdash; NOT 72 DPI):
+                                        <ul style="margin-top:4pt">
+                                            <li>Letter (8.5&times;11 in): <strong>816 &times; 1056 px</strong></li>
+                                            <li>A4 (8.27&times;11.69 in): <strong>794 &times; 1123 px</strong></li>
+                                            <li>Legal (8.5&times;14 in): <strong>816 &times; 1344 px</strong></li>
+                                        </ul>
                                     </div>
 
-                                    <p><strong>Important limitations</strong></p>
+                                    <p><strong>Other limitations (both options)</strong></p>
                                     <ul class="bullet-list">
-                                        <li><strong>Rotation isn't preserved.</strong> Word's typical 315&deg; diagonal angle isn't honored. Watermarks render upright in PDF. Need a rotated look? Save your image pre-rotated as a transparent PNG and insert that.</li>
-                                        <li><strong>Word's "Washout" checkbox is ignored.</strong> Word stores washout as render hints (VML <code>gain</code>/<code>blacklevel</code> attributes), not as faded image bytes. DocGen applies its own 95% white wash regardless of whether you check that box.</li>
-                                        <li><strong>Text watermarks (DRAFT, CONFIDENTIAL) aren't supported.</strong> Word inserts these as VML text shapes; only image watermarks are converted. Workaround: render your text into a PNG (e.g., in a graphics tool) and insert as a picture watermark.</li>
-                                        <li><strong>DOCX output keeps Word's native rendering.</strong> These limitations only apply to PDF output; the original watermark renders correctly when you generate as DOCX.</li>
+                                        <li><strong>Text watermarks (DRAFT, CONFIDENTIAL) aren't supported.</strong> Word inserts these as VML text shapes; only image watermarks are converted. Workaround: render your text into a PNG and insert as a picture watermark.</li>
+                                        <li><strong>DOCX output keeps Word's native rendering.</strong> These constraints only apply to PDF output.</li>
                                     </ul>
                                 </section>
 

@@ -2008,14 +2008,13 @@ private class DocGenHtmlRendererTest {
     }
 
     // Word picture watermarks are inserted as VML inside the header XML —
-    // <w:pict><v:shape><v:imagedata r:id="..."/></v:shape></w:pict>. The renderer
-    // must detect this (separate parser branch from <w:drawing> DrawingML),
-    // emit a position:fixed watermark div, AND layer a whitewash overlay above
-    // it so the image renders faded behind body content.
+    // <w:pict><v:shape><v:imagedata r:id="..."/></v:shape></w:pict>. v1.65+ the
+    // renderer converts these into @page { background-image: url(...) } CSS
+    // (Flying Saucer's true page-bleed mechanism) instead of inline divs.
     @IsTest
     static void testVmlPictWatermarkRendering() {
         String headerXml = '<w:hdr><w:p><w:r><w:pict>' +
-            '<v:shape id="PowerPlusWaterMarkObject" style="position:absolute;width:468pt;height:240pt;rotation:315;mso-position-horizontal:center" type="#_x0000_t75">' +
+            '<v:shape id="PowerPlusWaterMarkObject" style="position:absolute;width:468pt;height:240pt" type="#_x0000_t75">' +
             '<v:imagedata r:id="rIdImg1" o:title=""/>' +
             '</v:shape>' +
             '</w:pict></w:r></w:p></w:hdr>';
@@ -2026,10 +2025,32 @@ private class DocGenHtmlRendererTest {
             'rIdImg1' => '/sfc/servlet.shepherd/version/download/068000000000000'
         };
         String html = DocGenHtmlRenderer.convertToHtml(docXml, images, null);
-        System.assert(html.contains('docgen-watermark'), 'VML pict should produce a watermark div');
-        System.assert(html.contains('docgen-watermark-wash'), 'Watermark should have a whitewash overlay sibling');
-        System.assert(html.contains('rgba(255,255,255'), 'Wash overlay must use rgba white');
+        System.assert(html.contains('background-image: url'), 'VML pict should produce @page background-image CSS');
+        System.assert(html.contains('068000000000000'), '@page background URL must reference the watermark CV');
         System.assert(html.contains('Body'), 'Body content must still render alongside the watermark');
-        System.assert(html.contains('docgen-body-content'), 'Body content should be wrapped at z-index:2');
+    }
+
+    // v1.65+ admin-uploaded watermark override beats any Word VML watermark in the template.
+    @IsTest
+    static void testWatermarkOverrideBeatsVmlWatermark() {
+        DocGenHtmlRenderer.overrideWatermarkCvId = '068000000000999';
+        try {
+            String headerXml = '<w:hdr><w:p><w:r><w:pict>' +
+                '<v:shape id="PowerPlusWaterMarkObject" style="width:400pt;height:300pt" type="#_x0000_t75">' +
+                '<v:imagedata r:id="rIdImg1"/>' +
+                '</v:shape>' +
+                '</w:pict></w:r></w:p></w:hdr>';
+            String docXml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+                '<!-- DOCGEN_HEADER_START -->' + headerXml + '<!-- DOCGEN_HEADER_END -->' +
+                '<w:p><w:r><w:t>Body</w:t></w:r></w:p></w:body></w:document>';
+            Map<String, String> images = new Map<String, String>{
+                'rIdImg1' => '/sfc/servlet.shepherd/version/download/068000000000111'
+            };
+            String html = DocGenHtmlRenderer.convertToHtml(docXml, images, null);
+            System.assert(html.contains('068000000000999'), 'Admin override CV must win over the Word VML watermark CV');
+            System.assert(!html.contains('068000000000111'), 'VML watermark CV should be skipped when override is set');
+        } finally {
+            DocGenHtmlRenderer.overrideWatermarkCvId = null;
+        }
     }
 }

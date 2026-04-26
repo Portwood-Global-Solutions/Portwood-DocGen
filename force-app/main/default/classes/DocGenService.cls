@@ -6,6 +6,29 @@ public with sharing class DocGenService {
     private static String currentTemplateType = 'Word'; // Set before processXml calls
     private static String currentOutputFormat = 'Native'; // Set before processXml — PDF skips blob loading for images
 
+    /**
+     * Sets the admin-uploaded watermark override on the renderer (if one exists
+     * on the active version of the given template). When set, the renderer uses
+     * this CV as the @page background-image, ignoring any Word-embedded VML
+     * watermark in the headers. Call this before every convertToHtml().
+     */
+    public static void applyWatermarkOverride(Id templateId) {
+        DocGenHtmlRenderer.overrideWatermarkCvId = null;
+        if (templateId == null) { return; }
+        try {
+            List<DocGen_Template_Version__c> vs = [
+                SELECT Watermark_Image_CV_Id__c FROM DocGen_Template_Version__c
+                WHERE Template__c = :templateId AND Is_Active__c = true
+                WITH SYSTEM_MODE LIMIT 1
+            ];
+            if (!vs.isEmpty() && String.isNotBlank(vs[0].Watermark_Image_CV_Id__c)) {
+                DocGenHtmlRenderer.overrideWatermarkCvId = vs[0].Watermark_Image_CV_Id__c;
+            }
+        } catch (Exception e) {
+            String noop = e.getMessage(); // NOPMD UnusedLocalVariable
+        }
+    }
+
     // Per-transaction cache of record Id → ordered list of attached image CV IDs.
     // Populated by prefetchImagesForIds() before loops that contain {%Image:N} tags,
     // so in-loop image resolution is O(1) instead of one SOQL per iteration.
@@ -1119,6 +1142,7 @@ public with sharing class DocGenService {
             DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
         setNumberingXml(mr);
+        applyWatermarkOverride(templateId);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         mr = null;
         pdfImages = null;
@@ -1360,6 +1384,7 @@ public with sharing class DocGenService {
                     DocGenHtmlRenderer.stylesXml = htmlMr.processedXmlEntries.get('word/styles.xml');
                 }
                 setNumberingXml(htmlMr);
+                applyWatermarkOverride(templateId);
 
                 String templateHtml = DocGenHtmlRenderer.convertToHtml(
                     combineXmlWithHeadersFooters(htmlMr), pdfImages
@@ -1456,6 +1481,7 @@ public with sharing class DocGenService {
             DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
         setNumberingXml(mr);
+        applyWatermarkOverride(templateId);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         lastRenderedHtml = html;
 
@@ -1512,6 +1538,7 @@ public with sharing class DocGenService {
         }
 
         setNumberingXml(mr);
+        applyWatermarkOverride(templateId);
         return DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), previewImages);
     }
 
@@ -1565,6 +1592,7 @@ public with sharing class DocGenService {
         }
 
         setNumberingXml(mr);
+        applyWatermarkOverride(templateId);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), mergedMap);
 
         return new Map<String, Object>{
@@ -1740,6 +1768,7 @@ public with sharing class DocGenService {
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
         setNumberingXml(mr);
+        applyWatermarkOverride(templateId);
         return DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
     }
 
@@ -3393,17 +3422,18 @@ public with sharing class DocGenService {
             return null; // Can't resolve image at all
         }
 
-        // Build DrawingML. When the user provided BOTH width AND height in the
-        // rich text (via attribute or inline style), mark the drawing with a
-        // sentinel "DOCGEN_EXPLICIT_SIZE" descr — processDrawing in the PDF
-        // renderer reads this and emits exact width:Npx;height:Npx instead of
-        // max-width;width:auto, so a small image scales up to the requested
-        // display size rather than rendering at its tiny natural size.
-        Boolean hasExplicitSize = (widthPx != null && heightPx != null);
+        // Build DrawingML. processDrawing in the PDF renderer DEFAULTS to using
+        // exact wp:extent dimensions (Word's authoritative size for both
+        // template-embedded images and rich text with explicit user sizing).
+        // When NEITHER width NOR height was found in the rich text (image
+        // pasted with no size info), we mark the drawing with DOCGEN_AUTOSIZE
+        // so processDrawing flips to max-width + width:auto — preserves the
+        // image's natural aspect rather than stretching to the 4×3 default.
+        Boolean noSizeInfo = (widthPx == null && heightPx == null);
         Integer widthEmu = (widthPx != null) ? (widthPx * 9525) : (288 * 12700);
         Integer heightEmu = (heightPx != null) ? (heightPx * 9525) : (216 * 12700);
         String docPrAttrs = 'id="' + imageCounter + '" name="DocGenImage' + imageCounter + '"';
-        if (hasExplicitSize) { docPrAttrs += ' descr="DOCGEN_EXPLICIT_SIZE"'; }
+        if (noSizeInfo) { docPrAttrs += ' descr="DOCGEN_AUTOSIZE"'; }
 
         return '<w:r><w:drawing>' +
             '<wp:inline distT="0" distB="0" distL="0" distR="0" ' +

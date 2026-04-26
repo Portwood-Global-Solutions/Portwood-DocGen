@@ -169,6 +169,114 @@ public with sharing class DocGenSignatureSenderController {
      * Each span carries data attributes for the guided signing JS to find and manipulate.
      * Inline styles ensure the highlights render in both browser preview and Blob.toPdf() unsigned PDF.
      */
+    /**
+     * Browsers do NOT honor CSS @page background-image (paged-media spec only fires
+     * during PDF rendering). For signature previews — both the sender modal and the
+     * customer signing page — we inject a screen-only overlay so the watermark is
+     * visible before signing. The overlay is suppressed via @media print so
+     * Blob.toPdf() doesn't double-render it on top of the @page background.
+     *
+     * Two non-obvious constraints drove the implementation:
+     *   1. The sender LWC injects preview HTML via innerHTML (no iframe), so a
+     *      position:fixed overlay would escape the modal and cover the whole page.
+     *      We wrap content in .docgen-preview-wrap (position:relative) and position
+     *      the overlay absolutely inside it.
+     *   2. The customer signing page runs as guest user; /sfc/ URLs don't resolve
+     *      and the page's image proxy only rewrites <img src>, not CSS background-image.
+     *      We embed the watermark as a base64 data URI so it loads in any context.
+     */
+    /**
+     * without-sharing helper so guest signers (who have no sharing access to the watermark
+     * CV or the template version field) can still resolve the watermark bytes. The outer
+     * class is `with sharing` for AppExchange compliance — only this CV/version lookup
+     * needs to bypass sharing, gated by the request token validation upstream.
+     */
+    private without sharing class WatermarkResolver {
+        public Map<String, Object> resolve(Id templateId) {
+            Map<String, Object> out = new Map<String, Object>();
+            try {
+                List<DocGen_Template_Version__c> vs = [
+                    SELECT Watermark_Image_CV_Id__c FROM DocGen_Template_Version__c
+                    WHERE Template__c = :templateId AND Is_Active__c = true LIMIT 1
+                ];
+                if (vs.isEmpty() || String.isBlank(vs[0].Watermark_Image_CV_Id__c)) return null;
+                Id wmCvId = vs[0].Watermark_Image_CV_Id__c;
+                List<ContentVersion> cvs = [
+                    SELECT VersionData, FileExtension FROM ContentVersion
+                    WHERE Id = :wmCvId LIMIT 1
+                ];
+                if (cvs.isEmpty()) return null;
+                out.put('data', cvs[0].VersionData);
+                out.put('ext', String.isNotBlank(cvs[0].FileExtension) ? cvs[0].FileExtension.toLowerCase() : 'png');
+                return out;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    }
+
+    @TestVisible
+    public static String injectPreviewWatermarkOverlay(String html, Id templateId) {
+        if (String.isBlank(html) || templateId == null) return html;
+
+        Map<String, Object> wm = new WatermarkResolver().resolve(templateId);
+        if (wm == null) return html;
+        Blob wmData = (Blob) wm.get('data');
+        String wmExt = (String) wm.get('ext');
+        if (wmData == null) return html;
+
+        String mime = (wmExt == 'jpg' || wmExt == 'jpeg') ? 'image/jpeg'
+                    : (wmExt == 'gif') ? 'image/gif'
+                    : 'image/png';
+        String dataUri = 'data:' + mime + ';base64,' + EncodingUtil.base64Encode(wmData);
+
+        // Render the watermark as a real <img> element with explicit max-height. Using a
+        // CSS background-image inside an absolutely-positioned overlay collapses to the
+        // wrap's content height — a one-line preview leaves the image rendered at ~50px,
+        // effectively invisible. An <img> sizes from its intrinsic dimensions and respects
+        // max-height, so it shows at a usable size regardless of how short the document is.
+        String overlay =
+            '<style>'
+            + '@media screen {'
+            + ' .docgen-preview-wrap { position: relative; min-height: 400px; }'
+            + ' .docgen-preview-watermark { position: absolute; top: 0; left: 0; right: 0; '
+            + 'text-align: center; opacity: 0.35; pointer-events: none; z-index: 0; }'
+            + ' .docgen-preview-watermark img { width: 90% !important; max-width: 90% !important; '
+            + 'height: auto !important; max-height: none !important; display: inline-block !important; }'
+            + ' .docgen-preview-wrap > *:not(.docgen-preview-watermark) { position: relative; z-index: 1; }'
+            + '}'
+            + '@media print { .docgen-preview-watermark { display: none !important; } }'
+            + '</style>';
+
+        String overlayDiv =
+            '<div class="docgen-preview-watermark" aria-hidden="true">'
+            + '<img src="' + dataUri + '" alt=""/>'
+            + '</div>';
+
+        Integer bodyOpen = html.indexOf('<body');
+        Integer bodyClose = html.lastIndexOf('</body>');
+        if (bodyOpen >= 0 && bodyClose > bodyOpen) {
+            Integer openEnd = html.indexOf('>', bodyOpen);
+            if (openEnd > bodyOpen) {
+                String prefix = html.substring(0, openEnd + 1);
+                String middle = html.substring(openEnd + 1, bodyClose);
+                String suffix = html.substring(bodyClose);
+                return prefix
+                    + overlay
+                    + '<div class="docgen-preview-wrap">'
+                    + overlayDiv
+                    + middle
+                    + '</div>'
+                    + suffix;
+            }
+        }
+        return overlay
+            + '<div class="docgen-preview-wrap">'
+            + overlayDiv
+            + html
+            + '</div>';
+    }
+
     @TestVisible
     private static String injectPlacementSpans(String html) {
         if (String.isBlank(html)) return html;
@@ -315,9 +423,13 @@ public with sharing class DocGenSignatureSenderController {
 
             // Render preview HTML using public URLs (small, no base64 bloat)
             String docXml = (String) mergeData.get('documentXml');
+            DocGenService.applyWatermarkOverride(templateId);
             String previewHtml = DocGenHtmlRenderer.convertToHtml(docXml, previewImageMap);
 
-            // Inject interactive placement spans for the guided signing UI
+            // Inject interactive placement spans for the guided signing UI.
+            // Watermark overlay is NOT injected here — base64-embedded image would blow
+            // past Signature_Data__c's LongTextArea limit. Overlay is added at read time
+            // in DocGenSignatureController.fetchDocumentData instead.
             previewHtml = injectPlacementSpans(previewHtml);
 
             // 1.49 (#28): pre-extract compact style maps while we're in admin context.
@@ -432,8 +544,10 @@ public with sharing class DocGenSignatureSenderController {
                 }
 
                 String docXml = (String) mergeData.get('documentXml');
+                DocGenService.applyWatermarkOverride(tid);
                 String docHtml = DocGenHtmlRenderer.convertToHtml(docXml, previewImageMap);
                 docHtml = injectPlacementSpans(docHtml);
+                // Watermark overlay deferred to read time (cache size constraint).
 
                 // Add document title header
                 String docTitle = templateMap.get(tid).Name;
@@ -1125,8 +1239,10 @@ public with sharing class DocGenSignatureSenderController {
             Map<String, Object> mergeData = DocGenService.mergeTemplateForSignature(templateId, relatedRecordId);
             String docXml = (String) mergeData.get('documentXml');
             Map<String, String> pdfImageMap = (Map<String, String>) mergeData.get('pdfImageMap');
+            DocGenService.applyWatermarkOverride(templateId);
             String html = DocGenHtmlRenderer.convertToHtml(docXml, pdfImageMap);
-            return injectPlacementSpans(html);
+            html = injectPlacementSpans(html);
+            return injectPreviewWatermarkOverlay(html, templateId);
         } catch (Exception e) {
             System.debug(LoggingLevel.WARN, 'DocGen: Preview generation failed: ' + e.getMessage());
             return null;

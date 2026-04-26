@@ -1,5 +1,56 @@
 # Changelog
 
+## v1.65.0 — First-class Watermark / Background Image tab + @page bleed rendering + signature watermark wiring
+
+Promoted package: `04tal000006qiG1AAI` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qiG1AAI)
+
+### Signature flow (added during release window)
+
+- Admin-uploaded watermark now flows through every signature path: sender preview modal, customer signing page, signed PDF (single-template), signed PDF (packet).
+- Customer signing page renders the watermark via a screen-only overlay (data-URI img) so it shows behind the document; suppressed via `@media print` so it doesn't double-render in the final signed PDF (which uses the `@page background-image` mechanism).
+- Watermark CV lookup runs in a `without sharing` inner class so guest signers can resolve the bytes despite no sharing access to the CV.
+- Bug fix: signed-PDF was generating twice on multi-signer requests. `stampMultiSignerAndSavePdf` was publishing a duplicate platform event after `saveSignature` had already published one. Removed.
+
+
+
+### New: dedicated Watermark / Background Image tab
+
+Templates with PDF output now have a dedicated **Watermark / Background** tab in the template builder. Admins upload a pre-sized image; it stores as a ContentVersion linked to the active template version (`Watermark_Image_CV_Id__c`) and renders as the @page background in PDF output. Bypasses Word's Watermark dialog entirely — no VML quirks, no Scale/Washout/rotation confusion, no fighting with Flying Saucer's quirks.
+
+Both paths now work for adding a watermark/background:
+- **Option A (recommended):** Upload via the new tab in the template builder
+- **Option B:** Insert via Word's Design → Watermark with these constraints — Scale **must be 100%**, Washout **must be OFF**, rotation not preserved (pre-rotate the image)
+
+The renderer uses a single resolution path: explicit watermark CV (set by admin via the tab) takes precedence over Word VML watermark extraction. New `applyWatermarkOverride(templateId)` helper threads the override CV ID into the renderer at all 6 `convertToHtml` call sites including the bulk-generation batch path.
+
+### @page background-image rendering
+
+Watermark rendering rebuilt around `@page { background-image: url(...) }` instead of `position:fixed` `<div>` overlays. The previous approach was clipped at the page content area boundary (margin gap visible around the watermark); the new approach extends edge-to-edge across the full page bleed by definition (CSS Paged Media spec).
+
+### Rendering changes
+
+- **`@page background-image`** — extracted watermark URL is injected directly into the dynamic `@page` rule with `background-position: center; background-repeat: no-repeat; background-size: contain;`. Watermark spans the full page including margin areas.
+- **CSS @page rule order** — properties (background) come BEFORE nested margin boxes (`@top-center`, `@bottom-center`). Strict parsers (Flying Saucer included) drop the entire rule if margin boxes appear first; we silently lost body content + headers when this got reversed.
+- **`<v:shape>` parsing fix** — `extractAttr(pictXml, 'v:shape ', 'style')` (with trailing space) to disambiguate from `<v:shapetype>`. Previous code grabbed the shape definition's empty style instead of the actual instance with `width:Xpt; height:Ypt`.
+- **VML inline-style sizing** for rich text — added `parseStylePx` to read `width:Npx; height:Npx` from rich text image style attributes (Lightning RTA stores drag-resize this way, not via `width=`/`height=` HTML attributes).
+- **Watermark drawing dropped** from body DOM — no more `<div class="docgen-watermark">` injection, no more `<div class="docgen-watermark-wash">` overlay (the @page background approach replaces both).
+
+### Documented constraints
+
+`@page background-size` is fundamentally ignored by Flying Saucer regardless of value. We tried explicit pt, percentages, `cover`, `contain` — all render the source at native pixel size. The only way to control display dimensions is to physically resize the watermark image file before inserting in Word.
+
+**Users should:** open watermark image in any editor → resize to intended display dimensions in pixels (e.g., 816×1056 for letter at 96 DPI) → save → insert in Word with **Scale at 100%**. Same constraint S-Docs / Conga / Nintex impose.
+
+This is now documented in:
+- CLAUDE.md (DOCX Watermarks section, "Watermark scaling is NOT supported" + dead-end matrix)
+- UserGuide.md §6.10.1 (Word watermarks)
+- Command Hub Learning Center (Watermarks section with step-by-step pre-resize instructions)
+- Website DocGenGuide.page (Watermarks section)
+
+### Whitewash overlay removed
+
+Earlier versions layered an `rgba(255,255,255,0.95)` div on top of the watermark to create the "washed-out" look. With the @page background approach there's no DOM element to overlay. To get a faded watermark, users pre-fade the image file (reduce opacity to ~15-20% over white in their image editor) before inserting in Word.
+
 ## v1.64.0 — Rich text DOCX color + transparency via PDF-extract pipeline
 
 Promoted package: `04tal000006qhYTAAY` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qhYTAAY)

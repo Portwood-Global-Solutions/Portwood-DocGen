@@ -313,6 +313,57 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      * @param imageUrl  Absolute or relative Salesforce URL (rtaImage, /sfc/, etc.)
      * @return Base64-encoded PDF bytes, or null on failure
      */
+    /**
+     * Saves an admin-uploaded watermark / background image and links it to the
+     * given DocGen_Template_Version__c. This is the "first-class watermark"
+     * path — admin uploads an image at recommended page-pixel dimensions in
+     * the template builder, image gets stored as a ContentVersion, and the
+     * renderer uses it as the @page background URL during PDF rendering.
+     * Replaces the prior Word-watermark VML extraction path which had quirky
+     * Scale/Washout/rotation behavior the user couldn't control predictably.
+     *
+     * @param versionId   The DocGen_Template_Version__c to associate with
+     * @param fileName    Original file name (e.g. "letter-watermark.png")
+     * @param base64Data  Base64-encoded image bytes
+     * @return The created ContentVersion ID
+     */
+    @AuraEnabled
+    public static Id saveWatermarkImage(Id versionId, String fileName, String base64Data) {
+        if (versionId == null) { throw new DocGenException('Version ID is required.'); }
+        if (String.isBlank(base64Data)) { throw new DocGenException('Image data is required.'); }
+        Blob imgBlob = EncodingUtil.base64Decode(base64Data);
+        ContentVersion cv = new ContentVersion(
+            Title = 'docgen_watermark_' + versionId,
+            PathOnClient = String.isNotBlank(fileName) ? fileName : 'watermark.png',
+            VersionData = imgBlob,
+            FirstPublishLocationId = versionId
+        );
+        insert cv; // NOPMD ApexCRUDViolation — package-internal field, admin-only LWC entry point
+        // Persist the CV ID on the template version so the renderer knows about it
+        DocGen_Template_Version__c v = new DocGen_Template_Version__c(
+            Id = versionId,
+            Watermark_Image_CV_Id__c = cv.Id
+        );
+        update v; // NOPMD ApexCRUDViolation — package-internal field
+        return cv.Id;
+    }
+
+    /**
+     * Removes the admin-uploaded watermark from a template version. Keeps the
+     * underlying ContentVersion (in case the admin wants to re-link it later)
+     * but clears the field so the renderer falls back to the legacy Word VML
+     * watermark path (or no watermark at all).
+     */
+    @AuraEnabled
+    public static void clearWatermarkImage(Id versionId) {
+        if (versionId == null) { return; }
+        DocGen_Template_Version__c v = new DocGen_Template_Version__c(
+            Id = versionId,
+            Watermark_Image_CV_Id__c = null
+        );
+        update v; // NOPMD ApexCRUDViolation — package-internal field
+    }
+
     @AuraEnabled
     public static String renderImageAsPdfBase64(String imageUrl) {
         if (String.isBlank(imageUrl)) { return null; }
@@ -1496,6 +1547,20 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
 
+                // Carry forward the watermark from the previous active version so a
+                // template re-save (or any new version) doesn't silently lose the
+                // watermark the admin uploaded earlier. Watermark is conceptually
+                // tied to the template, not the version — auto-inheriting matches
+                // user expectation.
+                List<DocGen_Template_Version__c> prevActive = [
+                    SELECT Watermark_Image_CV_Id__c FROM DocGen_Template_Version__c
+                    WHERE Template__c = :templateId AND Is_Active__c = true
+                    WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 1
+                ];
+                if (!prevActive.isEmpty() && String.isNotBlank(prevActive[0].Watermark_Image_CV_Id__c)) {
+                    version.Watermark_Image_CV_Id__c = prevActive[0].Watermark_Image_CV_Id__c;
+                }
+
                 /* code-analyzer-suppress ApexFlsViolation */
                 insert version; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
@@ -1644,7 +1709,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     public static List<DocGen_Template_Version__c> getTemplateVersions(Id templateId) {
         /* code-analyzer-suppress ApexFlsViolation */
         return [SELECT Id, Name, CreatedDate, CreatedBy.Name, Query_Config__c, Content_Version_Id__c,
-                   Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c
+                   Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c,
+                   Watermark_Image_CV_Id__c
             FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId
             WITH SYSTEM_MODE

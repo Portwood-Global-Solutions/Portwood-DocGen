@@ -91,6 +91,25 @@ Tried `top:0;left:0;right:0;bottom:0;text-align:center` (CSS 2.1 four-side trick
 
 Flying Saucer doesn't honor `transform: rotate()` (CSS3) or any of its `-fs-` proprietary aliases for rotation. Word watermarks rendered into PDF appear UPRIGHT regardless of the `rotation:` value in VML style. Only fix is a pre-rotated PNG. Don't waste time trying SVG `<g transform="rotate()">` — Flying Saucer's SVG renderer doesn't render `<image>` elements at all (we tried and got blank output).
 
+### Watermark scaling is NOT supported
+
+`@page background-size` is fundamentally ignored by Flying Saucer regardless of value (`contain`, `cover`, percentages, explicit pt — all produce the same native-size render). `background-size` on `body` similarly fails for our use case. We tried every CSS variant.
+
+The only way to get a different display size is to physically resize the image bytes. Apex has no native image manipulation APIs, and Salesforce file renditions max out at THUMB720BY480 (too small for full-page watermarks). Building a pure-Apex JPEG codec was deemed not worth the 2000+ line investment.
+
+**Critical: Flying Saucer renders at 96 DPI, NOT 72 DPI.** This trips up everyone who's used to the PDF spec saying 1pt = 1/72 inch. Flying Saucer interprets image pixel dimensions at 96 DPI for display sizing. So a 612×792 px image (which is 8.5×11" at 72 DPI) renders at only 6.375×8.25" on a letter page — too small. To fill a letter page, the image must be **816×1056 px** (8.5×11" at 96 DPI).
+
+Conversion table for full-page watermarks:
+| Page size | Pixels at 96 DPI |
+|---|---|
+| Letter (8.5×11 in) | 816 × 1056 |
+| A4 (8.27×11.69 in) | 794 × 1123 |
+| Legal (8.5×14 in) | 816 × 1344 |
+
+**Document as a constraint:** users must resize their watermark image to these pixel dimensions BEFORE inserting in Word (or uploading via the Watermark/Background tab), and keep Word's Watermark scale at 100% (Auto and percentage scales are ignored).
+
+**Don't re-attempt this:** we explored every CSS path (`@page background-size: cover/contain/auto/Npt/N%`, `body background-size`, `position:fixed` div clipping, oversize wrappers, negative offsets, page-bleed extensions). Flying Saucer's @page background-image only honors the URL — sizing/positioning hints are dropped. The pre-scale via Blob.toPdf trick we use for rich text inline images doesn't work here either: Blob.toPdf passes JPEG sources through unchanged at native size (display scaling is via PDF coordinate transform, not image rasterization).
+
 ## DOCX Rich Text Inline Images (Lightning ContentReference / 0EM)
 
 When Salesforce stores rich text field images in Lightning Experience, they get a ContentReference ID with `0EM` prefix (NOT a ContentDocument or ContentVersion). The `<img src="/servlet/rtaImage?eid=...&feoid=...&refid=0EM...">` URL fetches the bytes — but **only via privileged Salesforce-internal mechanisms**. Apex SOQL doesn't expose `0EM` as an SObject. Apex callouts get redirect-loops. LWC `fetch()` gets `Allow-Credentials:false`. Browser `<img>`+canvas gets tainted. Salesforce engineered the platform against client-side or Apex-side direct access.

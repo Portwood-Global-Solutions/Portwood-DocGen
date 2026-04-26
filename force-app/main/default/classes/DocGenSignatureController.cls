@@ -578,6 +578,9 @@ public without sharing class DocGenSignatureController {
                     Map<String, Object> cachedData = (Map<String, Object>) JSON.deserializeUntyped(reqs[0].Signature_Data__c);
                     String previewHtml = (String) cachedData.get('previewHtml');
                     if (String.isNotBlank(previewHtml)) {
+                        // Inject watermark overlay at read time — embedded base64 image
+                        // would exceed Signature_Data__c's LongTextArea limit if cached.
+                        previewHtml = DocGenSignatureSenderController.injectPreviewWatermarkOverlay(previewHtml, templateId);
                         res.templateBase64 = previewHtml;
                         return res;
                     }
@@ -592,7 +595,10 @@ public without sharing class DocGenSignatureController {
                 String docXml = (String) mergeData.get('documentXml');
                 Map<String, String> pdfImageMap = (Map<String, String>) mergeData.get('pdfImageMap');
                 if (String.isNotBlank(docXml)) {
-                    res.templateBase64 = DocGenHtmlRenderer.convertToHtml(docXml, pdfImageMap);
+                    DocGenService.applyWatermarkOverride(templateId);
+                    String liveHtml = DocGenHtmlRenderer.convertToHtml(docXml, pdfImageMap);
+                    liveHtml = DocGenSignatureSenderController.injectPreviewWatermarkOverlay(liveHtml, templateId);
+                    res.templateBase64 = liveHtml;
                     return res;
                 }
             } catch (Exception e) {
@@ -789,13 +795,13 @@ public without sharing class DocGenSignatureController {
         String relatedRecordId = triggerSigner.Signature_Request__r.Related_Record_Id__c;
 
         try {
-            // Publish Platform Event to trigger PDF generation in system context.
-            // The event trigger runs as Automated Process user, bypassing guest user
-            // limitations on ContentVersion access for image URLs.
-            DocGen_Signature_PDF__e pdfEvent = new DocGen_Signature_PDF__e();
-            pdfEvent.Request_Id__c = requestId;
-            /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-            EventBus.publish(pdfEvent);
+            // PDF generation already triggered by saveSignature's platform event.
+            // Re-publishing here would enqueue a duplicate queueable → two signed PDFs.
+            // Why: saveSignature publishes on every signer-completion; the trigger gates
+            // PDF enqueue on remaining==0. Calling stampAndReturnSource after a complete
+            // saveSignature would race a second event past the same gate.
+            // How to apply: any new "post-sign finalization" work belongs in the trigger
+            // or queueable, not here.
 
             // Return title for the UI
             String docTitle;
@@ -961,7 +967,7 @@ public without sharing class DocGenSignatureController {
 
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Request__c> requests = [
-            SELECT Source_Document_Id__c
+            SELECT Source_Document_Id__c, Template__c
             FROM DocGen_Signature_Request__c
             WHERE Id = :requestId
             WITH SYSTEM_MODE LIMIT 1
@@ -971,6 +977,7 @@ public without sharing class DocGenSignatureController {
         }
 
         Id sourceDocId = requests[0].Source_Document_Id__c;
+        DocGenService.applyWatermarkOverride(requests[0].Template__c);
 
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         // Get typed-name signatures from signers

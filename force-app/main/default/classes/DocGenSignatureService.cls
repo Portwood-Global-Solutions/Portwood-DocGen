@@ -426,7 +426,7 @@ public without sharing class DocGenSignatureService {
         public void execute(QueueableContext ctx) {
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signature_Request__c> requests = [
-                SELECT Id, Source_Document_Id__c, Related_Record_Id__c
+                SELECT Id, Source_Document_Id__c, Related_Record_Id__c, Template__c
                 FROM DocGen_Signature_Request__c
                 WHERE Id = :requestId
                 WITH SYSTEM_MODE LIMIT 1
@@ -434,6 +434,7 @@ public without sharing class DocGenSignatureService {
             if (requests.isEmpty()) return;
 
             DocGen_Signature_Request__c req = requests[0];
+            DocGenService.applyWatermarkOverride(req.Template__c);
 
             try {
                 // Get signature data from signers
@@ -748,6 +749,7 @@ public without sharing class DocGenSignatureService {
             // Re-prime the HTML renderer context immediately before convertToHtml.
             DocGenHtmlRenderer.stylesXml = (String) mergeData.get('stylesXml');
             DocGenHtmlRenderer.numberingXml = (String) mergeData.get('numberingXml');
+            DocGenService.applyWatermarkOverride(templateId);
 
             // Render PDF with template images only (no signature images needed)
             String html = DocGenHtmlRenderer.convertToHtml(stamped.documentXml, pdfImageMap);
@@ -846,6 +848,7 @@ public without sharing class DocGenSignatureService {
                 // intermediate calls reliably in async context).
                 DocGenHtmlRenderer.stylesXml = (String) mergeData.get('stylesXml');
                 DocGenHtmlRenderer.numberingXml = (String) mergeData.get('numberingXml');
+                DocGenService.applyWatermarkOverride(tid);
                 String docHtml = DocGenHtmlRenderer.convertToHtml(stamped.documentXml, pdfImageMap);
 
                 if (docIdx > 0) {

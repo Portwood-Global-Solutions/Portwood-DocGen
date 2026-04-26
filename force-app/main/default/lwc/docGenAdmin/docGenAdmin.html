@@ -483,6 +483,56 @@
                         </lightning-tab>
                         </template>
 
+                        <template if:true={editTemplateOutputIsPdf}>
+                        <lightning-tab label="Watermark / Background" value="watermark">
+                            <div class="slds-var-p-around_small">
+                                <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="font-size: 0.85rem;">
+                                    Upload a full-page background image that renders behind your content in PDF output.
+                                    For best results, resize the image file to your page dimensions in pixels at <strong>96 DPI</strong>
+                                    (the resolution Flying Saucer uses to render PDFs):
+                                    <ul class="slds-list_dotted slds-var-m-top_x-small">
+                                        <li><strong>Letter (8.5 × 11 in):</strong> 816 × 1056 px</li>
+                                        <li><strong>A4 (8.27 × 11.69 in):</strong> 794 × 1123 px</li>
+                                        <li><strong>Legal (8.5 × 14 in):</strong> 816 × 1344 px</li>
+                                    </ul>
+                                    The image renders edge-to-edge across the entire page (past margins). For a faded
+                                    look, pre-fade the image (~15-20% opacity over white) before uploading.
+                                </div>
+
+                                <template if:true={watermarkPreviewUrl}>
+                                    <div style="display:flex; align-items:flex-start; gap:1rem;">
+                                        <img src={watermarkPreviewUrl}
+                                             alt="Current watermark"
+                                             style="max-width:200px; max-height:260px; border:1px solid #d8dde6; padding:4px; background:#fff;" />
+                                        <div>
+                                            <p class="slds-text-body_small slds-var-m-bottom_x-small">
+                                                Active watermark for this template version.
+                                            </p>
+                                            <lightning-button
+                                                label="Remove watermark"
+                                                icon-name="utility:delete"
+                                                variant="destructive-text"
+                                                onclick={handleClearWatermark}
+                                                disabled={isUploadingWatermark}>
+                                            </lightning-button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <div class="slds-var-m-top_medium">
+                                    <input type="file"
+                                           data-id="watermarkFileInput"
+                                           accept="image/*"
+                                           onchange={handleWatermarkFileSelected}
+                                           disabled={isUploadingWatermark} />
+                                    <template if:true={isUploadingWatermark}>
+                                        <p class="slds-text-body_small slds-var-m-top_x-small">Uploading…</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </lightning-tab>
+                        </template>
+
                         <!-- Tab 2: Query Configuration -->
                         <lightning-tab label="Query Configuration" value="query" onactive={handleQueryTabActive}>
                              <div class="slds-var-p-horizontal_small" style="padding-top: 8px;">

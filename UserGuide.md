@@ -5,7 +5,7 @@
 > If you ship a new feature: add it here first, then propagate to the Learning Center LWC (`docGenCommandHub`) and the website.
 > If you remove/deprecate a feature: mark it in this file, then remove from the Learning Center and website.
 
-**Current release:** v1.64.0 · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qhYTAAY)
+**Current release:** v1.65.0 · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qiG1AAI)
 
 ---
 
@@ -537,15 +537,30 @@ Limitations:
 
 Newlines in field values render as Word line breaks (`<w:br/>`) — no manual `<br/>` needed.
 
-### 6.10.1 Word watermarks (Word templates → PDF)
+### 6.10.1 Watermarks / page backgrounds (PDF output)
 
-Picture watermarks inserted into a Word template via **Design → Watermark → Custom → Picture** render in PDF output. The watermark image extracts during template save (alongside header/footer images), is positioned centered on every page via CSS `position: fixed`, and gets a 95% white wash overlay for the "washed-out" look (since the Salesforce PDF engine doesn't honor CSS `opacity`).
+Two ways to add a full-page watermark or background image to your PDF output:
 
-Limitations:
-- **Rotation is not preserved** — Word's typical 315° diagonal angle isn't honored by the PDF engine. Watermarks render upright. If you need a rotated watermark, save your image pre-rotated as a PNG and insert that instead of using Word's Watermark dialog rotation.
-- **The Washout checkbox in Word is ignored** — Word stores washout as a render hint (VML `gain` / `blacklevel` attributes), not as faded image bytes. DocGen applies its own 95% white wash regardless.
+**Option A: Upload via the template builder (recommended).** In the template editor, click the **Watermark / Background** tab and upload a pre-sized image. This bypasses Word's Watermark dialog entirely and gives you exact pixel-level control over the output.
+
+**Option B: Insert via Word's Design → Watermark dialog.** Word's built-in watermark works too, with these constraints:
+- **Scale must be set to 100%.** Word's "Auto", "50%", etc. scale settings are ignored by the PDF renderer — only the source image's pixel dimensions matter.
+- **Washout must be OFF.** Leave the Washout checkbox unchecked. To get a faded look, pre-fade the image in an editor (~15–20% opacity over white) BEFORE inserting in Word.
+- **No rotation.** Word's 315° diagonal default isn't honored. If you need a rotated watermark, save the image pre-rotated as a PNG.
+
+Both options use the same rendering pipeline — `@page { background-image: url(...) }` extending edge-to-edge across the full page bleed.
+
+**Pre-resize your watermark image to the page dimensions at 96 DPI** (the resolution Flying Saucer renders at — NOT the standard 72 DPI you might assume from PDF specs):
+
+| Page size | Pixels at 96 DPI |
+|---|---|
+| Letter (8.5 × 11 in) | **816 × 1056 px** |
+| A4 (8.27 × 11.69 in) | **794 × 1123 px** |
+| Legal (8.5 × 14 in) | **816 × 1344 px** |
+
+Other limitations (apply to both options):
 - **Text watermarks** ("DRAFT", "CONFIDENTIAL" via Word's text watermark option) are not supported. Use a picture watermark with the text rendered into a PNG.
-- **Word output preserves whatever watermark Word would render** — these limitations only apply to PDF output.
+- **DOCX output preserves whatever Word would render natively** — these constraints only apply to PDF output.
 
 ### 6.11 Built-in date/time tags
 

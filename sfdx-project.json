@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.64.0 — Rich text DOCX color + transparency via PDF-extract pipeline",
-      "versionNumber": "1.64.0.NEXT",
-      "ancestorId": "04tal000006qZmEAAU",
+      "versionName": "1.66.0 — NEXT",
+      "versionNumber": "1.66.0.NEXT",
+      "ancestorId": "04tal000006qiG1AAI",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -100,6 +100,8 @@
     "Portwood DocGen Managed@1.62.0-2": "04tal000006q0q5AAA",
     "Portwood DocGen Managed@1.62.0-3": "04tal000006q929AAA",
     "Portwood DocGen Managed@1.63.0-1": "04tal000006qZmEAAU",
-    "Portwood DocGen Managed@1.64.0-1": "04tal000006qhYTAAY"
+    "Portwood DocGen Managed@1.64.0-1": "04tal000006qhYTAAY",
+    "Portwood DocGen Managed@1.65.0-1": "04tal000006qiG1AAI",
+    "Portwood DocGen Managed@1.65.0-3": "04tal000006qiG1AAI"
   }
 }

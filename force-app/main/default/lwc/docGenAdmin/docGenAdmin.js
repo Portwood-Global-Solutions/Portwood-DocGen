@@ -21,6 +21,8 @@ import getObjectOptions from '@salesforce/apex/DocGenController.getObjectOptions
 import getChildRelationships from '@salesforce/apex/DocGenController.getChildRelationships';
 import getParentRelationships from '@salesforce/apex/DocGenController.getParentRelationships';
 import previewRecordData from '@salesforce/apex/DocGenController.previewRecordData';
+import saveWatermarkImage from '@salesforce/apex/DocGenController.saveWatermarkImage';
+import clearWatermarkImage from '@salesforce/apex/DocGenController.clearWatermarkImage';
 
 // Schema
 import DOCGEN_TEMPLATE_OBJECT from '@salesforce/schema/DocGen_Template__c';
@@ -51,6 +53,7 @@ import { readZip, bytesToBase64 } from './docGenZipReader';
 // Version fields (DocGen_Template_Version__c)
 import VER_IS_ACTIVE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Is_Active__c';
 import VER_CV_ID_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Content_Version_Id__c';
+import VER_WATERMARK_CV_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Watermark_Image_CV_Id__c';
 
 // Field API name map — resolves namespace automatically
 const F = {
@@ -75,7 +78,8 @@ const F = {
     FooterHtml: FOOTER_HTML_FIELD.fieldApiName,
     // Version fields
     VerIsActive: VER_IS_ACTIVE_FIELD.fieldApiName,
-    VerCvId: VER_CV_ID_FIELD.fieldApiName
+    VerCvId: VER_CV_ID_FIELD.fieldApiName,
+    VerWatermarkCv: VER_WATERMARK_CV_FIELD.fieldApiName
 };
 
 const COLUMNS = [
@@ -146,6 +150,8 @@ const VERSION_COLUMNS = [
     @track editTemplateType;
     editTemplateObject;
     @track editTemplateOutputFormat;
+    @track editTemplateWatermarkCvId;
+    @track isUploadingWatermark = false;
     editTemplateDesc;
     @track editTemplateQuery;
     editTemplateTestRecordId;
@@ -1363,6 +1369,7 @@ const VERSION_COLUMNS = [
             .then(data => {
                 if (!data) {
                     this.versions = [];
+                    this.editTemplateWatermarkCvId = null;
                     return;
                 }
                 const total = data.length;
@@ -1377,9 +1384,13 @@ const VERSION_COLUMNS = [
                         activateVariant: isActive ? 'neutral' : 'brand'
                     };
                 });
+                // Sync watermark CV from the active version so the tab shows current state
+                const active = data.find(v => v[F.VerIsActive]);
+                this.editTemplateWatermarkCvId = active ? (active[F.VerWatermarkCv] || null) : null;
             })
             .catch(() => {
                 this.versions = [];
+                this.editTemplateWatermarkCvId = null;
             });
     }
 
@@ -1876,5 +1887,75 @@ const VERSION_COLUMNS = [
                 variant: variant
             })
         );
+    }
+
+    // ===== Watermark / background image tab =====
+
+    get editTemplateOutputIsPdf() {
+        return this.editTemplateOutputFormat === 'PDF';
+    }
+
+    get watermarkPreviewUrl() {
+        return this.editTemplateWatermarkCvId
+            ? '/sfc/servlet.shepherd/version/download/' + this.editTemplateWatermarkCvId
+            : null;
+    }
+
+    async handleWatermarkFileSelected(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) { return; }
+        if (!file.type || !file.type.startsWith('image/')) {
+            this.showToast('Unsupported file', 'Please choose an image file (PNG, JPEG, GIF).', 'error');
+            event.target.value = '';
+            return;
+        }
+        const active = (this.versions || []).find(v => v[F.VerIsActive]);
+        if (!active) {
+            this.showToast('No active version', 'Save the template first so a version exists, then upload the watermark.', 'warning');
+            event.target.value = '';
+            return;
+        }
+        this.isUploadingWatermark = true;
+        try {
+            const reader = new FileReader();
+            const base64 = await new Promise((resolve, reject) => {
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const commaIdx = dataUrl.indexOf(',');
+                    resolve(commaIdx > -1 ? dataUrl.substring(commaIdx + 1) : null);
+                };
+                reader.onerror = () => reject(new Error('FileReader failed'));
+                reader.readAsDataURL(file);
+            });
+            const newCvId = await saveWatermarkImage({
+                versionId: active.Id,
+                fileName: file.name,
+                base64Data: base64
+            });
+            this.editTemplateWatermarkCvId = newCvId;
+            this.showToast('Success', 'Watermark uploaded.', 'success');
+        } catch (err) {
+            const msg = err && err.body && err.body.message ? err.body.message : (err && err.message) || 'Upload failed';
+            this.showToast('Watermark upload failed', msg, 'error');
+        } finally {
+            this.isUploadingWatermark = false;
+            event.target.value = '';
+        }
+    }
+
+    async handleClearWatermark() {
+        const active = (this.versions || []).find(v => v[F.VerIsActive]);
+        if (!active) { return; }
+        this.isUploadingWatermark = true;
+        try {
+            await clearWatermarkImage({ versionId: active.Id });
+            this.editTemplateWatermarkCvId = null;
+            this.showToast('Removed', 'Watermark cleared.', 'success');
+        } catch (err) {
+            const msg = err && err.body && err.body.message ? err.body.message : (err && err.message) || 'Clear failed';
+            this.showToast('Clear failed', msg, 'error');
+        } finally {
+            this.isUploadingWatermark = false;
+        }
     }
 }

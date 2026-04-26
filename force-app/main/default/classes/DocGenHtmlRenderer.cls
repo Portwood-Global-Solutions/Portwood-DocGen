@@ -31,6 +31,16 @@ public with sharing class DocGenHtmlRenderer {
 
     // Styles XML from template — set before calling convertToHtml for style resolution
     public static String stylesXml;
+    // Document XML for the current render — set at top of convertToHtml so deeper
+    // helpers (e.g. processPict for watermark sizing) can call parsePageDimensions
+    // without threading documentXml through every method signature.
+    private static String currentDocumentXml;
+    // Admin-uploaded watermark/background image (ContentVersion ID). Set by
+    // callers before convertToHtml when the template has a watermark configured
+    // via the docGenAdmin LWC. When set, it OVERRIDES any Word VML watermark
+    // extracted from the template's headers — first-class watermarks beat
+    // embedded ones because the admin controlled both the size and the image.
+    public static String overrideWatermarkCvId;
     // #28 async-safe fallback: map of table-style-name → border CSS, pre-extracted in admin
     // context and cached in Signature_Data__c. Checked by resolveTableStyleBorder BEFORE
     // parsing stylesXml, so queueables running as Automated Process (which can't access
@@ -144,6 +154,7 @@ public with sharing class DocGenHtmlRenderer {
         if (images == null) {
             images = new Map<String, String>();
         }
+        currentDocumentXml = documentXml;
 
         // Extract header/footer markers if present
         String headerXml = '';
@@ -170,27 +181,41 @@ public with sharing class DocGenHtmlRenderer {
         String bodyContent = extractBodyContent(mainXml);
         String html = processBodyContent(bodyContent, images);
 
-        // Also harvest watermark divs from body content (Word sometimes places
-        // <w:pict> watermarks in the document body, not just headers).
+        // Watermark resolution order:
+        //   1. Admin-uploaded watermark (overrideWatermarkCvId set by caller) —
+        //      first-class path, admin controlled both size and image, no VML
+        //      parsing needed
+        //   2. Word-embedded VML watermark extracted from headers — legacy path
+        //      with documented Scale/Washout/rotation limitations
+        String watermarkPageBgCss = '';
+        if (String.isNotBlank(overrideWatermarkCvId)) {
+            watermarkPageBgCss = 'background-image: url(\'/sfc/servlet.shepherd/version/download/' + overrideWatermarkCvId + '\'); ' +
+                                 'background-position: center center; background-repeat: no-repeat; background-size: contain;';
+        }
         Map<String, String> bodyExtract = extractWatermarks(html);
         html = bodyExtract.get('html');
-        String bodyWatermarkHtml = bodyExtract.get('watermarks');
+        if (String.isBlank(watermarkPageBgCss) && String.isNotBlank(bodyExtract.get('pageBgCss'))) {
+            watermarkPageBgCss = bodyExtract.get('pageBgCss');
+        }
 
         // Process header/footer HTML for Flying Saucer running elements
         String headerHtml = '';
         String footerHtml = '';
-        String watermarkHtml = bodyWatermarkHtml != null ? bodyWatermarkHtml : '';
         if (String.isNotBlank(headerXml) || String.isNotBlank(footerXml)) {
             headerHtml = String.isNotBlank(headerXml) ? processBodyContent(extractBodyContent(headerXml), images) : '';
             footerHtml = String.isNotBlank(footerXml) ? processBodyContent(extractBodyContent(footerXml), images) : '';
 
-            // Lift watermark divs out of header/footer so they render at body root.
+            // Watermarks may live in header XML (most common); pick up @page bg from there too.
             Map<String, String> hExtract = extractWatermarks(headerHtml);
             headerHtml = hExtract.get('html');
-            watermarkHtml += hExtract.get('watermarks');
+            if (String.isBlank(watermarkPageBgCss) && String.isNotBlank(hExtract.get('pageBgCss'))) {
+                watermarkPageBgCss = hExtract.get('pageBgCss');
+            }
             Map<String, String> fExtract = extractWatermarks(footerHtml);
             footerHtml = fExtract.get('html');
-            watermarkHtml += fExtract.get('watermarks');
+            if (String.isBlank(watermarkPageBgCss) && String.isNotBlank(fExtract.get('pageBgCss'))) {
+                watermarkPageBgCss = fExtract.get('pageBgCss');
+            }
 
             // Zero out paragraph margins inside header/footer for tight spacing
             headerHtml = headerHtml.replace('<p>', '<p style="margin:0;">');
@@ -209,9 +234,13 @@ public with sharing class DocGenHtmlRenderer {
         Boolean hasTitlePage = documentXml.contains('<w:titlePg/>') || documentXml.contains('<w:titlePg ');
 
         // Build @page rule with running header/footer margin boxes (Flying Saucer)
+        // CSS @page rule order: properties before nested margin boxes.
         String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
             'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
             pageDims.get('marginBottom') + 'in ' + pageDims.get('marginLeft') + 'in;';
+        if (String.isNotBlank(watermarkPageBgCss)) {
+            dynamicPageCss += ' ' + watermarkPageBgCss;
+        }
         if (hasHeader) {
             dynamicPageCss += ' @top-center { content: element(docgen-running-header); }';
         }
@@ -277,23 +306,16 @@ public with sharing class DocGenHtmlRenderer {
 
         // Insert running header/footer divs at top of body — Flying Saucer pulls them
         // out of normal flow and places them in @page margin boxes on every page.
-        // Watermarks (position:fixed) at body root, content wrapped at z-index:2 so
-        // it sits above the watermark whitewash overlay.
+        // Watermarks render via @page background-image (set above) and never appear
+        // in body DOM — that's how they extend to true page bleed.
         String bodyHtml = '';
-        if (String.isNotBlank(watermarkHtml)) {
-            bodyHtml += watermarkHtml;
-        }
         if (hasHeader) {
             bodyHtml += '<div id="docgen-header">' + headerHtml + '</div>';
         }
         if (hasFooter) {
             bodyHtml += '<div id="docgen-footer">' + footerHtml + '</div>';
         }
-        if (String.isNotBlank(watermarkHtml)) {
-            bodyHtml += '<div class="docgen-body-content">' + html + '</div>';
-        } else {
-            bodyHtml += html;
-        }
+        bodyHtml += html;
 
         return dynamicPrefix + bodyHtml + HTML_SUFFIX;
     }
@@ -1946,16 +1968,16 @@ public with sharing class DocGenHtmlRenderer {
         String imageValue = images.get(relId);
                 if (imageValue == null) { return ''; }
 
-        // Sizing strategy: if the upstream code marked this image with the
-        // DOCGEN_EXPLICIT_SIZE descr (i.e., the user set both width AND height
-        // in rich text via attribute or inline style), force exact dimensions.
-        // Otherwise fall back to max-width + width:auto so phone photos and
-        // other non-4:3 images preserve their intrinsic aspect ratio up to
-        // the dimensions declared in wp:extent (avoids portrait squash).
-        Boolean explicitSize = drawingXml.contains('DOCGEN_EXPLICIT_SIZE');
-        String sizeStyle = explicitSize
-            ? ('width:' + widthPx + 'px;height:' + heightPx + 'px;')
-            : ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;width:auto;height:auto;');
+        // Sizing strategy: default to exact width/height from wp:extent — that's
+        // the authoritative value Word stores for both template-embedded images
+        // (matching native aspect) and rich text images with explicit user sizing.
+        // The DOCGEN_AUTOSIZE marker (set by processRichTextImage when no width
+        // OR height info was found in the rich text) flips us to max-width +
+        // width:auto so we preserve aspect for unsized phone-photo style images.
+        Boolean autoSize = drawingXml.contains('DOCGEN_AUTOSIZE');
+        String sizeStyle = autoSize
+            ? ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;width:auto;height:auto;')
+            : ('width:' + widthPx + 'px;height:' + heightPx + 'px;');
 
         if (imageValue.startsWith('/sfc/') || imageValue.startsWith('/servlet/') ||
             imageValue.startsWith('/apex/') || imageValue.startsWithIgnoreCase('http')) {
@@ -1988,13 +2010,19 @@ public with sharing class DocGenHtmlRenderer {
         String imageValue = images.get(relId);
         if (imageValue == null) { return ''; }
 
-        String shapeStyle = extractAttr(pictXml, 'v:shape', 'style');
+        // Use 'v:shape ' (trailing space) to disambiguate from <v:shapetype>
+        // which is the shape DEFINITION, not the instance with dimensions.
+        // extractAttr's substring match would otherwise grab the shapetype's
+        // style (none) and fall back to default sizes.
+        String shapeStyle = extractAttr(pictXml, 'v:shape ', 'style');
         if (shapeStyle == null) { shapeStyle = ''; }
         String shapeStyleLower = shapeStyle.toLowerCase();
 
-        Boolean isWatermark = shapeStyleLower.contains('rotation:') ||
-                              shapeStyleLower.contains('mso-position-horizontal:center') ||
-                              pictXml.contains('PowerPlusWaterMarkObject') ||
+        // Strict watermark detection: only the two Word-specific identifiers.
+        // The mso-position-horizontal:center / rotation: heuristics matched any
+        // centered/rotated header logo and incorrectly hijacked them as watermarks
+        // (pushing them to @page background, removing them from inline body flow).
+        Boolean isWatermark = pictXml.contains('PowerPlusWaterMarkObject') ||
                               pictXml.contains('WordPictureWatermark');
 
         Decimal opacity = null;
@@ -2055,23 +2083,6 @@ public with sharing class DocGenHtmlRenderer {
         if (widthPx <= 0) { widthPx = isWatermark ? 480 : 200; }
         if (heightPx <= 0) { heightPx = isWatermark ? 240 : 150; }
 
-        // Word's VML watermark width is usually 4–5 inches — too small to feel like a
-        // page-filling watermark in PDF. For watermarks specifically, scale up to at
-        // least 7 inches wide while preserving the aspect ratio from Word's declared
-        // dimensions. Letter page is 8.5 in; 7 in covers the printable area nicely
-        // and at the 315° rotation Word uses, the diagonal spans most of the page.
-        if (isWatermark) {
-            Integer minWatermarkWidthPx = 672; // 7 inches at 96 DPI
-            if (widthPx < minWatermarkWidthPx) {
-                Integer originalW = widthPx;
-                Integer originalH = heightPx;
-                widthPx = minWatermarkWidthPx;
-                if (originalW > 0 && originalH > 0) {
-                    heightPx = Math.round((Decimal)minWatermarkWidthPx * originalH / originalW);
-                }
-            }
-        }
-
         String src;
         if (imageValue.startsWith('/sfc/') || imageValue.startsWith('/servlet/') ||
             imageValue.startsWith('/apex/') || imageValue.startsWithIgnoreCase('http')) {
@@ -2083,20 +2094,25 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         if (isWatermark) {
-            // Restored to the version the user confirmed worked: position:fixed div
-            // with <img> inside, centered via top:50%/left:50% + negative margins.
-            // Whitewash overlay is added separately by extractWatermarks(). Image src
-            // uses relative /sfc/... path (Salesforce Blob.toPdf() resolves these).
+            // Watermarks fill the entire page. The wrapper is sized to the parsed
+            // page dimensions (or letter 8.5×11 default) and centered via top:50%/
+            // left:50% + negative margins. The image inside uses width:100%/
+            // height:100%/object-fit:contain so the watermark scales up to span
+            // the full page while preserving its native aspect ratio. VML-declared
+            // dimensions are intentionally ignored for watermarks — Word's defaults
+            // (often 4–5 inches) leave too much empty space; users picking a
+            // watermark expect it to span the page like a real document watermark.
             Decimal effOpacity = (opacity != null) ? opacity : 0.05;
             Decimal whiteAlpha = 1 - effOpacity;
             if (whiteAlpha > 0.95) { whiteAlpha = 0.95; }
             if (whiteAlpha < 0.85) { whiteAlpha = 0.85; }
-            Integer halfWPt = Math.round(widthPx * 72 / 96 / 2);
-            Integer halfHPt = Math.round(heightPx * 72 / 96 / 2);
-            return '<div class="docgen-watermark" data-wash="' + whiteAlpha + '" ' +
-                   'style="position:fixed;top:50%;left:50%;margin-left:-' + halfWPt + 'pt;margin-top:-' + halfHPt + 'pt;z-index:0;">' +
-                   '<img src="' + src + '" style="width:' + widthPx + 'px;height:' + heightPx + 'px;" />' +
-                   '</div>';
+            // Watermarks emit a marker; extractWatermarks() reads it and converts
+            // into @page { background-image: url(...) } CSS — Flying Saucer's
+            // documented page-background mechanism that truly extends to the
+            // page bleed (position:fixed clips at the content-area boundary,
+            // and oversizing tricks didn't escape the clip). Body content keeps
+            // its normal margin behavior; watermark fills the entire page.
+            return '<!--DGWM:src=' + src + '|wash=' + whiteAlpha + '|w=' + widthPx + '|h=' + heightPx + '-->';
         }
 
         String style = 'max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;height:auto;width:auto;image-orientation:from-image;';
@@ -2132,13 +2148,15 @@ public with sharing class DocGenHtmlRenderer {
      * Returns map: 'html' (cleaned input), 'htmlBg' (CSS for html selector), 'bodyBg' (CSS for body selector).
      */
     private static Map<String, String> extractWatermarks(String html) {
-        Map<String, String> result = new Map<String, String>{ 'html' => '', 'watermarks' => '' };
+        Map<String, String> result = new Map<String, String>{ 'html' => '', 'watermarks' => '', 'pageBgCss' => '' };
         if (String.isBlank(html)) { result.put('html', html != null ? html : ''); return result; }
 
-        String marker = '<div class="docgen-watermark"';
+        String marker = '<!--DGWM:';
         String cleaned = '';
-        String marks = '';
+        String firstSrc = null;
         Decimal washAlpha = 0;
+        Integer firstWidthPx = 0;
+        Integer firstHeightPx = 0;
         Integer cursor = 0;
         while (cursor < html.length()) {
             Integer start = html.indexOf(marker, cursor);
@@ -2147,31 +2165,46 @@ public with sharing class DocGenHtmlRenderer {
                 break;
             }
             cleaned += html.substring(cursor, start);
-            // structure: <div data-wash="0.95" ...><img ... /></div>
-            Integer endDiv = html.indexOf('</div>', start);
-            if (endDiv == -1) { cleaned += html.substring(start); break; }
-            String block = html.substring(start, endDiv + 6);
-            marks += block;
-            Integer wIdx = block.indexOf('data-wash="');
-            if (wIdx != -1) {
-                Integer wStart = wIdx + 11;
-                Integer wEnd = block.indexOf('"', wStart);
-                if (wEnd != -1) {
-                    try {
-                        Decimal w = Decimal.valueOf(block.substring(wStart, wEnd));
-                        if (w > washAlpha) { washAlpha = w; }
-                    } catch (Exception e) {}
-                }
+            Integer endMark = html.indexOf('-->', start);
+            if (endMark == -1) { cleaned += html.substring(start); break; }
+            String payload = html.substring(start + marker.length(), endMark);
+            String src = null;
+            String washStr = null;
+            String wStr = null;
+            String hStr = null;
+            for (String part : payload.split('\\|')) {
+                if (part.startsWith('src=')) { src = part.substring(4); }
+                else if (part.startsWith('wash=')) { washStr = part.substring(5); }
+                else if (part.startsWith('w=')) { wStr = part.substring(2); }
+                else if (part.startsWith('h=')) { hStr = part.substring(2); }
             }
-            cursor = endDiv + 6;
+            if (src != null && firstSrc == null) {
+                firstSrc = src;
+                if (wStr != null && wStr.isNumeric()) { firstWidthPx = Integer.valueOf(wStr); }
+                if (hStr != null && hStr.isNumeric()) { firstHeightPx = Integer.valueOf(hStr); }
+            }
+            if (washStr != null) {
+                try {
+                    Decimal w = Decimal.valueOf(washStr);
+                    if (w > washAlpha) { washAlpha = w; }
+                } catch (Exception e) {}
+            }
+            cursor = endMark + 3;
         }
-        // Page-spanning whitewash overlay above the watermark, below body content.
-        if (washAlpha > 0) {
-            marks += '<div class="docgen-watermark-wash" ' +
-                     'style="position:fixed;top:0;left:0;right:0;bottom:0;background-color:rgba(255,255,255,' + washAlpha + ');z-index:1;"></div>';
+        if (firstSrc != null) {
+            // @page background-image is the only Flying Saucer mechanism that
+            // bleeds past page margins. background-size with explicit pt/% is
+            // ignored — but 'contain' IS honored (scales image to fit page,
+            // preserving aspect). Since Word's VML watermark dimensions and
+            // the page dimensions usually share the same aspect ratio (Word
+            // sizes watermarks proportional to page), 'contain' produces the
+            // user's intended scale automatically.
+            String pageBgCss = 'background-image: url(\'' + firstSrc + '\'); ' +
+                               'background-position: center center; background-repeat: no-repeat; ' +
+                               'background-size: contain;';
+            result.put('pageBgCss', pageBgCss);
         }
         result.put('html', cleaned);
-        result.put('watermarks', marks);
         return result;
     }
 
