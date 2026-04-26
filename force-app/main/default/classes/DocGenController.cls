@@ -324,10 +324,17 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         if (!isSafe) { return null; }
         if (Test.isRunningTest()) { return EncodingUtil.base64Encode(Blob.valueOf('test-pdf')); }
         try {
-            // Tight HTML — image fills the page, no margin, so the image XObject
-            // we extract on the client matches the source as closely as possible.
-            String html = '<html><body style="margin:0;padding:0">' +
-                          '<img src="' + imageUrl.escapeXml() + '" style="display:block" />' +
+            // Document-like wrapper (text + styles) so Flying Saucer chooses higher
+            // color depth instead of collapsing the image to grayscale. Image is
+            // rendered at natural size — sizing for the DOCX is controlled by the
+            // wp:extent in document.xml, not by the embedded image's native dims.
+            String html = '<html><head>' +
+                          '<style>body{font-family:Arial,sans-serif;font-size:11pt;color:#000;margin:36pt}' +
+                          'img{display:block}</style>' +
+                          '</head><body>' +
+                          '<p>Image extraction wrapper.</p>' +
+                          '<img src="' + imageUrl.escapeXml() + '" />' +
+                          '<p>End wrapper.</p>' +
                           '</body></html>';
             Blob pdf = Blob.toPdf(html);
             return EncodingUtil.base64Encode(pdf);

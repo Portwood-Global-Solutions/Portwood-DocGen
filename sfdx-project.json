@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.63.0 — Word watermarks in PDF + rich text inline images in DOCX",
-      "versionNumber": "1.63.0.NEXT",
-      "ancestorId": "04tal000006q929AAA",
+      "versionName": "1.64.0 — Rich text DOCX color + transparency via PDF-extract pipeline",
+      "versionNumber": "1.64.0.NEXT",
+      "ancestorId": "04tal000006qZmEAAU",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -99,6 +99,7 @@
     "Portwood DocGen Managed@1.62.0-1": "04tal000006q0gPAAQ",
     "Portwood DocGen Managed@1.62.0-2": "04tal000006q0q5AAA",
     "Portwood DocGen Managed@1.62.0-3": "04tal000006q929AAA",
-    "Portwood DocGen Managed@1.63.0-1": "04tal000006qZmEAAU"
+    "Portwood DocGen Managed@1.63.0-1": "04tal000006qZmEAAU",
+    "Portwood DocGen Managed@1.64.0-1": "04tal000006qhYTAAY"
   }
 }

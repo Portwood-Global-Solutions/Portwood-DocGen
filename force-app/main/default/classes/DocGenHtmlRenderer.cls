@@ -1946,25 +1946,30 @@ public with sharing class DocGenHtmlRenderer {
         String imageValue = images.get(relId);
                 if (imageValue == null) { return ''; }
 
-        // If the value is a URL (Salesforce content path or absolute URL), use directly as img src.
-        // Use max-width + height:auto so phone photos and other non-4:3 images preserve their
-        // intrinsic aspect ratio up to the dimensions declared in wp:extent. Without this, the
-        // explicit width/height HTML attributes squash every image into whatever box the
-        // DrawingML specified (including the fallback 4"×3" default), which distorts portraits.
+        // Sizing strategy: if the upstream code marked this image with the
+        // DOCGEN_EXPLICIT_SIZE descr (i.e., the user set both width AND height
+        // in rich text via attribute or inline style), force exact dimensions.
+        // Otherwise fall back to max-width + width:auto so phone photos and
+        // other non-4:3 images preserve their intrinsic aspect ratio up to
+        // the dimensions declared in wp:extent (avoids portrait squash).
+        Boolean explicitSize = drawingXml.contains('DOCGEN_EXPLICIT_SIZE');
+        String sizeStyle = explicitSize
+            ? ('width:' + widthPx + 'px;height:' + heightPx + 'px;')
+            : ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;width:auto;height:auto;');
+
         if (imageValue.startsWith('/sfc/') || imageValue.startsWith('/servlet/') ||
             imageValue.startsWith('/apex/') || imageValue.startsWithIgnoreCase('http')) {
             return '<img src="' + imageValue + '" ' +
-                   'style="max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;height:auto;width:auto;image-orientation:from-image;" />';
+                   'style="' + sizeStyle + 'image-orientation:from-image;" />';
         }
 
-        // Otherwise treat as base64 — determine MIME type and create data URI
         String mimeType = 'image/png';
         if (imageValue.startsWith('/9j/') || imageValue.startsWith('/9J/')) {
             mimeType = 'image/jpeg';
         }
 
         return '<img src="data:' + mimeType + ';base64,' + imageValue + '" ' +
-               'style="max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;height:auto;width:auto;image-orientation:from-image;" />';
+               'style="' + sizeStyle + 'image-orientation:from-image;" />';
     }
 
     /**

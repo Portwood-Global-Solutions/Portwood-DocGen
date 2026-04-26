@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.64.0 — Rich text DOCX color + transparency via PDF-extract pipeline
+
+Promoted package: `04tal000006qhYTAAY` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qhYTAAY)
+
+This is a polish release on top of v1.63.0's "rich text inline images in DOCX" feature. v1.63.0 shipped the path that made inline images appear in DOCX; v1.64.0 makes them appear *correctly* — full color, alpha transparency, and respecting any drag-resize the user did in the rich text editor.
+
+### Color preservation for RGBA PNG sources
+
+`Blob.toPdf()` splits RGBA PNG sources into two PDF objects: a `CalRGB` color image plus a `DeviceGray` SMask alpha channel, with the color image referencing the SMask via `/SMask N 0 R`. v1.63.0's extractor took the first `/Subtype /Image` it found — which is the alpha mask, not the color — so DOCX images came through as black silhouettes of the alpha channel.
+
+`docGenPdfImageExtractor.js` now:
+- Indexes ALL image XObjects in the PDF up-front, classifying each by color space (`CalRGB`/`DeviceRGB` vs `CalGray`/`DeviceGray`) and SMask reference
+- Prefers color images over grayscale (skipping SMask siblings)
+- When the color image has an SMask reference, decodes both `FlateDecode` streams (color via `DecompressionStream('deflate')`), composes RGB + alpha into an 8-bit RGBA PNG (color type 6), and re-encodes via `CompressionStream('deflate')` + manual IHDR/IDAT/IEND chunks with proper CRC32
+
+Pure browser-native — no pako or PNG library bundled. Works in Chrome 80+ and Firefox 113+ (DecompressionStream support).
+
+### Inline-style sizing in rich text
+
+Lightning Rich Text Area stores drag-resized image dimensions as inline `style="width:Npx; height:Npx"` rather than `width=`/`height=` HTML attributes. v1.63.0's `processRichTextImage` only checked the attributes and fell back to a 4×3 inch default for resized images, ignoring the user's chosen size.
+
+`processRichTextImage` now also parses the `style` attribute via a new `parseStylePx` helper (handles `px` and `pt` units). When BOTH width AND height come through (attribute or style), the drawing's `<wp:docPr>` gets a `descr="DOCGEN_EXPLICIT_SIZE"` marker. `DocGenHtmlRenderer.processDrawing` reads that marker and emits exact `width:Npx;height:Npx` instead of `max-width;width:auto`, so a small native image scales up to the user's requested display size in the PDF instead of rendering tiny.
+
+### Implementation notes for future maintainers
+
+- **Document-like wrapper for `Blob.toPdf()`** — the `renderImageAsPdfBase64` HTML now includes text + styles around the `<img>` tag. Bare single-image renders triggered Flying Saucer's grayscale-FlateDecode encoding for color PNGs; document-style renders preserve full color via the same path that real PDF generation uses
+- **Native size auto-rewrite (parked)** — a client-side helper that reads the extracted PNG's IHDR dimensions and rewrites `wp:extent` for unsized rich text images is implemented in `docGenRunner.js` (`_updateDocxImageSizeIfNotExplicit`) but currently disabled. It worked in Chrome but broke DOCX rendering for reasons we suspect are Aura return-object mutability. When no rich text style is set, the default 4×3 inch sizing applies; users resize via the editor (drag handles set the style → DOCX honors via DOCGEN_EXPLICIT_SIZE)
+
 ## v1.63.0 — Word watermarks in PDF + Lightning rich text inline images in DOCX
 
 Promoted package: `04tal000006qZmEAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qZmEAAU)

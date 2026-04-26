@@ -3242,7 +3242,12 @@ public with sharing class DocGenService {
         }
         String src = imgTag.substring(srcIdx, srcEnd).replace('&amp;', '&');
 
-        // Extract optional width/height
+        // Extract optional width/height. Two storage forms exist in rich text HTML:
+        //   1. width="200" height="150" attributes — set by older editors
+        //   2. style="width: 200px; height: 150px;" — set by Lightning Rich Text
+        //      Area when the user drags to resize (which is the common case).
+        // Try attribute form first, then fall back to style form so drag-resized
+        // images come through at the correct dimensions instead of the default.
         Integer widthPx = null;
         Integer heightPx = null;
         Integer wIdx = imgTag.indexOfIgnoreCase('width=');
@@ -3257,6 +3262,21 @@ public with sharing class DocGenService {
             String hVal = extractHtmlAttrValue(imgTag, hIdx + 7);
             if (hVal != null && hVal.replaceAll('[^0-9]', '').isNumeric()) {
                 heightPx = Integer.valueOf(hVal.replaceAll('[^0-9]', ''));
+            }
+        }
+        // Style fallback: parse `width:Npx` and `height:Npx` from the style attribute.
+        if (widthPx == null || heightPx == null) {
+            Integer styleIdx = imgTag.indexOfIgnoreCase('style=');
+            if (styleIdx != -1) {
+                String styleVal = extractHtmlAttrValue(imgTag, styleIdx + 6);
+                if (String.isNotBlank(styleVal)) {
+                    if (widthPx == null) {
+                        widthPx = parseStylePx(styleVal, 'width');
+                    }
+                    if (heightPx == null) {
+                        heightPx = parseStylePx(styleVal, 'height');
+                    }
+                }
             }
         }
 
@@ -3373,15 +3393,23 @@ public with sharing class DocGenService {
             return null; // Can't resolve image at all
         }
 
-        // Build DrawingML
+        // Build DrawingML. When the user provided BOTH width AND height in the
+        // rich text (via attribute or inline style), mark the drawing with a
+        // sentinel "DOCGEN_EXPLICIT_SIZE" descr — processDrawing in the PDF
+        // renderer reads this and emits exact width:Npx;height:Npx instead of
+        // max-width;width:auto, so a small image scales up to the requested
+        // display size rather than rendering at its tiny natural size.
+        Boolean hasExplicitSize = (widthPx != null && heightPx != null);
         Integer widthEmu = (widthPx != null) ? (widthPx * 9525) : (288 * 12700);
         Integer heightEmu = (heightPx != null) ? (heightPx * 9525) : (216 * 12700);
+        String docPrAttrs = 'id="' + imageCounter + '" name="DocGenImage' + imageCounter + '"';
+        if (hasExplicitSize) { docPrAttrs += ' descr="DOCGEN_EXPLICIT_SIZE"'; }
 
         return '<w:r><w:drawing>' +
             '<wp:inline distT="0" distB="0" distL="0" distR="0" ' +
                 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">' +
               '<wp:extent cx="' + widthEmu + '" cy="' + heightEmu + '"/>' +
-              '<wp:docPr id="' + imageCounter + '" name="DocGenImage' + imageCounter + '"/>' +
+              '<wp:docPr ' + docPrAttrs + '/>' +
               '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
                 '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
                   '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
@@ -3411,6 +3439,35 @@ public with sharing class DocGenService {
     /**
      * Extracts an HTML attribute value starting at the given position (after 'attr=').
      */
+    /**
+     * Pulls a pixel value out of an inline style string for a given property.
+     * Examples: parseStylePx('width: 200px; height: 150px', 'width') → 200.
+     * Accepts 'px', 'pt' (converted to px @ 96/72), and bare numeric values.
+     * Returns null if the property isn't present or value can't be parsed.
+     */
+    private static Integer parseStylePx(String styleVal, String propName) {
+        if (String.isBlank(styleVal) || String.isBlank(propName)) { return null; }
+        String lower = styleVal.toLowerCase();
+        Integer pIdx = lower.indexOf(propName.toLowerCase() + ':');
+        if (pIdx == -1) { return null; }
+        Integer valStart = pIdx + propName.length() + 1;
+        Integer valEnd = lower.indexOf(';', valStart);
+        if (valEnd == -1) { valEnd = lower.length(); }
+        String raw = styleVal.substring(valStart, valEnd).trim();
+        if (String.isBlank(raw)) { return null; }
+        // Strip unit suffix and parse number
+        Boolean isPt = raw.toLowerCase().endsWith('pt');
+        String numStr = raw.replaceAll('[^0-9.]', '');
+        if (String.isBlank(numStr)) { return null; }
+        try {
+            Decimal n = Decimal.valueOf(numStr);
+            if (isPt) { n = n * 96 / 72; }
+            return Math.round(n);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static String extractHtmlAttrValue(String tag, Integer startAfterEquals) {
         Integer pos = startAfterEquals;
         while (pos < tag.length() && tag.substring(pos, pos + 1) == ' ') {

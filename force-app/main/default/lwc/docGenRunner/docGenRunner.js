@@ -803,11 +803,16 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             for (const [mediaPath, url] of Object.entries(parts.imageUrlMap)) {
                 if (!/rtaImage/i.test(url)) continue;
                 try {
+                    // eslint-disable-next-line no-await-in-loop
                     const pdfB64 = await renderImageAsPdfBase64({ imageUrl: url });
                     if (!pdfB64) continue;
-                    const extracted = extractFirstImageFromPdfBase64(pdfB64);
+                    // eslint-disable-next-line no-await-in-loop
+                    const extracted = await extractFirstImageFromPdfBase64(pdfB64);
                     if (extracted && extracted.base64) {
                         allImages[mediaPath] = extracted.base64;
+                        if (extracted.width && extracted.height) {
+                            this._updateDocxImageSizeIfNotExplicit(parts, mediaPath, extracted.width, extracted.height);
+                        }
                     }
                 } catch (urlErr) { console.warn('DocGen: rich text image extract failed for ' + url, urlErr); }
             }
@@ -916,9 +921,15 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         // eslint-disable-next-line no-await-in-loop
                         const pdfB64 = await renderImageAsPdfBase64({ imageUrl: url });
                         if (!pdfB64) continue;
-                        const extracted = extractFirstImageFromPdfBase64(pdfB64);
+                        // eslint-disable-next-line no-await-in-loop
+                        const extracted = await extractFirstImageFromPdfBase64(pdfB64);
                         if (extracted && extracted.base64) {
                             allImages[mediaPath] = extracted.base64;
+                            // wp:extent rewrite temporarily disabled — was breaking
+                            // image rendering in Word. Re-enable once root cause known.
+                            // if (extracted.width && extracted.height) {
+                            //     this._updateDocxImageSizeIfNotExplicit(parts, mediaPath, extracted.width, extracted.height);
+                            // }
                         }
                     } catch (urlErr) { console.warn('DocGen: rich text image extract failed for ' + url, urlErr); }
                 }
@@ -1093,9 +1104,15 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         // eslint-disable-next-line no-await-in-loop
                         const pdfB64 = await renderImageAsPdfBase64({ imageUrl: url });
                         if (!pdfB64) continue;
-                        const extracted = extractFirstImageFromPdfBase64(pdfB64);
+                        // eslint-disable-next-line no-await-in-loop
+                        const extracted = await extractFirstImageFromPdfBase64(pdfB64);
                         if (extracted && extracted.base64) {
                             allImages[mediaPath] = extracted.base64;
+                            // wp:extent rewrite temporarily disabled — was breaking
+                            // image rendering in Word. Re-enable once root cause known.
+                            // if (extracted.width && extracted.height) {
+                            //     this._updateDocxImageSizeIfNotExplicit(parts, mediaPath, extracted.width, extracted.height);
+                            // }
                         }
                     } catch (urlErr) { console.warn('DocGen: rich text image extract failed for ' + url, urlErr); }
                 }
@@ -1276,6 +1293,54 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         let binary = '';
         for (let i = 0; i < bytes.length; i++) { binary += String.fromCharCode(bytes[i]); }
         return btoa(binary);
+    }
+
+    /**
+     * Updates the wp:extent values in document.xml for an image whose native
+     * dimensions weren't known at server-merge time. Only applies when the
+     * server didn't mark the drawing with descr="DOCGEN_EXPLICIT_SIZE" — i.e.
+     * the user didn't set width/height in the rich text. We derive the relId
+     * from the rels XML by media filename, then find the matching <a:blip
+     * r:embed="..."/> in document.xml and rewrite its enclosing <wp:extent>
+     * (and the inner <a:ext> on <pic:spPr>) to native pixel dimensions in EMU.
+     */
+    _updateDocxImageSizeIfNotExplicit(parts, mediaPath, widthPx, heightPx) {
+        if (!parts || !parts.allXmlParts) return;
+        const docXml = parts.allXmlParts['word/document.xml'];
+        const relsXml = parts.allXmlParts['word/_rels/document.xml.rels'];
+        if (!docXml || !relsXml) return;
+
+        // mediaPath like "word/media/docgen_image_1.png" → look up rels Target
+        const targetName = mediaPath.replace(/^word\//, ''); // "media/docgen_image_1.png"
+        const relMatch = relsXml.match(new RegExp('<Relationship\\s+Id="([^"]+)"[^>]*?Target="' + targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"', 'i'));
+        if (!relMatch) return;
+        const relId = relMatch[1];
+
+        // Find <a:blip r:embed="relId"/> in doc XML, then walk back to enclosing <w:drawing>
+        const blipIdx = docXml.indexOf('r:embed="' + relId + '"');
+        if (blipIdx === -1) return;
+        const drawStart = docXml.lastIndexOf('<w:drawing', blipIdx);
+        const drawEnd = docXml.indexOf('</w:drawing>', blipIdx);
+        if (drawStart === -1 || drawEnd === -1) return;
+
+        const drawingXml = docXml.substring(drawStart, drawEnd + '</w:drawing>'.length);
+        // If server marked this as explicit-size, leave it alone
+        if (drawingXml.indexOf('DOCGEN_EXPLICIT_SIZE') !== -1) return;
+
+        const cxEmu = widthPx * 9525;
+        const cyEmu = heightPx * 9525;
+        let updated = drawingXml.replace(
+            /<wp:extent\s+cx="\d+"\s+cy="\d+"\s*\/>/,
+            '<wp:extent cx="' + cxEmu + '" cy="' + cyEmu + '"/>'
+        );
+        updated = updated.replace(
+            /<a:ext\s+cx="\d+"\s+cy="\d+"\s*\/>/,
+            '<a:ext cx="' + cxEmu + '" cy="' + cyEmu + '"/>'
+        );
+        if (updated !== drawingXml) {
+            parts.allXmlParts['word/document.xml'] =
+                docXml.substring(0, drawStart) + updated + docXml.substring(drawEnd + '</w:drawing>'.length);
+        }
     }
 
     downloadBase64(base64Data, fileName, mimeType) {
