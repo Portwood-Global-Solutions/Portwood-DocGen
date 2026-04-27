@@ -47,6 +47,11 @@ import RECORD_FILTER_FIELD from '@salesforce/schema/DocGen_Template__c.Record_Fi
 // 1.61 — HTML template type: header/footer fields
 import HEADER_HTML_FIELD from '@salesforce/schema/DocGen_Template__c.Header_Html__c';
 import FOOTER_HTML_FIELD from '@salesforce/schema/DocGen_Template__c.Footer_Html__c';
+// 1.68 — page orientation (Portrait | Landscape) + size + margins for PDF rendering
+import PAGE_ORIENTATION_FIELD from '@salesforce/schema/DocGen_Template__c.Page_Orientation__c';
+import PAGE_SIZE_FIELD from '@salesforce/schema/DocGen_Template__c.Page_Size__c';
+import PAGE_MARGINS_FIELD from '@salesforce/schema/DocGen_Template__c.Page_Margins__c';
+import CUSTOM_MARGINS_FIELD from '@salesforce/schema/DocGen_Template__c.Custom_Margins__c';
 import testRecordFilter from '@salesforce/apex/DocGenController.testRecordFilter';
 // 1.61 — HTML zip sidesteps File Upload Security via client-side unzip + per-part upload
 import saveHtmlTemplateImage from '@salesforce/apex/DocGenController.saveHtmlTemplateImage';
@@ -56,6 +61,11 @@ import { readZip, bytesToBase64 } from './docGenZipReader';
 import VER_IS_ACTIVE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Is_Active__c';
 import VER_CV_ID_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Content_Version_Id__c';
 import VER_WATERMARK_CV_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Watermark_Image_CV_Id__c';
+// 1.68 — orientation + size + margins snapshot on the version
+import VER_PAGE_ORIENTATION_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Page_Orientation__c';
+import VER_PAGE_SIZE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Page_Size__c';
+import VER_PAGE_MARGINS_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Page_Margins__c';
+import VER_CUSTOM_MARGINS_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Custom_Margins__c';
 
 // Field API name map — resolves namespace automatically
 const F = {
@@ -78,10 +88,19 @@ const F = {
     // 1.61 — HTML header/footer
     HeaderHtml: HEADER_HTML_FIELD.fieldApiName,
     FooterHtml: FOOTER_HTML_FIELD.fieldApiName,
+    // 1.68 — page orientation + size + margins
+    PageOrientation: PAGE_ORIENTATION_FIELD.fieldApiName,
+    PageSize: PAGE_SIZE_FIELD.fieldApiName,
+    PageMargins: PAGE_MARGINS_FIELD.fieldApiName,
+    CustomMargins: CUSTOM_MARGINS_FIELD.fieldApiName,
     // Version fields
     VerIsActive: VER_IS_ACTIVE_FIELD.fieldApiName,
     VerCvId: VER_CV_ID_FIELD.fieldApiName,
-    VerWatermarkCv: VER_WATERMARK_CV_FIELD.fieldApiName
+    VerWatermarkCv: VER_WATERMARK_CV_FIELD.fieldApiName,
+    VerPageOrientation: VER_PAGE_ORIENTATION_FIELD.fieldApiName,
+    VerPageSize: VER_PAGE_SIZE_FIELD.fieldApiName,
+    VerPageMargins: VER_PAGE_MARGINS_FIELD.fieldApiName,
+    VerCustomMargins: VER_CUSTOM_MARGINS_FIELD.fieldApiName
 };
 
 const COLUMNS = [
@@ -135,6 +154,10 @@ const VERSION_COLUMNS = [
     newTemplateCategory = '';
     @track newTemplateType = 'Word';
     @track newTemplateOutputFormat = 'PDF';
+    @track newTemplatePageOrientation = 'Portrait';
+    @track newTemplatePageSize = 'Letter';
+    @track newTemplatePageMargins = 'Default';
+    @track newTemplateCustomMargins = '';
     newTemplateObject = 'Account';
     newTemplateDesc = '';
     newTemplateQuery = '';
@@ -152,6 +175,10 @@ const VERSION_COLUMNS = [
     @track editTemplateType;
     editTemplateObject;
     @track editTemplateOutputFormat;
+    @track editTemplatePageOrientation = 'Portrait';
+    @track editTemplatePageSize = 'Letter';
+    @track editTemplatePageMargins = 'Default';
+    @track editTemplateCustomMargins = '';
     @track editTemplateWatermarkCvId;
     @track isUploadingWatermark = false;
     editTemplateDesc;
@@ -667,6 +694,10 @@ const VERSION_COLUMNS = [
         }
     }
     handleOutputFormatChange(event) { this.newTemplateOutputFormat = event.detail.value; }
+    handleNewPageOrientationChange(event) { this.newTemplatePageOrientation = event.detail.value; }
+    handleNewPageSizeChange(event) { this.newTemplatePageSize = event.detail.value; }
+    handleNewPageMarginsChange(event) { this.newTemplatePageMargins = event.detail.value; }
+    handleNewCustomMarginsChange(event) { this.newTemplateCustomMargins = event.detail.value; }
     handleDescChange(event) { this.newTemplateDesc = event.detail.value; }
 
     handleConfigChange(event) {
@@ -1111,6 +1142,10 @@ const VERSION_COLUMNS = [
     get headerSourceToggleLabel() { return this.showHeaderHtmlSource ? 'Show Editor' : 'Show HTML'; }
     get footerSourceToggleLabel() { return this.showFooterHtmlSource ? 'Show Editor' : 'Show HTML'; }
     handleEditOutputFormatChange(event) { this.editTemplateOutputFormat = event.detail.value; }
+    handleEditPageOrientationChange(event) { this.editTemplatePageOrientation = event.detail.value; }
+    handleEditPageSizeChange(event) { this.editTemplatePageSize = event.detail.value; }
+    handleEditPageMarginsChange(event) { this.editTemplatePageMargins = event.detail.value; }
+    handleEditCustomMarginsChange(event) { this.editTemplateCustomMargins = event.detail.value; }
     handleEditDescChange(event) { this.editTemplateDesc = event.detail.value; }
     handleEditDefaultChange(event) { this.editTemplateIsDefault = event.target.checked; }
     // 1.47 — runner visibility & sort handlers
@@ -1479,6 +1514,47 @@ const VERSION_COLUMNS = [
         return ['.docx'];
     }
 
+    get pageOrientationOptions() {
+        return [
+            { label: 'Portrait', value: 'Portrait' },
+            { label: 'Landscape', value: 'Landscape' }
+        ];
+    }
+
+    get pageSizeOptions() {
+        return [
+            { label: 'Letter (8.5 x 11 in)', value: 'Letter' },
+            { label: 'Legal (8.5 x 14 in)', value: 'Legal' },
+            { label: 'A4 (210 x 297 mm)', value: 'A4' }
+        ];
+    }
+
+    get pageMarginsOptions() {
+        return [
+            { label: 'Default for size', value: 'Default' },
+            { label: 'From source DOCX margins', value: 'FromSource' },
+            { label: 'Narrow (0.5 in)', value: 'Narrow' },
+            { label: 'Normal (1.0 in)', value: 'Normal' },
+            { label: 'Wide (1.5 in)', value: 'Wide' },
+            { label: 'Custom (specify below)', value: 'Custom' }
+        ];
+    }
+
+    /** Orientation/size/margins only apply to PDF output. Hide for Native/Excel. */
+    get showPageOrientation() {
+        const fmt = this.isCreating ? this.newTemplateOutputFormat : this.editTemplateOutputFormat;
+        return fmt === 'PDF';
+    }
+
+    /** Show Custom Margins text field only when "Custom" preset is selected. */
+    get showNewCustomMargins() {
+        return this.showPageOrientation && this.newTemplatePageMargins === 'Custom';
+    }
+
+    get showEditCustomMargins() {
+        return this.showPageOrientation && this.editTemplatePageMargins === 'Custom';
+    }
+
     get isEditTypeHtml() {
         return this.editTemplateType === 'HTML';
     }
@@ -1490,6 +1566,15 @@ const VERSION_COLUMNS = [
         fields[CATEGORY_FIELD.fieldApiName] = this.newTemplateCategory;
         fields[TYPE_FIELD.fieldApiName] = this.newTemplateType;
         fields[OUTPUT_FORMAT_FIELD.fieldApiName] = this.newTemplateOutputFormat;
+        // Page setup only meaningful for PDF output
+        if (this.newTemplateOutputFormat === 'PDF') {
+            fields[PAGE_ORIENTATION_FIELD.fieldApiName] = this.newTemplatePageOrientation;
+            fields[PAGE_SIZE_FIELD.fieldApiName] = this.newTemplatePageSize;
+            fields[PAGE_MARGINS_FIELD.fieldApiName] = this.newTemplatePageMargins;
+            if (this.newTemplatePageMargins === 'Custom') {
+                fields[CUSTOM_MARGINS_FIELD.fieldApiName] = this.newTemplateCustomMargins;
+            }
+        }
         fields[BASE_OBJECT_FIELD.fieldApiName] = this.newTemplateObject;
         fields[QUERY_CONFIG_FIELD.fieldApiName] = this._sanitizeQueryConfig(this.newTemplateQuery);
         fields[DESC_FIELD.fieldApiName] = this.newTemplateDesc;
@@ -1509,6 +1594,10 @@ const VERSION_COLUMNS = [
                 [F.Category]: this.newTemplateCategory,
                 [F.Type]: this.newTemplateType,
                 [F.OutputFormat]: this.newTemplateOutputFormat,
+                [F.PageOrientation]: this.newTemplatePageOrientation,
+                [F.PageSize]: this.newTemplatePageSize,
+                [F.PageMargins]: this.newTemplatePageMargins,
+                [F.CustomMargins]: this.newTemplateCustomMargins,
                 [F.BaseObject]: this.newTemplateObject,
                 [F.Desc]: this.newTemplateDesc,
                 [F.QueryConfig]: this.newTemplateQuery,
@@ -1614,6 +1703,10 @@ const VERSION_COLUMNS = [
             this.editTemplateType = row[F.Type];
             this.editTemplateObject = row[F.BaseObject];
             this.editTemplateOutputFormat = row[F.OutputFormat] || 'Native';
+            this.editTemplatePageOrientation = row[F.PageOrientation] || 'Portrait';
+            this.editTemplatePageSize = row[F.PageSize] || 'Letter';
+            this.editTemplatePageMargins = row[F.PageMargins] || 'Default';
+            this.editTemplateCustomMargins = row[F.CustomMargins] || '';
             this.editTemplateDesc = row[F.Desc];
             // Pass the raw stored config to the visual builder. V3 JSON must
             // NOT be flattened to V1 SOQL here — V1 can't represent filtered
@@ -1920,7 +2013,11 @@ const VERSION_COLUMNS = [
             'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets,
             'Record_Filter__c': this.editTemplateRecordFilter,
             'Header_Html__c': this.editTemplateHeaderHtml,
-            'Footer_Html__c': this.editTemplateFooterHtml
+            'Footer_Html__c': this.editTemplateFooterHtml,
+            'Page_Orientation__c': this.editTemplatePageOrientation,
+            'Page_Size__c': this.editTemplatePageSize,
+            'Page_Margins__c': this.editTemplatePageMargins,
+            'Custom_Margins__c': this.editTemplateCustomMargins
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 
@@ -1958,7 +2055,11 @@ const VERSION_COLUMNS = [
             'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets,
             'Record_Filter__c': this.editTemplateRecordFilter,
             'Header_Html__c': this.editTemplateHeaderHtml,
-            'Footer_Html__c': this.editTemplateFooterHtml
+            'Footer_Html__c': this.editTemplateFooterHtml,
+            'Page_Orientation__c': this.editTemplatePageOrientation,
+            'Page_Size__c': this.editTemplatePageSize,
+            'Page_Margins__c': this.editTemplatePageMargins,
+            'Custom_Margins__c': this.editTemplateCustomMargins
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 
@@ -2209,6 +2310,10 @@ const VERSION_COLUMNS = [
         this.newTemplateDesc = '';
         this.newTemplateQuery = '';
         this.newTemplateOutputFormat = 'PDF';
+        this.newTemplatePageOrientation = 'Portrait';
+        this.newTemplatePageSize = 'Letter';
+        this.newTemplatePageMargins = 'Default';
+        this.newTemplateCustomMargins = '';
         this.newTemplateObject = 'Account';
         this.createdTemplateId = null;
         this.isCreating = true;

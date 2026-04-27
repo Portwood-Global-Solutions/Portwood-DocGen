@@ -162,6 +162,10 @@ public with sharing class DocGenService {
         String templateType;
         String outputFormat;
         String docTitle;
+        String pageOrientation; // 'Landscape' routes through DocGenPdfRenderer VF page; otherwise Blob.toPdf portrait
+        String pageSize;        // 1.68 — Letter / Legal / A4
+        String pageMargins;     // 1.68 — Default / Narrow / Normal / Wide / Custom
+        String customMargins;   // 1.68 — "T,R,B,L" inches when pageMargins == Custom
 
         MergeResult() {
             processedXmlEntries = new Map<String, String>();
@@ -232,6 +236,10 @@ public with sharing class DocGenService {
         MergeResult mr = new MergeResult();
         mr.templateType = templateType;
         mr.outputFormat = outputFormat;
+        mr.pageOrientation = (String) dataMap.get('pageOrientation');
+        mr.pageSize = (String) dataMap.get('pageSize');
+        mr.pageMargins = (String) dataMap.get('pageMargins');
+        mr.customMargins = (String) dataMap.get('customMargins');
 
         // HTML template type (v1.61+): no ZIP, no DOCX XML — raw HTML body with
         // merge-tag substitution + header/footer fields wrapped via @page CSS
@@ -1477,27 +1485,42 @@ public with sharing class DocGenService {
             return Blob.toPdf(lastRenderedHtml);
         }
 
-        // HTML template type: documentXml is a ready-to-render HTML document —
-        // skip the DOCX→HTML conversion entirely.
-        if (mr.templateType == 'HTML') {
-            lastRenderedHtml = mr.documentXml;
-            return Blob.toPdf(mr.documentXml);
-        }
+        // Orientation override drives canonical letter dimensions in the
+        // generated @page CSS — set BEFORE convertToHtml so parsePageDimensions
+        // sees it. Cleared in finally to keep the static from leaking across
+        // back-to-back renders. Blob.toPdf honors @page size when given
+        // valid CSS (`size: 11in 8.5in` for landscape, `8.5in 11in` for portrait);
+        // mixing dimensions with the `landscape` keyword is invalid CSS and
+        // falls back to portrait letter.
+        DocGenHtmlRenderer.orientationOverride = mr.pageOrientation;
+        DocGenHtmlRenderer.pageSizeOverride = mr.pageSize;
+        DocGenHtmlRenderer.marginsOverride = mr.pageMargins;
+        DocGenHtmlRenderer.customMarginsOverride = mr.customMargins;
+        try {
+            // HTML template type: documentXml is a ready-to-render HTML document —
+            // skip the DOCX→HTML conversion entirely.
+            if (mr.templateType == 'HTML') {
+                lastRenderedHtml = mr.documentXml;
+                return Blob.toPdf(mr.documentXml);
+            }
 
-        Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-        // Pass styles.xml to renderer for dynamic table style resolution
-        if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
-            DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
-        }
-        setNumberingXml(mr);
-        applyWatermarkOverride(templateId);
-        String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
-        lastRenderedHtml = html;
+            Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
+            // Pass styles.xml to renderer for dynamic table style resolution
+            if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
+                DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
+            }
+            setNumberingXml(mr);
+            applyWatermarkOverride(templateId);
+            String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
+            lastRenderedHtml = html;
 
-        // Blob.toPdf() with the Spring '26 Release Update resolves relative Salesforce
-        // ContentVersion URLs (/sfc/servlet.shepherd/...) natively via the VF rendering engine.
-        // Requires: Spring '26 Release Update "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations"
-        return Blob.toPdf(html);
+            return Blob.toPdf(html);
+        } finally {
+            DocGenHtmlRenderer.orientationOverride = null;
+            DocGenHtmlRenderer.pageSizeOverride = null;
+            DocGenHtmlRenderer.marginsOverride = null;
+            DocGenHtmlRenderer.customMarginsOverride = null;
+        }
     }
 
     /**
@@ -4565,6 +4588,10 @@ public with sharing class DocGenService {
         MergeResult mr = new MergeResult();
         mr.templateType = templateType;
         mr.outputFormat = outputFormat;
+        mr.pageOrientation = (String) dataMap.get('pageOrientation');
+        mr.pageSize = (String) dataMap.get('pageSize');
+        mr.pageMargins = (String) dataMap.get('pageMargins');
+        mr.customMargins = (String) dataMap.get('customMargins');
         mr.relsPath = 'word/_rels/document.xml.rels';
         mr.mediaPath = 'word/media/';
 
@@ -4819,6 +4846,13 @@ public with sharing class DocGenService {
             ? null
             : processXml(decodeBraceEntities(footerHtml), recordDataMap);
 
+        // 1.68 — set the renderer overrides BEFORE wrapping so wrapHtmlForPdf can
+        // call computePageCss() and pick up the size/orientation/margins from
+        // the merge result. Statics are cleared in renderPdf's finally block.
+        DocGenHtmlRenderer.orientationOverride = mr.pageOrientation;
+        DocGenHtmlRenderer.pageSizeOverride = mr.pageSize;
+        DocGenHtmlRenderer.marginsOverride = mr.pageMargins;
+        DocGenHtmlRenderer.customMarginsOverride = mr.customMargins;
         mr.documentXml = wrapHtmlForPdf(mergedBody, sourceStyles, mergedHeader, mergedFooter);
 
         String title = generateDocTitle(titleFormat, recordDataMap);
@@ -4917,7 +4951,29 @@ public with sharing class DocGenService {
         Boolean headerHasCounters = hasPageCounterTokens(header);
         Boolean footerHasCounters = hasPageCounterTokens(footer);
 
-        String css = '@page { size: letter; margin: 1in;';
+        // 1.68 — when admin set Page_Size__c or Page_Orientation__c, emit explicit
+        // inch dimensions. Otherwise fall back to "size: letter" (the v1.61–1.67
+        // default) for backward compat. Never mix dimensions with the `landscape`
+        // keyword — invalid CSS, Flying Saucer silently falls back to portrait.
+        String sizeCss;
+        String marginsCss;
+        if (String.isNotBlank(DocGenHtmlRenderer.pageSizeOverride) || String.isNotBlank(DocGenHtmlRenderer.orientationOverride)) {
+            String size = String.isNotBlank(DocGenHtmlRenderer.pageSizeOverride) ? DocGenHtmlRenderer.pageSizeOverride : 'Letter';
+            Boolean isLandscape = 'Landscape'.equalsIgnoreCase(DocGenHtmlRenderer.orientationOverride);
+            Decimal portraitW; Decimal portraitH;
+            if ('Legal'.equalsIgnoreCase(size)) { portraitW = 8.5; portraitH = 14.0; }
+            else if ('A4'.equalsIgnoreCase(size)) { portraitW = 8.27; portraitH = 11.69; }
+            else { portraitW = 8.5; portraitH = 11.0; }
+            Decimal pageW = isLandscape ? portraitH : portraitW;
+            Decimal pageH = isLandscape ? portraitW : portraitH;
+            sizeCss = pageW + 'in ' + pageH + 'in';
+            marginsCss = resolveMarginsCss(size, isLandscape);
+        } else {
+            sizeCss = 'letter';
+            marginsCss = 'margin: 1in';
+        }
+
+        String css = '@page { size: ' + sizeCss + '; ' + marginsCss + ';';
         if (String.isNotBlank(header)) {
             if (headerHasCounters) {
                 css += ' @top-center { ' + buildPageMarginContentCss(header) + ' vertical-align: bottom; font-size: 9pt; color: #444; }';
@@ -4963,6 +5019,54 @@ public with sharing class DocGenService {
     private static Boolean hasPageCounterTokens(String html) {
         if (String.isBlank(html)) { return false; }
         return html.contains('{PageNumber}') || html.contains('{TotalPages}');
+    }
+
+    /**
+     * 1.68 — builds the `margin: ...` portion of the @page CSS rule based on
+     * the renderer overrides (Page_Margins__c preset / Custom_Margins__c). Mirrors
+     * DocGenHtmlRenderer.resolveMarginsForOverride but emits CSS instead of twips.
+     */
+    private static String resolveMarginsCss(String size, Boolean isLandscape) {
+        String preset = String.isNotBlank(DocGenHtmlRenderer.marginsOverride) ? DocGenHtmlRenderer.marginsOverride : 'Default';
+        if ('Narrow'.equalsIgnoreCase(preset)) return 'margin: 0.5in';
+        if ('Normal'.equalsIgnoreCase(preset)) return 'margin: 1in';
+        if ('Wide'.equalsIgnoreCase(preset)) return 'margin: 1.5in';
+        if ('Custom'.equalsIgnoreCase(preset)) {
+            String custom = parseCustomMarginsCss(DocGenHtmlRenderer.customMarginsOverride);
+            if (custom != null) return custom;
+        }
+        // 'FromSource' on HTML templates falls through to size-default since HTML
+        // has no <w:pgMar>. DOCX-source FromSource is handled by the renderer's
+        // parsePageDimensions path before this method is reached.
+        Decimal m = isLandscape ? 0.5 : 1.0;
+        return 'margin: ' + m + 'in';
+    }
+
+    private static String parseCustomMarginsCss(String raw) {
+        if (String.isBlank(raw)) return null;
+        try {
+            String cleaned = raw.replaceAll('\\s+', ' ').trim();
+            List<String> parts;
+            if (cleaned.contains(',')) {
+                parts = cleaned.split('\\s*,\\s*');
+            } else {
+                parts = cleaned.split(' ');
+            }
+            if (parts.isEmpty()) return null;
+            Decimal t = clampMarginCss(Decimal.valueOf(parts[0].trim()));
+            Decimal r = parts.size() >= 2 ? clampMarginCss(Decimal.valueOf(parts[1].trim())) : t;
+            Decimal b = parts.size() >= 3 ? clampMarginCss(Decimal.valueOf(parts[2].trim())) : t;
+            Decimal l = parts.size() >= 4 ? clampMarginCss(Decimal.valueOf(parts[3].trim())) : r;
+            return 'margin: ' + t + 'in ' + r + 'in ' + b + 'in ' + l + 'in';
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Decimal clampMarginCss(Decimal v) {
+        if (v < 0.1) return 0.1;
+        if (v > 3.0) return 3.0;
+        return v;
     }
 
     /**

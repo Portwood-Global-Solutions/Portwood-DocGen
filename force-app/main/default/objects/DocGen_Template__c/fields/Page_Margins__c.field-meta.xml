@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Page_Margins__c</fullName>
+    <description>PDF page margin preset. "Default for size" uses 1in for Letter/Legal portrait and 0.5in for landscape; A4 uses 2.54cm/1.27cm. Custom reads Custom_Margins__c.</description>
+    <label>Page Margins</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Default</fullName>
+                <default>true</default>
+                <label>Default for size</label>
+            </value>
+            <value>
+                <fullName>FromSource</fullName>
+                <default>false</default>
+                <label>From source DOCX margins</label>
+            </value>
+            <value>
+                <fullName>Narrow</fullName>
+                <default>false</default>
+                <label>Narrow (0.5 in)</label>
+            </value>
+            <value>
+                <fullName>Normal</fullName>
+                <default>false</default>
+                <label>Normal (1.0 in)</label>
+            </value>
+            <value>
+                <fullName>Wide</fullName>
+                <default>false</default>
+                <label>Wide (1.5 in)</label>
+            </value>
+            <value>
+                <fullName>Custom</fullName>
+                <default>false</default>
+                <label>Custom (use Custom_Margins__c)</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

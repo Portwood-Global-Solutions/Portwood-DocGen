@@ -31,6 +31,18 @@ public with sharing class DocGenHtmlRenderer {
 
     // Styles XML from template — set before calling convertToHtml for style resolution
     public static String stylesXml;
+    // Admin-set orientation override ('Landscape' | 'Portrait'). When set, uses
+    // canonical 11×8.5 / 8.5×11 dimensions regardless of what the source DOCX
+    // declares — DOCX page dims are often stale or carry old margins from the
+    // author's environment, so the field is the source of truth.
+    public static String orientationOverride;
+    // 1.68 — page size + margins overrides. When set, parsePageDimensions resolves
+    // canonical dimensions from the (size × orientation) matrix instead of reading
+    // <w:pgSz>/<w:pgMar> from the source DOCX. Margins follow the preset, or parse
+    // Custom_Margins__c when marginsOverride == 'Custom'. Cleared in renderPdf finally.
+    public static String pageSizeOverride;
+    public static String marginsOverride;
+    public static String customMarginsOverride;
     // Document XML for the current render — set at top of convertToHtml so deeper
     // helpers (e.g. processPict for watermark sizing) can call parsePageDimensions
     // without threading documentXml through every method signature.
@@ -235,6 +247,12 @@ public with sharing class DocGenHtmlRenderer {
 
         // Build @page rule with running header/footer margin boxes (Flying Saucer)
         // CSS @page rule order: properties before nested margin boxes.
+        // CRITICAL: the @page `size` property is EITHER `<length> <length>` for
+        // explicit dimensions OR `<page-name> [landscape|portrait]` for a named
+        // size. Mixing the two (e.g. `size: 11in 8.5in landscape`) is invalid
+        // CSS and Flying Saucer falls back to default 8.5×11 portrait. Keep
+        // the explicit-dimension form: width > height implicitly produces
+        // landscape orientation through the engine's MediaBox derivation.
         String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
             'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
             pageDims.get('marginBottom') + 'in ' + pageDims.get('marginLeft') + 'in;';
@@ -1494,6 +1512,53 @@ public with sharing class DocGenHtmlRenderer {
         Integer mBottom = 1440;
         Integer mLeft = 1440;
 
+        // 1.68 — admin override path. When orientationOverride OR pageSizeOverride
+        // is set, resolve canonical dimensions from the (size × orientation) matrix
+        // and skip parsing source pgSz/pgMar entirely. This is the source of truth
+        // when admins set Page_Size__c / Page_Orientation__c on the template — DOCX
+        // page dims are often stale or carry old margins from the author's tool.
+        if (String.isNotBlank(orientationOverride) || String.isNotBlank(pageSizeOverride)) {
+            Boolean isLandscape = 'Landscape'.equalsIgnoreCase(orientationOverride);
+            String size = String.isNotBlank(pageSizeOverride) ? pageSizeOverride : 'Letter';
+            // Portrait twips for each size (W, H)
+            Integer portraitW; Integer portraitH;
+            if ('Legal'.equalsIgnoreCase(size)) {
+                portraitW = 12240; portraitH = 20160;          // 8.5 x 14 in
+            } else if ('A4'.equalsIgnoreCase(size)) {
+                portraitW = 11906; portraitH = 16838;          // 210 x 297 mm
+            } else {
+                portraitW = 12240; portraitH = 15840;          // Letter 8.5 x 11 in
+            }
+            if (isLandscape) {
+                pgW = portraitH; pgH = portraitW;
+            } else {
+                pgW = portraitW; pgH = portraitH;
+            }
+            // Resolve margins: preset → custom string → size-appropriate default
+            // Special case: 'FromSource' parses <w:pgMar> from the source DOCX so
+            // the admin keeps their authored margins while we still flip page dims.
+            // Falls back to size-default if pgMar can't be parsed (HTML templates,
+            // non-DOCX source, missing tag).
+            if ('FromSource'.equalsIgnoreCase(marginsOverride)) {
+                Integer[] sourceMargins = readSourceMargins(xml);
+                if (sourceMargins != null) {
+                    mTop = sourceMargins[0]; mRight = sourceMargins[1];
+                    mBottom = sourceMargins[2]; mLeft = sourceMargins[3];
+                } else {
+                    // No source margins available — use size-default
+                    Integer m = isLandscape ? 720 : 1440;
+                    mTop = m; mRight = m; mBottom = m; mLeft = m;
+                }
+            } else {
+                Integer[] resolvedMargins = resolveMarginsForOverride(size, isLandscape);
+                mTop = resolvedMargins[0];
+                mRight = resolvedMargins[1];
+                mBottom = resolvedMargins[2];
+                mLeft = resolvedMargins[3];
+            }
+            return finalizePageDims(dims, pgW, pgH, mTop, mRight, mBottom, mLeft);
+        }
+
         if (String.isNotBlank(xml) && xml.contains('<w:pgSz')) {
             try {
                 String val;
@@ -1515,15 +1580,113 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
+        return finalizePageDims(dims, pgW, pgH, mTop, mRight, mBottom, mLeft);
+    }
+
+    /** Shared finalization for parsePageDimensions — assembles the inch-converted map. */
+    private static Map<String, Decimal> finalizePageDims(Map<String, Decimal> dims,
+            Integer pgW, Integer pgH, Integer mTop, Integer mRight, Integer mBottom, Integer mLeft) {
         dims.put('pageWidth', pgW / 1440.0);
         dims.put('pageHeight', pgH / 1440.0);
         dims.put('marginTop', mTop / 1440.0);
         dims.put('marginRight', mRight / 1440.0);
         dims.put('marginBottom', mBottom / 1440.0);
         dims.put('marginLeft', mLeft / 1440.0);
-        dims.put('contentHeight', (pgH - mTop - mBottom - 288) / 1440.0); // 288 twips buffer
+        dims.put('contentHeight', (pgH - mTop - mBottom - 288) / 1440.0);
         dims.put('contentWidth', (pgW - mLeft - mRight) / 1440.0);
         return dims;
+    }
+
+    /**
+     * 1.68 — reads <w:pgMar> from the source DOCX XML (twips, T/R/B/L). Returns
+     * null when the tag is missing or the document isn't DOCX (e.g. HTML body).
+     * Used by the FromSource margins preset so admins can carry authored margins
+     * forward while still using our canonical page-size dimensions.
+     */
+    private static Integer[] readSourceMargins(String xml) {
+        if (String.isBlank(xml) || !xml.contains('<w:pgMar')) return null;
+        try {
+            String t = extractAttr(xml, 'w:pgMar', 'w:top');
+            String r = extractAttr(xml, 'w:pgMar', 'w:right');
+            String b = extractAttr(xml, 'w:pgMar', 'w:bottom');
+            String l = extractAttr(xml, 'w:pgMar', 'w:left');
+            if (t == null || r == null || b == null || l == null) return null;
+            if (!Pattern.matches('-?\\d+', t) || !Pattern.matches('-?\\d+', r)
+                || !Pattern.matches('-?\\d+', b) || !Pattern.matches('-?\\d+', l)) return null;
+            return new Integer[]{
+                Math.abs(Integer.valueOf(t)), Math.abs(Integer.valueOf(r)),
+                Math.abs(Integer.valueOf(b)), Math.abs(Integer.valueOf(l))
+            };
+        } catch (Exception e) { return null; }
+    }
+
+    /**
+     * 1.68 — resolves margins (in twips, T/R/B/L order) for the override path.
+     * Preset takes priority: Narrow/Normal/Wide are uniform; Custom parses the
+     * Custom_Margins__c string; Default falls back to size-appropriate defaults.
+     * 1 inch = 1440 twips. A4 defaults: 2.54cm portrait / 1.27cm landscape.
+     */
+    private static Integer[] resolveMarginsForOverride(String size, Boolean isLandscape) {
+        String preset = String.isNotBlank(marginsOverride) ? marginsOverride : 'Default';
+        if ('Narrow'.equalsIgnoreCase(preset)) {
+            return new Integer[]{720, 720, 720, 720};
+        }
+        if ('Normal'.equalsIgnoreCase(preset)) {
+            return new Integer[]{1440, 1440, 1440, 1440};
+        }
+        if ('Wide'.equalsIgnoreCase(preset)) {
+            return new Integer[]{2160, 2160, 2160, 2160};
+        }
+        if ('Custom'.equalsIgnoreCase(preset)) {
+            Integer[] parsed = parseCustomMargins(customMarginsOverride);
+            if (parsed != null) return parsed;
+            // Fall through to default if parse failed
+        }
+        // Default for size — A4 uses metric defaults, Letter/Legal use 1in/0.5in
+        if ('A4'.equalsIgnoreCase(size)) {
+            // 2.54cm = 1.0in = 1440 twips ; 1.27cm = 0.5in = 720 twips
+            Integer m = isLandscape ? 720 : 1440;
+            return new Integer[]{m, m, m, m};
+        }
+        // Letter / Legal default
+        Integer mm = isLandscape ? 720 : 1440;
+        return new Integer[]{mm, mm, mm, mm};
+    }
+
+    /**
+     * Parses Custom_Margins__c. Accepts "T,R,B,L" or "T R B L" in inches,
+     * or a single value applied to all four sides. Returns twips array or null.
+     */
+    private static Integer[] parseCustomMargins(String raw) {
+        if (String.isBlank(raw)) return null;
+        try {
+            String cleaned = raw.replaceAll('\\s+', ' ').trim();
+            List<String> parts;
+            if (cleaned.contains(',')) {
+                parts = cleaned.split('\\s*,\\s*');
+            } else {
+                parts = cleaned.split(' ');
+            }
+            if (parts.isEmpty()) return null;
+            Decimal t = Decimal.valueOf(parts[0].trim());
+            Decimal r = parts.size() >= 2 ? Decimal.valueOf(parts[1].trim()) : t;
+            Decimal b = parts.size() >= 3 ? Decimal.valueOf(parts[2].trim()) : t;
+            Decimal l = parts.size() >= 4 ? Decimal.valueOf(parts[3].trim()) : r;
+            // Clamp to sane range (0.1in - 3in) to prevent rendering disasters
+            t = clampMargin(t); r = clampMargin(r); b = clampMargin(b); l = clampMargin(l);
+            return new Integer[]{
+                (Integer)(t * 1440), (Integer)(r * 1440),
+                (Integer)(b * 1440), (Integer)(l * 1440)
+            };
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Decimal clampMargin(Decimal v) {
+        if (v < 0.1) return 0.1;
+        if (v > 3.0) return 3.0;
+        return v;
     }
 
     /**

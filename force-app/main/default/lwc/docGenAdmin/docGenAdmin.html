@@ -123,6 +123,14 @@
                                     <div class="slds-col slds-size_1-of-2">
                                         <lightning-combobox label="Type" value={newTemplateType} options={typeOptions} onchange={handleTypeChange} required></lightning-combobox>
                                         <lightning-combobox label="Output Format" value={newTemplateOutputFormat} options={outputFormatOptions} onchange={handleOutputFormatChange} class="slds-var-m-top_medium" required></lightning-combobox>
+                                        <template if:true={showPageOrientation}>
+                                            <lightning-combobox label="Page Orientation" value={newTemplatePageOrientation} options={pageOrientationOptions} onchange={handleNewPageOrientationChange} class="slds-var-m-top_medium" field-level-help="Portrait or Landscape — applies to PDF output."></lightning-combobox>
+                                            <lightning-combobox label="Page Size" value={newTemplatePageSize} options={pageSizeOptions} onchange={handleNewPageSizeChange} class="slds-var-m-top_medium" field-level-help="Letter (US default), Legal, or A4 (international)."></lightning-combobox>
+                                            <lightning-combobox label="Page Margins" value={newTemplatePageMargins} options={pageMarginsOptions} onchange={handleNewPageMarginsChange} class="slds-var-m-top_medium" field-level-help="Default uses 1in portrait / 0.5in landscape. Pick a preset or Custom."></lightning-combobox>
+                                            <template if:true={showNewCustomMargins}>
+                                                <lightning-input label="Custom Margins (in)" value={newTemplateCustomMargins} onchange={handleNewCustomMarginsChange} class="slds-var-m-top_medium" placeholder="0.75 or 0.5,0.75,0.5,0.75" field-level-help="One value applies to all sides; four values are Top,Right,Bottom,Left in inches. Range 0.1–3.0."></lightning-input>
+                                            </template>
+                                        </template>
                                         <template if:true={isRecordDataSource}>
                                             <template if:true={newTemplateObject}>
                                                 <div class="slds-var-m-top_medium">
@@ -508,6 +516,14 @@
                                 <div class="slds-col slds-size_1-of-2">
                                     <lightning-combobox label="Type" value={editTemplateType} options={typeOptions} onchange={handleEditTypeChange} required></lightning-combobox>
                                     <lightning-combobox label="Output Format" value={editTemplateOutputFormat} options={outputFormatOptions} onchange={handleEditOutputFormatChange} class="slds-var-m-top_medium" required></lightning-combobox>
+                                    <template if:true={showPageOrientation}>
+                                        <lightning-combobox label="Page Orientation" value={editTemplatePageOrientation} options={pageOrientationOptions} onchange={handleEditPageOrientationChange} class="slds-var-m-top_medium" field-level-help="Portrait or Landscape — applies to PDF output."></lightning-combobox>
+                                        <lightning-combobox label="Page Size" value={editTemplatePageSize} options={pageSizeOptions} onchange={handleEditPageSizeChange} class="slds-var-m-top_medium" field-level-help="Letter (US default), Legal, or A4 (international)."></lightning-combobox>
+                                        <lightning-combobox label="Page Margins" value={editTemplatePageMargins} options={pageMarginsOptions} onchange={handleEditPageMarginsChange} class="slds-var-m-top_medium" field-level-help="Default uses 1in portrait / 0.5in landscape. Pick a preset or Custom."></lightning-combobox>
+                                        <template if:true={showEditCustomMargins}>
+                                            <lightning-input label="Custom Margins (in)" value={editTemplateCustomMargins} onchange={handleEditCustomMarginsChange} class="slds-var-m-top_medium" placeholder="0.75 or 0.5,0.75,0.5,0.75" field-level-help="One value applies to all sides; four values are Top,Right,Bottom,Left in inches. Range 0.1–3.0."></lightning-input>
+                                        </template>
+                                    </template>
                                     <lightning-input label="Base Object API Name" value={editTemplateObject} readonly class="slds-var-m-top_medium"></lightning-input>
                                     <lightning-input type="toggle" label="Default Template for this Object" checked={editTemplateIsDefault} onchange={handleEditDefaultChange} class="slds-var-m-top_medium" message-toggle-active="Yes" message-toggle-inactive="No"></lightning-input>
                                     

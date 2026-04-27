@@ -15,7 +15,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
 
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c,
-                Header_Html__c, Footer_Html__c
+                Header_Html__c, Footer_Html__c, Page_Orientation__c, Page_Size__c, Page_Margins__c, Custom_Margins__c
             FROM DocGen_Template__c
             WHERE Id = :templateId
             WITH SYSTEM_MODE
@@ -48,7 +48,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             'outputFormat' => template.Output_Format__c,
             'titleFormat' => template.Document_Title_Format__c,
             'headerHtml' => template.Header_Html__c,
-            'footerHtml' => template.Footer_Html__c
+            'footerHtml' => template.Footer_Html__c,
+            'pageOrientation' => template.Page_Orientation__c,
+            'pageSize' => template.Page_Size__c,
+            'pageMargins' => template.Page_Margins__c,
+            'customMargins' => template.Custom_Margins__c
         };
     }
 
@@ -73,7 +77,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         if (cachedTemplateId != templateId || cachedTemplateEnvelope == null) {
             /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Template__c> templates = [SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c,
-                    Header_Html__c, Footer_Html__c
+                    Header_Html__c, Footer_Html__c, Page_Orientation__c, Page_Size__c, Page_Margins__c, Custom_Margins__c
                 FROM DocGen_Template__c
                 WHERE Id = :templateId
                 WITH SYSTEM_MODE
@@ -92,7 +96,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 'outputFormat' => template.Output_Format__c,
                 'titleFormat' => template.Document_Title_Format__c,
                 'headerHtml' => template.Header_Html__c,
-                'footerHtml' => template.Footer_Html__c
+                'footerHtml' => template.Footer_Html__c,
+                'pageOrientation' => template.Page_Orientation__c,
+                'pageSize' => template.Page_Size__c,
+                'pageMargins' => template.Page_Margins__c,
+                'customMargins' => template.Custom_Margins__c
             };
             cachedTemplateId = templateId;
         }
@@ -1405,6 +1413,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                    Test_Record_Id__c, Output_Format__c, Document_Title_Format__c, Is_Default__c,
                    Sort_Order__c, Lock_Output_Format__c, Specific_Record_Ids__c, Required_Permission_Sets__c,
                    Record_Filter__c, Header_Html__c, Footer_Html__c,
+                   Page_Orientation__c, Page_Size__c, Page_Margins__c, Custom_Margins__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
@@ -1475,6 +1484,19 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             }
             if (fields.containsKey('Footer_Html__c')) {
                 template.Footer_Html__c = (String) fields.get('Footer_Html__c');
+            }
+            // 1.68 — page orientation, size, margins
+            if (fields.containsKey('Page_Orientation__c')) {
+                template.Page_Orientation__c = (String) fields.get('Page_Orientation__c');
+            }
+            if (fields.containsKey('Page_Size__c')) {
+                template.Page_Size__c = (String) fields.get('Page_Size__c');
+            }
+            if (fields.containsKey('Page_Margins__c')) {
+                template.Page_Margins__c = (String) fields.get('Page_Margins__c');
+            }
+            if (fields.containsKey('Custom_Margins__c')) {
+                template.Custom_Margins__c = (String) fields.get('Custom_Margins__c');
             }
             // Update Default flag if provided — enforce one default per object
             if (fields.containsKey('Is_Default__c')) {
@@ -1558,6 +1580,13 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 version.Description__c = (String) fields.get('Description__c');
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
+                // 1.68 — snapshot the page orientation, size, and margins so each
+                // version remembers the PDF page setup it was rendered against,
+                // even if the template-level fields change later.
+                version.Page_Orientation__c = (String) fields.get('Page_Orientation__c');
+                version.Page_Size__c = (String) fields.get('Page_Size__c');
+                version.Page_Margins__c = (String) fields.get('Page_Margins__c');
+                version.Custom_Margins__c = (String) fields.get('Custom_Margins__c');
 
                 // Carry forward the watermark from the previous active version so a
                 // template re-save (or any new version) doesn't silently lose the

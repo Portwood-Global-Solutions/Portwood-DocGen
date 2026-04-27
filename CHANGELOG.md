@@ -1,5 +1,41 @@
 # Changelog
 
+## v1.68.0 — Page Setup (Size, Orientation, Margins) + Save-as-New-Version persistence fix
+
+Promoted package: `04tal000006qt1lAAA` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qt1lAAA)
+
+### Admin-driven PDF page setup (size × orientation × margins)
+
+Four new picklist/text fields on `DocGen_Template__c` (mirrored on `DocGen_Template_Version__c` for snapshot):
+
+- **`Page_Size__c`** — Letter (default) / Legal / A4
+- **`Page_Orientation__c`** — Portrait (default) / Landscape
+- **`Page_Margins__c`** — Default for size / **From source DOCX margins** / Narrow (0.5") / Normal (1.0") / Wide (1.5") / Custom
+- **`Custom_Margins__c`** — text "T,R,B,L" inches when Custom selected (single value applies to all sides; range clamped 0.1–3.0in)
+
+When set, `DocGenHtmlRenderer.parsePageDimensions` resolves canonical dimensions from the (size × orientation) matrix instead of reading source DOCX `<w:pgSz>` — so admins can flip a Word template authored in portrait into a landscape PDF without re-authoring. The "From source DOCX margins" preset keeps the canonical page dims but reads `<w:pgMar>` from the source so authored margins survive (HTML templates fall back to size-default).
+
+### `wrapHtmlForPdf` honors page setup
+
+HTML-template PDFs now emit explicit `@page { size: <width>in <height>in; margin: ...; }` based on the renderer override statics. Backward-compat: when no override is set, falls back to the v1.61–1.67 default (`size: letter; margin: 1in`).
+
+### LWC wizard — Step 1 Page Setup
+
+`docGenAdmin` Step 1 of the create wizard and the edit-modal Settings tab now expose Page Orientation, Page Size, Page Margins, and (conditionally) Custom Margins comboboxes — all gated on Output Format = PDF. Both **Save Details** and **Save as New Version** persist the four fields on Template + version snapshot.
+
+### Save-as-New-Version persistence fix
+
+`DocGenController.getAllTemplates()` was missing the four new fields in its SOQL — so the LWC's edit-modal load fell back to default values, and Save-as-New-Version then wrote those defaults regardless of what the user chose. SOQL extended; the wired result now carries the persisted page setup correctly.
+
+### Validation
+
+- 1043 Apex tests passing (added `DocGenPageSetupTest` covering size×orientation matrix, margin presets, custom-margin parsing/clamping, FromSource fallback, save persistence, wired SOQL inclusion)
+- 75% org-wide coverage maintained
+- Code Analyzer Security + AppExchange: 0 High violations (38 Moderate baseline)
+- 6-combo size×orientation MediaBox matrix validated end-to-end (Letter/Legal/A4 × Portrait/Landscape) in `e2e-03-generate-pdf.apex`
+
+---
+
 ## v1.67.0 — V4 Apex Data Provider wizard, watermark carry-forward, IP capture hardening
 
 Promoted package: `04tal000006qqOrAAI` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006qqOrAAI)

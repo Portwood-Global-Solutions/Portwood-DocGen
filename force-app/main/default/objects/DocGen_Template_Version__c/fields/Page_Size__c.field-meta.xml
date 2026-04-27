@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Page_Size__c</fullName>
+    <description>Snapshot of the template's Page_Size__c at the time this version was saved. Lets older versions render at their original page size even if the template-level field is later changed.</description>
+    <label>Page Size</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Letter</fullName>
+                <default>true</default>
+                <label>Letter (8.5 x 11 in)</label>
+            </value>
+            <value>
+                <fullName>Legal</fullName>
+                <default>false</default>
+                <label>Legal (8.5 x 14 in)</label>
+            </value>
+            <value>
+                <fullName>A4</fullName>
+                <default>false</default>
+                <label>A4 (210 x 297 mm)</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
