@@ -5,7 +5,6 @@
  * Peak heap stays under 12MB even for 10K+ rows.
  */
 public with sharing class DocGenGiantQueryAssembler implements Queueable {
-
     private static final Integer FRAGS_PER_PASS = 50; // ~1.15MB per pass
     private static final Integer ROWS_PER_PDF_CHUNK = 2000; // Max rows per Blob.toPdf() call
 
@@ -28,8 +27,15 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      * the template uses V1 flat, V2, or V3 query config format. Without these, the
      * resolver has to reparse Query_Config__c and only V3 parses cleanly as JSON.
      */
-    public DocGenGiantQueryAssembler(Id jobId, Id templateId, Id recordId,
-            String giantRelationshipName, String childObjectName, String lookupFieldName, String whereClauseOverride) {
+    public DocGenGiantQueryAssembler(
+        Id jobId,
+        Id templateId,
+        Id recordId,
+        String giantRelationshipName,
+        String childObjectName,
+        String lookupFieldName,
+        String whereClauseOverride
+    ) {
         this.jobId = jobId;
         this.templateId = templateId;
         this.recordId = recordId;
@@ -52,10 +58,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             Set<Id> fragDocIds = new Set<Id>();
 
             List<ContentVersion> frags = [
-                SELECT Title, VersionData, ContentDocumentId FROM ContentVersion
-                WHERE Title LIKE :(prefix + '%')
-                AND Title != :finalExclude
-                AND (NOT Title LIKE :partExclude)
+                SELECT Title, VersionData, ContentDocumentId
+                FROM ContentVersion
+                WHERE Title LIKE :(prefix + '%') AND Title != :finalExclude AND (NOT Title LIKE :partExclude)
                 ORDER BY Title
                 LIMIT 10000 // NOPMD — need all fragments for assembly
             ];
@@ -74,7 +79,6 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             if (!fragDocIds.isEmpty() && Schema.sObjectType.ContentDocument.isDeletable()) {
                 delete [SELECT Id FROM ContentDocument WHERE Id IN :fragDocIds]; // NOPMD ApexCRUDViolation — CRUD checked above
             }
-
         } catch (Exception e) {
             update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
         }
@@ -114,8 +118,16 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         htmlTemplate = null;
 
         // DEBUG: save HTML for inspection before Blob.toPdf()
-        ContentVersion debugCv = new ContentVersion(Title = 'docgen_giant_' + jobId + '_debug_html', PathOnClient = 'debug.html', VersionData = Blob.valueOf(html.substring(0, Math.min(100000, html.length()))), IsMajorVersion = false);
-        SObjectAccessDecision dbgDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ debugCv });
+        ContentVersion debugCv = new ContentVersion(
+            Title = 'docgen_giant_' + jobId + '_debug_html',
+            PathOnClient = 'debug.html',
+            VersionData = Blob.valueOf(html.substring(0, Math.min(100000, html.length()))),
+            IsMajorVersion = false
+        );
+        SObjectAccessDecision dbgDec = Security.stripInaccessible(
+            AccessType.CREATABLE,
+            new List<ContentVersion>{ debugCv }
+        );
         insert dbgDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
 
         Blob pdfBlob;
@@ -136,7 +148,10 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             VersionData = pdfBlob,
             IsMajorVersion = false
         );
-        SObjectAccessDecision pdfDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
+        SObjectAccessDecision pdfDec = Security.stripInaccessible(
+            AccessType.CREATABLE,
+            new List<ContentVersion>{ pdfCv }
+        );
         insert pdfDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
         pdfCv.Id = pdfDec.getRecords()[0].Id;
 
@@ -148,7 +163,10 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 LinkedEntityId = recordId,
                 ShareType = 'V'
             );
-            SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+            SObjectAccessDecision cdlDec = Security.stripInaccessible(
+                AccessType.CREATABLE,
+                new List<ContentDocumentLink>{ cdl }
+            );
             insert cdlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
         } catch (Exception linkErr) {
             String noop = linkErr.getMessage(); // NOPMD EmptyCatchBlock — non-fatal
@@ -175,24 +193,32 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         // Route HTML-type templates to their own path — simpler, no DOCX-specific
         // column-CSS extraction or <w:tblGrid> parsing.
         List<DocGen_Template__c> tpls = [
-            SELECT Type__c, Header_Html__c, Footer_Html__c FROM DocGen_Template__c
-            WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+            SELECT Type__c, Header_Html__c, Footer_Html__c
+            FROM DocGen_Template__c
+            WHERE Id = :templateId
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         if (!tpls.isEmpty() && tpls[0].Type__c == 'HTML') {
             return buildHtmlTemplateForHtmlType(tpls[0].Header_Html__c, tpls[0].Footer_Html__c);
         }
 
         List<DocGen_Template_Version__c> vers = [
-            SELECT Id FROM DocGen_Template_Version__c
-            WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            SELECT Id
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         String html = null;
         if (!vers.isEmpty()) {
             String htmlTitle = 'docgen_tmpl_html_' + vers[0].Id;
             List<ContentVersion> htmlCvs = [
-                SELECT VersionData FROM ContentVersion
-                WHERE Title = :htmlTitle WITH USER_MODE LIMIT 1
+                SELECT VersionData
+                FROM ContentVersion
+                WHERE Title = :htmlTitle
+                WITH USER_MODE
+                LIMIT 1
             ];
             if (!htmlCvs.isEmpty()) {
                 html = htmlCvs[0].VersionData.toString();
@@ -208,13 +234,18 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             if (tblPropsXml.contains('<w:tblGrid')) {
                 this.colGroupHtml = buildColGroupFromTblGrid(tblPropsXml);
             }
-        } catch (Exception e) { String noop = e.getMessage(); } // NOPMD EmptyCatchBlock
+        } catch (Exception e) {
+            String noop = e.getMessage();
+        } // NOPMD EmptyCatchBlock
 
         if (html != null) {
             if (html.contains('</style>')) {
-                html = html.replace('</style>',
+                html = html.replace(
+                    '</style>',
                     'table { table-layout: fixed; } td, th { border: 0.5pt solid #ccc; padding: 3px 5px; } th { background-color: #f0f0f0; font-weight: bold; } tr { page-break-inside: avoid; } ' +
-                    columnCss + '</style>');
+                        columnCss +
+                        '</style>'
+                );
             }
 
             // Resolve parent merge tags on the template (~2KB, before row injection)
@@ -235,14 +266,16 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 }
             } else {
                 Integer bodyEnd = html.lastIndexOf('</body>');
-                html = html.substring(0, bodyEnd) +
+                html =
+                    html.substring(0, bodyEnd) +
                     '<table style="width:100%;border-collapse:collapse;">{ROWS}</table>' +
                     html.substring(bodyEnd);
             }
         } else {
             // Build a header row from the query config field names
             String headerRow = buildHeaderRowFromConfig();
-            html = '<html><head><style>' +
+            html =
+                '<html><head><style>' +
                 '@page { size: letter; margin: 0.75in; }' +
                 'body { font-family: Helvetica, sans-serif; font-size: 9pt; margin: 0; }' +
                 'table { width: 100%; border-collapse: collapse; table-layout: fixed; }' +
@@ -250,7 +283,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 'th { background-color: #f0f0f0; font-weight: bold; }' +
                 'tr { page-break-inside: avoid; }' +
                 columnCss +
-                '</style></head><body><table>' + headerRow + '{ROWS}</table></body></html>';
+                '</style></head><body><table>' +
+                headerRow +
+                '{ROWS}</table></body></html>';
         }
         return html;
     }
@@ -272,16 +307,22 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      */
     private String buildHtmlTemplateForHtmlType(String headerHtml, String footerHtml) {
         List<DocGen_Template_Version__c> vers = [
-            SELECT Id, Content_Version_Id__c FROM DocGen_Template_Version__c
-            WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            SELECT Id, Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         if (vers.isEmpty() || String.isBlank(vers[0].Content_Version_Id__c)) {
             throw new DocGenException('HTML template has no active version body.');
         }
         Id bodyCvId = (Id) vers[0].Content_Version_Id__c;
         List<ContentVersion> cvs = [
-            SELECT VersionData FROM ContentVersion WHERE Id = :bodyCvId WITH SYSTEM_MODE LIMIT 1
+            SELECT VersionData
+            FROM ContentVersion
+            WHERE Id = :bodyCvId
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         if (cvs.isEmpty()) {
             throw new DocGenException('HTML template body ContentVersion not found.');
@@ -365,14 +406,21 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         try {
             // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
             List<DocGen_Template__c> tpls = [
-                SELECT Query_Config__c FROM DocGen_Template__c
-                WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+                SELECT Query_Config__c
+                FROM DocGen_Template__c
+                WHERE Id = :templateId
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
-            if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) { return ''; }
+            if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) {
+                return '';
+            }
 
             Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(tpls[0].Query_Config__c.trim());
             List<Object> nodes = (List<Object>) config.get('nodes');
-            if (nodes == null) { return ''; }
+            if (nodes == null) {
+                return '';
+            }
 
             for (Object nodeObj : nodes) {
                 Map<String, Object> node = (Map<String, Object>) nodeObj;
@@ -410,7 +458,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      * My_Custom_Field__c → "My Custom Field".
      */
     private static String formatFieldLabel(String apiName) {
-        if (String.isBlank(apiName)) { return ''; }
+        if (String.isBlank(apiName)) {
+            return '';
+        }
         // Take the last part after dot (Product2.Name → Name, Product2.ProductCode → ProductCode)
         if (apiName.contains('.')) {
             String parent = apiName.substringBefore('.');
@@ -433,7 +483,6 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         return result.replace('_', ' ').trim();
     }
 
-
     /**
      * Resolves parent merge tags in the HTML template:
      *   {Name}, {Owner.Name}              — raw value
@@ -446,14 +495,19 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
     private String resolveParentMergeTags(String html) {
         try {
             List<DocGen_Template__c> tpls = [
-                SELECT Base_Object_API__c FROM DocGen_Template__c
-                WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+                SELECT Base_Object_API__c
+                FROM DocGen_Template__c
+                WHERE Id = :templateId
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
-            if (tpls.isEmpty()) { return html; }
+            if (tpls.isEmpty()) {
+                return html;
+            }
             String baseObj = tpls[0].Base_Object_API__c;
 
             // Collect unique field paths and the full match → format map
-            Set<String> fieldPaths = new Set<String>{'Name'};
+            Set<String> fieldPaths = new Set<String>{ 'Name' };
             // fullMatch → [fieldPath, format-or-null]
             List<String> fullMatches = new List<String>();
             List<String> matchedPaths = new List<String>();
@@ -461,45 +515,66 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
             Pattern p = Pattern.compile('\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)(?::([^}]+))?\\}');
             Matcher m = p.matcher(html);
-            Set<String> aggFns = new Set<String>{'SUM','COUNT','AVG','MIN','MAX'};
-            Set<String> builtins = new Set<String>{'TODAY','NOW'};
+            Set<String> aggFns = new Set<String>{ 'SUM', 'COUNT', 'AVG', 'MIN', 'MAX' };
+            Set<String> builtins = new Set<String>{ 'TODAY', 'NOW' };
             while (m.find()) {
                 String path = m.group(1);
                 // Skip aggregate tags — handled by resolveGiantAggregateTags
-                if (aggFns.contains(path.toUpperCase())) { continue; }
+                if (aggFns.contains(path.toUpperCase())) {
+                    continue;
+                }
                 fullMatches.add(m.group(0));
                 matchedPaths.add(path);
                 matchedFormats.add(m.group(2));
                 // Built-ins bypass schema field validation; the data-map fallback resolves them.
-                if (!builtins.contains(path.toUpperCase())) { fieldPaths.add(path); }
+                if (!builtins.contains(path.toUpperCase())) {
+                    fieldPaths.add(path);
+                }
             }
 
             // Validate field paths against schema
             List<String> validFields = new List<String>();
-            Map<String, Schema.SObjectField> fieldMap = Schema.getGlobalDescribe().get(baseObj)?.getDescribe()?.fields?.getMap();
+            Map<String, Schema.SObjectField> fieldMap = Schema.getGlobalDescribe()
+                .get(baseObj)
+                ?.getDescribe()
+                ?.fields
+                ?.getMap();
             if (fieldMap != null) {
                 for (String fn : fieldPaths) {
                     if (fn.contains('.')) {
                         String relName = fn.substringBefore('.');
                         Boolean relFound = false;
                         for (Schema.SObjectField sof : fieldMap.values()) {
-                            if (sof.getDescribe().getRelationshipName() != null &&
-                                sof.getDescribe().getRelationshipName().equalsIgnoreCase(relName)) {
+                            if (
+                                sof.getDescribe().getRelationshipName() != null &&
+                                sof.getDescribe().getRelationshipName().equalsIgnoreCase(relName)
+                            ) {
                                 relFound = true;
                                 break;
                             }
                         }
-                        if (relFound) { validFields.add(fn); }
+                        if (relFound) {
+                            validFields.add(fn);
+                        }
                     } else if (fieldMap.containsKey(fn.toLowerCase())) {
                         validFields.add(fn);
                     }
                 }
             }
-            if (validFields.isEmpty()) { return html; }
+            if (validFields.isEmpty()) {
+                return html;
+            }
 
-            String soql = 'SELECT ' + String.join(validFields, ', ') + ' FROM ' + String.escapeSingleQuotes(baseObj) + ' WHERE Id = :recordId LIMIT 1';
+            String soql =
+                'SELECT ' +
+                String.join(validFields, ', ') +
+                ' FROM ' +
+                String.escapeSingleQuotes(baseObj) +
+                ' WHERE Id = :recordId LIMIT 1';
             List<SObject> recs = Database.query(soql, AccessLevel.USER_MODE);
-            if (recs.isEmpty()) { return html; }
+            if (recs.isEmpty()) {
+                return html;
+            }
             SObject rec = recs[0];
 
             // Resolve + format each matched tag. For format-suffix tags we build a
@@ -518,17 +593,25 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 } else if (upperPath == 'NOW') {
                     val = DateTime.now();
                 } else {
-                    if (!validFieldSet.contains(path)) { continue; }
+                    if (!validFieldSet.contains(path)) {
+                        continue;
+                    }
                     try {
                         if (path.contains('.')) {
                             List<String> parts = path.split('\\.');
                             SObject cur = rec;
-                            for (Integer j = 0; j < parts.size() - 1 && cur != null; j++) { cur = cur.getSObject(parts[j]); }
-                            if (cur != null) { val = cur.get(parts[parts.size() - 1]); }
+                            for (Integer j = 0; j < parts.size() - 1 && cur != null; j++) {
+                                cur = cur.getSObject(parts[j]);
+                            }
+                            if (cur != null) {
+                                val = cur.get(parts[parts.size() - 1]);
+                            }
                         } else {
                             val = rec.get(path);
                         }
-                    } catch (Exception fieldErr) { String noop = fieldErr.getMessage(); } // NOPMD
+                    } catch (Exception fieldErr) {
+                        String noop = fieldErr.getMessage();
+                    } // NOPMD
                 }
 
                 String replacement;
@@ -582,7 +665,8 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      */
     @TestVisible
     private String resolveParentImageTags(String html) {
-        if (String.isBlank(html) || !html.containsIgnoreCase('{%image:')) return html;
+        if (String.isBlank(html) || !html.containsIgnoreCase('{%image:'))
+            return html;
 
         Pattern p = Pattern.compile('\\{%[Ii]mage:(\\d+)(?::([^}]+))?\\}');
         Matcher m = p.matcher(html);
@@ -596,13 +680,12 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
             if (cachedCvIds == null) {
                 cachedCvIds = new List<String>();
-                Set<String> imageExts = new Set<String>{'png','jpg','jpeg','gif','bmp','tif','tiff','svg'};
+                Set<String> imageExts = new Set<String>{ 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tif', 'tiff', 'svg' };
                 /* code-analyzer-suppress ApexFlsViolation */
                 for (ContentDocumentLink cdl : [
                     SELECT ContentDocument.LatestPublishedVersionId
                     FROM ContentDocumentLink
-                    WHERE LinkedEntityId = :recordId
-                      AND ContentDocument.FileExtension IN :imageExts
+                    WHERE LinkedEntityId = :recordId AND ContentDocument.FileExtension IN :imageExts
                     WITH USER_MODE
                     ORDER BY ContentDocument.CreatedDate ASC, ContentDocument.Id ASC
                     LIMIT 50
@@ -640,8 +723,12 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 Integer xIdx = t.indexOf('x');
                 String w = t.substring(0, xIdx).trim();
                 String h = t.substring(xIdx + 1).trim();
-                if (String.isNotBlank(w) && w.isNumeric()) { style += 'width:' + w + 'px;'; }
-                if (String.isNotBlank(h) && h.isNumeric()) { style += 'height:' + h + 'px;'; }
+                if (String.isNotBlank(w) && w.isNumeric()) {
+                    style += 'width:' + w + 'px;';
+                }
+                if (String.isNotBlank(h) && h.isNumeric()) {
+                    style += 'height:' + h + 'px;';
+                }
             }
         }
         return '<img src="' + url + '"' + (String.isBlank(style) ? '' : ' style="' + style + '"') + '/>';
@@ -659,9 +746,13 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      */
     @TestVisible
     private String resolveGiantAggregateTags(String html) {
-        if (String.isBlank(html) || String.isBlank(giantRelationshipName)) { return html; }
+        if (String.isBlank(html) || String.isBlank(giantRelationshipName)) {
+            return html;
+        }
 
-        Pattern p = Pattern.compile('\\{(SUM|COUNT|AVG|MIN|MAX):([A-Za-z0-9_]+)(?:\\.([A-Za-z0-9_]+))?(?::([^}]+))?\\}');
+        Pattern p = Pattern.compile(
+            '\\{(SUM|COUNT|AVG|MIN|MAX):([A-Za-z0-9_]+)(?:\\.([A-Za-z0-9_]+))?(?::([^}]+))?\\}'
+        );
         Matcher m = p.matcher(html);
 
         List<String> fullMatches = new List<String>();
@@ -672,7 +763,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
         while (m.find()) {
             String rel = m.group(2);
-            if (!giantRelationshipName.equalsIgnoreCase(rel)) { continue; }
+            if (!giantRelationshipName.equalsIgnoreCase(rel)) {
+                continue;
+            }
             String fn = m.group(1).toUpperCase();
             String field = m.group(3);
             fullMatches.add(m.group(0));
@@ -681,7 +774,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             fmts.add(m.group(4));
             neededPairs.add(fn + '|' + (field == null ? '' : field));
         }
-        if (fullMatches.isEmpty()) { return html; }
+        if (fullMatches.isEmpty()) {
+            return html;
+        }
 
         // Prefer the child/lookup/where passed in via constructor (the batch has them
         // regardless of config format). Only fall back to parsing Query_Config__c if
@@ -693,24 +788,37 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         if (String.isBlank(childObj) || String.isBlank(lookupFld)) {
             try {
                 List<DocGen_Template__c> tpls = [
-                    SELECT Query_Config__c FROM DocGen_Template__c
-                    WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+                    SELECT Query_Config__c
+                    FROM DocGen_Template__c
+                    WHERE Id = :templateId
+                    WITH SYSTEM_MODE
+                    LIMIT 1
                 ];
-                if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) { return html; }
+                if (tpls.isEmpty() || String.isBlank(tpls[0].Query_Config__c)) {
+                    return html;
+                }
                 String cfgStr = tpls[0].Query_Config__c.trim();
-                if (!cfgStr.startsWith('{')) { return html; } // V1 flat — caller must pass child/lookup explicitly
+                if (!cfgStr.startsWith('{')) {
+                    return html;
+                } // V1 flat — caller must pass child/lookup explicitly
                 Map<String, Object> cfg = (Map<String, Object>) JSON.deserializeUntyped(cfgStr);
                 List<Object> nodes = (List<Object>) cfg.get('nodes');
-                if (nodes == null) { return html; }
+                if (nodes == null) {
+                    return html;
+                }
                 for (Object nodeObj : nodes) {
                     Map<String, Object> node = (Map<String, Object>) nodeObj;
                     String nodeAlias = (String) node.get('alias');
-                    String effectiveKey = String.isNotBlank(nodeAlias) ? nodeAlias : (String) node.get('relationshipName');
+                    String effectiveKey = String.isNotBlank(nodeAlias)
+                        ? nodeAlias
+                        : (String) node.get('relationshipName');
                     if (giantRelationshipName.equalsIgnoreCase(effectiveKey)) {
                         childObj = (String) node.get('object');
                         lookupFld = (String) node.get('lookupField');
                         whereCls = (String) node.get('where');
-                        if (whereCls == null) { whereCls = (String) node.get('whereClause'); }
+                        if (whereCls == null) {
+                            whereCls = (String) node.get('whereClause');
+                        }
                         break;
                     }
                 }
@@ -720,9 +828,13 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             }
         }
 
-        if (String.isBlank(childObj) || String.isBlank(lookupFld)) { return html; }
+        if (String.isBlank(childObj) || String.isBlank(lookupFld)) {
+            return html;
+        }
         Schema.SObjectType childType = Schema.getGlobalDescribe().get(childObj);
-        if (childType == null) { return html; }
+        if (childType == null) {
+            return html;
+        }
         // Validate aggregate fields against the child object's schema — this allows
         // aggregating any queryable field, not just columns declared for rendering.
         // Regex already restricts field names to [A-Za-z0-9_]+ so SOQL injection is
@@ -746,17 +858,28 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 pairToAlias.put(pair, alias);
             }
         }
-        if (selectClauses.isEmpty()) { return html; }
+        if (selectClauses.isEmpty()) {
+            return html;
+        }
 
-        String soql = 'SELECT ' + String.join(selectClauses, ', ') +
-            ' FROM ' + String.escapeSingleQuotes(childObj) +
-            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId';
-        if (String.isNotBlank(whereCls)) { soql += ' AND ' + whereCls; }
+        String soql =
+            'SELECT ' +
+            String.join(selectClauses, ', ') +
+            ' FROM ' +
+            String.escapeSingleQuotes(childObj) +
+            ' WHERE ' +
+            String.escapeSingleQuotes(lookupFld) +
+            ' = :recordId';
+        if (String.isNotBlank(whereCls)) {
+            soql += ' AND ' + whereCls;
+        }
 
         AggregateResult agg;
         try {
             List<AggregateResult> results = Database.query(soql, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — child object + fields validated against Schema + declared template fields; lookup and where re-use the same sanitized clauses as row queries
-            if (results.isEmpty()) { return html; }
+            if (results.isEmpty()) {
+                return html;
+            }
             agg = results[0];
         } catch (Exception qErr) {
             String noop = qErr.getMessage(); // NOPMD — fall through, tags stay unresolved
@@ -767,7 +890,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         for (Integer i = 0; i < fullMatches.size(); i++) {
             String pair = fns[i] + '|' + fields[i];
             String alias = pairToAlias.get(pair);
-            if (alias == null) { continue; }
+            if (alias == null) {
+                continue;
+            }
             Object raw = agg.get(alias);
             String replacement;
             if (raw == null) {
@@ -794,8 +919,11 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         // Re-parse: we need the original allRows without table breaks, but we've
         // already modified them. Since this is a fallback for an unexpected failure,
         // just mark the job as failed with a descriptive message.
-        update new DocGen_Job__c(Id = jobId, Status__c = 'Failed',
-            Label__c = 'PDF render failed — dataset too large for single-pass rendering. Try reducing child record count.'); // NOPMD ApexCRUDViolation — package-internal
+        update new DocGen_Job__c(
+            Id = jobId,
+            Status__c = 'Failed',
+            Label__c = 'PDF render failed — dataset too large for single-pass rendering. Try reducing child record count.'
+        ); // NOPMD ApexCRUDViolation — package-internal
     }
 
     /**
@@ -809,18 +937,26 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
         Integer gridStart = tblPropsXml.indexOf('<w:tblGrid');
         Integer gridEnd = tblPropsXml.indexOf('</w:tblGrid>');
-        if (gridStart == -1 || gridEnd == -1) { return ''; }
+        if (gridStart == -1 || gridEnd == -1) {
+            return '';
+        }
 
         String gridXml = tblPropsXml.substring(gridStart, gridEnd);
         Integer scanPos = 0;
         while (scanPos < gridXml.length()) {
             Integer colStart = gridXml.indexOf('<w:gridCol', scanPos);
-            if (colStart == -1) { break; }
+            if (colStart == -1) {
+                break;
+            }
             Integer wStart = gridXml.indexOf('w:w="', colStart);
-            if (wStart == -1) { break; }
+            if (wStart == -1) {
+                break;
+            }
             wStart += 5;
             Integer wEnd = gridXml.indexOf('"', wStart);
-            if (wEnd == -1) { break; }
+            if (wEnd == -1) {
+                break;
+            }
             try {
                 Integer w = Integer.valueOf(gridXml.substring(wStart, wEnd));
                 colWidths.add(w);
@@ -831,7 +967,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             scanPos = wEnd + 1;
         }
 
-        if (colWidths.isEmpty() || totalWidth == 0) { return ''; }
+        if (colWidths.isEmpty() || totalWidth == 0) {
+            return '';
+        }
 
         String colGroup = '<colgroup>';
         for (Integer w : colWidths) {
@@ -848,7 +986,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      * separate PDF files, keeping the output as one continuous document.
      */
     private static String insertTableBreaks(String allRows, Integer rowsPerBreak, String colGroupHtml) {
-        if (String.isBlank(allRows)) { return allRows; }
+        if (String.isBlank(allRows)) {
+            return allRows;
+        }
 
         final String TR_CLOSE = '</tr>';
         final Integer trCloseLen = TR_CLOSE.length();
@@ -863,7 +1003,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 Integer tdIdx = 0;
                 while (tdIdx < firstRow.length()) {
                     Integer tdStart = firstRow.indexOf('<td', tdIdx);
-                    if (tdStart == -1) { break; }
+                    if (tdStart == -1) {
+                        break;
+                    }
                     colCount++;
                     tdIdx = tdStart + 3;
                 }
@@ -878,7 +1020,8 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             }
         }
 
-        final String TABLE_BREAK = '</table><table style="width:100%;border-collapse:collapse;table-layout:fixed;">' + colGroup;
+        final String TABLE_BREAK =
+            '</table><table style="width:100%;border-collapse:collapse;table-layout:fixed;">' + colGroup;
 
         // Build result with table breaks inserted at row boundaries.
         // Use List<String> + join instead of string concatenation for heap efficiency.
@@ -889,7 +1032,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
         while (scanPos < allRows.length()) {
             Integer idx = allRows.indexOf(TR_CLOSE, scanPos);
-            if (idx == -1) { break; }
+            if (idx == -1) {
+                break;
+            }
             rowCount++;
             scanPos = idx + trCloseLen;
 
@@ -925,7 +1070,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
 
         while (scanPos < allRows.length()) {
             Integer idx = allRows.indexOf(TR_CLOSE, scanPos);
-            if (idx == -1) { break; }
+            if (idx == -1) {
+                break;
+            }
             rowsInChunk++;
             scanPos = idx + trCloseLen;
 

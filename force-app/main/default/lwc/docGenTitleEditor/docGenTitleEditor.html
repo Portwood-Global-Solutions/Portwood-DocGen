@@ -1,41 +1,55 @@
 <template>
     <div class="slds-is-relative">
-        <lightning-input 
-            label="Document Title Format" 
-            value={value} 
-            onchange={handleInput} 
+        <lightning-input
+            label="Document Title Format"
+            value={value}
+            onchange={handleInput}
             onblur={handleBlur}
             onfocus={handleFocus}
             placeholder="e.g. Reference_{Name}_{CreatedDate}"
-            autocomplete="off">
+            autocomplete="off"
+        >
         </lightning-input>
-        <p class="slds-form-element__help slds-var-m-top_xx-small">Use <strong>&#123;</strong> to see available merge fields.</p>
+        <p class="slds-form-element__help slds-var-m-top_xx-small">
+            Use <strong>&#123;</strong> to see available merge fields.
+        </p>
 
         <!-- Typeahead Dropdown -->
         <template if:true={showSuggestions}>
-             <div class="slds-dropdown slds-dropdown_length-10 slds-dropdown_fluid" role="listbox" onmousedown={handleDropdownMouseDown}>
-                 <ul class="slds-listbox slds-listbox_vertical" role="presentation">
-                     <template for:each={suggestions} for:item="item">
-                         <li role="presentation" class="slds-listbox__item" key={item}>
-                             <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" role="option" onclick={handleSelectSuggestion} data-value={item}>
-                                 <span class="slds-media__figure slds-listbox__option-icon">
-                                     <lightning-icon icon-name="utility:merge_field" size="x-small"></lightning-icon>
-                                 </span>
-                                 <span class="slds-media__body">
-                                     <span class="slds-truncate" title={item}>{item}</span>
-                                 </span>
-                             </div>
-                         </li>
-                     </template>
-                     <template if:false={hasSuggestions}>
-                         <li role="presentation" class="slds-listbox__item">
-                             <div class="slds-listbox__option slds-listbox__option_plain" role="option">
-                                 <span class="slds-truncate slds-text-color_weak">No matching fields found in Query Config.</span>
-                             </div>
-                         </li>
-                     </template>
-                 </ul>
-             </div>
+            <div
+                class="slds-dropdown slds-dropdown_length-10 slds-dropdown_fluid"
+                role="listbox"
+                onmousedown={handleDropdownMouseDown}
+            >
+                <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+                    <template for:each={suggestions} for:item="item">
+                        <li role="presentation" class="slds-listbox__item" key={item}>
+                            <div
+                                class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                role="option"
+                                onclick={handleSelectSuggestion}
+                                data-value={item}
+                            >
+                                <span class="slds-media__figure slds-listbox__option-icon">
+                                    <lightning-icon icon-name="utility:merge_field" size="x-small"></lightning-icon>
+                                </span>
+                                <span class="slds-media__body">
+                                    <span class="slds-truncate" title={item}>{item}</span>
+                                </span>
+                            </div>
+                        </li>
+                    </template>
+                    <template if:false={hasSuggestions}>
+                        <li role="presentation" class="slds-listbox__item">
+                            <div class="slds-listbox__option slds-listbox__option_plain" role="option">
+                                <span class="slds-truncate slds-text-color_weak"
+                                    >No matching fields found in Query Config.</span
+                                >
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+            </div>
         </template>
     </div>
 </template>

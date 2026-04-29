@@ -48,8 +48,10 @@ public with sharing class DocGenSetupController {
     @AuraEnabled
     public static void saveSettings(String experienceSiteUrl) {
         // Only allow users with Customize Application or DocGen_Admin permission set
-        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') &&
-            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()) {
+        if (
+            !FeatureManagement.checkPermission('DocGen_Admin_Access') &&
+            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()
+        ) {
             throw DocGenService.ahe('Insufficient privileges to modify DocGen settings.');
         }
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
@@ -70,7 +72,12 @@ public with sharing class DocGenSetupController {
         List<Map<String, String>> results = new List<Map<String, String>>();
         results.add(new Map<String, String>{ 'label' => '-- Running User (default) --', 'value' => '' });
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
-        for (OrgWideEmailAddress owa : [SELECT Id, Address, DisplayName FROM OrgWideEmailAddress ORDER BY DisplayName]) { // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+        for (OrgWideEmailAddress owa : [
+            SELECT Id, Address, DisplayName
+            FROM OrgWideEmailAddress
+            ORDER BY DisplayName
+        ]) {
+            // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
             String label = String.isNotBlank(owa.DisplayName)
                 ? owa.DisplayName + ' <' + owa.Address + '>'
                 : owa.Address;
@@ -90,12 +97,16 @@ public with sharing class DocGenSetupController {
 
         // 1. Site URL configured
         Boolean siteUrlOk = String.isNotBlank(settings.Experience_Site_Url__c);
-        checks.add(buildCheck(
-            'Site URL Configured',
-            siteUrlOk,
-            siteUrlOk ? 'Signature Site URL is set.' : 'No Signature Site URL configured. Enter your Salesforce Site URL below.',
-            null
-        ));
+        checks.add(
+            buildCheck(
+                'Site URL Configured',
+                siteUrlOk,
+                siteUrlOk
+                    ? 'Signature Site URL is set.'
+                    : 'No Signature Site URL configured. Enter your Salesforce Site URL below.',
+                null
+            )
+        );
 
         // 2. Salesforce Site exists and is active
         Boolean siteActive = false;
@@ -110,12 +121,16 @@ public with sharing class DocGenSetupController {
         } catch (Exception e) {
             // Site query may fail in some contexts
         }
-        checks.add(buildCheck(
-            'Salesforce Site Active',
-            siteActive,
-            siteActive ? 'Active site found: ' + siteName : 'No active Salesforce Site found. Create one in Setup > Sites.',
-            '/lightning/setup/CustomDomain/home'
-        ));
+        checks.add(
+            buildCheck(
+                'Salesforce Site Active',
+                siteActive,
+                siteActive
+                    ? 'Active site found: ' + siteName
+                    : 'No active Salesforce Site found. Create one in Setup > Sites.',
+                '/lightning/setup/CustomDomain/home'
+            )
+        );
 
         // 3. Org-Wide Email Address configured
         Boolean owaOk = false;
@@ -123,7 +138,13 @@ public with sharing class DocGenSetupController {
         if (String.isNotBlank(settings.Signature_OWA_Id__c)) {
             try {
                 /* code-analyzer-suppress ApexFlsViolation */
-                List<OrgWideEmailAddress> owas = [SELECT Id, DisplayName, Address FROM OrgWideEmailAddress WHERE Id = :settings.Signature_OWA_Id__c WITH SYSTEM_MODE LIMIT 1]; // NOPMD
+                List<OrgWideEmailAddress> owas = [
+                    SELECT Id, DisplayName, Address
+                    FROM OrgWideEmailAddress
+                    WHERE Id = :settings.Signature_OWA_Id__c
+                    WITH SYSTEM_MODE
+                    LIMIT 1
+                ]; // NOPMD
                 owaOk = !owas.isEmpty();
                 if (owaOk) {
                     owaDisplay = owas[0].DisplayName + ' <' + owas[0].Address + '>';
@@ -132,48 +153,77 @@ public with sharing class DocGenSetupController {
                 // OWA query failed
             }
         }
-        checks.add(buildCheck(
-            'Org-Wide Email Address',
-            owaOk,
-            owaOk ? 'Email sender configured: ' + owaDisplay : 'No Org-Wide Email Address selected. Required for PIN verification emails. Create one in Setup > Organization-Wide Email Addresses, then select it below.',
-            '/lightning/setup/OrgWideEmailAddresses/home'
-        ));
+        checks.add(
+            buildCheck(
+                'Org-Wide Email Address',
+                owaOk,
+                owaOk
+                    ? 'Email sender configured: ' + owaDisplay
+                    : 'No Org-Wide Email Address selected. Required for PIN verification emails. Create one in Setup > Organization-Wide Email Addresses, then select it below.',
+                '/lightning/setup/OrgWideEmailAddresses/home'
+            )
+        );
 
         // 4. Guest user permission set check
         Boolean guestPermOk = false;
         try {
             /* code-analyzer-suppress ApexFlsViolation */
-            List<PermissionSet> ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Guest_Signature' WITH SYSTEM_MODE LIMIT 1]; // NOPMD
+            List<PermissionSet> ps = [
+                SELECT Id
+                FROM PermissionSet
+                WHERE Name = 'DocGen_Guest_Signature'
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ]; // NOPMD
             if (!ps.isEmpty()) {
                 /* code-analyzer-suppress ApexFlsViolation */
-                List<PermissionSetAssignment> psa = [SELECT Id FROM PermissionSetAssignment WHERE PermissionSetId = :ps[0].Id WITH SYSTEM_MODE LIMIT 1]; // NOPMD
+                List<PermissionSetAssignment> psa = [
+                    SELECT Id
+                    FROM PermissionSetAssignment
+                    WHERE PermissionSetId = :ps[0].Id
+                    WITH SYSTEM_MODE
+                    LIMIT 1
+                ]; // NOPMD
                 guestPermOk = !psa.isEmpty();
             }
         } catch (Exception e) {
             // Permission query failed
         }
-        checks.add(buildCheck(
-            'Guest Permission Set Assigned',
-            guestPermOk,
-            guestPermOk ? 'DocGen Guest Signature permission set is assigned.' : 'The DocGen Guest Signature permission set is not assigned to any user. Assign it to the Site guest user via Site > Public Access Settings.',
-            null
-        ));
+        checks.add(
+            buildCheck(
+                'Guest Permission Set Assigned',
+                guestPermOk,
+                guestPermOk
+                    ? 'DocGen Guest Signature permission set is assigned.'
+                    : 'The DocGen Guest Signature permission set is not assigned to any user. Assign it to the Site guest user via Site > Public Access Settings.',
+                null
+            )
+        );
 
         // 5. VF pages accessible check — verify the key pages exist in the org
         Boolean vfPagesOk = false;
         try {
             /* code-analyzer-suppress ApexFlsViolation */
-            List<ApexPage> pages = [SELECT Name FROM ApexPage WHERE Name IN ('DocGenSign', 'DocGenSignature', 'DocGenVerify') WITH SYSTEM_MODE]; // NOPMD
+            List<ApexPage> pages = [
+                SELECT Name
+                FROM ApexPage
+                WHERE Name IN ('DocGenSign', 'DocGenSignature', 'DocGenVerify')
+                WITH SYSTEM_MODE
+            ]; // NOPMD
             vfPagesOk = pages.size() >= 3;
         } catch (Exception e) {
             // ApexPage query may not be available
         }
-        checks.add(buildCheck(
-            'Visualforce Pages Deployed',
-            vfPagesOk,
-            vfPagesOk ? 'DocGenSign, DocGenSignature, and DocGenVerify pages are deployed.' : 'Required Visualforce pages are missing. Ensure the DocGen package is fully deployed.',
-            null
-        ));
+        checks.add(
+            buildCheck(
+                'Visualforce Pages Deployed',
+                vfPagesOk,
+                vfPagesOk
+                    ? 'DocGenSign, DocGenSignature, and DocGenVerify pages are deployed.'
+                    : 'Required Visualforce pages are missing. Ensure the DocGen package is fully deployed.',
+                null
+            )
+        );
 
         return checks;
     }
@@ -190,11 +240,19 @@ public with sharing class DocGenSetupController {
     }
 
     @AuraEnabled
-    public static void saveSignatureSettings(String brandColor, String logoUrl, String emailSubject,
-                                              String emailMessage, String footerText, String companyName,
-                                              String owaId) {
-        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') &&
-            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()) {
+    public static void saveSignatureSettings(
+        String brandColor,
+        String logoUrl,
+        String emailSubject,
+        String emailMessage,
+        String footerText,
+        String companyName,
+        String owaId
+    ) {
+        if (
+            !FeatureManagement.checkPermission('DocGen_Admin_Access') &&
+            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()
+        ) {
             throw DocGenService.ahe('Insufficient privileges to modify DocGen settings.');
         }
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
@@ -222,8 +280,10 @@ public with sharing class DocGenSetupController {
      */
     @AuraEnabled
     public static void saveReminderSettings(Boolean enabled, Integer hours) {
-        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') &&
-            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()) {
+        if (
+            !FeatureManagement.checkPermission('DocGen_Admin_Access') &&
+            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()
+        ) {
             throw DocGenService.ahe('Insufficient privileges to modify DocGen settings.');
         }
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
@@ -237,9 +297,11 @@ public with sharing class DocGenSetupController {
             // Abort existing job if any
             /* code-analyzer-suppress ApexFlsViolation */
             List<CronTrigger> existing = [
-                SELECT Id FROM CronTrigger
+                SELECT Id
+                FROM CronTrigger
                 WHERE CronJobDetail.Name = :jobName
-                WITH SYSTEM_MODE LIMIT 1
+                WITH SYSTEM_MODE
+                LIMIT 1
             ]; // NOPMD
             for (CronTrigger ct : existing) {
                 System.abortJob(ct.Id);

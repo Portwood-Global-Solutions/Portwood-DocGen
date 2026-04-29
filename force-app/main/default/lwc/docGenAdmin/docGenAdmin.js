@@ -109,35 +109,72 @@ const COLUMNS = [
     { label: 'Type', fieldName: F.Type, initialWidth: 100 },
     { label: 'Output Format', fieldName: F.OutputFormat, initialWidth: 120 },
     { label: 'Base Object', fieldName: F.BaseObject },
-    { label: 'Default', fieldName: 'defaultLabel', initialWidth: 80, cellAttributes: { class: { fieldName: 'defaultClass' } } },
+    {
+        label: 'Default',
+        fieldName: 'defaultLabel',
+        initialWidth: 80,
+        cellAttributes: { class: { fieldName: 'defaultClass' } }
+    },
     { label: 'Description', fieldName: F.Desc },
-    { type: 'action', typeAttributes: { rowActions: [
-        { label: 'View', name: 'view' },
-        { label: 'Edit', name: 'edit' },
-        { label: 'Export', name: 'export' },
-        { label: 'Delete', name: 'delete' }
-    ] } }
+    {
+        type: 'action',
+        typeAttributes: {
+            rowActions: [
+                { label: 'View', name: 'view' },
+                { label: 'Edit', name: 'edit' },
+                { label: 'Export', name: 'export' },
+                { label: 'Delete', name: 'delete' }
+            ]
+        }
+    }
 ];
 
 const VERSION_COLUMNS = [
     { label: 'Ver', fieldName: 'VersionNumber', initialWidth: 70 },
-    { label: 'Active', fieldName: 'isActiveLabel', initialWidth: 70, cellAttributes: {
-        class: { fieldName: 'activeClass' }
-    }},
-    { label: 'Created Date', fieldName: 'CreatedDate', type: 'date', typeAttributes: {
-        year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    }},
+    {
+        label: 'Active',
+        fieldName: 'isActiveLabel',
+        initialWidth: 70,
+        cellAttributes: {
+            class: { fieldName: 'activeClass' }
+        }
+    },
+    {
+        label: 'Created Date',
+        fieldName: 'CreatedDate',
+        type: 'date',
+        typeAttributes: {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }
+    },
     { label: 'Created By', fieldName: 'CreatedByName' },
-    { type: 'button', initialWidth: 100, typeAttributes: {
-        label: 'Preview', name: 'preview', variant: 'neutral', iconName: 'utility:preview'
-    }},
-    { type: 'button', typeAttributes: {
-        label: 'Activate', name: 'restore', title: 'Restore and Activate this version', variant: 'brand',
-        disabled: { fieldName: 'Is_Active__c' }
-    }}
+    {
+        type: 'button',
+        initialWidth: 100,
+        typeAttributes: {
+            label: 'Preview',
+            name: 'preview',
+            variant: 'neutral',
+            iconName: 'utility:preview'
+        }
+    },
+    {
+        type: 'button',
+        typeAttributes: {
+            label: 'Activate',
+            name: 'restore',
+            title: 'Restore and Activate this version',
+            variant: 'brand',
+            disabled: { fieldName: 'Is_Active__c' }
+        }
+    }
 ];
 
-    export default class DocGenAdmin extends NavigationMixin(LightningElement) {
+export default class DocGenAdmin extends NavigationMixin(LightningElement) {
     @track templates = [];
     columns = COLUMNS;
     versionColumns = VERSION_COLUMNS;
@@ -237,10 +274,22 @@ const VERSION_COLUMNS = [
     // Context flag: true when editing in modal, false when in wizard
     _editContext = false;
 
-    get _activeQuery() { return this._editContext ? this.editTemplateQuery : this.newTemplateQuery; }
-    set _activeQuery(v) { if (this._editContext) { this.editTemplateQuery = v; } else { this.newTemplateQuery = v; } }
-    get _activeObject() { return this._editContext ? this.editTemplateObject : this.newTemplateObject; }
-    get _activeSampleId() { return this._editContext ? this.editTemplateTestRecordId : this.newTemplateSampleRecordId; }
+    get _activeQuery() {
+        return this._editContext ? this.editTemplateQuery : this.newTemplateQuery;
+    }
+    set _activeQuery(v) {
+        if (this._editContext) {
+            this.editTemplateQuery = v;
+        } else {
+            this.newTemplateQuery = v;
+        }
+    }
+    get _activeObject() {
+        return this._editContext ? this.editTemplateObject : this.newTemplateObject;
+    }
+    get _activeSampleId() {
+        return this._editContext ? this.editTemplateTestRecordId : this.newTemplateSampleRecordId;
+    }
     // Builder 2.0 state
     @track objectOptions = [];
     @track filteredObjectOptions = [];
@@ -253,26 +302,32 @@ const VERSION_COLUMNS = [
     @track _allChildren = [];
     @track _allParents = [];
 
-    get builderFieldsTabClass() { return this.builderTab === 'fields' ? 'builder-tab-active' : ''; }
-    get builderRelatedTabClass() { return this.builderTab === 'related' ? 'builder-tab-active' : ''; }
-    get builderParentsTabClass() { return this.builderTab === 'parents' ? 'builder-tab-active' : ''; }
+    get builderFieldsTabClass() {
+        return this.builderTab === 'fields' ? 'builder-tab-active' : '';
+    }
+    get builderRelatedTabClass() {
+        return this.builderTab === 'related' ? 'builder-tab-active' : '';
+    }
+    get builderParentsTabClass() {
+        return this.builderTab === 'parents' ? 'builder-tab-active' : '';
+    }
     get builderPanelItems() {
         const s = (this.builderSearchTerm || '').toLowerCase();
         if (this.builderTab === 'fields') {
             return (this._allFields || [])
-                .filter(f => !s || f.label.toLowerCase().includes(s) || f.value.toLowerCase().includes(s))
+                .filter((f) => !s || f.label.toLowerCase().includes(s) || f.value.toLowerCase().includes(s))
                 .slice(0, 150)
-                .map(f => ({ value: f.value, label: f.label, extra: f.type || '' }));
+                .map((f) => ({ value: f.value, label: f.label, extra: f.type || '' }));
         } else if (this.builderTab === 'related') {
             return (this._allChildren || [])
-                .filter(c => !s || c.label.toLowerCase().includes(s) || c.value.toLowerCase().includes(s))
+                .filter((c) => !s || c.label.toLowerCase().includes(s) || c.value.toLowerCase().includes(s))
                 .slice(0, 80)
-                .map(c => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
+                .map((c) => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
         } else if (this.builderTab === 'parents') {
             return (this._allParents || [])
-                .filter(p => !s || p.label.toLowerCase().includes(s) || p.value.toLowerCase().includes(s))
+                .filter((p) => !s || p.label.toLowerCase().includes(s) || p.value.toLowerCase().includes(s))
                 .slice(0, 80)
-                .map(p => ({ value: p.value, label: p.label, extra: p.targetObject || '' }));
+                .map((p) => ({ value: p.value, label: p.label, extra: p.targetObject || '' }));
         }
         return [];
     }
@@ -313,14 +368,19 @@ const VERSION_COLUMNS = [
         this._updateSuggestions(event.target);
         // Debounced sample data refresh
         clearTimeout(this._sampleDebounce);
-        this._sampleDebounce = setTimeout(() => { this._loadSampleData(); }, 800);
+        this._sampleDebounce = setTimeout(() => {
+            this._loadSampleData();
+        }, 800);
     }
 
     _findUnmatchedParen(str) {
         let depth = 0;
         for (let i = str.length - 1; i >= 0; i--) {
             if (str[i] === ')') depth++;
-            if (str[i] === '(') { if (depth === 0) return i; depth--; }
+            if (str[i] === '(') {
+                if (depth === 0) return i;
+                depth--;
+            }
         }
         return -1;
     }
@@ -330,9 +390,16 @@ const VERSION_COLUMNS = [
         let sepIdx = -1;
         for (let i = before.length - 1; i >= 0; i--) {
             const ch = before[i];
-            if (ch === ',' || ch === '(' || ch === '\n') { sepIdx = i; break; }
+            if (ch === ',' || ch === '(' || ch === '\n') {
+                sepIdx = i;
+                break;
+            }
         }
-        return { token: before.substring(sepIdx + 1).trim(), sepChar: sepIdx >= 0 ? before[sepIdx] : '', start: sepIdx + 1 };
+        return {
+            token: before.substring(sepIdx + 1).trim(),
+            sepChar: sepIdx >= 0 ? before[sepIdx] : '',
+            start: sepIdx + 1
+        };
     }
 
     _updateSuggestions(textarea) {
@@ -346,7 +413,30 @@ const VERSION_COLUMNS = [
 
         // Skip SOQL keywords
         const upper = token.toUpperCase();
-        if (['SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'ORDER', 'BY', 'LIMIT', 'ASC', 'DESC', 'LIKE', 'IN', 'NOT', 'NULL', '=', '!=', '>', '<', '>=', '<='].includes(upper)) {
+        if (
+            [
+                'SELECT',
+                'FROM',
+                'WHERE',
+                'AND',
+                'OR',
+                'ORDER',
+                'BY',
+                'LIMIT',
+                'ASC',
+                'DESC',
+                'LIKE',
+                'IN',
+                'NOT',
+                'NULL',
+                '=',
+                '!=',
+                '>',
+                '<',
+                '>=',
+                '<='
+            ].includes(upper)
+        ) {
             this.showSuggestions = false;
             return;
         }
@@ -354,8 +444,9 @@ const VERSION_COLUMNS = [
         // 1) Just typed "(" — show child relationships
         if (sepChar === '(' && token === '') {
             this._suggestMode = 'related-scaffold';
-            this.suggestions = (this._allChildren || []).slice(0, 15)
-                .map(c => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
+            this.suggestions = (this._allChildren || [])
+                .slice(0, 15)
+                .map((c) => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
             this.showSuggestions = this.suggestions.length > 0;
             return;
         }
@@ -372,9 +463,9 @@ const VERSION_COLUMNS = [
                 this._suggestMode = 'related';
                 const s = (fromAtEnd[1] || '').toLowerCase();
                 this.suggestions = (this._allChildren || [])
-                    .filter(c => !s || c.value.toLowerCase().includes(s) || c.label.toLowerCase().includes(s))
+                    .filter((c) => !s || c.value.toLowerCase().includes(s) || c.label.toLowerCase().includes(s))
                     .slice(0, 15)
-                    .map(c => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
+                    .map((c) => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
                 this.showSuggestions = this.suggestions.length > 0;
                 return;
             }
@@ -383,7 +474,7 @@ const VERSION_COLUMNS = [
             const fromMatch = insideParen.match(/FROM\s+(\w+)/i);
             if (fromMatch && token.length >= 1) {
                 const relName = fromMatch[1];
-                const childRel = (this._allChildren || []).find(c => c.value.toLowerCase() === relName.toLowerCase());
+                const childRel = (this._allChildren || []).find((c) => c.value.toLowerCase() === relName.toLowerCase());
                 if (childRel) {
                     this._suggestMode = 'child-field';
                     const cacheKey = '_cache_' + childRel.childObjectApiName;
@@ -391,10 +482,14 @@ const VERSION_COLUMNS = [
                     if (this[cacheKey]) {
                         this._showSimpleSuggestions(this[cacheKey], s);
                     } else {
-                        getObjectFields({ objectName: childRel.childObjectApiName }).then(data => {
-                            this[cacheKey] = data || [];
-                            this._showSimpleSuggestions(data || [], s);
-                        }).catch(() => { this.showSuggestions = false; });
+                        getObjectFields({ objectName: childRel.childObjectApiName })
+                            .then((data) => {
+                                this[cacheKey] = data || [];
+                                this._showSimpleSuggestions(data || [], s);
+                            })
+                            .catch(() => {
+                                this.showSuggestions = false;
+                            });
                     }
                     return;
                 }
@@ -405,9 +500,9 @@ const VERSION_COLUMNS = [
                 this._suggestMode = 'related';
                 const s = token.toLowerCase();
                 this.suggestions = (this._allChildren || [])
-                    .filter(c => c.value.toLowerCase().includes(s) || c.label.toLowerCase().includes(s))
+                    .filter((c) => c.value.toLowerCase().includes(s) || c.label.toLowerCase().includes(s))
                     .slice(0, 15)
-                    .map(c => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
+                    .map((c) => ({ value: c.value, label: c.label, extra: c.childObjectApiName || '' }));
                 this.showSuggestions = this.suggestions.length > 0;
                 return;
             }
@@ -418,7 +513,7 @@ const VERSION_COLUMNS = [
             const dot = token.lastIndexOf('.');
             const parentName = token.substring(0, dot);
             const fieldSearch = token.substring(dot + 1).toLowerCase();
-            const parentRel = (this._allParents || []).find(p => p.value.toLowerCase() === parentName.toLowerCase());
+            const parentRel = (this._allParents || []).find((p) => p.value.toLowerCase() === parentName.toLowerCase());
             if (parentRel) {
                 this._suggestMode = 'parent-field';
                 this._suggestParent = parentName;
@@ -426,10 +521,14 @@ const VERSION_COLUMNS = [
                 if (this[cacheKey]) {
                     this._showParentFieldSuggestions(this[cacheKey], fieldSearch, parentName);
                 } else {
-                    getObjectFields({ objectName: parentRel.targetObject }).then(data => {
-                        this[cacheKey] = data || [];
-                        this._showParentFieldSuggestions(data || [], fieldSearch, parentName);
-                    }).catch(() => { this.showSuggestions = false; });
+                    getObjectFields({ objectName: parentRel.targetObject })
+                        .then((data) => {
+                            this[cacheKey] = data || [];
+                            this._showParentFieldSuggestions(data || [], fieldSearch, parentName);
+                        })
+                        .catch(() => {
+                            this.showSuggestions = false;
+                        });
                 }
                 return;
             }
@@ -440,13 +539,13 @@ const VERSION_COLUMNS = [
             this._suggestMode = 'field';
             const s = token.toLowerCase();
             const fieldResults = (this._allFields || [])
-                .filter(f => f.value.toLowerCase().includes(s) || f.label.toLowerCase().includes(s))
+                .filter((f) => f.value.toLowerCase().includes(s) || f.label.toLowerCase().includes(s))
                 .slice(0, 8)
-                .map(f => ({ value: f.value, label: f.label, extra: f.type || '' }));
+                .map((f) => ({ value: f.value, label: f.label, extra: f.type || '' }));
             const parentResults = (this._allParents || [])
-                .filter(p => p.value.toLowerCase().includes(s) || p.label.toLowerCase().includes(s))
+                .filter((p) => p.value.toLowerCase().includes(s) || p.label.toLowerCase().includes(s))
                 .slice(0, 4)
-                .map(p => ({ value: p.value + '.', label: p.label, extra: '→ ' + (p.targetObject || '') }));
+                .map((p) => ({ value: p.value + '.', label: p.label, extra: '→ ' + (p.targetObject || '') }));
             this.suggestions = [...fieldResults, ...parentResults];
             this.showSuggestions = this.suggestions.length > 0;
         } else {
@@ -456,17 +555,17 @@ const VERSION_COLUMNS = [
 
     _showSimpleSuggestions(fields, search) {
         this.suggestions = (fields || [])
-            .filter(f => !search || f.value.toLowerCase().includes(search) || f.label.toLowerCase().includes(search))
+            .filter((f) => !search || f.value.toLowerCase().includes(search) || f.label.toLowerCase().includes(search))
             .slice(0, 10)
-            .map(f => ({ value: f.value, label: f.label, extra: f.type || '' }));
+            .map((f) => ({ value: f.value, label: f.label, extra: f.type || '' }));
         this.showSuggestions = this.suggestions.length > 0;
     }
 
     _showParentFieldSuggestions(fields, search, parentName) {
         this.suggestions = (fields || [])
-            .filter(f => !search || f.value.toLowerCase().includes(search) || f.label.toLowerCase().includes(search))
+            .filter((f) => !search || f.value.toLowerCase().includes(search) || f.label.toLowerCase().includes(search))
             .slice(0, 10)
-            .map(f => ({ value: parentName + '.' + f.value, label: f.label, extra: f.type || '' }));
+            .map((f) => ({ value: parentName + '.' + f.value, label: f.label, extra: f.type || '' }));
         this.showSuggestions = this.suggestions.length > 0;
     }
 
@@ -480,7 +579,10 @@ const VERSION_COLUMNS = [
         let sepIdx = -1;
         for (let i = before.length - 1; i >= 0; i--) {
             const ch = before[i];
-            if (ch === ',' || ch === '(' || ch === '\n') { sepIdx = i; break; }
+            if (ch === ',' || ch === '(' || ch === '\n') {
+                sepIdx = i;
+                break;
+            }
         }
         // prefix = everything up to and including the separator
         // after = everything after cursor
@@ -508,7 +610,9 @@ const VERSION_COLUMNS = [
         // Native textarea doesn't re-render from tracked property after user input — set DOM directly
         const taSelector = this._editContext ? '.edit-query-textarea' : '.wizard-query-textarea';
         const ta = this.template.querySelector(taSelector);
-        if (ta) { ta.value = result; }
+        if (ta) {
+            ta.value = result;
+        }
         this.showSuggestions = false;
         this._updateQueryTree();
 
@@ -549,28 +653,29 @@ const VERSION_COLUMNS = [
     wiredTemplates(result) {
         this.wiredTemplatesResult = result;
         if (result.data) {
-            this.templates = result.data.map(t => ({
+            this.templates = result.data.map((t) => ({
                 ...t,
                 defaultLabel: t[F.IsDefault] ? '★' : '',
                 defaultClass: t[F.IsDefault] ? 'slds-text-color_success slds-text-title_bold' : ''
             }));
             this._samplesChecked = true;
         } else if (result.error) {
-           this.showToast('Error', 'Error loading templates', 'error');
+            this.showToast('Error', 'Error loading templates', 'error');
         }
     }
 
     get filteredTemplates() {
         if (!this.searchKey) return this.templates;
         const lowerKey = this.searchKey.toLowerCase();
-        return this.templates.filter(t =>
-            (t.Name && t.Name.toLowerCase().includes(lowerKey)) ||
-            (t[F.Category] && t[F.Category].toLowerCase().includes(lowerKey)) ||
-            (t[F.BaseObject] && t[F.BaseObject].toLowerCase().includes(lowerKey)) ||
-            (t[F.Type] && t[F.Type].toLowerCase().includes(lowerKey)) ||
-            (t[F.OutputFormat] && t[F.OutputFormat].toLowerCase().includes(lowerKey)) ||
-            (t[F.Desc] && t[F.Desc].toLowerCase().includes(lowerKey)) ||
-            (t.Id && t.Id.toLowerCase().includes(lowerKey))
+        return this.templates.filter(
+            (t) =>
+                (t.Name && t.Name.toLowerCase().includes(lowerKey)) ||
+                (t[F.Category] && t[F.Category].toLowerCase().includes(lowerKey)) ||
+                (t[F.BaseObject] && t[F.BaseObject].toLowerCase().includes(lowerKey)) ||
+                (t[F.Type] && t[F.Type].toLowerCase().includes(lowerKey)) ||
+                (t[F.OutputFormat] && t[F.OutputFormat].toLowerCase().includes(lowerKey)) ||
+                (t[F.Desc] && t[F.Desc].toLowerCase().includes(lowerKey)) ||
+                (t.Id && t.Id.toLowerCase().includes(lowerKey))
         );
     }
 
@@ -587,7 +692,11 @@ const VERSION_COLUMNS = [
         try {
             // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
             const count = await createSampleTemplates();
-            this.showToast('Welcome to DocGen!', count + ' sample templates installed. Open any template to see how merge tags work.', 'success');
+            this.showToast(
+                'Welcome to DocGen!',
+                count + ' sample templates installed. Open any template to see how merge tags work.',
+                'success'
+            );
             await refreshApex(this.wiredTemplatesResult);
             this.activeMainTab = 'list';
         } catch (error) {
@@ -616,10 +725,18 @@ const VERSION_COLUMNS = [
         }
     }
 
-    get isStep1() { return this.currentWizardStep === '1'; }
-    get isStep2() { return this.currentWizardStep === '2'; }
-    get isStep3() { return this.currentWizardStep === '3'; }
-    get isBackDisabled() { return this.currentWizardStep === '1'; }
+    get isStep1() {
+        return this.currentWizardStep === '1';
+    }
+    get isStep2() {
+        return this.currentWizardStep === '2';
+    }
+    get isStep3() {
+        return this.currentWizardStep === '3';
+    }
+    get isBackDisabled() {
+        return this.currentWizardStep === '1';
+    }
 
     handleNextStep() {
         if (this.currentWizardStep === '1') {
@@ -655,17 +772,19 @@ const VERSION_COLUMNS = [
             this._loadObjectMetadata(this.newTemplateObject);
             this.currentWizardStep = '2';
         } else if (this.currentWizardStep === '2') {
-             // Clean up trailing commas/whitespace
-             let q = (this.newTemplateQuery || '').replace(/[\s,]+$/, '').replace(/^[\s,]+/, '');
-             this.newTemplateQuery = q;
-             const ta = this.template.querySelector('.wizard-query-textarea');
-             if (ta) { ta.value = q; }
+            // Clean up trailing commas/whitespace
+            let q = (this.newTemplateQuery || '').replace(/[\s,]+$/, '').replace(/^[\s,]+/, '');
+            this.newTemplateQuery = q;
+            const ta = this.template.querySelector('.wizard-query-textarea');
+            if (ta) {
+                ta.value = q;
+            }
 
-             if (!q) {
+            if (!q) {
                 this.showToast('Error', 'Please add at least one field to the query.', 'error');
                 return;
-             }
-             this.currentWizardStep = '3';
+            }
+            this.currentWizardStep = '3';
         }
     }
 
@@ -684,8 +803,12 @@ const VERSION_COLUMNS = [
     }
 
     // --- Create Handlers ---
-    handleNameChange(event) { this.newTemplateName = event.detail.value; }
-    handleCategoryChange(event) { this.newTemplateCategory = event.detail.value; }
+    handleNameChange(event) {
+        this.newTemplateName = event.detail.value;
+    }
+    handleCategoryChange(event) {
+        this.newTemplateCategory = event.detail.value;
+    }
     handleTypeChange(event) {
         this.newTemplateType = event.detail.value;
         // Excel only supports Native output — auto-switch from PDF
@@ -693,12 +816,24 @@ const VERSION_COLUMNS = [
             this.newTemplateOutputFormat = 'Native';
         }
     }
-    handleOutputFormatChange(event) { this.newTemplateOutputFormat = event.detail.value; }
-    handleNewPageOrientationChange(event) { this.newTemplatePageOrientation = event.detail.value; }
-    handleNewPageSizeChange(event) { this.newTemplatePageSize = event.detail.value; }
-    handleNewPageMarginsChange(event) { this.newTemplatePageMargins = event.detail.value; }
-    handleNewCustomMarginsChange(event) { this.newTemplateCustomMargins = event.detail.value; }
-    handleDescChange(event) { this.newTemplateDesc = event.detail.value; }
+    handleOutputFormatChange(event) {
+        this.newTemplateOutputFormat = event.detail.value;
+    }
+    handleNewPageOrientationChange(event) {
+        this.newTemplatePageOrientation = event.detail.value;
+    }
+    handleNewPageSizeChange(event) {
+        this.newTemplatePageSize = event.detail.value;
+    }
+    handleNewPageMarginsChange(event) {
+        this.newTemplatePageMargins = event.detail.value;
+    }
+    handleNewCustomMarginsChange(event) {
+        this.newTemplateCustomMargins = event.detail.value;
+    }
+    handleDescChange(event) {
+        this.newTemplateDesc = event.detail.value;
+    }
 
     handleConfigChange(event) {
         this.newTemplateObject = event.detail.objectName;
@@ -765,7 +900,9 @@ const VERSION_COLUMNS = [
                 this._validateAndLoadProviderFields(cfg.provider);
                 return;
             }
-        } catch (e) { /* not JSON — manual or v1 */ }
+        } catch (e) {
+            /* not JSON — manual or v1 */
+        }
         this._clearApexProviderState();
     }
 
@@ -788,13 +925,19 @@ const VERSION_COLUMNS = [
         }
         this.showProviderPicker = true;
         searchDataProviders({ searchTerm: term })
-            .then(data => { this.providerOptions = data || []; })
-            .catch(() => { this.providerOptions = []; });
+            .then((data) => {
+                this.providerOptions = data || [];
+            })
+            .catch(() => {
+                this.providerOptions = [];
+            });
     }
 
     handleApexProviderSelect(event) {
         const className = event.currentTarget.dataset.value;
-        if (!className) { return; }
+        if (!className) {
+            return;
+        }
         this.providerSearchTerm = className;
         this.showProviderPicker = false;
         this._validateAndLoadProviderFields(className);
@@ -803,7 +946,7 @@ const VERSION_COLUMNS = [
     _validateAndLoadProviderFields(className) {
         this.isValidatingProvider = true;
         validateDataProvider({ className })
-            .then(result => {
+            .then((result) => {
                 this.isValidatingProvider = false;
                 if (result && result.valid) {
                     this.selectedProviderClassName = className;
@@ -815,21 +958,28 @@ const VERSION_COLUMNS = [
                     } else {
                         this.newTemplateQuery = v4Config;
                     }
-                    this.dispatchEvent(new ShowToastEvent({
-                        title: 'Provider Connected',
-                        message: className + ' — ' + this.providerFields.length + ' fields available',
-                        variant: 'success'
-                    }));
+                    this.dispatchEvent(
+                        new ShowToastEvent({
+                            title: 'Provider Connected',
+                            message: className + ' — ' + this.providerFields.length + ' fields available',
+                            variant: 'success'
+                        })
+                    );
                 } else {
                     this.providerFields = [];
                     this.selectedProviderClassName = '';
-                    const msg = (result && result.error) ? result.error : 'Class is not a valid DocGenDataProvider.';
-                    this.dispatchEvent(new ShowToastEvent({ title: 'Invalid Provider', message: msg, variant: 'error' }));
+                    const msg = result && result.error ? result.error : 'Class is not a valid DocGenDataProvider.';
+                    this.dispatchEvent(
+                        new ShowToastEvent({ title: 'Invalid Provider', message: msg, variant: 'error' })
+                    );
                 }
             })
-            .catch(err => {
+            .catch((err) => {
                 this.isValidatingProvider = false;
-                const msg = (err && err.body && err.body.message) ? err.body.message : (err && err.message) || 'Validation failed';
+                const msg =
+                    err && err.body && err.body.message
+                        ? err.body.message
+                        : (err && err.message) || 'Validation failed';
                 this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: msg, variant: 'error' }));
             });
     }
@@ -856,7 +1006,7 @@ const VERSION_COLUMNS = [
     }
 
     get providerTagPills() {
-        return (this.providerFields || []).map(f => ({ tag: '{' + f + '}', raw: f }));
+        return (this.providerFields || []).map((f) => ({ tag: '{' + f + '}', raw: f }));
     }
 
     get isProviderConnected() {
@@ -894,8 +1044,12 @@ const VERSION_COLUMNS = [
         ];
     }
 
-    get isRecordDataSource() { return this.dataSourceMode === 'record'; }
-    get isApexDataSource() { return this.dataSourceMode === 'apex'; }
+    get isRecordDataSource() {
+        return this.dataSourceMode === 'record';
+    }
+    get isApexDataSource() {
+        return this.dataSourceMode === 'apex';
+    }
 
     get readableQueryConfig() {
         return this._formatQueryConfig(this.newTemplateQuery);
@@ -916,42 +1070,49 @@ const VERSION_COLUMNS = [
     }
 
     _formatQueryConfig(configStr) {
-        if (!configStr) { return ''; }
+        if (!configStr) {
+            return '';
+        }
         try {
             const cfg = JSON.parse(configStr);
-            if (cfg.v !== 3 || !cfg.nodes) { return configStr; }
+            if (cfg.v !== 3 || !cfg.nodes) {
+                return configStr;
+            }
 
-            const root = cfg.nodes.find(n => !n.parentNode);
-            if (!root) { return configStr; }
+            const root = cfg.nodes.find((n) => !n.parentNode);
+            if (!root) {
+                return configStr;
+            }
 
             // Recursively build subqueries — supports any depth
             const buildSubqueries = (parentId) => {
-                const children = cfg.nodes.filter(n => n.parentNode === parentId);
+                const children = cfg.nodes.filter((n) => n.parentNode === parentId);
                 const subs = [];
                 for (const child of children) {
-                    const subFields = [
-                        ...(child.fields || []),
-                        ...(child.parentFields || [])
-                    ];
+                    const subFields = [...(child.fields || []), ...(child.parentFields || [])];
                     // Recurse: grandchildren become nested subqueries
                     const nestedSubs = buildSubqueries(child.id);
                     subFields.push(...nestedSubs);
-                    if (subFields.length === 0) { subFields.push('Id'); }
+                    if (subFields.length === 0) {
+                        subFields.push('Id');
+                    }
                     let sq = '(SELECT ' + subFields.join(', ') + ' FROM ' + child.relationshipName;
-                    if (child.where) { sq += ' WHERE ' + child.where; }
-                    if (child.orderBy) { sq += ' ORDER BY ' + child.orderBy; }
-                    if (child.limit) { sq += ' LIMIT ' + child.limit; }
+                    if (child.where) {
+                        sq += ' WHERE ' + child.where;
+                    }
+                    if (child.orderBy) {
+                        sq += ' ORDER BY ' + child.orderBy;
+                    }
+                    if (child.limit) {
+                        sq += ' LIMIT ' + child.limit;
+                    }
                     sq += ')';
                     subs.push(sq);
                 }
                 return subs;
             };
 
-            const parts = [
-                ...(root.fields || []),
-                ...(root.parentFields || []),
-                ...buildSubqueries(root.id)
-            ];
+            const parts = [...(root.fields || []), ...(root.parentFields || []), ...buildSubqueries(root.id)];
 
             return parts.join(', ');
         } catch {
@@ -980,12 +1141,14 @@ const VERSION_COLUMNS = [
             recordId: recordId,
             baseObject: objectName,
             queryConfig: query
-        }).then(data => {
-            this.sampleRecordData = data;
-            this._updateQueryTree();
-        }).catch(() => {
-            this.sampleRecordData = null;
-        });
+        })
+            .then((data) => {
+                this.sampleRecordData = data;
+                this._updateQueryTree();
+            })
+            .catch(() => {
+                this.sampleRecordData = null;
+            });
     }
 
     handleObjectSearchInput(event) {
@@ -993,7 +1156,7 @@ const VERSION_COLUMNS = [
         this.newTemplateObject = term;
         if (term.length >= 2) {
             if (this.objectOptions.length === 0) {
-                getObjectOptions().then(data => {
+                getObjectOptions().then((data) => {
                     this.objectOptions = data;
                     this._filterObjects(term);
                 });
@@ -1008,7 +1171,7 @@ const VERSION_COLUMNS = [
     _filterObjects(term) {
         const t = term.toLowerCase();
         this.filteredObjectOptions = this.objectOptions
-            .filter(o => o.label.toLowerCase().includes(t) || o.value.toLowerCase().includes(t))
+            .filter((o) => o.label.toLowerCase().includes(t) || o.value.toLowerCase().includes(t))
             .slice(0, 12);
         this.showObjectSuggestions = this.filteredObjectOptions.length > 0;
     }
@@ -1022,16 +1185,36 @@ const VERSION_COLUMNS = [
 
     _loadObjectMetadata(objectName) {
         // Load fields, children, and parents in parallel for slash commands
-        getObjectFields({ objectName }).then(data => { this._allFields = data || []; }).catch(() => { this._allFields = []; });
-        getChildRelationships({ objectName }).then(data => { this._allChildren = data || []; }).catch(() => { this._allChildren = []; });
-        getParentRelationships({ objectName }).then(data => { this._allParents = data || []; }).catch(() => { this._allParents = []; });
+        getObjectFields({ objectName })
+            .then((data) => {
+                this._allFields = data || [];
+            })
+            .catch(() => {
+                this._allFields = [];
+            });
+        getChildRelationships({ objectName })
+            .then((data) => {
+                this._allChildren = data || [];
+            })
+            .catch(() => {
+                this._allChildren = [];
+            });
+        getParentRelationships({ objectName })
+            .then((data) => {
+                this._allParents = data || [];
+            })
+            .catch(() => {
+                this._allParents = [];
+            });
     }
-
 
     // --- Live Query Tree ---
     _updateQueryTree() {
         const q = (this._activeQuery || '').trim();
-        if (!q || !this._activeObject) { this.queryTreeNodes = []; return; }
+        if (!q || !this._activeObject) {
+            this.queryTreeNodes = [];
+            return;
+        }
         try {
             const nodes = [];
             const data = this.sampleRecordData || {};
@@ -1041,10 +1224,10 @@ const VERSION_COLUMNS = [
             let parsed;
             if (q.startsWith('{') && q.includes('"v":3')) {
                 const cfg = JSON.parse(q);
-                const root = (cfg.nodes || []).find(n => !n.parentNode) || {};
+                const root = (cfg.nodes || []).find((n) => !n.parentNode) || {};
                 const buildSubs = (parentId) => {
-                    const kids = (cfg.nodes || []).filter(n => n.parentNode === parentId);
-                    return kids.map(k => ({
+                    const kids = (cfg.nodes || []).filter((n) => n.parentNode === parentId);
+                    return kids.map((k) => ({
                         relationshipName: k.alias || k.relationshipName,
                         fields: [...(k.fields || []), ...(k.parentFields || [])],
                         whereClause: k.where || '',
@@ -1065,15 +1248,17 @@ const VERSION_COLUMNS = [
             const parentFields = parsed.parentFields;
 
             // Build field display with sample values
-            const fieldPills = directFields.map(f => {
+            const fieldPills = directFields.map((f) => {
                 const val = data[f];
                 return { key: f, name: f, sample: val != null ? String(val) : '' };
             });
-            const parentPills = parentFields.map(f => {
+            const parentPills = parentFields.map((f) => {
                 // Resolve dot notation: "Owner.Name" → data.Owner.Name
                 const parts = f.split('.');
                 let val = data;
-                for (const p of parts) { val = val && typeof val === 'object' ? val[p] : undefined; }
+                for (const p of parts) {
+                    val = val && typeof val === 'object' ? val[p] : undefined;
+                }
                 return { key: f, name: f, sample: val != null ? String(val) : '' };
             });
 
@@ -1083,8 +1268,8 @@ const VERSION_COLUMNS = [
             const flattenChildren = (subqueries, depth) => {
                 for (let i = 0; i < subqueries.length; i++) {
                     const sq = subqueries[i];
-                    const directF = sq.fields.filter(f => !f.includes('.'));
-                    const parentF = sq.fields.filter(f => f.includes('.'));
+                    const directF = sq.fields.filter((f) => !f.includes('.'));
+                    const parentF = sq.fields.filter((f) => f.includes('.'));
                     flatChildren.push({
                         id: 'child_' + flatChildren.length,
                         label: sq.relationshipName,
@@ -1094,7 +1279,10 @@ const VERSION_COLUMNS = [
                         fieldCount: sq.fields.length,
                         where: sq.whereClause || '',
                         depth,
-                        indentStyle: 'margin-left: ' + (depth * 20) + 'px; margin-bottom: 6px; padding: 8px 10px; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px;'
+                        indentStyle:
+                            'margin-left: ' +
+                            depth * 20 +
+                            'px; margin-bottom: 6px; padding: 8px 10px; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px;'
                     });
                     if (sq.children && sq.children.length > 0) {
                         flattenChildren(sq.children, depth + 1);
@@ -1118,14 +1306,19 @@ const VERSION_COLUMNS = [
                 hasFlatChildren: flatChildren.length > 0
             });
             this.queryTreeNodes = nodes;
-        } catch (err) { // eslint-disable-line no-unused-vars
+        } catch (err) {
+            // eslint-disable-line no-unused-vars
             this.queryTreeNodes = [];
         }
     }
 
     // --- Edit Handlers ---
-    handleEditNameChange(event) { this.editTemplateName = event.detail.value; }
-    handleEditCategoryChange(event) { this.editTemplateCategory = event.detail.value; }
+    handleEditNameChange(event) {
+        this.editTemplateName = event.detail.value;
+    }
+    handleEditCategoryChange(event) {
+        this.editTemplateCategory = event.detail.value;
+    }
     handleEditTypeChange(event) {
         this.editTemplateType = event.detail.value;
         if (event.detail.value === 'Excel' && this.editTemplateOutputFormat === 'PDF') {
@@ -1135,24 +1328,58 @@ const VERSION_COLUMNS = [
             this.editTemplateOutputFormat = 'PDF';
         }
     }
-    handleEditHeaderHtmlChange(event) { this.editTemplateHeaderHtml = event.detail.value; }
-    handleEditFooterHtmlChange(event) { this.editTemplateFooterHtml = event.detail.value; }
-    toggleHeaderHtmlSource() { this.showHeaderHtmlSource = !this.showHeaderHtmlSource; }
-    toggleFooterHtmlSource() { this.showFooterHtmlSource = !this.showFooterHtmlSource; }
-    get headerSourceToggleLabel() { return this.showHeaderHtmlSource ? 'Show Editor' : 'Show HTML'; }
-    get footerSourceToggleLabel() { return this.showFooterHtmlSource ? 'Show Editor' : 'Show HTML'; }
-    handleEditOutputFormatChange(event) { this.editTemplateOutputFormat = event.detail.value; }
-    handleEditPageOrientationChange(event) { this.editTemplatePageOrientation = event.detail.value; }
-    handleEditPageSizeChange(event) { this.editTemplatePageSize = event.detail.value; }
-    handleEditPageMarginsChange(event) { this.editTemplatePageMargins = event.detail.value; }
-    handleEditCustomMarginsChange(event) { this.editTemplateCustomMargins = event.detail.value; }
-    handleEditDescChange(event) { this.editTemplateDesc = event.detail.value; }
-    handleEditDefaultChange(event) { this.editTemplateIsDefault = event.target.checked; }
+    handleEditHeaderHtmlChange(event) {
+        this.editTemplateHeaderHtml = event.detail.value;
+    }
+    handleEditFooterHtmlChange(event) {
+        this.editTemplateFooterHtml = event.detail.value;
+    }
+    toggleHeaderHtmlSource() {
+        this.showHeaderHtmlSource = !this.showHeaderHtmlSource;
+    }
+    toggleFooterHtmlSource() {
+        this.showFooterHtmlSource = !this.showFooterHtmlSource;
+    }
+    get headerSourceToggleLabel() {
+        return this.showHeaderHtmlSource ? 'Show Editor' : 'Show HTML';
+    }
+    get footerSourceToggleLabel() {
+        return this.showFooterHtmlSource ? 'Show Editor' : 'Show HTML';
+    }
+    handleEditOutputFormatChange(event) {
+        this.editTemplateOutputFormat = event.detail.value;
+    }
+    handleEditPageOrientationChange(event) {
+        this.editTemplatePageOrientation = event.detail.value;
+    }
+    handleEditPageSizeChange(event) {
+        this.editTemplatePageSize = event.detail.value;
+    }
+    handleEditPageMarginsChange(event) {
+        this.editTemplatePageMargins = event.detail.value;
+    }
+    handleEditCustomMarginsChange(event) {
+        this.editTemplateCustomMargins = event.detail.value;
+    }
+    handleEditDescChange(event) {
+        this.editTemplateDesc = event.detail.value;
+    }
+    handleEditDefaultChange(event) {
+        this.editTemplateIsDefault = event.target.checked;
+    }
     // 1.47 — runner visibility & sort handlers
-    handleEditSortOrderChange(event) { this.editTemplateSortOrder = event.detail.value; }
-    handleEditLockOutputChange(event) { this.editTemplateLockOutputFormat = event.target.checked; }
-    handleEditSpecificRecordIdsChange(event) { this.editTemplateSpecificRecordIds = event.detail.value; }
-    handleEditRequiredPermSetsChange(event) { this.editTemplateRequiredPermissionSets = event.detail.value; }
+    handleEditSortOrderChange(event) {
+        this.editTemplateSortOrder = event.detail.value;
+    }
+    handleEditLockOutputChange(event) {
+        this.editTemplateLockOutputFormat = event.target.checked;
+    }
+    handleEditSpecificRecordIdsChange(event) {
+        this.editTemplateSpecificRecordIds = event.detail.value;
+    }
+    handleEditRequiredPermSetsChange(event) {
+        this.editTemplateRequiredPermissionSets = event.detail.value;
+    }
     handleEditRecordFilterChange(event) {
         this.editTemplateRecordFilter = event.detail.value;
         this.editTemplateRecordFilterResult = '';
@@ -1162,7 +1389,8 @@ const VERSION_COLUMNS = [
     async handleTestRecordFilter() {
         if (!this.editTemplateRecordFilter || !this.editTemplateTestRecordId || !this.editTemplateObject) {
             this.editTemplateRecordFilterResult = 'error';
-            this.editTemplateRecordFilterResultMessage = 'Need Base Object, Sample Test Record Id (set on the template), and a Record Filter clause to test.';
+            this.editTemplateRecordFilterResultMessage =
+                'Need Base Object, Sample Test Record Id (set on the template), and a Record Filter clause to test.';
             return;
         }
         this.editTemplateRecordFilterTesting = true;
@@ -1179,14 +1407,16 @@ const VERSION_COLUMNS = [
                 this.editTemplateRecordFilterResultMessage = res.error;
             } else if (res.matched) {
                 this.editTemplateRecordFilterResult = 'matched';
-                this.editTemplateRecordFilterResultMessage = '✓ Match — this template would appear for the test record.';
+                this.editTemplateRecordFilterResultMessage =
+                    '✓ Match — this template would appear for the test record.';
             } else {
                 this.editTemplateRecordFilterResult = 'nomatch';
-                this.editTemplateRecordFilterResultMessage = '✗ No match — the test record does not satisfy this filter.';
+                this.editTemplateRecordFilterResultMessage =
+                    '✗ No match — the test record does not satisfy this filter.';
             }
         } catch (e) {
             this.editTemplateRecordFilterResult = 'error';
-            this.editTemplateRecordFilterResultMessage = (e.body && e.body.message) ? e.body.message : e.message;
+            this.editTemplateRecordFilterResultMessage = e.body && e.body.message ? e.body.message : e.message;
         } finally {
             this.editTemplateRecordFilterTesting = false;
         }
@@ -1228,7 +1458,9 @@ const VERSION_COLUMNS = [
         this._updateQueryTree();
         this._updateSuggestions(event.target);
         clearTimeout(this._sampleDebounce);
-        this._sampleDebounce = setTimeout(() => { this._loadSampleData(); }, 800);
+        this._sampleDebounce = setTimeout(() => {
+            this._loadSampleData();
+        }, 800);
     }
 
     handleEditConfigChange(event) {
@@ -1311,7 +1543,7 @@ const VERSION_COLUMNS = [
                         isLoop: true,
                         loopStart: '{#' + sq.relationshipName + '}',
                         loopEnd: '{/' + sq.relationshipName + '}',
-                        tags: sq.fields.filter(f => f).map(f => ({ code: '{' + f + '}' }))
+                        tags: sq.fields.filter((f) => f).map((f) => ({ code: '{' + f + '}' }))
                     });
                     if (sq.children && sq.children.length > 0) {
                         buildTagSections(sq.children);
@@ -1326,7 +1558,7 @@ const VERSION_COLUMNS = [
                 sections.unshift({
                     name: this.editTemplateObject || 'Base Fields',
                     isLoop: false,
-                    tags: baseFields.map(f => ({ code: '{' + f + '}' }))
+                    tags: baseFields.map((f) => ({ code: '{' + f + '}' }))
                 });
             }
 
@@ -1348,31 +1580,41 @@ const VERSION_COLUMNS = [
         if (!fields || fields.length === 0) {
             // Provider not yet validated — show a placeholder so the tab isn't
             // empty. The fields populate after _validateAndLoadProviderFields runs.
-            return [{
-                name: providerName + ' (loading…)',
-                isLoop: false,
-                tags: []
-            }];
+            return [
+                {
+                    name: providerName + ' (loading…)',
+                    isLoop: false,
+                    tags: []
+                }
+            ];
         }
 
-        const baseTags = [];           // Bare field tags
-        const parentSections = {};     // 'Owner' → { tags: [...] }
-        const loopSections = {};       // 'Contacts' → { tags: [...] }
-        const loopOrder = [];          // preserve order of first appearance
+        const baseTags = []; // Bare field tags
+        const parentSections = {}; // 'Owner' → { tags: [...] }
+        const loopSections = {}; // 'Contacts' → { tags: [...] }
+        const loopOrder = []; // preserve order of first appearance
 
         // First pass: detect explicit loop boundaries '#Foo' so we know which
         // dotted prefixes are loop-rows vs parent-lookups.
         const declaredLoops = new Set();
         for (const f of fields) {
-            if (typeof f !== 'string') { continue; }
-            if (f.startsWith('#')) { declaredLoops.add(f.substring(1)); }
+            if (typeof f !== 'string') {
+                continue;
+            }
+            if (f.startsWith('#')) {
+                declaredLoops.add(f.substring(1));
+            }
         }
 
         for (const f of fields) {
-            if (typeof f !== 'string' || !f) { continue; }
+            if (typeof f !== 'string' || !f) {
+                continue;
+            }
             // Loop boundary markers — used only to declare loop sections;
             // emitted as loopStart/loopEnd, not as click-to-copy tags.
-            if (f.startsWith('#') || f.startsWith('/')) { continue; }
+            if (f.startsWith('#') || f.startsWith('/')) {
+                continue;
+            }
 
             const dotIdx = f.indexOf('.');
             if (dotIdx > 0) {
@@ -1385,7 +1627,9 @@ const VERSION_COLUMNS = [
                     // Inside a loop, render as the bare field name (loop scope rewrites it)
                     loopSections[prefix].tags.push({ code: '{' + f.substring(dotIdx + 1) + '}' });
                 } else {
-                    if (!parentSections[prefix]) { parentSections[prefix] = { tags: [] }; }
+                    if (!parentSections[prefix]) {
+                        parentSections[prefix] = { tags: [] };
+                    }
                     parentSections[prefix].tags.push({ code: '{' + f + '}' });
                 }
             } else {
@@ -1422,12 +1666,16 @@ const VERSION_COLUMNS = [
 
     async handleCopyEditTag(event) {
         const tag = event.currentTarget.dataset.tag;
-        if (!tag) { return; }
+        if (!tag) {
+            return;
+        }
         try {
             await this._copyToClipboard(tag);
             this.dispatchEvent(new ShowToastEvent({ title: 'Copied', message: tag, variant: 'success' }));
         } catch {
-            this.dispatchEvent(new ShowToastEvent({ title: 'Copy Failed', message: 'Unable to copy to clipboard.', variant: 'error' }));
+            this.dispatchEvent(
+                new ShowToastEvent({ title: 'Copy Failed', message: 'Unable to copy to clipboard.', variant: 'error' })
+            );
         }
     }
 
@@ -1438,16 +1686,22 @@ const VERSION_COLUMNS = [
         let current = '';
         for (let i = 0; i < str.length; i++) {
             const ch = str[i];
-            if (ch === '(') { depth++; current += ch; }
-            else if (ch === ')') { depth--; current += ch; }
-            else if (ch === ',' && depth === 0) {
+            if (ch === '(') {
+                depth++;
+                current += ch;
+            } else if (ch === ')') {
+                depth--;
+                current += ch;
+            } else if (ch === ',' && depth === 0) {
                 tokens.push(current.trim());
                 current = '';
             } else {
                 current += ch;
             }
         }
-        if (current.trim()) { tokens.push(current.trim()); }
+        if (current.trim()) {
+            tokens.push(current.trim());
+        }
         return tokens;
     }
 
@@ -1491,14 +1745,10 @@ const VERSION_COLUMNS = [
     get outputFormatOptions() {
         const type = this.isCreating ? this.newTemplateType : this.editTemplateType;
         if (type === 'Excel') {
-            return [
-                { label: 'Native (.xlsx)', value: 'Native' }
-            ];
+            return [{ label: 'Native (.xlsx)', value: 'Native' }];
         }
         if (type === 'HTML') {
-            return [
-                { label: 'PDF', value: 'PDF' }
-            ];
+            return [{ label: 'PDF', value: 'PDF' }];
         }
         return [
             { label: type === 'PowerPoint' ? 'Native (.pptx)' : 'Native (.docx)', value: 'Native' },
@@ -1612,7 +1862,6 @@ const VERSION_COLUMNS = [
             this.activeMainTab = 'list';
             this.activeEditTab = 'document';
             this.openEditModal(newRow, 'document');
-
         } catch (error) {
             this.showToast('Error creating record', error.body ? error.body.message : error.message, 'error');
         }
@@ -1725,7 +1974,9 @@ const VERSION_COLUMNS = [
                     this.editUseVisualBuilder = false;
                     this._validateAndLoadProviderFields(cfg.provider);
                 }
-            } catch (e) { /* not JSON — manual or v1 */ }
+            } catch (e) {
+                /* not JSON — manual or v1 */
+            }
             this.editTemplateTestRecordId = row[F.TestRecordId];
             this.editTemplateTitleFormat = row[F.DocTitleFormat];
             this.editTemplateIsDefault = row[F.IsDefault] || false;
@@ -1772,7 +2023,9 @@ const VERSION_COLUMNS = [
                 this._loadSampleData();
                 // Native textarea doesn't reliably pick up value from LWC reactivity — set DOM directly
                 const ta = this.template.querySelector('.edit-query-textarea');
-                if (ta && this.editTemplateQuery) { ta.value = this.editTemplateQuery; }
+                if (ta && this.editTemplateQuery) {
+                    ta.value = this.editTemplateQuery;
+                }
             }, 300);
         } catch (e) {
             this.showToast('Error', 'Failed to open modal: ' + e.message, 'error');
@@ -1803,7 +2056,7 @@ const VERSION_COLUMNS = [
 
     loadVersions(templateId) {
         getTemplateVersions({ templateId })
-            .then(data => {
+            .then((data) => {
                 if (!data) {
                     this.versions = [];
                     this.editTemplateWatermarkCvId = null;
@@ -1822,8 +2075,8 @@ const VERSION_COLUMNS = [
                     };
                 });
                 // Sync watermark CV from the active version so the tab shows current state
-                const active = data.find(v => v[F.VerIsActive]);
-                this.editTemplateWatermarkCvId = active ? (active[F.VerWatermarkCv] || null) : null;
+                const active = data.find((v) => v[F.VerIsActive]);
+                this.editTemplateWatermarkCvId = active ? active[F.VerWatermarkCv] || null : null;
             })
             .catch(() => {
                 this.versions = [];
@@ -1919,12 +2172,15 @@ const VERSION_COLUMNS = [
     handlePreviewDownload() {
         const cvId = this.previewVersion?.[F.VerCvId];
         if (cvId) {
-            this[NavigationMixin.Navigate]({
-                type: 'standard__webPage',
-                attributes: {
-                    url: `/sfc/servlet.shepherd/version/download/${cvId}`
-                }
-            }, false);
+            this[NavigationMixin.Navigate](
+                {
+                    type: 'standard__webPage',
+                    attributes: {
+                        url: `/sfc/servlet.shepherd/version/download/${cvId}`
+                    }
+                },
+                false
+            );
         }
     }
 
@@ -1963,9 +2219,17 @@ const VERSION_COLUMNS = [
                 const docTitle = 'Preview_' + this.previewVersion.VersionNumber + '_' + (result.title || 'Document');
                 const ext = isPPT ? '.pptx' : '.docx';
                 this.downloadBase64(result.base64, docTitle + ext, 'application/octet-stream');
-                this.showToast('Success', 'Sample document generated for ' + this.previewVersion.VersionNumber, 'success');
+                this.showToast(
+                    'Success',
+                    'Sample document generated for ' + this.previewVersion.VersionNumber,
+                    'success'
+                );
             } else {
-                this.showToast('Info', 'Generating PDF sample for ' + this.previewVersion.VersionNumber + '...', 'info');
+                this.showToast(
+                    'Info',
+                    'Generating PDF sample for ' + this.previewVersion.VersionNumber + '...',
+                    'info'
+                );
                 const pdfResult = await generatePdf({
                     templateId: this.editTemplateId,
                     recordId: this.editTemplateTestRecordId,
@@ -1990,7 +2254,7 @@ const VERSION_COLUMNS = [
 
     // --- Save Logic ---
     async handleSaveOnly() {
-         if (!this.editTemplateName || !this.editTemplateType) {
+        if (!this.editTemplateName || !this.editTemplateType) {
             this.showToast('Error', 'Name and Type are required.', 'error');
             return;
         }
@@ -1998,26 +2262,26 @@ const VERSION_COLUMNS = [
         const fields = {
             Id: this.editTemplateId,
             Name: this.editTemplateName,
-            'Category__c': this.editTemplateCategory,
-            'Type__c': this.editTemplateType,
-            'Output_Format__c': this.editTemplateOutputFormat,
-            'Base_Object_API__c': this.editTemplateObject,
-            'Description__c': this.editTemplateDesc,
-            'Query_Config__c': this._sanitizeQueryConfig(this.editTemplateQuery),
-            'Test_Record_Id__c': this.editTemplateTestRecordId,
-            'Document_Title_Format__c': this.editTemplateTitleFormat,
-            'Is_Default__c': this.editTemplateIsDefault,
-            'Sort_Order__c': this.editTemplateSortOrder,
-            'Lock_Output_Format__c': this.editTemplateLockOutputFormat,
-            'Specific_Record_Ids__c': this.editTemplateSpecificRecordIds,
-            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets,
-            'Record_Filter__c': this.editTemplateRecordFilter,
-            'Header_Html__c': this.editTemplateHeaderHtml,
-            'Footer_Html__c': this.editTemplateFooterHtml,
-            'Page_Orientation__c': this.editTemplatePageOrientation,
-            'Page_Size__c': this.editTemplatePageSize,
-            'Page_Margins__c': this.editTemplatePageMargins,
-            'Custom_Margins__c': this.editTemplateCustomMargins
+            Category__c: this.editTemplateCategory,
+            Type__c: this.editTemplateType,
+            Output_Format__c: this.editTemplateOutputFormat,
+            Base_Object_API__c: this.editTemplateObject,
+            Description__c: this.editTemplateDesc,
+            Query_Config__c: this._sanitizeQueryConfig(this.editTemplateQuery),
+            Test_Record_Id__c: this.editTemplateTestRecordId,
+            Document_Title_Format__c: this.editTemplateTitleFormat,
+            Is_Default__c: this.editTemplateIsDefault,
+            Sort_Order__c: this.editTemplateSortOrder,
+            Lock_Output_Format__c: this.editTemplateLockOutputFormat,
+            Specific_Record_Ids__c: this.editTemplateSpecificRecordIds,
+            Required_Permission_Sets__c: this.editTemplateRequiredPermissionSets,
+            Record_Filter__c: this.editTemplateRecordFilter,
+            Header_Html__c: this.editTemplateHeaderHtml,
+            Footer_Html__c: this.editTemplateFooterHtml,
+            Page_Orientation__c: this.editTemplatePageOrientation,
+            Page_Size__c: this.editTemplatePageSize,
+            Page_Margins__c: this.editTemplatePageMargins,
+            Custom_Margins__c: this.editTemplateCustomMargins
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 
@@ -2040,32 +2304,36 @@ const VERSION_COLUMNS = [
         const fields = {
             Id: this.editTemplateId,
             Name: this.editTemplateName,
-            'Category__c': this.editTemplateCategory,
-            'Type__c': this.editTemplateType,
-            'Output_Format__c': this.editTemplateOutputFormat,
-            'Base_Object_API__c': this.editTemplateObject,
-            'Description__c': this.editTemplateDesc,
-            'Query_Config__c': this._sanitizeQueryConfig(this.editTemplateQuery),
-            'Test_Record_Id__c': this.editTemplateTestRecordId,
-            'Document_Title_Format__c': this.editTemplateTitleFormat,
-            'Is_Default__c': this.editTemplateIsDefault,
-            'Sort_Order__c': this.editTemplateSortOrder,
-            'Lock_Output_Format__c': this.editTemplateLockOutputFormat,
-            'Specific_Record_Ids__c': this.editTemplateSpecificRecordIds,
-            'Required_Permission_Sets__c': this.editTemplateRequiredPermissionSets,
-            'Record_Filter__c': this.editTemplateRecordFilter,
-            'Header_Html__c': this.editTemplateHeaderHtml,
-            'Footer_Html__c': this.editTemplateFooterHtml,
-            'Page_Orientation__c': this.editTemplatePageOrientation,
-            'Page_Size__c': this.editTemplatePageSize,
-            'Page_Margins__c': this.editTemplatePageMargins,
-            'Custom_Margins__c': this.editTemplateCustomMargins
+            Category__c: this.editTemplateCategory,
+            Type__c: this.editTemplateType,
+            Output_Format__c: this.editTemplateOutputFormat,
+            Base_Object_API__c: this.editTemplateObject,
+            Description__c: this.editTemplateDesc,
+            Query_Config__c: this._sanitizeQueryConfig(this.editTemplateQuery),
+            Test_Record_Id__c: this.editTemplateTestRecordId,
+            Document_Title_Format__c: this.editTemplateTitleFormat,
+            Is_Default__c: this.editTemplateIsDefault,
+            Sort_Order__c: this.editTemplateSortOrder,
+            Lock_Output_Format__c: this.editTemplateLockOutputFormat,
+            Specific_Record_Ids__c: this.editTemplateSpecificRecordIds,
+            Required_Permission_Sets__c: this.editTemplateRequiredPermissionSets,
+            Record_Filter__c: this.editTemplateRecordFilter,
+            Header_Html__c: this.editTemplateHeaderHtml,
+            Footer_Html__c: this.editTemplateFooterHtml,
+            Page_Orientation__c: this.editTemplatePageOrientation,
+            Page_Size__c: this.editTemplatePageSize,
+            Page_Margins__c: this.editTemplatePageMargins,
+            Custom_Margins__c: this.editTemplateCustomMargins
         };
         this.editTemplateQuery = fields['Query_Config__c'];
 
         try {
             // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-            await saveTemplate({ fields: fields, createVersion: true, contentVersionId: this.uploadedContentVersionId });
+            await saveTemplate({
+                fields: fields,
+                createVersion: true,
+                contentVersionId: this.uploadedContentVersionId
+            });
             this.showToast('Success', 'Template and Version saved.', 'success');
             this.closeEditModal();
             return refreshApex(this.wiredTemplatesResult);
@@ -2090,8 +2358,13 @@ const VERSION_COLUMNS = [
         }
 
         // Auto-heal sample query config
-        if (this.editTemplateName === 'Sample Quote Template' && this.editTemplateQuery && !this.editTemplateQuery.toLowerCase().includes('quotelineitems')) {
-            this.editTemplateQuery += ', (SELECT Product2.Name, Description, Quantity, UnitPrice, TotalPrice FROM QuoteLineItems)';
+        if (
+            this.editTemplateName === 'Sample Quote Template' &&
+            this.editTemplateQuery &&
+            !this.editTemplateQuery.toLowerCase().includes('quotelineitems')
+        ) {
+            this.editTemplateQuery +=
+                ', (SELECT Product2.Name, Description, Quantity, UnitPrice, TotalPrice FROM QuoteLineItems)';
         }
 
         // Save first
@@ -2169,12 +2442,16 @@ const VERSION_COLUMNS = [
 
     triggerHtmlFilePicker() {
         const input = this.template.querySelector('.docgen-html-file-input');
-        if (input) { input.click(); }
+        if (input) {
+            input.click();
+        }
     }
 
     async handleHtmlFileSelected(event) {
         const file = event.target.files && event.target.files[0];
-        if (!file) { return; }
+        if (!file) {
+            return;
+        }
         const lower = (file.name || '').toLowerCase();
         if (!lower.endsWith('.html') && !lower.endsWith('.htm') && !lower.endsWith('.zip')) {
             this.showToast('Unsupported file', 'Please choose an .html, .htm, or .zip file.', 'error');
@@ -2191,7 +2468,7 @@ const VERSION_COLUMNS = [
             if (lower.endsWith('.zip')) {
                 const buffer = await file.arrayBuffer();
                 const entries = await readZip(buffer);
-                const imgExts = new Set(['png','jpg','jpeg','gif','bmp','tif','tiff','svg']);
+                const imgExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'tif', 'tiff', 'svg']);
                 for (const entry of entries) {
                     const n = entry.name.toLowerCase();
                     if (!htmlText && (n.endsWith('.html') || n.endsWith('.htm'))) {
@@ -2221,8 +2498,12 @@ const VERSION_COLUMNS = [
             while ((m = dataUriRe.exec(htmlText)) !== null) {
                 const dataUri = m[2];
                 let ext = m[3].toLowerCase();
-                if (ext === 'jpeg') { ext = 'jpg'; }
-                if (ext === 'svg+xml') { ext = 'svg'; }
+                if (ext === 'jpeg') {
+                    ext = 'jpg';
+                }
+                if (ext === 'svg+xml') {
+                    ext = 'svg';
+                }
                 const base64 = m[4].replace(/\s+/g, '');
                 dataUriMatches.push({ dataUri, ext, base64 });
             }
@@ -2238,7 +2519,9 @@ const VERSION_COLUMNS = [
                     base64Content: bytesToBase64(imageBytes[i])
                 });
                 urlByPath[imagePaths[i]] = imgResult.url;
-                if (base !== imagePaths[i]) { urlByPath[base] = imgResult.url; }
+                if (base !== imagePaths[i]) {
+                    urlByPath[base] = imgResult.url;
+                }
             }
 
             // Upload extracted data: URIs; key by the full data: string so the
@@ -2277,9 +2560,8 @@ const VERSION_COLUMNS = [
             this.currentFileId = bodyResult.contentDocumentId;
             this.uploadedContentVersionId = bodyResult.contentVersionId;
             this.uploadedFileName = file.name;
-            const imgMsg = totalImages > 0
-                ? ' (' + totalImages + ' image' + (totalImages === 1 ? '' : 's') + ' extracted)'
-                : '';
+            const imgMsg =
+                totalImages > 0 ? ' (' + totalImages + ' image' + (totalImages === 1 ? '' : 's') + ' extracted)' : '';
             this.showToast('Uploaded', file.name + imgMsg + ' — click "Save as New Version" to activate.', 'success');
         } catch (err) {
             const msg = err && err.body && err.body.message ? err.body.message : (err && err.message) || String(err);
@@ -2292,12 +2574,15 @@ const VERSION_COLUMNS = [
 
     downloadTemplate() {
         if (this.currentFileId) {
-            this[NavigationMixin.Navigate]({
-                type: 'standard__webPage',
-                attributes: {
-                    url: `/sfc/servlet.shepherd/document/download/${this.currentFileId}`
-                }
-            }, false);
+            this[NavigationMixin.Navigate](
+                {
+                    type: 'standard__webPage',
+                    attributes: {
+                        url: `/sfc/servlet.shepherd/document/download/${this.currentFileId}`
+                    }
+                },
+                false
+            );
         }
     }
 
@@ -2356,15 +2641,21 @@ const VERSION_COLUMNS = [
 
     async handleWatermarkFileSelected(event) {
         const file = event.target.files && event.target.files[0];
-        if (!file) { return; }
+        if (!file) {
+            return;
+        }
         if (!file.type || !file.type.startsWith('image/')) {
             this.showToast('Unsupported file', 'Please choose an image file (PNG, JPEG, GIF).', 'error');
             event.target.value = '';
             return;
         }
-        const active = (this.versions || []).find(v => v[F.VerIsActive]);
+        const active = (this.versions || []).find((v) => v[F.VerIsActive]);
         if (!active) {
-            this.showToast('No active version', 'Save the template first so a version exists, then upload the watermark.', 'warning');
+            this.showToast(
+                'No active version',
+                'Save the template first so a version exists, then upload the watermark.',
+                'warning'
+            );
             event.target.value = '';
             return;
         }
@@ -2388,7 +2679,8 @@ const VERSION_COLUMNS = [
             this.editTemplateWatermarkCvId = newCvId;
             this.showToast('Success', 'Watermark uploaded.', 'success');
         } catch (err) {
-            const msg = err && err.body && err.body.message ? err.body.message : (err && err.message) || 'Upload failed';
+            const msg =
+                err && err.body && err.body.message ? err.body.message : (err && err.message) || 'Upload failed';
             this.showToast('Watermark upload failed', msg, 'error');
         } finally {
             this.isUploadingWatermark = false;
@@ -2397,8 +2689,10 @@ const VERSION_COLUMNS = [
     }
 
     async handleClearWatermark() {
-        const active = (this.versions || []).find(v => v[F.VerIsActive]);
-        if (!active) { return; }
+        const active = (this.versions || []).find((v) => v[F.VerIsActive]);
+        if (!active) {
+            return;
+        }
         this.isUploadingWatermark = true;
         try {
             await clearWatermarkImage({ versionId: active.Id });

@@ -4,24 +4,40 @@
  * including loops, conditionals, images, barcodes, and aggregates.
  */
 global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — global required for @InvocableMethod visibility in subscriber orgs
-
     global class Request {
         @InvocableVariable(label='Template ID' required=true description='The DocGen Template record ID')
         global Id templateId;
 
-        @InvocableVariable(label='Record ID' required=false description='The source record ID to merge data from. Required unless JSON Data is supplied.')
+        @InvocableVariable(
+            label='Record ID'
+            required=false
+            description='The source record ID to merge data from. Required unless JSON Data is supplied.'
+        )
         global Id recordId;
 
-        @InvocableVariable(label='Save to Record' description='If true, attach the generated file to the source record via ContentDocumentLink. Default: false')
+        @InvocableVariable(
+            label='Save to Record'
+            description='If true, attach the generated file to the source record via ContentDocumentLink. Default: false'
+        )
         global Boolean saveToRecord;
 
-        @InvocableVariable(label='Document Title' description='Override the generated file name. Leave blank to use the template default.')
+        @InvocableVariable(
+            label='Document Title'
+            description='Override the generated file name. Leave blank to use the template default.'
+        )
         global String documentTitle;
 
-        @InvocableVariable(label='Output Format Override' description='Optional. Override the template Output Format at runtime. Allowed: PDF, Word, PowerPoint. Word templates can render to PDF or DOCX. PowerPoint templates render only to PPTX. Leave blank to use the template default. Throws if the template has Lock Output Format = true.')
+        @InvocableVariable(
+            label='Output Format Override'
+            description='Optional. Override the template Output Format at runtime. Allowed: PDF, Word, PowerPoint. Word templates can render to PDF or DOCX. PowerPoint templates render only to PPTX. Leave blank to use the template default. Throws if the template has Lock Output Format = true.'
+        )
         global String outputFormatOverride;
 
-        @InvocableVariable(label='JSON Data' required=false description='Optional. Pre-built merge data as a JSON string — bypasses the SOQL data retrieval entirely. Use this when a Flow has assembled custom data from external APIs, computed values, or cross-object aggregations and wants to render directly without persisting to records first. Shape mirrors the merge engine: {"Name":"Acme","Amount":50000,"Items":{"records":[{"Product":"Widget","Qty":2}]}}. When supplied, this takes precedence over Record ID for data — but Record ID is still used as the file attachment target if Save to Record is true.')
+        @InvocableVariable(
+            label='JSON Data'
+            required=false
+            description='Optional. Pre-built merge data as a JSON string — bypasses the SOQL data retrieval entirely. Use this when a Flow has assembled custom data from external APIs, computed values, or cross-object aggregations and wants to render directly without persisting to records first. Shape mirrors the merge engine: {"Name":"Acme","Amount":50000,"Items":{"records":[{"Product":"Widget","Qty":2}]}}. When supplied, this takes precedence over Record ID for data — but Record ID is still used as the file attachment target if Save to Record is true.'
+        )
         global String jsonData;
     }
 
@@ -39,7 +55,10 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
         global Boolean success;
     }
 
-    @InvocableMethod(label='Generate Document' description='Generates a document (PDF, DOCX, PPTX, XLSX) from a DocGen template and record. Supports all merge tags including loops, images, barcodes, QR codes, and aggregates.')
+    @InvocableMethod(
+        label='Generate Document'
+        description='Generates a document (PDF, DOCX, PPTX, XLSX) from a DocGen template and record. Supports all merge tags including loops, images, barcodes, QR codes, and aggregates.'
+    )
     global static List<Response> generateDocument(List<Request> requests) {
         List<Response> responses = new List<Response>();
 
@@ -61,29 +80,49 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
                     // for arrays — matches what DocGenDataRetriever's other paths produce.
                     Object parsed = JSON.deserializeUntyped(req.jsonData);
                     if (!(parsed instanceof Map<String, Object>)) {
-                        throw new DocGenException('JSON Data must deserialize to an object (Map), not an array or scalar.');
+                        throw new DocGenException(
+                            'JSON Data must deserialize to an object (Map), not an array or scalar.'
+                        );
                     }
                     Map<String, Object> dataMap = (Map<String, Object>) parsed;
 
                     if (req.recordId != null) {
                         // Caller wants the file attached to the supplied record (FirstPublishLocationId).
                         // saveToRecord=true adds an extra ContentDocumentLink in Phase 3.
-                        docId = DocGenService.generateAndSaveFromData(req.templateId, req.recordId, dataMap, req.outputFormatOverride);
+                        docId = DocGenService.generateAndSaveFromData(
+                            req.templateId,
+                            req.recordId,
+                            dataMap,
+                            req.outputFormatOverride
+                        );
                     } else {
                         // No record context — render PDF and insert as a standalone ContentVersion.
                         // Caller can pick it up via the returned ContentDocumentId / ContentVersionId.
                         Map<String, Object> result = DocGenService.generatePdfBlobFromData(req.templateId, dataMap);
                         Blob pdfBlob = (Blob) result.get('blob');
-                        String title = String.isNotBlank(req.documentTitle) ? req.documentTitle : (String) result.get('title');
-                        if (String.isBlank(title)) { title = 'Generated_Document'; }
+                        String title = String.isNotBlank(req.documentTitle)
+                            ? req.documentTitle
+                            : (String) result.get('title');
+                        if (String.isBlank(title)) {
+                            title = 'Generated_Document';
+                        }
                         ContentVersion cv = new ContentVersion();
                         cv.Title = title;
                         cv.PathOnClient = title + '.pdf';
                         cv.VersionData = pdfBlob;
-                        SObjectAccessDecision dec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+                        SObjectAccessDecision dec = Security.stripInaccessible(
+                            AccessType.CREATABLE,
+                            new List<ContentVersion>{ cv }
+                        );
                         insert dec.getRecords(); // NOPMD ApexCRUDViolation - FLS enforced via stripInaccessible
                         Id newCvId = ((ContentVersion) dec.getRecords()[0]).Id;
-                        ContentVersion saved = [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id = :newCvId WITH USER_MODE LIMIT 1];
+                        ContentVersion saved = [
+                            SELECT Id, ContentDocumentId
+                            FROM ContentVersion
+                            WHERE Id = :newCvId
+                            WITH USER_MODE
+                            LIMIT 1
+                        ];
                         docId = saved.ContentDocumentId;
                         res.contentVersionId = saved.Id;
                     }
@@ -105,7 +144,12 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
         allDocIds.remove(null);
         if (!allDocIds.isEmpty()) {
             Map<Id, Id> cvIdByDocId = new Map<Id, Id>();
-            for (ContentVersion cv : [SELECT Id, ContentDocumentId FROM ContentVersion WHERE ContentDocumentId IN :allDocIds WITH USER_MODE]) {
+            for (ContentVersion cv : [
+                SELECT Id, ContentDocumentId
+                FROM ContentVersion
+                WHERE ContentDocumentId IN :allDocIds
+                WITH USER_MODE
+            ]) {
                 // Keep only the first CV per document (matching original LIMIT 1 behavior)
                 if (!cvIdByDocId.containsKey(cv.ContentDocumentId)) {
                     cvIdByDocId.put(cv.ContentDocumentId, cv.Id);
@@ -136,7 +180,8 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
             // Bulk query existing links to avoid duplicates
             Set<String> existingLinkKeys = new Set<String>();
             for (ContentDocumentLink cdl : [
-                SELECT ContentDocumentId, LinkedEntityId FROM ContentDocumentLink
+                SELECT ContentDocumentId, LinkedEntityId
+                FROM ContentDocumentLink
                 WHERE ContentDocumentId IN :linkDocIds
                 WITH USER_MODE
             ]) {
@@ -150,12 +195,14 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
                 Id recordId = saveToRecordByIndex.get(i);
                 String linkKey = String.valueOf(docId) + ':' + String.valueOf(recordId);
                 if (!existingLinkKeys.contains(linkKey)) {
-                    linksToInsert.add(new ContentDocumentLink(
-                        ContentDocumentId = docId,
-                        LinkedEntityId = recordId,
-                        ShareType = 'V',
-                        Visibility = 'AllUsers'
-                    ));
+                    linksToInsert.add(
+                        new ContentDocumentLink(
+                            ContentDocumentId = docId,
+                            LinkedEntityId = recordId,
+                            ShareType = 'V',
+                            Visibility = 'AllUsers'
+                        )
+                    );
                 }
             }
 

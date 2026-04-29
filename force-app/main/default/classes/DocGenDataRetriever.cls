@@ -1,15 +1,14 @@
 public with sharing class DocGenDataRetriever {
-
     /**
      * Represents a parsed subquery with optional nested grandchild subqueries.
      * Used by the multi-level query stitcher to decompose configs like:
      * (SELECT Name, (SELECT Quantity FROM OpportunityLineItems) FROM Opportunities)
      */
     private class SubquerySpec {
-        String relationshipName;     // e.g., 'Opportunities'
-        String childObjectApiName;   // e.g., 'Opportunity'
-        String parentIdField;        // e.g., 'AccountId'
-        String fieldsOnly;           // e.g., 'Name, Amount' (no nested subqueries)
+        String relationshipName; // e.g., 'Opportunities'
+        String childObjectApiName; // e.g., 'Opportunity'
+        String parentIdField; // e.g., 'AccountId'
+        String fieldsOnly; // e.g., 'Name, Amount' (no nested subqueries)
         String whereClause;
         String orderByClause;
         String limitClause;
@@ -29,10 +28,10 @@ public with sharing class DocGenDataRetriever {
      * E.g., Opportunity → OpportunityContactRoles → Contact
      */
     private class JunctionSpec {
-        String junctionRel;        // 'OpportunityContactRoles'
+        String junctionRel; // 'OpportunityContactRoles'
         List<String> junctionFields; // ['Role'] — fields from junction record itself
-        String targetObject;       // 'Contact'
-        String targetIdField;      // 'ContactId' — lookup field on junction to target
+        String targetObject; // 'Contact'
+        String targetIdField; // 'ContactId' — lookup field on junction to target
         List<String> targetFields; // ['FirstName', 'LastName', 'Email']
         String targetWhere;
         String targetOrderBy;
@@ -79,8 +78,10 @@ public with sharing class DocGenDataRetriever {
             String upper = fieldsConfig.toUpperCase();
             for (Integer idx = 0; idx < fieldsConfig.length(); idx++) {
                 String ch = fieldsConfig.substring(idx, idx + 1);
-                if (ch == '(') pLevel++;
-                if (ch == ')') pLevel--;
+                if (ch == '(')
+                    pLevel++;
+                if (ch == ')')
+                    pLevel--;
                 if (pLevel == 0 && upper.substring(idx).startsWith('FROM ')) {
                     lastFromAt = idx;
                 }
@@ -126,7 +127,12 @@ public with sharing class DocGenDataRetriever {
             level0Select = 'Id';
         }
 
-        String query = 'SELECT ' + level0Select + ' FROM ' + String.escapeSingleQuotes(baseObject) + ' WHERE Id = :recordId LIMIT 1';
+        String query =
+            'SELECT ' +
+            level0Select +
+            ' FROM ' +
+            String.escapeSingleQuotes(baseObject) +
+            ' WHERE Id = :recordId LIMIT 1';
 
         Map<String, Object> data;
         try {
@@ -136,7 +142,9 @@ public with sharing class DocGenDataRetriever {
             }
             data = mapSObject(results[0]);
         } catch (Exception e) {
-            throw new DocGenException('Error executing query. Please verify your template configuration: ' + e.getMessage());
+            throw new DocGenException(
+                'Error executing query. Please verify your template configuration: ' + e.getMessage()
+            );
         }
 
         // 1.72 — getPopulatedFieldsAsMap() drops child relationships that
@@ -226,7 +234,9 @@ public with sharing class DocGenDataRetriever {
 
                 // Validate child fields against the resolved child object type
                 List<String> fieldNames = new List<String>();
-                for (Object f : fields) { fieldNames.add(String.valueOf(f)); }
+                for (Object f : fields) {
+                    fieldNames.add(String.valueOf(f));
+                }
                 SObjectType childObjType = null;
                 if (String.isNotBlank(spec.childObjectApiName)) {
                     childObjType = Schema.getGlobalDescribe().get(spec.childObjectApiName);
@@ -238,10 +248,16 @@ public with sharing class DocGenDataRetriever {
                     continue;
                 }
 
-                String subquery = '(SELECT ' + String.join(fieldNames, ', ') + ' FROM ' + String.escapeSingleQuotes(rel);
+                String subquery =
+                    '(SELECT ' +
+                    String.join(fieldNames, ', ') +
+                    ' FROM ' +
+                    String.escapeSingleQuotes(rel);
                 try {
                     // Allowlist validation: ORDER BY fields verified against child object Schema field map
-                    Map<String, Schema.SObjectField> childFieldMap = (childObjType != null) ? childObjType.getDescribe().fields.getMap() : null;
+                    Map<String, Schema.SObjectField> childFieldMap = (childObjType != null)
+                        ? childObjType.getDescribe().fields.getMap()
+                        : null;
                     String w = sanitizeClause((String) child.get('where'), 'WHERE');
                     String o = sanitizeClause((String) child.get('orderBy'), 'ORDER BY', childFieldMap);
                     String l = sanitizeClause((String) child.get('limit'), 'LIMIT');
@@ -326,7 +342,13 @@ public with sharing class DocGenDataRetriever {
                 List<String> jqFields = new List<String>();
                 jqFields.add(js.targetIdField); // Always need the lookup ID for stitching
                 jqFields.addAll(js.junctionFields);
-                selectParts.add('(SELECT ' + String.join(jqFields, ', ') + ' FROM ' + String.escapeSingleQuotes(js.junctionRel) + ')');
+                selectParts.add(
+                    '(SELECT ' +
+                        String.join(jqFields, ', ') +
+                        ' FROM ' +
+                        String.escapeSingleQuotes(js.junctionRel) +
+                        ')'
+                );
             }
         }
 
@@ -335,8 +357,12 @@ public with sharing class DocGenDataRetriever {
         }
 
         // Execute Level 0 query
-        String query = 'SELECT ' + String.join(selectParts, ', ') + ' FROM ' +
-            String.escapeSingleQuotes(baseObject) + ' WHERE Id = :recordId LIMIT 1';
+        String query =
+            'SELECT ' +
+            String.join(selectParts, ', ') +
+            ' FROM ' +
+            String.escapeSingleQuotes(baseObject) +
+            ' WHERE Id = :recordId LIMIT 1';
 
         Map<String, Object> data;
         try {
@@ -346,7 +372,9 @@ public with sharing class DocGenDataRetriever {
             }
             data = mapSObject(results[0]);
         } catch (Exception e) {
-            throw new DocGenException('Error executing query. Please verify your template configuration: ' + e.getMessage());
+            throw new DocGenException(
+                'Error executing query. Please verify your template configuration: ' + e.getMessage()
+            );
         }
 
         // 1.72 — synthesize empty wrappers for declared child + junction
@@ -425,8 +453,11 @@ public with sharing class DocGenDataRetriever {
             targetFieldList.add(0, 'Id');
         }
 
-        String targetQuery = 'SELECT ' + String.join(targetFieldList, ', ') +
-            ' FROM ' + String.escapeSingleQuotes(js.targetObject) +
+        String targetQuery =
+            'SELECT ' +
+            String.join(targetFieldList, ', ') +
+            ' FROM ' +
+            String.escapeSingleQuotes(js.targetObject) +
             ' WHERE Id IN :targetIds';
         if (String.isNotBlank(js.targetWhere)) {
             targetQuery += ' AND ' + sanitizeClause(js.targetWhere, 'WHERE');
@@ -439,7 +470,8 @@ public with sharing class DocGenDataRetriever {
         Map<Id, Map<String, Object>> targetMap = new Map<Id, Map<String, Object>>();
         try {
             // CxSAST: SOQL injection mitigated by Schema allowlist validation on object, fields, ORDER BY + keyword blocklist + USER_MODE
-            for (SObject targetRec : Database.query(targetQuery, AccessLevel.USER_MODE)) { // NOPMD ApexSOQLInjection — all dynamic elements allowlist-validated against Schema.describeSObjects() field map; USER_MODE enforced
+            for (SObject targetRec : Database.query(targetQuery, AccessLevel.USER_MODE)) {
+                // NOPMD ApexSOQLInjection — all dynamic elements allowlist-validated against Schema.describeSObjects() field map; USER_MODE enforced
                 targetMap.put(targetRec.Id, mapSObject(targetRec));
             }
         } catch (Exception e) {
@@ -526,8 +558,7 @@ public with sharing class DocGenDataRetriever {
             tn.id = (String) n.get('id');
             tn.objectApiName = (String) n.get('object');
             // Fix __cs suffix: Custom Setting relationship name sometimes stored as object name
-            if (tn.objectApiName != null && tn.objectApiName.endsWith('__cs')
-                    && gd.get(tn.objectApiName) == null) {
+            if (tn.objectApiName != null && tn.objectApiName.endsWith('__cs') && gd.get(tn.objectApiName) == null) {
                 tn.objectApiName = tn.objectApiName.removeEnd('s');
             }
             // Schema validation: validate object name
@@ -590,10 +621,16 @@ public with sharing class DocGenDataRetriever {
         // nodes would write to the same parent data-map key and silently overwrite.
         Set<String> seenKeysPerParent = new Set<String>();
         for (TreeNode tn : allNodes) {
-            if (tn.parentNodeId == null) { continue; }
+            if (tn.parentNodeId == null) {
+                continue;
+            }
             String key = (tn.parentNodeId == null ? '' : tn.parentNodeId) + '::' + tn.dataMapKey();
             if (seenKeysPerParent.contains(key)) {
-                throw new DocGenException('Duplicate loop key under same parent: ' + tn.dataMapKey() + '. Set a unique alias on each filtered subset.');
+                throw new DocGenException(
+                    'Duplicate loop key under same parent: ' +
+                        tn.dataMapKey() +
+                        '. Set a unique alias on each filtered subset.'
+                );
             }
             seenKeysPerParent.add(key);
         }
@@ -606,8 +643,11 @@ public with sharing class DocGenDataRetriever {
             rootSelect.add('Id');
         }
 
-        String rootQuery = 'SELECT ' + String.join(rootSelect, ', ') +
-            ' FROM ' + String.escapeSingleQuotes(root.objectApiName) +
+        String rootQuery =
+            'SELECT ' +
+            String.join(rootSelect, ', ') +
+            ' FROM ' +
+            String.escapeSingleQuotes(root.objectApiName) +
             ' WHERE Id = :recordId LIMIT 1';
 
         Map<String, Object> rootData;
@@ -653,8 +693,7 @@ public with sharing class DocGenDataRetriever {
             tn.id = (String) n.get('id');
             tn.objectApiName = (String) n.get('object');
             // Fix __cs suffix: Custom Setting relationship name sometimes stored as object name
-            if (tn.objectApiName != null && tn.objectApiName.endsWith('__cs')
-                    && gd.get(tn.objectApiName) == null) {
+            if (tn.objectApiName != null && tn.objectApiName.endsWith('__cs') && gd.get(tn.objectApiName) == null) {
                 tn.objectApiName = tn.objectApiName.removeEnd('s');
             }
             // Schema validation: validate object name
@@ -724,8 +763,11 @@ public with sharing class DocGenDataRetriever {
             rootSelect.add(0, 'Id');
         }
 
-        String rootQuery = 'SELECT ' + String.join(rootSelect, ', ') +
-            ' FROM ' + String.escapeSingleQuotes(root.objectApiName) +
+        String rootQuery =
+            'SELECT ' +
+            String.join(rootSelect, ', ') +
+            ' FROM ' +
+            String.escapeSingleQuotes(root.objectApiName) +
             ' WHERE Id IN :recordIds';
 
         Map<Id, Map<String, Object>> allData = new Map<Id, Map<String, Object>>();
@@ -752,9 +794,13 @@ public with sharing class DocGenDataRetriever {
      * @param nodeMap Map of node ID → TreeNode
      * @param isSingleParent True if parent is a single record (root), false if batch
      */
-    private static void processChildNodes(String parentId, Map<String, Object> parentDataMap,
-            List<TreeNode> allNodes, Map<String, TreeNode> nodeMap, Boolean isSingleParent) {
-
+    private static void processChildNodes(
+        String parentId,
+        Map<String, Object> parentDataMap,
+        List<TreeNode> allNodes,
+        Map<String, TreeNode> nodeMap,
+        Boolean isSingleParent
+    ) {
         // Find children of this parent
         List<TreeNode> children = new List<TreeNode>();
         for (TreeNode tn : allNodes) {
@@ -816,15 +862,26 @@ public with sharing class DocGenDataRetriever {
             // Allowlist validation: get field map for ORDER BY field validation
             Map<String, Schema.SObjectField> childNodeFieldMap = childObjType.getDescribe().fields.getMap();
 
-            String childQuery = 'SELECT ' + String.join(selectFields, ', ') +
-                ' FROM ' + String.escapeSingleQuotes(child.objectApiName) +
-                ' WHERE ' + String.escapeSingleQuotes(child.lookupField) + ' IN :parentIds';
+            String childQuery =
+                'SELECT ' +
+                String.join(selectFields, ', ') +
+                ' FROM ' +
+                String.escapeSingleQuotes(child.objectApiName) +
+                ' WHERE ' +
+                String.escapeSingleQuotes(child.lookupField) +
+                ' IN :parentIds';
             List<SObject> childResults;
             try {
-                if (String.isNotBlank(child.whereClause)) { childQuery += ' AND ' + sanitizeClause(child.whereClause, 'WHERE'); }
+                if (String.isNotBlank(child.whereClause)) {
+                    childQuery += ' AND ' + sanitizeClause(child.whereClause, 'WHERE');
+                }
                 // Allowlist validation: ORDER BY fields verified against Schema.describeSObjects() field map
-                if (String.isNotBlank(child.orderByClause)) { childQuery += ' ORDER BY ' + sanitizeClause(child.orderByClause, 'ORDER BY', childNodeFieldMap); }
-                if (String.isNotBlank(child.limitClause)) { childQuery += ' LIMIT ' + sanitizeClause(child.limitClause, 'LIMIT'); }
+                if (String.isNotBlank(child.orderByClause)) {
+                    childQuery += ' ORDER BY ' + sanitizeClause(child.orderByClause, 'ORDER BY', childNodeFieldMap);
+                }
+                if (String.isNotBlank(child.limitClause)) {
+                    childQuery += ' LIMIT ' + sanitizeClause(child.limitClause, 'LIMIT');
+                }
 
                 childResults = Database.query(childQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — all dynamic elements allowlist-validated against Schema.describeSObjects() field map; USER_MODE enforced
             } catch (Exception e) {
@@ -854,12 +911,13 @@ public with sharing class DocGenDataRetriever {
                 }
 
                 List<Map<String, Object>> childRecords = grouped.containsKey(parentRecId)
-                    ? grouped.get(parentRecId) : new List<Map<String, Object>>();
+                    ? grouped.get(parentRecId)
+                    : new List<Map<String, Object>>();
 
-                parentDataMap.put(child.dataMapKey(), new Map<String, Object>{
-                    'totalSize' => childRecords.size(),
-                    'records' => childRecords
-                });
+                parentDataMap.put(
+                    child.dataMapKey(),
+                    new Map<String, Object>{ 'totalSize' => childRecords.size(), 'records' => childRecords }
+                );
 
                 // Junction stitching: if this node has a junction config, stitch target data
                 if (child.junction != null) {
@@ -882,13 +940,18 @@ public with sharing class DocGenDataRetriever {
      * @param allNodes All tree nodes
      * @param nodeMap Map of node ID → TreeNode
      */
-    private static void processChildNodesBulk(String parentNodeId, Map<Id, Map<String, Object>> parentDataMaps,
-            List<TreeNode> allNodes, Map<String, TreeNode> nodeMap) {
-
+    private static void processChildNodesBulk(
+        String parentNodeId,
+        Map<Id, Map<String, Object>> parentDataMaps,
+        List<TreeNode> allNodes,
+        Map<String, TreeNode> nodeMap
+    ) {
         // Find children of this parent node
         List<TreeNode> children = new List<TreeNode>();
         for (TreeNode tn : allNodes) {
-            if (tn.parentNodeId == parentNodeId) { children.add(tn); }
+            if (tn.parentNodeId == parentNodeId) {
+                children.add(tn);
+            }
         }
 
         for (TreeNode child : children) {
@@ -934,16 +997,27 @@ public with sharing class DocGenDataRetriever {
             Map<String, Schema.SObjectField> bulkChildFieldMap = bulkChildObjType.getDescribe().fields.getMap();
 
             // Single query for ALL parents
-            String childQuery = 'SELECT ' + String.join(selectFields, ', ') +
-                ' FROM ' + String.escapeSingleQuotes(child.objectApiName) +
-                ' WHERE ' + String.escapeSingleQuotes(child.lookupField) + ' IN :parentIds';
+            String childQuery =
+                'SELECT ' +
+                String.join(selectFields, ', ') +
+                ' FROM ' +
+                String.escapeSingleQuotes(child.objectApiName) +
+                ' WHERE ' +
+                String.escapeSingleQuotes(child.lookupField) +
+                ' IN :parentIds';
 
             List<SObject> childResults;
             try {
-                if (String.isNotBlank(child.whereClause)) { childQuery += ' AND ' + sanitizeClause(child.whereClause, 'WHERE'); }
+                if (String.isNotBlank(child.whereClause)) {
+                    childQuery += ' AND ' + sanitizeClause(child.whereClause, 'WHERE');
+                }
                 // Allowlist validation: ORDER BY fields verified against Schema.describeSObjects() field map
-                if (String.isNotBlank(child.orderByClause)) { childQuery += ' ORDER BY ' + sanitizeClause(child.orderByClause, 'ORDER BY', bulkChildFieldMap); }
-                if (String.isNotBlank(child.limitClause)) { childQuery += ' LIMIT ' + sanitizeClause(child.limitClause, 'LIMIT'); }
+                if (String.isNotBlank(child.orderByClause)) {
+                    childQuery += ' ORDER BY ' + sanitizeClause(child.orderByClause, 'ORDER BY', bulkChildFieldMap);
+                }
+                if (String.isNotBlank(child.limitClause)) {
+                    childQuery += ' LIMIT ' + sanitizeClause(child.limitClause, 'LIMIT');
+                }
 
                 childResults = Database.query(childQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — all dynamic elements allowlist-validated against Schema.describeSObjects() field map; USER_MODE enforced
             } catch (Exception e) {
@@ -966,12 +1040,13 @@ public with sharing class DocGenDataRetriever {
             for (Id parentRecId : parentDataMaps.keySet()) {
                 Map<String, Object> parentData = parentDataMaps.get(parentRecId);
                 List<Map<String, Object>> childRecords = grouped.containsKey(parentRecId)
-                    ? grouped.get(parentRecId) : new List<Map<String, Object>>();
+                    ? grouped.get(parentRecId)
+                    : new List<Map<String, Object>>();
 
-                parentData.put(child.dataMapKey(), new Map<String, Object>{
-                    'totalSize' => childRecords.size(),
-                    'records' => childRecords
-                });
+                parentData.put(
+                    child.dataMapKey(),
+                    new Map<String, Object>{ 'totalSize' => childRecords.size(), 'records' => childRecords }
+                );
 
                 // Junction stitching
                 if (child.junction != null) {
@@ -1003,11 +1078,15 @@ public with sharing class DocGenDataRetriever {
      * Stitches junction target data into child records (tree version).
      * Same concept as stitchJunctionTargets but works with the tree node junction config.
      */
-    private static void stitchJunctionForTree(List<Map<String, Object>> junctionRecords,
-            Map<String, Object> junctionConfig) {
+    private static void stitchJunctionForTree(
+        List<Map<String, Object>> junctionRecords,
+        Map<String, Object> junctionConfig
+    ) {
         String targetObject = (String) junctionConfig.get('targetObject');
         String targetIdField = (String) junctionConfig.get('targetIdField');
-        if (String.isBlank(targetObject) || String.isBlank(targetIdField)) { return; }
+        if (String.isBlank(targetObject) || String.isBlank(targetIdField)) {
+            return;
+        }
 
         // Schema validation: validate target object and fields
         SObjectType targetType = validateObjectName(targetObject);
@@ -1046,13 +1125,17 @@ public with sharing class DocGenDataRetriever {
         }
 
         // Query targets
-        String tQuery = 'SELECT ' + String.join(targetFields, ', ') +
-            ' FROM ' + String.escapeSingleQuotes(targetObject) +
+        String tQuery =
+            'SELECT ' +
+            String.join(targetFields, ', ') +
+            ' FROM ' +
+            String.escapeSingleQuotes(targetObject) +
             ' WHERE Id IN :targetIds';
 
         Map<Id, Map<String, Object>> targetMap = new Map<Id, Map<String, Object>>();
         try {
-            for (SObject rec : Database.query(tQuery, AccessLevel.USER_MODE)) { // NOPMD ApexSOQLInjection — all dynamic elements allowlist-validated against Schema.describeSObjects() field map; USER_MODE enforced
+            for (SObject rec : Database.query(tQuery, AccessLevel.USER_MODE)) {
+                // NOPMD ApexSOQLInjection — all dynamic elements allowlist-validated against Schema.describeSObjects() field map; USER_MODE enforced
                 targetMap.put(rec.Id, mapSObject(rec));
             }
         } catch (Exception e) {
@@ -1079,9 +1162,13 @@ public with sharing class DocGenDataRetriever {
         }
     }
 
-    private static void parseConfigParts(String fieldsConfig, String baseObject,
-            Map<String, SObjectField> fieldMap, List<String> flatParts, List<SubquerySpec> deepSpecs) {
-
+    private static void parseConfigParts(
+        String fieldsConfig,
+        String baseObject,
+        Map<String, SObjectField> fieldMap,
+        List<String> flatParts,
+        List<SubquerySpec> deepSpecs
+    ) {
         // Split by comma at paren level 0
         List<String> rawParts = splitTopLevel(fieldsConfig);
 
@@ -1130,8 +1217,12 @@ public with sharing class DocGenDataRetriever {
                 current = '';
             }
 
-            if (ch == '(') { parenLevel++; }
-            if (ch == ')') { parenLevel--; }
+            if (ch == '(') {
+                parenLevel++;
+            }
+            if (ch == ')') {
+                parenLevel--;
+            }
 
             if (ch == ',' && parenLevel == 0) {
                 parts.add(current.trim());
@@ -1140,7 +1231,9 @@ public with sharing class DocGenDataRetriever {
                 current += ch;
             }
         }
-        if (String.isNotBlank(current.trim())) { parts.add(current.trim()); }
+        if (String.isNotBlank(current.trim())) {
+            parts.add(current.trim());
+        }
         return parts;
     }
 
@@ -1151,15 +1244,21 @@ public with sharing class DocGenDataRetriever {
     private static SubquerySpec parseSubquerySpec(String subqueryStr, String parentObject) {
         // Strip outer parens
         String innerStr = subqueryStr.trim();
-        if (innerStr.startsWith('(')) { innerStr = innerStr.substring(1); }
-        if (innerStr.endsWith(')')) { innerStr = innerStr.substring(0, innerStr.length() - 1); }
+        if (innerStr.startsWith('(')) {
+            innerStr = innerStr.substring(1);
+        }
+        if (innerStr.endsWith(')')) {
+            innerStr = innerStr.substring(0, innerStr.length() - 1);
+        }
         innerStr = innerStr.trim();
 
         // Extract: SELECT <fields> FROM <relationship> [WHERE ...] [ORDER BY ...] [LIMIT ...]
         String upperInner = innerStr.toUpperCase();
         Integer selectIdx = upperInner.indexOf('SELECT ');
         Integer fromIdx = findKeywordAtLevel0(innerStr, 'FROM');
-        if (selectIdx == -1 || fromIdx == -1) { return null; }
+        if (selectIdx == -1 || fromIdx == -1) {
+            return null;
+        }
 
         String fieldsPart = innerStr.substring(selectIdx + 7, fromIdx).trim();
         String afterFrom = innerStr.substring(fromIdx + 5).trim();
@@ -1175,9 +1274,15 @@ public with sharing class DocGenDataRetriever {
         Integer limitIdx = findKeywordAtLevel0(afterFrom, 'LIMIT');
 
         Integer firstClauseIdx = afterFrom.length();
-        if (whereIdx != -1 && whereIdx < firstClauseIdx) { firstClauseIdx = whereIdx; }
-        if (orderIdx != -1 && orderIdx < firstClauseIdx) { firstClauseIdx = orderIdx; }
-        if (limitIdx != -1 && limitIdx < firstClauseIdx) { firstClauseIdx = limitIdx; }
+        if (whereIdx != -1 && whereIdx < firstClauseIdx) {
+            firstClauseIdx = whereIdx;
+        }
+        if (orderIdx != -1 && orderIdx < firstClauseIdx) {
+            firstClauseIdx = orderIdx;
+        }
+        if (limitIdx != -1 && limitIdx < firstClauseIdx) {
+            firstClauseIdx = limitIdx;
+        }
 
         relationshipName = afterFrom.substring(0, firstClauseIdx).trim();
 
@@ -1217,9 +1322,14 @@ public with sharing class DocGenDataRetriever {
         // Always include Id for stitching
         Boolean hasId = false;
         for (String f : plainFields) {
-            if (f.equalsIgnoreCase('Id')) { hasId = true; break; }
+            if (f.equalsIgnoreCase('Id')) {
+                hasId = true;
+                break;
+            }
         }
-        if (!hasId) { plainFields.add(0, 'Id'); }
+        if (!hasId) {
+            plainFields.add(0, 'Id');
+        }
 
         spec.fieldsOnly = String.join(plainFields, ', ');
         return spec;
@@ -1233,12 +1343,18 @@ public with sharing class DocGenDataRetriever {
         String target = ' ' + keyword.toUpperCase() + ' ';
         Integer parenLvl = 0;
         // Also check at start of string
-        if (upper.startsWith(keyword.toUpperCase() + ' ') && parenLvl == 0) { return 0; }
+        if (upper.startsWith(keyword.toUpperCase() + ' ') && parenLvl == 0) {
+            return 0;
+        }
 
         for (Integer i = 0; i < input.length(); i++) {
             String ch = input.substring(i, i + 1);
-            if (ch == '(') { parenLvl++; }
-            if (ch == ')') { parenLvl--; }
+            if (ch == '(') {
+                parenLvl++;
+            }
+            if (ch == ')') {
+                parenLvl--;
+            }
             if (parenLvl == 0 && i + target.length() <= upper.length()) {
                 if (upper.substring(i, i + target.length()) == target) {
                     return i + 1; // position of keyword (after the space)
@@ -1253,8 +1369,12 @@ public with sharing class DocGenDataRetriever {
      */
     private static String extractClause(String source, Integer startIdx, Integer nextIdx1, Integer nextIdx2) {
         Integer endIdx = source.length();
-        if (nextIdx1 != -1 && nextIdx1 < endIdx) { endIdx = nextIdx1; }
-        if (nextIdx2 != -1 && nextIdx2 < endIdx) { endIdx = nextIdx2; }
+        if (nextIdx1 != -1 && nextIdx1 < endIdx) {
+            endIdx = nextIdx1;
+        }
+        if (nextIdx2 != -1 && nextIdx2 < endIdx) {
+            endIdx = nextIdx2;
+        }
         return source.substring(startIdx, endIdx).trim();
     }
 
@@ -1264,7 +1384,9 @@ public with sharing class DocGenDataRetriever {
      */
     private static void resolveChildSchema(SubquerySpec spec, String parentObjectName) {
         SObjectType parentType = Schema.getGlobalDescribe().get(parentObjectName);
-        if (parentType == null) { return; }
+        if (parentType == null) {
+            return;
+        }
 
         for (Schema.ChildRelationship cr : parentType.getDescribe().getChildRelationships()) {
             if (cr.getRelationshipName() == spec.relationshipName) {
@@ -1278,8 +1400,10 @@ public with sharing class DocGenDataRetriever {
         // relationship name (Short_Codes__r). Find the child relationship by object name
         // and correct the spec's relationshipName so the SOQL subquery uses the right FROM.
         for (Schema.ChildRelationship cr : parentType.getDescribe().getChildRelationships()) {
-            if (cr.getRelationshipName() != null &&
-                    String.valueOf(cr.getChildSObject()).equalsIgnoreCase(spec.relationshipName)) {
+            if (
+                cr.getRelationshipName() != null &&
+                String.valueOf(cr.getChildSObject()).equalsIgnoreCase(spec.relationshipName)
+            ) {
                 spec.childObjectApiName = String.valueOf(cr.getChildSObject());
                 spec.parentIdField = String.valueOf(cr.getField());
                 spec.relationshipName = cr.getRelationshipName();
@@ -1288,7 +1412,9 @@ public with sharing class DocGenDataRetriever {
         }
 
         // Child relationship not found — throw to prevent unvalidated relationship names in SOQL
-        throw new DocGenException('Invalid or inaccessible child relationship: ' + spec.relationshipName + ' on ' + parentObjectName);
+        throw new DocGenException(
+            'Invalid or inaccessible child relationship: ' + spec.relationshipName + ' on ' + parentObjectName
+        );
     }
 
     /**
@@ -1296,9 +1422,15 @@ public with sharing class DocGenDataRetriever {
      */
     private static String buildFlatSubquery(SubquerySpec spec) {
         String sq = '(SELECT ' + spec.fieldsOnly + ' FROM ' + String.escapeSingleQuotes(spec.relationshipName);
-        if (String.isNotBlank(spec.whereClause)) { sq += ' WHERE ' + String.escapeSingleQuotes(spec.whereClause); }
-        if (String.isNotBlank(spec.orderByClause)) { sq += ' ORDER BY ' + String.escapeSingleQuotes(spec.orderByClause); }
-        if (String.isNotBlank(spec.limitClause)) { sq += ' LIMIT ' + String.escapeSingleQuotes(spec.limitClause); }
+        if (String.isNotBlank(spec.whereClause)) {
+            sq += ' WHERE ' + String.escapeSingleQuotes(spec.whereClause);
+        }
+        if (String.isNotBlank(spec.orderByClause)) {
+            sq += ' ORDER BY ' + String.escapeSingleQuotes(spec.orderByClause);
+        }
+        if (String.isNotBlank(spec.limitClause)) {
+            sq += ' LIMIT ' + String.escapeSingleQuotes(spec.limitClause);
+        }
         sq += ')';
         return sq;
     }
@@ -1309,7 +1441,9 @@ public with sharing class DocGenDataRetriever {
     private static String buildLevel0Select(List<String> parts, List<SubquerySpec> specs) {
         String result = '';
         for (String part : parts) {
-            if (String.isNotBlank(result)) { result += ', '; }
+            if (String.isNotBlank(result)) {
+                result += ', ';
+            }
             result += part;
         }
         return result;
@@ -1323,14 +1457,20 @@ public with sharing class DocGenDataRetriever {
     private static void stitchGrandchildren(Map<String, Object> data, SubquerySpec parentSpec) {
         // Get the child records list from the data map
         Object childData = data.get(parentSpec.relationshipName);
-        if (childData == null || !(childData instanceof Map<String, Object>)) { return; }
+        if (childData == null || !(childData instanceof Map<String, Object>)) {
+            return;
+        }
 
         Map<String, Object> childMap = (Map<String, Object>) childData;
         Object recordsObj = childMap.get('records');
-        if (recordsObj == null || !(recordsObj instanceof List<Object>)) { return; }
+        if (recordsObj == null || !(recordsObj instanceof List<Object>)) {
+            return;
+        }
 
         List<Object> childRecords = (List<Object>) recordsObj;
-        if (childRecords.isEmpty()) { return; }
+        if (childRecords.isEmpty()) {
+            return;
+        }
 
         // For each grandchild spec, query and stitch
         for (SubquerySpec grandchildSpec : parentSpec.children) {
@@ -1362,14 +1502,26 @@ public with sharing class DocGenDataRetriever {
             SObjectType gcObjType = validateObjectName(grandchildSpec.childObjectApiName);
             Map<String, Schema.SObjectField> gcFieldMap = gcObjType.getDescribe().fields.getMap();
 
-            String gcQuery = 'SELECT ' + grandchildSpec.fieldsOnly +
-                ', ' + grandchildSpec.parentIdField +
-                ' FROM ' + String.escapeSingleQuotes(grandchildSpec.childObjectApiName) +
-                ' WHERE ' + String.escapeSingleQuotes(grandchildSpec.parentIdField) + ' IN :parentIds';
-            if (String.isNotBlank(grandchildSpec.whereClause)) { gcQuery += ' AND ' + sanitizeClause(grandchildSpec.whereClause, 'WHERE'); }
+            String gcQuery =
+                'SELECT ' +
+                grandchildSpec.fieldsOnly +
+                ', ' +
+                grandchildSpec.parentIdField +
+                ' FROM ' +
+                String.escapeSingleQuotes(grandchildSpec.childObjectApiName) +
+                ' WHERE ' +
+                String.escapeSingleQuotes(grandchildSpec.parentIdField) +
+                ' IN :parentIds';
+            if (String.isNotBlank(grandchildSpec.whereClause)) {
+                gcQuery += ' AND ' + sanitizeClause(grandchildSpec.whereClause, 'WHERE');
+            }
             // Allowlist validation: ORDER BY fields verified against Schema.describeSObjects() field map
-            if (String.isNotBlank(grandchildSpec.orderByClause)) { gcQuery += ' ORDER BY ' + sanitizeClause(grandchildSpec.orderByClause, 'ORDER BY', gcFieldMap); }
-            if (String.isNotBlank(grandchildSpec.limitClause)) { gcQuery += ' LIMIT ' + sanitizeClause(grandchildSpec.limitClause, 'LIMIT'); }
+            if (String.isNotBlank(grandchildSpec.orderByClause)) {
+                gcQuery += ' ORDER BY ' + sanitizeClause(grandchildSpec.orderByClause, 'ORDER BY', gcFieldMap);
+            }
+            if (String.isNotBlank(grandchildSpec.limitClause)) {
+                gcQuery += ' LIMIT ' + sanitizeClause(grandchildSpec.limitClause, 'LIMIT');
+            }
 
             List<SObject> gcResults;
             try {
@@ -1412,10 +1564,10 @@ public with sharing class DocGenDataRetriever {
                     ? gcByParent.get(childId)
                     : new List<Map<String, Object>>();
 
-                childRec.put(grandchildSpec.relationshipName, new Map<String, Object>{
-                    'totalSize' => gcList.size(),
-                    'records' => gcList
-                });
+                childRec.put(
+                    grandchildSpec.relationshipName,
+                    new Map<String, Object>{ 'totalSize' => gcList.size(), 'records' => gcList }
+                );
             }
 
             // Great-grandchildren (and deeper): if the grandchild spec has its
@@ -1426,11 +1578,17 @@ public with sharing class DocGenDataRetriever {
             if (!grandchildSpec.children.isEmpty()) {
                 List<Map<String, Object>> allGrandchildren = new List<Map<String, Object>>();
                 for (Object rec : childRecords) {
-                    if (!(rec instanceof Map<String, Object>)) { continue; }
+                    if (!(rec instanceof Map<String, Object>)) {
+                        continue;
+                    }
                     Object wrapper = ((Map<String, Object>) rec).get(grandchildSpec.relationshipName);
-                    if (!(wrapper instanceof Map<String, Object>)) { continue; }
+                    if (!(wrapper instanceof Map<String, Object>)) {
+                        continue;
+                    }
                     Object recsObj = ((Map<String, Object>) wrapper).get('records');
-                    if (!(recsObj instanceof List<Object>)) { continue; }
+                    if (!(recsObj instanceof List<Object>)) {
+                        continue;
+                    }
                     for (Object gc : (List<Object>) recsObj) {
                         if (gc instanceof Map<String, Object>) {
                             allGrandchildren.add((Map<String, Object>) gc);
@@ -1455,9 +1613,13 @@ public with sharing class DocGenDataRetriever {
      * Returns the validated field name, or null if the field does not exist in the describe.
      */
     private static String validateField(String fieldName, Map<String, SObjectField> fieldMap) {
-        if (String.isBlank(fieldName)) { return null; }
+        if (String.isBlank(fieldName)) {
+            return null;
+        }
 
-        if (fieldMap.containsKey(fieldName)) { return String.escapeSingleQuotes(fieldName); }
+        if (fieldMap.containsKey(fieldName)) {
+            return String.escapeSingleQuotes(fieldName);
+        }
 
         // Try appending __c
         if (!fieldName.endsWithIgnoreCase('__c') && fieldMap.containsKey(fieldName + '__c')) {
@@ -1501,7 +1663,9 @@ public with sharing class DocGenDataRetriever {
      * Silently drops fields not found in the describe (matching V1 behavior).
      */
     private static List<String> validateFieldList(List<String> fieldNames, SObjectType objType) {
-        if (fieldNames == null || fieldNames.isEmpty()) { return new List<String>(); }
+        if (fieldNames == null || fieldNames.isEmpty()) {
+            return new List<String>();
+        }
         Map<String, SObjectField> fieldMap = objType.getDescribe().fields.getMap();
         List<String> validated = new List<String>();
         for (String f : fieldNames) {
@@ -1520,14 +1684,15 @@ public with sharing class DocGenDataRetriever {
     // {Rel.totalSize} renders 0 (not blank) and {#IF Rel.totalSize != 0}
     // evaluates false. Existing populated wrappers are left alone.
     private static void ensureChildRelKeys(Map<String, Object> data, List<String> relNames) {
-        if (data == null || relNames == null) { return; }
+        if (data == null || relNames == null) {
+            return;
+        }
         for (String rel : relNames) {
-            if (String.isBlank(rel)) { continue; }
+            if (String.isBlank(rel)) {
+                continue;
+            }
             if (!data.containsKey(rel)) {
-                data.put(rel, new Map<String, Object>{
-                    'totalSize' => 0,
-                    'records' => new List<Object>()
-                });
+                data.put(rel, new Map<String, Object>{ 'totalSize' => 0, 'records' => new List<Object>() });
             }
         }
     }
@@ -1564,16 +1729,22 @@ public with sharing class DocGenDataRetriever {
                     data.put(key, parentMap);
                 } else if (value instanceof Address) {
                     Address addr = (Address) value;
-                    data.put(key, new Map<String, Object>{
-                        'street' => addr.getStreet(), 'city' => addr.getCity(),
-                        'state' => addr.getState(), 'postalCode' => addr.getPostalCode(),
-                        'country' => addr.getCountry()
-                    });
+                    data.put(
+                        key,
+                        new Map<String, Object>{
+                            'street' => addr.getStreet(),
+                            'city' => addr.getCity(),
+                            'state' => addr.getState(),
+                            'postalCode' => addr.getPostalCode(),
+                            'country' => addr.getCountry()
+                        }
+                    );
                 } else if (value instanceof Location) {
                     Location loc = (Location) value;
-                    data.put(key, new Map<String, Object>{
-                        'latitude' => loc.getLatitude(), 'longitude' => loc.getLongitude()
-                    });
+                    data.put(
+                        key,
+                        new Map<String, Object>{ 'latitude' => loc.getLatitude(), 'longitude' => loc.getLongitude() }
+                    );
                 } else {
                     data.put(key, value);
                 }
@@ -1614,7 +1785,9 @@ public with sharing class DocGenDataRetriever {
      * @param fieldMap Optional field map for allowlist validation of ORDER BY fields. Pass null to skip.
      */
     private static String sanitizeClause(String clause, String clauseType, Map<String, Schema.SObjectField> fieldMap) {
-        if (String.isBlank(clause)) { return clause; }
+        if (String.isBlank(clause)) {
+            return clause;
+        }
         // Reject statement terminators and comments
         if (clause.contains(';') || clause.contains('--') || clause.contains('/*')) {
             throw new DocGenException('Invalid ' + clauseType + ' clause in query config.');
@@ -1630,8 +1803,16 @@ public with sharing class DocGenDataRetriever {
         }
         // Reject DML and structural SOQL keywords that don't belong in clauses
         List<String> disallowed = new List<String>{
-            'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
-            'DROP ', 'ALTER ', 'CREATE ', 'GRANT ', 'REVOKE '
+            'INSERT ',
+            'UPDATE ',
+            'DELETE ',
+            'MERGE ',
+            'UNDELETE ',
+            'DROP ',
+            'ALTER ',
+            'CREATE ',
+            'GRANT ',
+            'REVOKE '
         };
         // WHERE clauses should not contain subqueries
         if (clauseType == 'WHERE') {
@@ -1653,13 +1834,21 @@ public with sharing class DocGenDataRetriever {
             for (String part : clause.split(',')) {
                 String fieldName = part.trim().split('\\s+')[0].toLowerCase();
                 String baseField = fieldName.contains('.') ? fieldName.split('\\.')[0] : fieldName;
-                if (fieldMap.containsKey(baseField)) { continue; }
+                if (fieldMap.containsKey(baseField)) {
+                    continue;
+                }
                 // Custom relationship: My_Lookup__r → My_Lookup__c
-                String asCustomLookup = baseField.endsWith('__r') ? baseField.substring(0, baseField.length() - 3) + '__c' : null;
-                if (asCustomLookup != null && fieldMap.containsKey(asCustomLookup)) { continue; }
+                String asCustomLookup = baseField.endsWith('__r')
+                    ? baseField.substring(0, baseField.length() - 3) + '__c'
+                    : null;
+                if (asCustomLookup != null && fieldMap.containsKey(asCustomLookup)) {
+                    continue;
+                }
                 // Standard relationship: RelName → RelNameId (Account → AccountId, Product2 → Product2Id, Owner → OwnerId)
                 String asStdLookup = baseField + 'id';
-                if (fieldMap.containsKey(asStdLookup)) { continue; }
+                if (fieldMap.containsKey(asStdLookup)) {
+                    continue;
+                }
                 throw new DocGenException('Invalid field in ORDER BY: ' + fieldName);
             }
         }
@@ -1684,12 +1873,16 @@ public with sharing class DocGenDataRetriever {
             providerType = Type.forName('portwoodglobal', providerClassName);
         }
         if (providerType == null) {
-            throw new DocGenException('Apex class "' + providerClassName + '" not found. Ensure it exists and implements DocGenDataProvider.');
+            throw new DocGenException(
+                'Apex class "' + providerClassName + '" not found. Ensure it exists and implements DocGenDataProvider.'
+            );
         }
 
         Object instance = providerType.newInstance();
         if (!(instance instanceof DocGenDataProvider)) {
-            throw new DocGenException('Class "' + providerClassName + '" must implement the DocGenDataProvider interface.');
+            throw new DocGenException(
+                'Class "' + providerClassName + '" must implement the DocGenDataProvider interface.'
+            );
         }
 
         DocGenDataProvider provider = (DocGenDataProvider) instance;
@@ -1743,7 +1936,9 @@ public with sharing class DocGenDataRetriever {
         // Get the parent object's child relationships to resolve rel name → child object + field
         String parentObjectType = String.valueOf(recordId.getSobjectType());
         Schema.DescribeSObjectResult parentDescribe = Schema.getGlobalDescribe().get(parentObjectType)?.getDescribe();
-        if (parentDescribe == null) { return; }
+        if (parentDescribe == null) {
+            return;
+        }
 
         Map<String, Schema.ChildRelationship> relMap = new Map<String, Schema.ChildRelationship>();
         Map<String, Schema.ChildRelationship> objMap = new Map<String, Schema.ChildRelationship>();
@@ -1758,15 +1953,23 @@ public with sharing class DocGenDataRetriever {
             String relName = m.group(1);
             Schema.ChildRelationship cr = relMap.get(relName.toLowerCase());
             // Fallback: user may have typed the object name instead of relationship name
-            if (cr == null) { cr = objMap.get(relName.toLowerCase()); }
-            if (cr == null) { continue; }
+            if (cr == null) {
+                cr = objMap.get(relName.toLowerCase());
+            }
+            if (cr == null) {
+                continue;
+            }
 
             String childObject = String.valueOf(cr.getChildSObject());
             String lookupField = String.valueOf(cr.getField());
 
             try {
-                String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                String countQuery =
+                    'SELECT COUNT() FROM ' +
+                    String.escapeSingleQuotes(childObject) +
+                    ' WHERE ' +
+                    String.escapeSingleQuotes(lookupField) +
+                    ' = :recordId';
                 Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
                 counts.put(relName, cnt);
             } catch (Exception e) {
@@ -1797,12 +2000,18 @@ public with sharing class DocGenDataRetriever {
                         Schema.DescribeSObjectResult parentDescribe = gd.get(parentObjectType)?.getDescribe();
                         if (parentDescribe != null) {
                             for (Schema.ChildRelationship cr : parentDescribe.getChildRelationships()) {
-                                if (cr.getRelationshipName() != null && cr.getRelationshipName().equalsIgnoreCase(rel)) {
+                                if (
+                                    cr.getRelationshipName() != null && cr.getRelationshipName().equalsIgnoreCase(rel)
+                                ) {
                                     try {
                                         String childObjName = String.valueOf(cr.getChildSObject());
                                         String lookupFld = String.valueOf(cr.getField());
-                                        String countQ = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjName) +
-                                            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId';
+                                        String countQ =
+                                            'SELECT COUNT() FROM ' +
+                                            String.escapeSingleQuotes(childObjName) +
+                                            ' WHERE ' +
+                                            String.escapeSingleQuotes(lookupFld) +
+                                            ' = :recordId';
                                         counts.put(rel, Database.countQuery(countQ, AccessLevel.USER_MODE));
                                     } catch (Exception e) {
                                         String noop = e.getMessage(); // NOPMD UnusedLocalVariable
@@ -1850,8 +2059,12 @@ public with sharing class DocGenDataRetriever {
             }
 
             try {
-                String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                String countQuery =
+                    'SELECT COUNT() FROM ' +
+                    String.escapeSingleQuotes(childObject) +
+                    ' WHERE ' +
+                    String.escapeSingleQuotes(lookupField) +
+                    ' = :recordId';
                 if (String.isNotBlank(whereClause)) {
                     countQuery += ' AND ' + sanitizeClause(whereClause, 'WHERE');
                 }

@@ -1,6 +1,5 @@
 @IsTest
 public class TestDataFactory {
-
     // =========================================================================
     // Core test data — call from @TestSetup
     // =========================================================================
@@ -26,12 +25,14 @@ public class TestDataFactory {
         // 2. Contacts (3)
         List<Contact> contacts = new List<Contact>();
         for (Integer i = 1; i <= 3; i++) {
-            contacts.add(new Contact(
-                FirstName = 'Test',
-                LastName = 'Contact ' + i,
-                Email = 'test' + i + '@example.com',
-                AccountId = acc.Id
-            ));
+            contacts.add(
+                new Contact(
+                    FirstName = 'Test',
+                    LastName = 'Contact ' + i,
+                    Email = 'test' + i + '@example.com',
+                    AccountId = acc.Id
+                )
+            );
         }
         insert contacts;
 
@@ -46,11 +47,7 @@ public class TestDataFactory {
         insert opp;
 
         Id stdPbId = Test.getStandardPricebookId();
-        Product2 prod = new Product2(
-            Name = 'Test Product',
-            ProductCode = 'TP-001',
-            IsActive = true
-        );
+        Product2 prod = new Product2(Name = 'Test Product', ProductCode = 'TP-001', IsActive = true);
         insert prod;
         PricebookEntry stdPbe = new PricebookEntry(
             Pricebook2Id = stdPbId,
@@ -68,7 +65,8 @@ public class TestDataFactory {
         insert oli;
 
         // 4. Template with V3 config and Output_Format__c
-        String v3Config = '{"v":3,"root":"Account","nodes":[' +
+        String v3Config =
+            '{"v":3,"root":"Account","nodes":[' +
             '{"id":"n0","object":"Account","fields":["Name","Industry","Website"],' +
             '"parentFields":["Owner.Name"],"parentNode":null,"lookupField":null,"relationshipName":null},' +
             '{"id":"n1","object":"Contact","fields":["FirstName","LastName","Email"],' +
@@ -119,15 +117,31 @@ public class TestDataFactory {
     }
 
     public static DocGen_Template__c getTestTemplate() {
-        return [SELECT Id, Name, Query_Config__c, Base_Object_API__c, Type__c,
-                       Output_Format__c, Test_Record_Id__c, Document_Title_Format__c,
-                       Category__c, Description__c, OwnerId
-                FROM DocGen_Template__c WHERE Name = 'DocGen Test Template' LIMIT 1];
+        return [
+            SELECT
+                Id,
+                Name,
+                Query_Config__c,
+                Base_Object_API__c,
+                Type__c,
+                Output_Format__c,
+                Test_Record_Id__c,
+                Document_Title_Format__c,
+                Category__c,
+                Description__c,
+                OwnerId
+            FROM DocGen_Template__c
+            WHERE Name = 'DocGen Test Template'
+            LIMIT 1
+        ];
     }
 
     public static List<Contact> getTestContacts() {
-        return [SELECT Id, FirstName, LastName, Email, AccountId
-                FROM Contact WHERE Account.Name = 'DocGen Test Account'];
+        return [
+            SELECT Id, FirstName, LastName, Email, AccountId
+            FROM Contact
+            WHERE Account.Name = 'DocGen Test Account'
+        ];
     }
 
     public static Opportunity getTestOpportunity() {
@@ -135,8 +149,12 @@ public class TestDataFactory {
     }
 
     public static DocGen_Template_Version__c getTestTemplateVersion() {
-        return [SELECT Id, Template__c, Is_Active__c, Query_Config__c, Type__c, Base_Object_API__c
-                FROM DocGen_Template_Version__c WHERE Is_Active__c = true LIMIT 1];
+        return [
+            SELECT Id, Template__c, Is_Active__c, Query_Config__c, Type__c, Base_Object_API__c
+            FROM DocGen_Template_Version__c
+            WHERE Is_Active__c = TRUE
+            LIMIT 1
+        ];
     }
 
     // =========================================================================
@@ -148,11 +166,7 @@ public class TestDataFactory {
      */
     public static DocGen_Job__c createTestJob() {
         DocGen_Template__c tpl = getTestTemplate();
-        DocGen_Job__c job = new DocGen_Job__c(
-            Template__c = tpl.Id,
-            Status__c = 'Queued',
-            Label__c = 'Test Job'
-        );
+        DocGen_Job__c job = new DocGen_Job__c(Template__c = tpl.Id, Status__c = 'Queued', Label__c = 'Test Job');
         insert job;
         return job;
     }
@@ -192,25 +206,34 @@ public class TestDataFactory {
      */
     public static ContentVersion createValidDocxFile(Id templateId, String docXml) {
         Compression.ZipWriter zw = new Compression.ZipWriter();
-        zw.addEntry('[Content_Types].xml', Blob.valueOf(
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-            '<Default Extension="xml" ContentType="application/xml"/>' +
-            '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-            '</Types>'
-        ));
-        zw.addEntry('_rels/.rels', Blob.valueOf(
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
-            '</Relationships>'
-        ));
-        zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-            '</Relationships>'
-        ));
+        zw.addEntry(
+            '[Content_Types].xml',
+            Blob.valueOf(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                    '<Default Extension="xml" ContentType="application/xml"/>' +
+                    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                    '</Types>'
+            )
+        );
+        zw.addEntry(
+            '_rels/.rels',
+            Blob.valueOf(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+                    '</Relationships>'
+            )
+        );
+        zw.addEntry(
+            'word/_rels/document.xml.rels',
+            Blob.valueOf(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                    '</Relationships>'
+            )
+        );
         zw.addEntry('word/document.xml', Blob.valueOf(docXml));
 
         ContentVersion cv = new ContentVersion(
@@ -221,11 +244,7 @@ public class TestDataFactory {
         insert cv;
 
         Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-        insert new ContentDocumentLink(
-            LinkedEntityId = templateId,
-            ContentDocumentId = conDocId,
-            ShareType = 'V'
-        );
+        insert new ContentDocumentLink(LinkedEntityId = templateId, ContentDocumentId = conDocId, ShareType = 'V');
         return cv;
     }
 
@@ -270,7 +289,9 @@ public class TestDataFactory {
     public static String buildMinimalDocXml(String mergeTag) {
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-            '<w:body><w:p><w:r><w:t>' + mergeTag + '</w:t></w:r></w:p></w:body></w:document>';
+            '<w:body><w:p><w:r><w:t>' +
+            mergeTag +
+            '</w:t></w:r></w:p></w:body></w:document>';
     }
 
     /**
@@ -325,8 +346,10 @@ public class TestDataFactory {
             List<PermissionSet> ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
             if (!ps.isEmpty()) {
                 List<PermissionSetAssignment> existing = [
-                    SELECT Id FROM PermissionSetAssignment
-                    WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :ps[0].Id LIMIT 1
+                    SELECT Id
+                    FROM PermissionSetAssignment
+                    WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :ps[0].Id
+                    LIMIT 1
                 ];
                 if (existing.isEmpty()) {
                     // Wrap in System.runAs to isolate setup object DML (PermissionSetAssignment)
@@ -334,7 +357,10 @@ public class TestDataFactory {
                     // Without this, fresh packaging orgs throw MIXED_DML_OPERATION.
                     User currentUser = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
                     System.runAs(currentUser) {
-                        insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = ps[0].Id);
+                        insert new PermissionSetAssignment(
+                            AssigneeId = UserInfo.getUserId(),
+                            PermissionSetId = ps[0].Id
+                        );
                     }
                 }
             }

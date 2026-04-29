@@ -17,3 +17,7 @@ sfdx-project.json
 .sf
 .vscode
 coverage/
+node_modules/
+.husky/_/
+package-lock.json
+

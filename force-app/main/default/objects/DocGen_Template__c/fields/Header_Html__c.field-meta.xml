@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Header_Html__c</fullName>
-    <description>Optional HTML fragment placed in the top page margin of HTML-type templates. Supports merge tags (including {PageNumber} and {TotalPages}).</description>
+    <description
+    >Optional HTML fragment placed in the top page margin of HTML-type templates. Supports merge tags (including {PageNumber} and {TotalPages}).</description>
     <label>Header HTML</label>
     <length>32768</length>
     <type>LongTextArea</type>

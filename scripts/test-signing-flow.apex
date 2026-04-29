@@ -5,11 +5,17 @@
 
 // Look up test data
 List<Account> accts = [SELECT Id FROM Account WHERE Name = 'E2E Test Corp' LIMIT 1];
-if (accts.isEmpty()) { System.debug('ERROR: Run e2e-02 first to create test data.'); return; }
+if (accts.isEmpty()) {
+    System.debug('ERROR: Run e2e-02 first to create test data.');
+    return;
+}
 Id acctId = accts[0].Id;
 
 List<DocGen_Template__c> tmpls = [SELECT Id, Name FROM DocGen_Template__c WHERE Name = 'E2E Test Template' LIMIT 1];
-if (tmpls.isEmpty()) { System.debug('ERROR: Run e2e-02 first to create test template.'); return; }
+if (tmpls.isEmpty()) {
+    System.debug('ERROR: Run e2e-02 first to create test template.');
+    return;
+}
 Id tmplId = tmpls[0].Id;
 
 // Create signature request
@@ -30,42 +36,48 @@ DocGen_Signer__c signer = new DocGen_Signer__c(
     Secure_Token__c = signerToken,
     Status__c = 'Pending',
     Sort_Order__c = 1,
-    PIN_Verified_At__c = System.now()  // <-- bypass PIN
+    PIN_Verified_At__c = System.now() // <-- bypass PIN
 );
 insert signer;
 
 // Create v3 placements
 List<DocGen_Signature_Placement__c> placements = new List<DocGen_Signature_Placement__c>();
-placements.add(new DocGen_Signature_Placement__c(
-    Signer__c = signer.Id,
-    Signature_Request__c = req.Id,
-    Document_Index__c = 0,
-    Sequence_Order__c = 1,
-    Placement_Type__c = 'Initials',
-    Status__c = 'Pending',
-    Section_Context__c = 'Section 1: Terms and Conditions',
-    Tag_Text__c = '{@Signature_Buyer:1:Initials}'
-));
-placements.add(new DocGen_Signature_Placement__c(
-    Signer__c = signer.Id,
-    Signature_Request__c = req.Id,
-    Document_Index__c = 0,
-    Sequence_Order__c = 2,
-    Placement_Type__c = 'Full',
-    Status__c = 'Pending',
-    Section_Context__c = 'Section 3: Agreement',
-    Tag_Text__c = '{@Signature_Buyer:2:Full}'
-));
-placements.add(new DocGen_Signature_Placement__c(
-    Signer__c = signer.Id,
-    Signature_Request__c = req.Id,
-    Document_Index__c = 0,
-    Sequence_Order__c = 3,
-    Placement_Type__c = 'Date',
-    Status__c = 'Pending',
-    Section_Context__c = 'Section 3: Agreement',
-    Tag_Text__c = '{@Signature_Buyer:3:Date}'
-));
+placements.add(
+    new DocGen_Signature_Placement__c(
+        Signer__c = signer.Id,
+        Signature_Request__c = req.Id,
+        Document_Index__c = 0,
+        Sequence_Order__c = 1,
+        Placement_Type__c = 'Initials',
+        Status__c = 'Pending',
+        Section_Context__c = 'Section 1: Terms and Conditions',
+        Tag_Text__c = '{@Signature_Buyer:1:Initials}'
+    )
+);
+placements.add(
+    new DocGen_Signature_Placement__c(
+        Signer__c = signer.Id,
+        Signature_Request__c = req.Id,
+        Document_Index__c = 0,
+        Sequence_Order__c = 2,
+        Placement_Type__c = 'Full',
+        Status__c = 'Pending',
+        Section_Context__c = 'Section 3: Agreement',
+        Tag_Text__c = '{@Signature_Buyer:2:Full}'
+    )
+);
+placements.add(
+    new DocGen_Signature_Placement__c(
+        Signer__c = signer.Id,
+        Signature_Request__c = req.Id,
+        Document_Index__c = 0,
+        Sequence_Order__c = 3,
+        Placement_Type__c = 'Date',
+        Status__c = 'Pending',
+        Section_Context__c = 'Section 3: Agreement',
+        Tag_Text__c = '{@Signature_Buyer:3:Date}'
+    )
+);
 insert placements;
 
 // Get the site URL from settings (or use a fallback)

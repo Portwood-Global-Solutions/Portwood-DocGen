@@ -55,17 +55,25 @@ export function splitTopLevel(input) {
             current = '';
         }
 
-        if (ch === '(') { parenLevel++; }
-        if (ch === ')') { parenLevel--; }
+        if (ch === '(') {
+            parenLevel++;
+        }
+        if (ch === ')') {
+            parenLevel--;
+        }
 
         if (ch === ',' && parenLevel === 0) {
-            if (current.trim().length > 0) { parts.push(current.trim()); }
+            if (current.trim().length > 0) {
+                parts.push(current.trim());
+            }
             current = '';
         } else {
             current += ch;
         }
     }
-    if (current.trim().length > 0) { parts.push(current.trim()); }
+    if (current.trim().length > 0) {
+        parts.push(current.trim());
+    }
     return parts;
 }
 
@@ -83,12 +91,18 @@ export function findKeywordAtLevel0(input, keyword) {
     let parenLvl = 0;
 
     // Check at start of string
-    if (upper.startsWith(kw + ' ') || upper.startsWith(kw + '\t') || upper.startsWith(kw + '\n')) { return 0; }
+    if (upper.startsWith(kw + ' ') || upper.startsWith(kw + '\t') || upper.startsWith(kw + '\n')) {
+        return 0;
+    }
 
     for (let i = 0; i < input.length; i++) {
         const ch = input[i];
-        if (ch === '(') { parenLvl++; }
-        if (ch === ')') { parenLvl--; }
+        if (ch === '(') {
+            parenLvl++;
+        }
+        if (ch === ')') {
+            parenLvl--;
+        }
         if (parenLvl === 0) {
             // Check for keyword preceded by whitespace and followed by whitespace
             const before = input[i];
@@ -141,7 +155,9 @@ export function parseSOQLFields(queryStr) {
         if (trimmed.startsWith('(') && upper.includes('SELECT') && upper.includes('FROM')) {
             // Subquery
             const sq = parseSubquery(trimmed);
-            if (sq) { subqueries.push(sq); }
+            if (sq) {
+                subqueries.push(sq);
+            }
         } else if (trimmed.length > 0) {
             if (trimmed.includes('.')) {
                 parentFields.push(trimmed);
@@ -164,29 +180,48 @@ export function parseSOQLFields(queryStr) {
  */
 function detectOuterClauses(input) {
     const upper = input.trim().toUpperCase();
-    if (!upper.startsWith('SELECT ')) { return null; }
+    if (!upper.startsWith('SELECT ')) {
+        return null;
+    }
 
     const afterSelect = input.trim().substring(7);
     const fromIdx = findKeywordAtLevel0(afterSelect, 'FROM');
-    if (fromIdx === -1) { return null; }
+    if (fromIdx === -1) {
+        return null;
+    }
 
     const afterFrom = afterSelect.substring(fromIdx + 5).trim();
     // Check if there's more than just the object name after FROM
     const objOnly = afterFrom.match(/^(\w+)\s*$/);
-    if (objOnly) { return null; } // Clean — just "FROM Account"
+    if (objOnly) {
+        return null;
+    } // Clean — just "FROM Account"
 
     const objMatch = afterFrom.match(/^(\w+)\s+/);
-    if (!objMatch) { return null; }
+    if (!objMatch) {
+        return null;
+    }
 
     const remainder = afterFrom.substring(objMatch[0].length).trim().toUpperCase();
     const found = [];
-    if (remainder.startsWith('WHERE') || remainder.includes(' WHERE ')) { found.push('WHERE'); }
-    if (remainder.includes('ORDER BY') || remainder.startsWith('ORDER')) { found.push('ORDER BY'); }
-    if (remainder.includes('LIMIT') || remainder.startsWith('LIMIT')) { found.push('LIMIT'); }
+    if (remainder.startsWith('WHERE') || remainder.includes(' WHERE ')) {
+        found.push('WHERE');
+    }
+    if (remainder.includes('ORDER BY') || remainder.startsWith('ORDER')) {
+        found.push('ORDER BY');
+    }
+    if (remainder.includes('LIMIT') || remainder.startsWith('LIMIT')) {
+        found.push('LIMIT');
+    }
 
     if (found.length > 0) {
-        return 'Outer ' + found.join(', ') + ' clause' + (found.length > 1 ? 's are' : ' is') +
-            ' ignored — DocGen runs against a specific record. Move filters inside a subquery if needed.';
+        return (
+            'Outer ' +
+            found.join(', ') +
+            ' clause' +
+            (found.length > 1 ? 's are' : ' is') +
+            ' ignored — DocGen runs against a specific record. Move filters inside a subquery if needed.'
+        );
     }
     return null;
 }
@@ -201,22 +236,30 @@ function detectOuterClauses(input) {
 function parseSubquery(subqueryStr) {
     // Strip outer parens
     let inner = subqueryStr.trim();
-    if (inner.startsWith('(')) { inner = inner.substring(1); }
-    if (inner.endsWith(')')) { inner = inner.substring(0, inner.length - 1); }
+    if (inner.startsWith('(')) {
+        inner = inner.substring(1);
+    }
+    if (inner.endsWith(')')) {
+        inner = inner.substring(0, inner.length - 1);
+    }
     inner = inner.trim();
 
     // Find SELECT and FROM at level 0
     const upperInner = inner.toUpperCase();
     const selectIdx = upperInner.indexOf('SELECT ');
     const fromIdx = findKeywordAtLevel0(inner, 'FROM');
-    if (selectIdx === -1 || fromIdx === -1) { return null; }
+    if (selectIdx === -1 || fromIdx === -1) {
+        return null;
+    }
 
     const fieldsPart = inner.substring(selectIdx + 7, fromIdx).trim();
     const afterFrom = inner.substring(fromIdx + 5).trim();
 
     // Extract relationship name and optional clauses
     const relMatch = afterFrom.match(/^(\w+)/);
-    if (!relMatch) { return null; }
+    if (!relMatch) {
+        return null;
+    }
     const relationshipName = relMatch[1];
     let clauses = afterFrom.substring(relationshipName.length).trim();
 
@@ -253,7 +296,9 @@ function parseSubquery(subqueryStr) {
         const upper = trimmed.toUpperCase();
         if (trimmed.startsWith('(') && upper.includes('SELECT') && upper.includes('FROM')) {
             const child = parseSubquery(trimmed);
-            if (child) { children.push(child); }
+            if (child) {
+                children.push(child);
+            }
         } else if (trimmed.length > 0) {
             fields.push(trimmed);
         }
@@ -274,12 +319,16 @@ export function stripOuterSelectFrom(input) {
     const upper = trimmed.toUpperCase();
 
     // Must start with SELECT
-    if (!upper.startsWith('SELECT ')) { return trimmed; }
+    if (!upper.startsWith('SELECT ')) {
+        return trimmed;
+    }
 
     // Find FROM at level 0 (not inside a subquery)
     const afterSelect = trimmed.substring(7); // skip "SELECT "
     const fromIdx = findKeywordAtLevel0(afterSelect, 'FROM');
-    if (fromIdx === -1) { return trimmed; }
+    if (fromIdx === -1) {
+        return trimmed;
+    }
 
     // Check that what follows FROM is a bare object name (not a subquery relationship)
     const afterFrom = afterSelect.substring(fromIdx + 5).trim();
@@ -308,20 +357,34 @@ export function extractWhereClause(queryConfigJson) {
 
         if (config.reportFilters && config.reportFilters.length > 0) {
             const DATE_LITERALS = [
-                'TODAY','YESTERDAY','TOMORROW',
-                'LAST_WEEK','THIS_WEEK','NEXT_WEEK',
-                'LAST_MONTH','THIS_MONTH','NEXT_MONTH',
-                'LAST_QUARTER','THIS_QUARTER','NEXT_QUARTER',
-                'LAST_YEAR','THIS_YEAR','NEXT_YEAR',
-                'LAST_90_DAYS','NEXT_90_DAYS'
+                'TODAY',
+                'YESTERDAY',
+                'TOMORROW',
+                'LAST_WEEK',
+                'THIS_WEEK',
+                'NEXT_WEEK',
+                'LAST_MONTH',
+                'THIS_MONTH',
+                'NEXT_MONTH',
+                'LAST_QUARTER',
+                'THIS_QUARTER',
+                'NEXT_QUARTER',
+                'LAST_YEAR',
+                'THIS_YEAR',
+                'NEXT_YEAR',
+                'LAST_90_DAYS',
+                'NEXT_90_DAYS'
             ];
 
-            const parts = config.reportFilters.map(f => {
+            const parts = config.reportFilters.map((f) => {
                 if (f.operator === 'LIKE') {
                     return f.field + " LIKE '%" + f.value + "%'";
                 }
                 if (f.operator === 'IN' || f.operator === 'NOT IN') {
-                    const vals = f.value.split(',').map(v => "'" + v.trim() + "'").join(', ');
+                    const vals = f.value
+                        .split(',')
+                        .map((v) => "'" + v.trim() + "'")
+                        .join(', ');
                     return f.field + ' ' + f.operator + ' (' + vals + ')';
                 }
 
@@ -330,7 +393,8 @@ export function extractWhereClause(queryConfigJson) {
 
                 // Date-only value on a datetime field: append time component
                 const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(v);
-                const isDateTimeField = f.field &&
+                const isDateTimeField =
+                    f.field &&
                     (f.field.toLowerCase().includes('date') || f.field.toLowerCase().includes('time')) &&
                     !f.field.toLowerCase().endsWith('__c');
                 if (isDateOnly && isDateTimeField) {
@@ -350,7 +414,7 @@ export function extractWhereClause(queryConfigJson) {
                     return f.field + ' ' + f.operator + ' ' + v;
                 }
 
-                return f.field + " " + f.operator + " '" + f.value + "'";
+                return f.field + ' ' + f.operator + " '" + f.value + "'";
             });
 
             return parts.join(' AND ');

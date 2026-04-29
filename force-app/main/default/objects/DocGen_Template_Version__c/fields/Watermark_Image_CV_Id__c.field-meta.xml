@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Watermark_Image_CV_Id__c</fullName>
     <externalId>false</externalId>
-    <inlineHelpText>ContentVersion Id of an admin-uploaded watermark / background image. When set, this image renders as the @page background in PDF output, overriding any Word-embedded watermark in the template.</inlineHelpText>
+    <inlineHelpText
+    >ContentVersion Id of an admin-uploaded watermark / background image. When set, this image renders as the @page background in PDF output, overriding any Word-embedded watermark in the template.</inlineHelpText>
     <label>Watermark Image CV Id</label>
     <length>18</length>
     <required>false</required>

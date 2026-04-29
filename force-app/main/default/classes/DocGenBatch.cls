@@ -1,5 +1,4 @@
 public with sharing class DocGenBatch implements Database.Batchable<SObject>, Database.Stateful, Database.AllowsCallouts {
-
     public Id jobId;
     public Id templateId;
     public String baseObject;
@@ -45,7 +44,12 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         this.jobId = jobId;
         this.mergeMode = mergeMode || (mergeOnly == true);
         this.mergeOnly = (mergeOnly == true);
-        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Query_Config__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
+        DocGen_Job__c job = [
+            SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Query_Config__c, Query_Condition__c
+            FROM DocGen_Job__c
+            WHERE Id = :jobId
+            WITH SYSTEM_MODE
+        ];
         this.templateId = job.Template__c;
         this.baseObject = job.Template__r.Base_Object_API__c;
         this.condition = job.Query_Condition__c;
@@ -94,7 +98,9 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
     private void buildDataCache(String query, String sanitizedCondition) {
         try {
             Integer configVersion = DocGenDataRetriever.getConfigVersion(queryConfig);
-                        if (configVersion < 3) { return; }
+            if (configVersion < 3) {
+                return;
+            }
 
             // Collect all record IDs
             String idQuery = 'SELECT Id FROM ' + String.escapeSingleQuotes(baseObject);
@@ -104,10 +110,13 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             idQuery += ' LIMIT 50000';
 
             Set<Id> recordIds = new Set<Id>();
-            for (SObject rec : Database.query(idQuery, AccessLevel.USER_MODE)) { // NOPMD ApexSOQLInjection - baseObject validated by Schema.getGlobalDescribe() above; condition sanitized
+            for (SObject rec : Database.query(idQuery, AccessLevel.USER_MODE)) {
+                // NOPMD ApexSOQLInjection - baseObject validated by Schema.getGlobalDescribe() above; condition sanitized
                 recordIds.add(rec.Id);
             }
-                        if (recordIds.isEmpty()) { return; }
+            if (recordIds.isEmpty()) {
+                return;
+            }
 
             // Bulk query all record data in one pass
             Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(queryConfig.trim());
@@ -139,7 +148,10 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
                 IsMajorVersion = true,
                 FirstPublishLocationId = jobId
             );
-            SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+            SObjectAccessDecision cvDec = Security.stripInaccessible(
+                AccessType.CREATABLE,
+                new List<ContentVersion>{ cv }
+            );
             insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             cv.Id = cvDec.getRecords()[0].Id;
 
@@ -148,7 +160,6 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             cachedDataJson = jsonStr;
 
             update new DocGen_Job__c(Id = jobId, Data_Cache_CV__c = cv.Id); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
-
         } catch (Exception e) {
             // Graceful fallback: continue without cache
             dataCacheCvId = null;
@@ -160,16 +171,29 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
      * Basic sanitization of dynamic WHERE conditions to prevent SOQL injection.
      */
     private static String sanitizeCondition(String condition) {
-                if (String.isBlank(condition)) { return condition; }
+        if (String.isBlank(condition)) {
+            return condition;
+        }
         // Reject dangerous characters (statement termination, comments)
         if (condition.contains(';') || condition.contains('--') || condition.contains('/*')) {
             throw new DocGenException('Invalid filter condition.');
         }
         String upper = condition.toUpperCase().trim();
         List<String> disallowed = new List<String>{
-            'SELECT ', 'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
-            'WITH ', 'GROUP BY ', 'ORDER BY ', 'LIMIT ', 'OFFSET ', 'FOR UPDATE',
-            'HAVING ', 'TYPEOF '
+            'SELECT ',
+            'INSERT ',
+            'UPDATE ',
+            'DELETE ',
+            'MERGE ',
+            'UNDELETE ',
+            'WITH ',
+            'GROUP BY ',
+            'ORDER BY ',
+            'LIMIT ',
+            'OFFSET ',
+            'FOR UPDATE',
+            'HAVING ',
+            'TYPEOF '
         };
         for (String keyword : disallowed) {
             if (upper.contains(keyword)) {
@@ -223,7 +247,13 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         // Lazy-load cache from ContentVersion if Stateful string was lost
         if (dataCacheCvId != null && cachedDataJson == null) {
             try {
-                ContentVersion cv = [SELECT VersionData FROM ContentVersion WHERE Id = :dataCacheCvId WITH USER_MODE LIMIT 1];
+                ContentVersion cv = [
+                    SELECT VersionData
+                    FROM ContentVersion
+                    WHERE Id = :dataCacheCvId
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
                 cachedDataJson = cv.VersionData.toString();
             } catch (Exception e) {
                 // Intentionally swallowed: cached data CV not found or inaccessible — fall through to fresh query
@@ -302,7 +332,12 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
                 System.enqueueJob(new DocGenMergeJob(jobId));
             } catch (Exception e) {
                 status = 'Completed with Errors';
-                update new DocGen_Job__c(Id = jobId, Status__c = status, Success_Count__c = successCount, Error_Count__c = failCount); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
+                update new DocGen_Job__c(
+                    Id = jobId,
+                    Status__c = status,
+                    Success_Count__c = successCount,
+                    Error_Count__c = failCount
+                ); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             }
         } else {
             update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
@@ -321,7 +356,8 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         // Clean up data cache ContentVersion
         if (dataCacheCvId != null) {
             try {
-                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :dataCacheCvId WITH USER_MODE].ContentDocumentId;
+                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :dataCacheCvId WITH USER_MODE]
+                .ContentDocumentId;
                 if (Schema.sObjectType.ContentDocument.isDeletable()) {
                     delete new ContentDocument(Id = docId); // NOPMD ApexCRUDViolation — CRUD checked above
                 }
@@ -335,20 +371,35 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
     private void sendJobNotification(String status) {
         try {
             List<CustomNotificationType> types = [
-                SELECT Id FROM CustomNotificationType
+                SELECT Id
+                FROM CustomNotificationType
                 WHERE DeveloperName = 'DocGen_Job_Complete'
-                WITH SYSTEM_MODE LIMIT 1
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
-                        if (types.isEmpty()) { return; }
+            if (types.isEmpty()) {
+                return;
+            }
 
-            DocGen_Job__c job = [SELECT CreatedById, Label__c, Name FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE LIMIT 1];
+            DocGen_Job__c job = [
+                SELECT CreatedById, Label__c, Name
+                FROM DocGen_Job__c
+                WHERE Id = :jobId
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
             String jobName = String.isNotBlank(job.Label__c) ? job.Label__c : job.Name;
 
             Messaging.CustomNotification notification = new Messaging.CustomNotification();
             notification.setNotificationTypeId(types[0].Id);
             notification.setTargetId(jobId);
             notification.setTitle('DocGen: ' + jobName + ' — ' + status);
-            notification.setBody(successCount + ' documents generated' + (failCount > 0 ? ', ' + failCount + ' failed' : '') + '. Tap to view.');
+            notification.setBody(
+                successCount +
+                    ' documents generated' +
+                    (failCount > 0 ? ', ' + failCount + ' failed' : '') +
+                    '. Tap to view.'
+            );
             notification.send(new Set<String>{ job.CreatedById });
         } catch (Exception e) {
             // Intentionally swallowed — notification failure is non-fatal

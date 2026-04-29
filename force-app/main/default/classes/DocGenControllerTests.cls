@@ -1,7 +1,6 @@
 // CxSAST: Test class — SOQL/DML findings are test data operations, not production code paths
 @IsTest
 private class DocGenControllerTests {
-
     @TestSetup
     static void setup() {
         TestDataFactory.createStandardTestData();
@@ -23,16 +22,15 @@ private class DocGenControllerTests {
             String dummyContent = EncodingUtil.base64Encode(Blob.valueOf('Dummy PDF content'));
 
             Test.startTest();
-            Id contentDocId = DocGenController.saveGeneratedDocument(
-                acc.Id, 'TestOutput', dummyContent, '.pdf'
-            );
+            Id contentDocId = DocGenController.saveGeneratedDocument(acc.Id, 'TestOutput', dummyContent, '.pdf');
             Test.stopTest();
 
             System.assertNotEquals(null, contentDocId, 'Should return a ContentDocument Id');
 
             // Verify ContentVersion was created
             List<ContentVersion> versions = [
-                SELECT Title, PathOnClient FROM ContentVersion
+                SELECT Title, PathOnClient
+                FROM ContentVersion
                 WHERE ContentDocumentId = :contentDocId
             ];
             System.assertEquals(1, versions.size(), 'Should have exactly one ContentVersion');
@@ -49,19 +47,20 @@ private class DocGenControllerTests {
             String dummyContent = EncodingUtil.base64Encode(Blob.valueOf('Dummy DOCX content'));
 
             Test.startTest();
-            Id contentDocId = DocGenController.saveGeneratedDocument(
-                acc.Id, 'TestOutputNoDot', dummyContent, 'docx'
-            );
+            Id contentDocId = DocGenController.saveGeneratedDocument(acc.Id, 'TestOutputNoDot', dummyContent, 'docx');
             Test.stopTest();
 
             System.assertNotEquals(null, contentDocId, 'Should return a ContentDocument Id');
 
             List<ContentVersion> versions = [
-                SELECT PathOnClient FROM ContentVersion
+                SELECT PathOnClient
+                FROM ContentVersion
                 WHERE ContentDocumentId = :contentDocId
             ];
-            System.assert(versions[0].PathOnClient.endsWith('.docx'),
-                'Extension without leading dot should still produce correct PathOnClient');
+            System.assert(
+                versions[0].PathOnClient.endsWith('.docx'),
+                'Extension without leading dot should still produce correct PathOnClient'
+            );
         }
     }
 
@@ -99,14 +98,15 @@ private class DocGenControllerTests {
             Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
-            Map<String, Object> result = DocGenController.previewRecordData(
-                acc.Id, 'Account', 'Name, AccountSource'
-            );
+            Map<String, Object> result = DocGenController.previewRecordData(acc.Id, 'Account', 'Name, AccountSource');
             Test.stopTest();
 
             System.assertNotEquals(null, result, 'Preview data should not be null');
-            System.assertEquals('DocGen Test Account', result.get('Name'),
-                'Name field should match the factory account');
+            System.assertEquals(
+                'DocGen Test Account',
+                result.get('Name'),
+                'Name field should match the factory account'
+            );
         }
     }
 
@@ -171,7 +171,11 @@ private class DocGenControllerTests {
             DocGenController.saveTemplate(fields, false, null);
             Test.stopTest();
 
-            DocGen_Template__c updated = [SELECT Name, Category__c, Description__c FROM DocGen_Template__c WHERE Id = :tpl.Id];
+            DocGen_Template__c updated = [
+                SELECT Name, Category__c, Description__c
+                FROM DocGen_Template__c
+                WHERE Id = :tpl.Id
+            ];
             System.assertEquals('Renamed Template', updated.Name, 'Name should be updated');
             System.assertEquals('Legal', updated.Category__c, 'Category should be updated');
             System.assertEquals('Updated description', updated.Description__c, 'Description should be updated');
@@ -240,8 +244,10 @@ private class DocGenControllerTests {
             // 18-char ContentVersion-shaped Id — we never dereference it,
             // we just verify the *string* survives the new-version transition.
             DocGen_Template_Version__c origActive = [
-                SELECT Id FROM DocGen_Template_Version__c
-                WHERE Template__c = :tpl.Id AND Is_Active__c = true LIMIT 1
+                SELECT Id
+                FROM DocGen_Template_Version__c
+                WHERE Template__c = :tpl.Id AND Is_Active__c = TRUE
+                LIMIT 1
             ];
             String fakeWatermarkCvId = '068000000000001AAA';
             origActive.Watermark_Image_CV_Id__c = fakeWatermarkCvId;
@@ -267,21 +273,31 @@ private class DocGenControllerTests {
             // Pre-fix: this query came back with Watermark_Image_CV_Id__c = null
             // because the carry-forward block ran AFTER deactivation.
             DocGen_Template_Version__c newActive = [
-                SELECT Watermark_Image_CV_Id__c FROM DocGen_Template_Version__c
-                WHERE Template__c = :tpl.Id AND Is_Active__c = true LIMIT 1
+                SELECT Watermark_Image_CV_Id__c
+                FROM DocGen_Template_Version__c
+                WHERE Template__c = :tpl.Id AND Is_Active__c = TRUE
+                LIMIT 1
             ];
-            System.assertEquals(fakeWatermarkCvId, newActive.Watermark_Image_CV_Id__c,
-                'Save as New Version must carry forward Watermark_Image_CV_Id__c from the prior active version');
+            System.assertEquals(
+                fakeWatermarkCvId,
+                newActive.Watermark_Image_CV_Id__c,
+                'Save as New Version must carry forward Watermark_Image_CV_Id__c from the prior active version'
+            );
 
             // The previously-active version should be deactivated and still
             // hold its own watermark CV ID (we don't strip it on the old row).
             DocGen_Template_Version__c oldNowDeactivated = [
-                SELECT Is_Active__c, Watermark_Image_CV_Id__c FROM DocGen_Template_Version__c
-                WHERE Id = :origActive.Id LIMIT 1
+                SELECT Is_Active__c, Watermark_Image_CV_Id__c
+                FROM DocGen_Template_Version__c
+                WHERE Id = :origActive.Id
+                LIMIT 1
             ];
             System.assertEquals(false, oldNowDeactivated.Is_Active__c, 'Prior version should be deactivated');
-            System.assertEquals(fakeWatermarkCvId, oldNowDeactivated.Watermark_Image_CV_Id__c,
-                'Prior version retains its own watermark CV (we copy, not move)');
+            System.assertEquals(
+                fakeWatermarkCvId,
+                oldNowDeactivated.Watermark_Image_CV_Id__c,
+                'Prior version retains its own watermark CV (we copy, not move)'
+            );
         }
     }
 
@@ -305,9 +321,7 @@ private class DocGenControllerTests {
             DocGenController.deleteTemplate(disposable.Id);
             Test.stopTest();
 
-            List<DocGen_Template__c> remaining = [
-                SELECT Id FROM DocGen_Template__c WHERE Id = :disposable.Id
-            ];
+            List<DocGen_Template__c> remaining = [SELECT Id FROM DocGen_Template__c WHERE Id = :disposable.Id];
             System.assertEquals(0, remaining.size(), 'Template should have been deleted');
         }
     }
@@ -420,8 +434,10 @@ private class DocGenControllerTests {
             Map<String, String> firstRel = rels[0];
             System.assert(firstRel.containsKey('label'), 'Each relationship should have a label');
             System.assert(firstRel.containsKey('value'), 'Each relationship should have a value');
-            System.assert(firstRel.containsKey('childObjectApiName'),
-                'Each relationship should have childObjectApiName');
+            System.assert(
+                firstRel.containsKey('childObjectApiName'),
+                'Each relationship should have childObjectApiName'
+            );
         }
     }
 
@@ -518,8 +534,7 @@ private class DocGenControllerTests {
                 DocGenController.generateDocumentData(null, acc.Id);
             } catch (DocGenException e) {
                 caughtException = true;
-                System.assert(e.getMessage().contains('Template ID is missing'),
-                    'Should indicate missing template ID');
+                System.assert(e.getMessage().contains('Template ID is missing'), 'Should indicate missing template ID');
             }
             Test.stopTest();
 
@@ -536,7 +551,9 @@ private class DocGenControllerTests {
         System.runAs(u) {
             Account acc = TestDataFactory.getTestAccount();
             // Use a fake but valid-format Id for a template that does not exist
-            Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeTemplateId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Test.startTest();
             Boolean caughtException = false;
@@ -544,8 +561,10 @@ private class DocGenControllerTests {
                 DocGenController.generateDocumentData(fakeTemplateId, acc.Id);
             } catch (DocGenException e) {
                 caughtException = true;
-                System.assert(e.getMessage().contains('Unable to access template'),
-                    'Should indicate template not found');
+                System.assert(
+                    e.getMessage().contains('Unable to access template'),
+                    'Should indicate template not found'
+                );
             }
             Test.stopTest();
 
@@ -565,23 +584,32 @@ private class DocGenControllerTests {
 
             // Build a minimal valid DOCX ZIP
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'ValidDocx',
@@ -590,11 +618,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentData(tpl.Id, acc.Id);
@@ -648,23 +672,32 @@ private class DocGenControllerTests {
 
             // Build valid DOCX
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>Hello {Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>Hello {Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForProcess',
@@ -673,11 +706,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.processAndReturnDocument(tpl.Id, acc.Id);
@@ -726,23 +755,32 @@ private class DocGenControllerTests {
             Account acc = TestDataFactory.getTestAccount();
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForPdf',
@@ -751,11 +789,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generatePdf(tpl.Id, acc.Id, false);
@@ -780,23 +814,32 @@ private class DocGenControllerTests {
             Account acc = TestDataFactory.getTestAccount();
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForSavePdf',
@@ -805,11 +848,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generatePdf(tpl.Id, acc.Id, true);
@@ -855,15 +894,31 @@ private class DocGenControllerTests {
             Test.stopTest();
 
             // v2 should now be active, v1 should be deactivated
-            DocGen_Template_Version__c updatedV1 = [SELECT Is_Active__c FROM DocGen_Template_Version__c WHERE Id = :v1.Id];
-            DocGen_Template_Version__c updatedV2 = [SELECT Is_Active__c FROM DocGen_Template_Version__c WHERE Id = :v2.Id];
+            DocGen_Template_Version__c updatedV1 = [
+                SELECT Is_Active__c
+                FROM DocGen_Template_Version__c
+                WHERE Id = :v1.Id
+            ];
+            DocGen_Template_Version__c updatedV2 = [
+                SELECT Is_Active__c
+                FROM DocGen_Template_Version__c
+                WHERE Id = :v2.Id
+            ];
             System.assertEquals(false, updatedV1.Is_Active__c, 'v1 should be deactivated');
             System.assertEquals(true, updatedV2.Is_Active__c, 'v2 should be activated');
 
             // Template should reflect v2 fields
-            DocGen_Template__c updatedTpl = [SELECT Category__c, Description__c, Query_Config__c FROM DocGen_Template__c WHERE Id = :tpl.Id];
+            DocGen_Template__c updatedTpl = [
+                SELECT Category__c, Description__c, Query_Config__c
+                FROM DocGen_Template__c
+                WHERE Id = :tpl.Id
+            ];
             System.assertEquals('Legal', updatedTpl.Category__c, 'Template category should match activated version');
-            System.assertEquals('Version 2', updatedTpl.Description__c, 'Template description should match activated version');
+            System.assertEquals(
+                'Version 2',
+                updatedTpl.Description__c,
+                'Template description should match activated version'
+            );
         }
     }
 
@@ -987,7 +1042,9 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Use a fake ID that looks valid but does not exist — will throw
-            Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Test.startTest();
             Boolean caughtException = false;
@@ -1009,7 +1066,9 @@ private class DocGenControllerTests {
     static void testSaveTemplateThrows() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Map<String, Object> fields = new Map<String, Object>{
                 'Id' => fakeId,
@@ -1055,23 +1114,32 @@ private class DocGenControllerTests {
 
             // Build valid DOCX
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxRichText',
@@ -1080,11 +1148,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             // The callout to resolve images will fail in test context (no HttpCalloutMock),
             // but the code handles exceptions gracefully. This exercises the code path.
@@ -1119,23 +1183,32 @@ private class DocGenControllerTests {
             update acc;
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxServlet',
@@ -1144,11 +1217,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             try {
@@ -1179,23 +1248,32 @@ private class DocGenControllerTests {
             update acc;
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxSfc',
@@ -1204,11 +1282,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             try {
@@ -1236,23 +1310,32 @@ private class DocGenControllerTests {
             Account acc = TestDataFactory.getTestAccount();
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxFormat',
@@ -1261,11 +1344,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentData(tpl.Id, acc.Id);
@@ -1292,23 +1371,32 @@ private class DocGenControllerTests {
             insert new Contact(FirstName = 'Test', LastName = 'Child', AccountId = acc.Id);
 
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxChild',
@@ -1317,11 +1405,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentData(tpl.Id, acc.Id);
@@ -1372,14 +1456,17 @@ private class DocGenControllerTests {
 
             // The old version should be deactivated
             DocGen_Template_Version__c oldVersion = [
-                SELECT Is_Active__c FROM DocGen_Template_Version__c WHERE Id = :existingVersion.Id
+                SELECT Is_Active__c
+                FROM DocGen_Template_Version__c
+                WHERE Id = :existingVersion.Id
             ];
             System.assertEquals(false, oldVersion.Is_Active__c, 'Old version should be deactivated');
 
             // A new version should exist and be active
             List<DocGen_Template_Version__c> newVersions = [
-                SELECT Is_Active__c, Category__c FROM DocGen_Template_Version__c
-                WHERE Template__c = :tpl.Id AND Is_Active__c = true
+                SELECT Is_Active__c, Category__c
+                FROM DocGen_Template_Version__c
+                WHERE Template__c = :tpl.Id AND Is_Active__c = TRUE
             ];
             System.assertEquals(1, newVersions.size(), 'Should have exactly one active version');
             System.assertEquals('New', newVersions[0].Category__c, 'New version should have correct category');
@@ -1460,7 +1547,9 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Use a fake template ID to trigger an exception inside DocGenService
-            Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeTemplateId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
             Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
@@ -1485,23 +1574,32 @@ private class DocGenControllerTests {
 
             // Build a minimal valid DOCX and attach to template
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForParts',
@@ -1510,11 +1608,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentParts(tpl.Id, acc.Id);
@@ -1542,11 +1636,7 @@ private class DocGenControllerTests {
             );
             insert pdfCv;
             Id pdfDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :pdfCv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = acc.Id,
-                ContentDocumentId = pdfDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = acc.Id, ContentDocumentId = pdfDocId, ShareType = 'V');
 
             Test.startTest();
             List<Map<String, String>> pdfs = DocGenController.getRecordPdfs(acc.Id);
@@ -1600,15 +1690,14 @@ private class DocGenControllerTests {
             );
             insert pdfCv;
             Id pdfDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :pdfCv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = con.Id,
-                ContentDocumentId = pdfDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = con.Id, ContentDocumentId = pdfDocId, ShareType = 'V');
 
             Test.startTest();
             List<Map<String, Object>> result = DocGenController.getChildRecordPdfs(
-                acc.Id, 'Contact', 'AccountId', null
+                acc.Id,
+                'Contact',
+                'AccountId',
+                null
             );
             Test.stopTest();
 
@@ -1692,7 +1781,10 @@ private class DocGenControllerTests {
 
             Test.startTest();
             List<Map<String, Object>> result = DocGenController.getChildRecordPdfs(
-                freshAcc.Id, 'Contact', 'AccountId', null
+                freshAcc.Id,
+                'Contact',
+                'AccountId',
+                null
             );
             Test.stopTest();
 
@@ -1756,7 +1848,8 @@ private class DocGenControllerTests {
             System.assertEquals(5, count, 'Should return 5 (number of sample templates created)');
 
             List<DocGen_Template__c> samples = [
-                SELECT Name, Category__c FROM DocGen_Template__c
+                SELECT Name, Category__c
+                FROM DocGen_Template__c
                 WHERE Category__c = 'Sample'
             ];
             System.assertEquals(5, samples.size(), 'Should have created 5 sample templates');
@@ -1781,9 +1874,7 @@ private class DocGenControllerTests {
     static void testOptionFourArgConstructor() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            DocGenController.Option opt = new DocGenController.Option(
-                'Contacts', 'Contacts', 'Contact', 'AccountId'
-            );
+            DocGenController.Option opt = new DocGenController.Option('Contacts', 'Contacts', 'Contact', 'AccountId');
 
             System.assertEquals('Contacts', opt.label, 'Label should match');
             System.assertEquals('Contacts', opt.value, 'Value should match');
@@ -1967,9 +2058,7 @@ private class DocGenControllerTests {
                 'Notes' => '<p><img src="/sfc/servlet.shepherd/version/download/069XYZ" alt="child"/></p>'
             };
             List<Object> children = new List<Object>{ childRecord };
-            Map<String, Object> data = new Map<String, Object>{
-                'Contacts' => children
-            };
+            Map<String, Object> data = new Map<String, Object>{ 'Contacts' => children };
 
             Test.startTest();
             DocGenController.resolveRichTextImages(data);
@@ -1994,8 +2083,11 @@ private class DocGenControllerTests {
             DocGenController.resolveRichTextImages(data);
             Test.stopTest();
 
-            System.assertEquals('<p>Just plain text with no images</p>', data.get('Description'),
-                'HTML without img tags should be unchanged');
+            System.assertEquals(
+                '<p>Just plain text with no images</p>',
+                data.get('Description'),
+                'HTML without img tags should be unchanged'
+            );
         }
     }
 
@@ -2145,7 +2237,13 @@ private class DocGenControllerTests {
 
             Test.startTest();
             // Direct API name match (lowercase key)
-            String result = DocGenController.normalizeReportColumn('Name', null, fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'Name',
+                null,
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('Name', result, 'Direct API name "Name" should resolve');
@@ -2167,7 +2265,13 @@ private class DocGenControllerTests {
 
             Test.startTest();
             // Label match — "Account Name" is the label for the Name field on Account
-            String result = DocGenController.normalizeReportColumn('SOMETHING_UNKNOWN', 'Account Name', fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'SOMETHING_UNKNOWN',
+                'Account Name',
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('Name', result, 'Label "Account Name" should resolve to Name');
@@ -2189,7 +2293,13 @@ private class DocGenControllerTests {
 
             Test.startTest();
             // Hardcoded mapping: CLOSE_DATE → CloseDate
-            String result = DocGenController.normalizeReportColumn('CLOSE_DATE', null, fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'CLOSE_DATE',
+                null,
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('CloseDate', result, 'CLOSE_DATE should resolve to CloseDate');
@@ -2210,7 +2320,13 @@ private class DocGenControllerTests {
             }
 
             Test.startTest();
-            String result = DocGenController.normalizeReportColumn('CREATED_DATE', null, fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'CREATED_DATE',
+                null,
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('CreatedDate', result, 'CREATED_DATE should resolve to CreatedDate');
@@ -2232,7 +2348,13 @@ private class DocGenControllerTests {
 
             Test.startTest();
             // Strip object prefix: ACCOUNT.Name → Name
-            String result = DocGenController.normalizeReportColumn('ACCOUNT.Name', null, fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'ACCOUNT.Name',
+                null,
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('Name', result, 'ACCOUNT.Name should strip prefix and resolve to Name');
@@ -2246,7 +2368,13 @@ private class DocGenControllerTests {
             Map<String, SObjectField> fieldMap = Schema.SObjectType.Account.fields.getMap();
 
             Test.startTest();
-            String result = DocGenController.normalizeReportColumn('', null, fieldMap, new Map<String, String>(), new Map<String, String>());
+            String result = DocGenController.normalizeReportColumn(
+                '',
+                null,
+                fieldMap,
+                new Map<String, String>(),
+                new Map<String, String>()
+            );
             Test.stopTest();
 
             System.assertEquals(null, result, 'Blank column key should return null');
@@ -2260,7 +2388,13 @@ private class DocGenControllerTests {
             Map<String, SObjectField> fieldMap = Schema.SObjectType.Account.fields.getMap();
 
             Test.startTest();
-            String result = DocGenController.normalizeReportColumn(null, null, fieldMap, new Map<String, String>(), new Map<String, String>());
+            String result = DocGenController.normalizeReportColumn(
+                null,
+                null,
+                fieldMap,
+                new Map<String, String>(),
+                new Map<String, String>()
+            );
             Test.stopTest();
 
             System.assertEquals(null, result, 'Null column key should return null');
@@ -2275,7 +2409,13 @@ private class DocGenControllerTests {
 
             Test.startTest();
             // USERS. prefix should be skipped (parent lookup, not direct field)
-            String result = DocGenController.normalizeReportColumn('USERS.NAME', null, fieldMap, new Map<String, String>(), new Map<String, String>());
+            String result = DocGenController.normalizeReportColumn(
+                'USERS.NAME',
+                null,
+                fieldMap,
+                new Map<String, String>(),
+                new Map<String, String>()
+            );
             Test.stopTest();
 
             System.assertEquals(null, result, 'USERS. prefixed columns should return null');
@@ -2289,7 +2429,13 @@ private class DocGenControllerTests {
             Map<String, SObjectField> fieldMap = Schema.SObjectType.Account.fields.getMap();
 
             Test.startTest();
-            String result = DocGenController.normalizeReportColumn('TOTALLY_FAKE_FIELD_XYZ', null, fieldMap, new Map<String, String>(), new Map<String, String>());
+            String result = DocGenController.normalizeReportColumn(
+                'TOTALLY_FAKE_FIELD_XYZ',
+                null,
+                fieldMap,
+                new Map<String, String>(),
+                new Map<String, String>()
+            );
             Test.stopTest();
 
             System.assertEquals(null, result, 'Unresolvable column should return null');
@@ -2310,7 +2456,13 @@ private class DocGenControllerTests {
             }
 
             Test.startTest();
-            String result = DocGenController.normalizeReportColumn('STAGE_NAME', null, fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'STAGE_NAME',
+                null,
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('StageName', result, 'STAGE_NAME should resolve to StageName');
@@ -2331,7 +2483,13 @@ private class DocGenControllerTests {
             }
 
             Test.startTest();
-            String result = DocGenController.normalizeReportColumn('AMOUNT', null, fieldMap, labelToApiName, properCaseMap);
+            String result = DocGenController.normalizeReportColumn(
+                'AMOUNT',
+                null,
+                fieldMap,
+                labelToApiName,
+                properCaseMap
+            );
             Test.stopTest();
 
             System.assertEquals('Amount', result, 'AMOUNT should resolve to Amount');
@@ -2350,12 +2508,28 @@ private class DocGenControllerTests {
             System.assertEquals('!=', DocGenController.mapReportOperator('notEqual'), 'notEqual should map to !=');
             System.assertEquals('>', DocGenController.mapReportOperator('greaterThan'), 'greaterThan should map to >');
             System.assertEquals('<', DocGenController.mapReportOperator('lessThan'), 'lessThan should map to <');
-            System.assertEquals('>=', DocGenController.mapReportOperator('greaterOrEqual'), 'greaterOrEqual should map to >=');
-            System.assertEquals('<=', DocGenController.mapReportOperator('lessOrEqual'), 'lessOrEqual should map to <=');
+            System.assertEquals(
+                '>=',
+                DocGenController.mapReportOperator('greaterOrEqual'),
+                'greaterOrEqual should map to >='
+            );
+            System.assertEquals(
+                '<=',
+                DocGenController.mapReportOperator('lessOrEqual'),
+                'lessOrEqual should map to <='
+            );
             System.assertEquals('LIKE', DocGenController.mapReportOperator('contains'), 'contains should map to LIKE');
-            System.assertEquals('LIKE', DocGenController.mapReportOperator('startsWith'), 'startsWith should map to LIKE');
+            System.assertEquals(
+                'LIKE',
+                DocGenController.mapReportOperator('startsWith'),
+                'startsWith should map to LIKE'
+            );
             System.assertEquals('IN', DocGenController.mapReportOperator('includes'), 'includes should map to IN');
-            System.assertEquals('NOT IN', DocGenController.mapReportOperator('excludes'), 'excludes should map to NOT IN');
+            System.assertEquals(
+                'NOT IN',
+                DocGenController.mapReportOperator('excludes'),
+                'excludes should map to NOT IN'
+            );
             Test.stopTest();
         }
     }
@@ -2376,7 +2550,11 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Test.startTest();
-            System.assertEquals('=', DocGenController.mapReportOperator('unknownOp'), 'Unknown operator should default to =');
+            System.assertEquals(
+                '=',
+                DocGenController.mapReportOperator('unknownOp'),
+                'Unknown operator should default to ='
+            );
             Test.stopTest();
         }
     }
@@ -2389,9 +2567,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Contact is a direct child of Account — should return Account as parent
-            Map<String, String> childRelNameByObject = new Map<String, String>{
-                'Contact' => 'Contacts'
-            };
+            Map<String, String> childRelNameByObject = new Map<String, String>{ 'Contact' => 'Contacts' };
 
             Test.startTest();
             String result = DocGenController.findParentObject('Contact', 'Account', childRelNameByObject);
@@ -2416,7 +2592,11 @@ private class DocGenControllerTests {
             String result = DocGenController.findParentObject('OpportunityLineItem', 'Account', childRelNameByObject);
             Test.stopTest();
 
-            System.assertEquals('Opportunity', result, 'OpportunityLineItem should resolve parent as Opportunity when Opportunity is a known child');
+            System.assertEquals(
+                'Opportunity',
+                result,
+                'OpportunityLineItem should resolve parent as Opportunity when Opportunity is a known child'
+            );
         }
     }
 
@@ -2448,7 +2628,11 @@ private class DocGenControllerTests {
             String result = DocGenController.findJunctionRelationship('Opportunity', 'Contact', oppType);
             Test.stopTest();
 
-            System.assertEquals('OpportunityContactRoles', result, 'Should return known junction for Opportunity:Contact');
+            System.assertEquals(
+                'OpportunityContactRoles',
+                result,
+                'Should return known junction for Opportunity:Contact'
+            );
         }
     }
 
@@ -2607,8 +2791,7 @@ private class DocGenControllerTests {
                 DocGenController.generateDocumentDataFromCache(null, new Map<String, Object>());
             } catch (DocGenException e) {
                 caughtException = true;
-                System.assert(e.getMessage().contains('Template ID is missing'),
-                    'Should indicate missing template ID');
+                System.assert(e.getMessage().contains('Template ID is missing'), 'Should indicate missing template ID');
             }
             Test.stopTest();
 
@@ -2620,7 +2803,9 @@ private class DocGenControllerTests {
     static void testGenerateDocumentDataFromCacheTemplateNotFound() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeTemplateId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Test.startTest();
             Boolean caughtException = false;
@@ -2628,8 +2813,10 @@ private class DocGenControllerTests {
                 DocGenController.generateDocumentDataFromCache(fakeTemplateId, new Map<String, Object>());
             } catch (DocGenException e) {
                 caughtException = true;
-                System.assert(e.getMessage().contains('Unable to access template'),
-                    'Should indicate template not found');
+                System.assert(
+                    e.getMessage().contains('Unable to access template'),
+                    'Should indicate template not found'
+                );
             }
             Test.stopTest();
 
@@ -2645,23 +2832,32 @@ private class DocGenControllerTests {
 
             // Build a minimal valid DOCX and attach to template
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForCache',
@@ -2670,15 +2866,9 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
-            Map<String, Object> cachedData = new Map<String, Object>{
-                'Name' => 'Cached Account Name'
-            };
+            Map<String, Object> cachedData = new Map<String, Object>{ 'Name' => 'Cached Account Name' };
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentDataFromCache(tpl.Id, cachedData);
@@ -2688,8 +2878,11 @@ private class DocGenControllerTests {
             System.assert(result.containsKey('data'), 'Result should contain data key');
             System.assert(result.containsKey('templateFile'), 'Result should contain templateFile key');
             System.assert(result.containsKey('templateType'), 'Result should contain templateType key');
-            System.assertEquals('Cached Account Name', ((Map<String, Object>) result.get('data')).get('Name'),
-                'Data should contain the cached record data');
+            System.assertEquals(
+                'Cached Account Name',
+                ((Map<String, Object>) result.get('data')).get('Name'),
+                'Data should contain the cached record data'
+            );
         }
     }
 
@@ -2701,23 +2894,32 @@ private class DocGenControllerTests {
 
             // Attach a valid DOCX
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForCacheReuse',
@@ -2726,30 +2928,37 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             // First call populates cache
             Map<String, Object> result1 = DocGenController.generateDocumentDataFromCache(
-                tpl.Id, new Map<String, Object>{ 'Name' => 'Record 1' }
+                tpl.Id,
+                new Map<String, Object>{ 'Name' => 'Record 1' }
             );
             // Second call should reuse cached template envelope
             Map<String, Object> result2 = DocGenController.generateDocumentDataFromCache(
-                tpl.Id, new Map<String, Object>{ 'Name' => 'Record 2' }
+                tpl.Id,
+                new Map<String, Object>{ 'Name' => 'Record 2' }
             );
             Test.stopTest();
 
-            System.assertEquals('Record 1', ((Map<String, Object>) result1.get('data')).get('Name'),
-                'First call should have Record 1 data');
-            System.assertEquals('Record 2', ((Map<String, Object>) result2.get('data')).get('Name'),
-                'Second call should have Record 2 data');
+            System.assertEquals(
+                'Record 1',
+                ((Map<String, Object>) result1.get('data')).get('Name'),
+                'First call should have Record 1 data'
+            );
+            System.assertEquals(
+                'Record 2',
+                ((Map<String, Object>) result2.get('data')).get('Name'),
+                'Second call should have Record 2 data'
+            );
             // Both should have the same template metadata
-            System.assertEquals(result1.get('templateType'), result2.get('templateType'),
-                'Template type should be the same for both calls');
+            System.assertEquals(
+                result1.get('templateType'),
+                result2.get('templateType'),
+                'Template type should be the same for both calls'
+            );
         }
     }
 
@@ -2765,7 +2974,10 @@ private class DocGenControllerTests {
 
             Test.startTest();
             List<Map<String, Object>> result = DocGenController.getChildRecordPdfs(
-                acc.Id, 'Contact', 'AccountId', 'LastName = \'Contact\''
+                acc.Id,
+                'Contact',
+                'AccountId',
+                'LastName = \'Contact\''
             );
             Test.stopTest();
 
@@ -2852,7 +3064,11 @@ private class DocGenControllerTests {
             String result = DocGenController.resolveReportBaseObject('UnknownXYZ', 'Opportunities with Products');
             Test.stopTest();
 
-            System.assertEquals('Opportunity', result, 'Label starting with "Opportunities" should resolve to Opportunity');
+            System.assertEquals(
+                'Opportunity',
+                result,
+                'Label starting with "Opportunities" should resolve to Opportunity'
+            );
         }
     }
 
@@ -2912,7 +3128,11 @@ private class DocGenControllerTests {
             Test.stopTest();
 
             System.assertEquals(false, result.get('valid'), 'Should be invalid for blank class name');
-            System.assertEquals('Class name is required.', result.get('error'), 'Error should indicate class name is required');
+            System.assertEquals(
+                'Class name is required.',
+                result.get('error'),
+                'Error should indicate class name is required'
+            );
         }
     }
 
@@ -2925,7 +3145,11 @@ private class DocGenControllerTests {
             Test.stopTest();
 
             System.assertEquals(false, result.get('valid'), 'Should be invalid for null class name');
-            System.assertEquals('Class name is required.', result.get('error'), 'Error should indicate class name is required for null');
+            System.assertEquals(
+                'Class name is required.',
+                result.get('error'),
+                'Error should indicate class name is required for null'
+            );
         }
     }
 
@@ -2952,7 +3176,11 @@ private class DocGenControllerTests {
             Map<String, Object> result = DocGenController.validateDataProvider('Account');
             Test.stopTest();
 
-            System.assertEquals(false, result.get('valid'), 'Should be invalid for class that does not implement DocGenDataProvider');
+            System.assertEquals(
+                false,
+                result.get('valid'),
+                'Should be invalid for class that does not implement DocGenDataProvider'
+            );
         }
     }
 
@@ -2995,7 +3223,8 @@ private class DocGenControllerTests {
             insert new Contact(FirstName = 'Scout', LastName = 'V3', AccountId = acc.Id);
 
             DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
-            tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
+            tpl.Query_Config__c =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
                 '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
                 ']}';
@@ -3030,7 +3259,8 @@ private class DocGenControllerTests {
             insert toInsert;
 
             DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
-            tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
+            tpl.Query_Config__c =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
                 '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
                 ']}';
@@ -3061,7 +3291,8 @@ private class DocGenControllerTests {
             insert new Contact(FirstName = 'Small', LastName = 'Dataset', AccountId = acc.Id);
 
             DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
-            tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
+            tpl.Query_Config__c =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
                 '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
                 ']}';
@@ -3111,8 +3342,11 @@ private class DocGenControllerTests {
             DocGenService.forceHeapPressureForTest = false;
 
             System.assert(thrown, 'HeapPressureException should bubble up from loop expansion');
-            System.assertEquals('Contacts', capturedRel,
-                'Exception should carry the giant relationship name for the controller');
+            System.assertEquals(
+                'Contacts',
+                capturedRel,
+                'Exception should carry the giant relationship name for the controller'
+            );
         }
     }
 
@@ -3135,7 +3369,9 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Account acc = TestDataFactory.getTestAccount();
-            Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Test.startTest();
             Map<String, Object> result = DocGenController.scoutChildCounts(acc.Id, fakeId);
@@ -3162,7 +3398,12 @@ private class DocGenControllerTests {
 
             Test.startTest();
             Map<String, Object> result = DocGenController.getChildRecordPage(
-                'Contact', 'AccountId', acc.Id, null, 'Id, FirstName, LastName', 10
+                'Contact',
+                'AccountId',
+                acc.Id,
+                null,
+                'Id, FirstName, LastName',
+                10
             );
             Test.stopTest();
 
@@ -3183,14 +3424,24 @@ private class DocGenControllerTests {
 
             // Get first page with pageSize=1
             Map<String, Object> page1 = DocGenController.getChildRecordPage(
-                'Contact', 'AccountId', acc.Id, null, 'Id, FirstName, LastName', 1
+                'Contact',
+                'AccountId',
+                acc.Id,
+                null,
+                'Id, FirstName, LastName',
+                1
             );
             String lastId = (String) page1.get('lastId');
             System.assertEquals(true, page1.get('hasMore'), 'Should have more records');
 
             Test.startTest();
             Map<String, Object> page2 = DocGenController.getChildRecordPage(
-                'Contact', 'AccountId', acc.Id, lastId, 'Id, FirstName, LastName', 1
+                'Contact',
+                'AccountId',
+                acc.Id,
+                lastId,
+                'Id, FirstName, LastName',
+                1
             );
             Test.stopTest();
 
@@ -3208,9 +3459,7 @@ private class DocGenControllerTests {
             Test.startTest();
             Boolean caughtException = false;
             try {
-                DocGenController.getChildRecordPage(
-                    'NonExistentObject__xyz', 'AccountId', acc.Id, null, 'Id', 10
-                );
+                DocGenController.getChildRecordPage('NonExistentObject__xyz', 'AccountId', acc.Id, null, 'Id', 10);
             } catch (AuraHandledException e) {
                 caughtException = true;
             }
@@ -3228,7 +3477,12 @@ private class DocGenControllerTests {
 
             Test.startTest();
             Map<String, Object> result = DocGenController.getChildRecordPage(
-                'Contact', 'AccountId', acc.Id, null, 'Id, LastName', null
+                'Contact',
+                'AccountId',
+                acc.Id,
+                null,
+                'Id, LastName',
+                null
             );
             Test.stopTest();
 
@@ -3248,9 +3502,7 @@ private class DocGenControllerTests {
             String base64Data = EncodingUtil.base64Encode(Blob.valueOf('Single chunk content'));
 
             Test.startTest();
-            Id cvId = DocGenController.saveDocumentChunk(
-                acc.Id, 'SingleChunkDoc', base64Data, 0, 1, null, 'docx'
-            );
+            Id cvId = DocGenController.saveDocumentChunk(acc.Id, 'SingleChunkDoc', base64Data, 0, 1, null, 'docx');
             Test.stopTest();
 
             System.assertNotEquals(null, cvId, 'Should return a ContentVersion ID');
@@ -3270,15 +3522,11 @@ private class DocGenControllerTests {
 
             Test.startTest();
             // First chunk
-            Id cvId = DocGenController.saveDocumentChunk(
-                acc.Id, 'MultiChunkDoc', chunk1, 0, 2, null, '.pdf'
-            );
+            Id cvId = DocGenController.saveDocumentChunk(acc.Id, 'MultiChunkDoc', chunk1, 0, 2, null, '.pdf');
             System.assertNotEquals(null, cvId, 'First chunk should return CV ID');
 
             // Second (last) chunk
-            Id cvId2 = DocGenController.saveDocumentChunk(
-                acc.Id, 'MultiChunkDoc', chunk2, 1, 2, cvId, '.pdf'
-            );
+            Id cvId2 = DocGenController.saveDocumentChunk(acc.Id, 'MultiChunkDoc', chunk2, 1, 2, cvId, '.pdf');
             Test.stopTest();
 
             System.assertEquals(cvId, cvId2, 'Should return the same CV ID for subsequent chunks');
@@ -3340,23 +3588,32 @@ private class DocGenControllerTests {
 
             // Attach a valid DOCX so generation can work
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForGiant',
@@ -3365,11 +3622,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentGiantQuery(tpl.Id, acc.Id);
@@ -3386,7 +3639,8 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
-            tpl.Query_Config__c = '{"v":3,"root":"Account","nodes":[' +
+            tpl.Query_Config__c =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],"parentNode":null,"lookupField":null,"relationshipName":null},' +
                 '{"id":"n1","object":"Contact","fields":["FirstName","LastName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"}' +
                 ']}';
@@ -3398,23 +3652,32 @@ private class DocGenControllerTests {
 
             // Attach a valid DOCX
             Compression.ZipWriter zw = new Compression.ZipWriter();
-            zw.addEntry('[Content_Types].xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-                '<Default Extension="xml" ContentType="application/xml"/>' +
-                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
-                '</Types>'
-            ));
-            zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-            ));
-            zw.addEntry('word/document.xml', Blob.valueOf(
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-                '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
-            ));
+            zw.addEntry(
+                '[Content_Types].xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                        '<Default Extension="xml" ContentType="application/xml"/>' +
+                        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+                        '</Types>'
+                )
+            );
+            zw.addEntry(
+                'word/_rels/document.xml.rels',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+                )
+            );
+            zw.addEntry(
+                'word/document.xml',
+                Blob.valueOf(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                        '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>'
+                )
+            );
 
             ContentVersion cv = new ContentVersion(
                 Title = 'DocxForGiantV3',
@@ -3423,11 +3686,7 @@ private class DocGenControllerTests {
             );
             insert cv;
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             Test.startTest();
             Map<String, Object> result = DocGenController.generateDocumentGiantQuery(tpl.Id, acc.Id);
@@ -3445,7 +3704,9 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Account acc = TestDataFactory.getTestAccount();
-            Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Test.startTest();
             Boolean caughtException = false;
@@ -3495,7 +3756,8 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Use a fake valid-format Job ID
-            Id fakeJobId = DocGen_Job__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeJobId =
+                DocGen_Job__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
 
             Test.startTest();
             Map<String, Object> result = DocGenController.getGiantQueryJobStatus(fakeJobId);
@@ -3592,9 +3854,7 @@ private class DocGenControllerTests {
             Test.stopTest();
 
             // Verify the fragment was deleted
-            List<ContentVersion> remaining = [
-                SELECT Id FROM ContentVersion WHERE Title LIKE :(prefix + '%')
-            ];
+            List<ContentVersion> remaining = [SELECT Id FROM ContentVersion WHERE Title LIKE :(prefix + '%')];
             System.assertEquals(0, remaining.size(), 'Fragments should be deleted after cleanup');
         }
     }
@@ -3628,7 +3888,9 @@ private class DocGenControllerTests {
     static void testGenerateDocumentPartsGiantQueryError() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeTemplateId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
             Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
@@ -3656,8 +3918,9 @@ private class DocGenControllerTests {
 
             // Deactivate any existing versions from the factory so ours is the only active one
             List<DocGen_Template_Version__c> existingVersions = [
-                SELECT Id FROM DocGen_Template_Version__c
-                WHERE Template__c = :tpl.Id AND Is_Active__c = true
+                SELECT Id
+                FROM DocGen_Template_Version__c
+                WHERE Template__c = :tpl.Id AND Is_Active__c = TRUE
             ];
             for (DocGen_Template_Version__c v : existingVersions) {
                 v.Is_Active__c = false;
@@ -3675,11 +3938,7 @@ private class DocGenControllerTests {
             insert cv;
             cv = [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id];
             Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-            insert new ContentDocumentLink(
-                LinkedEntityId = tpl.Id,
-                ContentDocumentId = conDocId,
-                ShareType = 'V'
-            );
+            insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
 
             DocGen_Template_Version__c ver = new DocGen_Template_Version__c(
                 Template__c = tpl.Id,
@@ -3728,7 +3987,9 @@ private class DocGenControllerTests {
     static void testExportTemplateNotFound() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Id fakeId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
 
             Test.startTest();
             Boolean caughtException = false;
@@ -3807,7 +4068,8 @@ private class DocGenControllerTests {
             System.assertNotEquals(null, newTemplateId, 'Should return a new template ID');
             DocGen_Template__c imported = [
                 SELECT Name, Base_Object_API__c, Type__c, Category__c, Query_Config__c
-                FROM DocGen_Template__c WHERE Id = :newTemplateId
+                FROM DocGen_Template__c
+                WHERE Id = :newTemplateId
             ];
             System.assertEquals('Imported Template', imported.Name, 'Name should match');
             System.assertEquals('Account', imported.Base_Object_API__c, 'Base object should match');
@@ -3815,7 +4077,9 @@ private class DocGenControllerTests {
 
             // Verify version was created
             List<DocGen_Template_Version__c> versions = [
-                SELECT Is_Active__c FROM DocGen_Template_Version__c WHERE Template__c = :newTemplateId
+                SELECT Is_Active__c
+                FROM DocGen_Template_Version__c
+                WHERE Template__c = :newTemplateId
             ];
             System.assertEquals(1, versions.size(), 'Should have 1 version');
             System.assertEquals(true, versions[0].Is_Active__c, 'Version should be active');
@@ -3847,11 +4111,13 @@ private class DocGenControllerTests {
 
             // Include saved queries
             List<Map<String, String>> queries = new List<Map<String, String>>();
-            queries.add(new Map<String, String>{
-                'Name' => 'Imported Query',
-                'Query_Condition__c' => 'LastName = \'Smith\'',
-                'Description__c' => 'Filter Smiths'
-            });
+            queries.add(
+                new Map<String, String>{
+                    'Name' => 'Imported Query',
+                    'Query_Condition__c' => 'LastName = \'Smith\'',
+                    'Description__c' => 'Filter Smiths'
+                }
+            );
             bundle.put('savedQueries', queries);
 
             Test.startTest();
@@ -3862,14 +4128,17 @@ private class DocGenControllerTests {
 
             // Verify file was attached
             List<ContentDocumentLink> links = [
-                SELECT ContentDocumentId FROM ContentDocumentLink
+                SELECT ContentDocumentId
+                FROM ContentDocumentLink
                 WHERE LinkedEntityId = :newTemplateId
             ];
             System.assert(!links.isEmpty(), 'Should have at least one file linked');
 
             // Verify saved query was created
             List<DocGen_Saved_Query__c> savedQueries = [
-                SELECT Name FROM DocGen_Saved_Query__c WHERE DocGen_Template__c = :newTemplateId
+                SELECT Name
+                FROM DocGen_Saved_Query__c
+                WHERE DocGen_Template__c = :newTemplateId
             ];
             System.assertEquals(1, savedQueries.size(), 'Should have 1 saved query');
             System.assertEquals('Imported Query', savedQueries[0].Name, 'Query name should match');
@@ -3922,7 +4191,9 @@ private class DocGenControllerTests {
     static void testProcessAndReturnDocumentWithImagesError() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            Id fakeTemplateId = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() + '000000000000';
+            Id fakeTemplateId =
+                DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getKeyPrefix() +
+                '000000000000';
             Account acc = TestDataFactory.getTestAccount();
 
             Test.startTest();
@@ -3965,7 +4236,13 @@ private class DocGenControllerTests {
             insert new Contact(FirstName = 'Filter', LastName = 'Me', AccountId = acc.Id);
 
             Test.startTest();
-            List<Id> ids = DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', 'LastName = \'Me\'');
+            List<Id> ids = DocGenController.getSortedChildIds(
+                'Contact',
+                'AccountId',
+                acc.Id,
+                'LastName ASC',
+                'LastName = \'Me\''
+            );
             Test.stopTest();
 
             System.assert(!ids.isEmpty(), 'Should return filtered contact IDs');
@@ -4057,7 +4334,13 @@ private class DocGenControllerTests {
             Test.startTest();
             Boolean caught = false;
             try {
-                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', 'Name; DROP TABLE foo');
+                DocGenController.getSortedChildIds(
+                    'Contact',
+                    'AccountId',
+                    acc.Id,
+                    'LastName ASC',
+                    'Name; DROP TABLE foo'
+                );
             } catch (DocGenException e) {
                 caught = true;
             }
@@ -4076,7 +4359,13 @@ private class DocGenControllerTests {
             Test.startTest();
             Boolean caught = false;
             try {
-                DocGenController.getSortedChildIds('Contact', 'AccountId', acc.Id, 'LastName ASC', 'Name DELETE FROM Contact');
+                DocGenController.getSortedChildIds(
+                    'Contact',
+                    'AccountId',
+                    acc.Id,
+                    'LastName ASC',
+                    'Name DELETE FROM Contact'
+                );
             } catch (DocGenException e) {
                 caught = true;
             }
@@ -4100,7 +4389,9 @@ private class DocGenControllerTests {
 
             Test.startTest();
             List<Map<String, Object>> results = DocGenController.getChildRecordsByIds(
-                'Contact', 'Id, FirstName, LastName', new List<Id>{ con.Id }
+                'Contact',
+                'Id, FirstName, LastName',
+                new List<Id>{ con.Id }
             );
             Test.stopTest();
 
@@ -4115,7 +4406,9 @@ private class DocGenControllerTests {
         System.runAs(u) {
             Test.startTest();
             List<Map<String, Object>> results = DocGenController.getChildRecordsByIds(
-                'Contact', 'Id, FirstName', new List<Id>()
+                'Contact',
+                'Id, FirstName',
+                new List<Id>()
             );
             Test.stopTest();
 
@@ -4128,9 +4421,7 @@ private class DocGenControllerTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Test.startTest();
-            List<Map<String, Object>> results = DocGenController.getChildRecordsByIds(
-                'Contact', 'Id, FirstName', null
-            );
+            List<Map<String, Object>> results = DocGenController.getChildRecordsByIds('Contact', 'Id, FirstName', null);
             Test.stopTest();
 
             System.assertEquals(0, results.size(), 'Should return empty list for null IDs');
@@ -4389,13 +4680,18 @@ private class DocGenControllerTests {
         Test.stopTest();
 
         Set<Id> forAccIds = new Set<Id>();
-        for (DocGen_Template__c t : forAcc) forAccIds.add(t.Id);
-        System.assert(forAccIds.contains(tplGeneral.Id), 'General (no Specific_Record_Ids) template visible everywhere');
+        for (DocGen_Template__c t : forAcc)
+            forAccIds.add(t.Id);
+        System.assert(
+            forAccIds.contains(tplGeneral.Id),
+            'General (no Specific_Record_Ids) template visible everywhere'
+        );
         System.assert(forAccIds.contains(tplBound.Id), 'Acc-bound template visible for acc');
         System.assert(!forAccIds.contains(tplBoundOther.Id), 'Other-bound template hidden for acc');
 
         Set<Id> forOtherIds = new Set<Id>();
-        for (DocGen_Template__c t : forOther) forOtherIds.add(t.Id);
+        for (DocGen_Template__c t : forOther)
+            forOtherIds.add(t.Id);
         System.assert(forOtherIds.contains(tplBoundOther.Id), 'Other-bound template visible for other');
         System.assert(!forOtherIds.contains(tplBound.Id), 'Acc-bound template hidden for other');
     }
@@ -4403,12 +4699,17 @@ private class DocGenControllerTests {
     @isTest
     static void testGetTemplatesForObjectAndRecord_multipleIdsInList() {
         Account acc = TestDataFactory.getTestAccount();
-        Account a2 = new Account(Name='A2'); insert a2;
-        Account a3 = new Account(Name='A3'); insert a3;
+        Account a2 = new Account(Name = 'A2');
+        insert a2;
+        Account a3 = new Account(Name = 'A3');
+        insert a3;
 
         // Template bound to three records
         DocGen_Template__c multi = new DocGen_Template__c(
-            Name = 'Multi-Bound', Base_Object_API__c = 'Account', Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Multi-Bound',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Specific_Record_Ids__c = String.valueOf(acc.Id) + ', ' + String.valueOf(a2.Id) + ',' + String.valueOf(a3.Id)
         );
         insert multi;
@@ -4416,14 +4717,21 @@ private class DocGenControllerTests {
         Test.startTest();
         List<DocGen_Template__c> forA2 = DocGenController.getTemplatesForObjectAndRecord('Account', a2.Id);
         List<DocGen_Template__c> forA3 = DocGenController.getTemplatesForObjectAndRecord('Account', a3.Id);
-        Account a4 = new Account(Name='A4'); insert a4;
+        Account a4 = new Account(Name = 'A4');
+        insert a4;
         List<DocGen_Template__c> forA4 = DocGenController.getTemplatesForObjectAndRecord('Account', a4.Id);
         Test.stopTest();
 
         Boolean a2HasMulti = false, a3HasMulti = false, a4HasMulti = false;
-        for (DocGen_Template__c t : forA2) if (t.Id == multi.Id) a2HasMulti = true;
-        for (DocGen_Template__c t : forA3) if (t.Id == multi.Id) a3HasMulti = true;
-        for (DocGen_Template__c t : forA4) if (t.Id == multi.Id) a4HasMulti = true;
+        for (DocGen_Template__c t : forA2)
+            if (t.Id == multi.Id)
+                a2HasMulti = true;
+        for (DocGen_Template__c t : forA3)
+            if (t.Id == multi.Id)
+                a3HasMulti = true;
+        for (DocGen_Template__c t : forA4)
+            if (t.Id == multi.Id)
+                a4HasMulti = true;
         System.assert(a2HasMulti && a3HasMulti, 'Multi-bound template visible for all listed records');
         System.assert(!a4HasMulti, 'Multi-bound template hidden for unlisted record');
     }
@@ -4435,14 +4743,20 @@ private class DocGenControllerTests {
 
         // Template requiring a permission set the running user does NOT have
         DocGen_Template__c gated = new DocGen_Template__c(
-            Name = 'Exec Only', Base_Object_API__c = 'Account', Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Exec Only',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Required_Permission_Sets__c = 'NonExistent_Permission_Set_Xyz'
         );
         insert gated;
 
         // Template requiring ANY of: a real perm set the user has, OR the unreal one
         DocGen_Template__c eitherOr = new DocGen_Template__c(
-            Name = 'Either Or', Base_Object_API__c = 'Account', Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Either Or',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Required_Permission_Sets__c = 'NonExistent_Xyz, DocGen_Admin'
         );
         insert eitherOr;
@@ -4452,22 +4766,31 @@ private class DocGenControllerTests {
         Test.stopTest();
 
         Set<Id> visIds = new Set<Id>();
-        for (DocGen_Template__c t : visible) visIds.add(t.Id);
+        for (DocGen_Template__c t : visible)
+            visIds.add(t.Id);
         System.assert(visIds.contains(open.Id), 'Templates with no audience requirement always visible');
         System.assert(!visIds.contains(gated.Id), 'Templates requiring an unassigned perm set are hidden');
-        System.assert(visIds.contains(eitherOr.Id),
-            'Templates with any-of audience match (DocGen_Admin assigned via test setup) are visible');
+        System.assert(
+            visIds.contains(eitherOr.Id),
+            'Templates with any-of audience match (DocGen_Admin assigned via test setup) are visible'
+        );
     }
 
     @isTest
     static void testGetTemplatesForObjectAndRecord_sortOrder() {
         DocGen_Template__c first = new DocGen_Template__c(
-            Name = 'Z Last Alphabetically', Base_Object_API__c = 'Account', Type__c = 'Word',
-            Output_Format__c = 'PDF', Sort_Order__c = 1
+            Name = 'Z Last Alphabetically',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Sort_Order__c = 1
         );
         DocGen_Template__c third = new DocGen_Template__c(
-            Name = 'A First Alphabetically', Base_Object_API__c = 'Account', Type__c = 'Word',
-            Output_Format__c = 'PDF', Sort_Order__c = 100
+            Name = 'A First Alphabetically',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Sort_Order__c = 100
         );
         insert new List<DocGen_Template__c>{ first, third };
 
@@ -4477,11 +4800,15 @@ private class DocGenControllerTests {
 
         Integer firstIdx = -1, thirdIdx = -1;
         for (Integer i = 0; i < visible.size(); i++) {
-            if (visible[i].Id == first.Id) firstIdx = i;
-            if (visible[i].Id == third.Id) thirdIdx = i;
+            if (visible[i].Id == first.Id)
+                firstIdx = i;
+            if (visible[i].Id == third.Id)
+                thirdIdx = i;
         }
-        System.assert(firstIdx >= 0 && thirdIdx > firstIdx,
-            'Sort_Order__c = 1 should come before Sort_Order__c = 100 regardless of alphabetical order');
+        System.assert(
+            firstIdx >= 0 && thirdIdx > firstIdx,
+            'Sort_Order__c = 1 should come before Sort_Order__c = 100 regardless of alphabetical order'
+        );
     }
 
     @isTest
@@ -4489,7 +4816,8 @@ private class DocGenControllerTests {
         // Two unrelated 18-char Ids should not substring-match each other.
         // This is a property of Salesforce Ids — assert the assumption that the LIKE-style filter relies on.
         Account a = TestDataFactory.getTestAccount();
-        Account b = new Account(Name = 'Substring Safety'); insert b;
+        Account b = new Account(Name = 'Substring Safety');
+        insert b;
         String aId = String.valueOf(a.Id);
         String bId = String.valueOf(b.Id);
         System.assertNotEquals(aId, bId);
@@ -4500,8 +4828,11 @@ private class DocGenControllerTests {
     @isTest
     static void testProcessAndReturnDocument_outputOverride_lockedTemplateThrows() {
         DocGen_Template__c locked = new DocGen_Template__c(
-            Name = 'Locked', Base_Object_API__c = 'Account', Type__c = 'Word',
-            Output_Format__c = 'PDF', Lock_Output_Format__c = true
+            Name = 'Locked',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Lock_Output_Format__c = true
         );
         insert locked;
         Account acc = TestDataFactory.getTestAccount();
@@ -4522,7 +4853,9 @@ private class DocGenControllerTests {
     @isTest
     static void testProcessAndReturnDocument_outputOverride_powerpointToPdfThrows() {
         DocGen_Template__c ppt = new DocGen_Template__c(
-            Name = 'PPT Template', Base_Object_API__c = 'Account', Type__c = 'PowerPoint',
+            Name = 'PPT Template',
+            Base_Object_API__c = 'Account',
+            Type__c = 'PowerPoint',
             Output_Format__c = 'Native'
         );
         insert ppt;
@@ -4579,8 +4912,10 @@ private class DocGenControllerTests {
         update matching;
 
         DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Tech-Only Template', Base_Object_API__c = 'Account',
-            Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Tech-Only Template',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Record_Filter__c = 'Industry = \'Technology\''
         );
         insert t;
@@ -4590,7 +4925,9 @@ private class DocGenControllerTests {
         Test.stopTest();
 
         Boolean found = false;
-        for (DocGen_Template__c v : visible) if (v.Id == t.Id) found = true;
+        for (DocGen_Template__c v : visible)
+            if (v.Id == t.Id)
+                found = true;
         System.assert(found, 'Template with Industry=Technology filter should appear for a Tech account');
     }
 
@@ -4601,8 +4938,10 @@ private class DocGenControllerTests {
         update nonMatching;
 
         DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Tech-Only Template', Base_Object_API__c = 'Account',
-            Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Tech-Only Template',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Record_Filter__c = 'Industry = \'Technology\''
         );
         insert t;
@@ -4621,14 +4960,18 @@ private class DocGenControllerTests {
         // When both Record_Filter__c and Specific_Record_Ids__c are set,
         // Record_Filter__c wins. Set contradictory values and verify.
         Account a = TestDataFactory.getTestAccount();
-        Account other = new Account(Name = 'Other Ind', Industry = 'Retail'); insert other;
-        a.Industry = 'Retail'; update a;
+        Account other = new Account(Name = 'Other Ind', Industry = 'Retail');
+        insert other;
+        a.Industry = 'Retail';
+        update a;
 
         DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Filter Wins', Base_Object_API__c = 'Account',
-            Type__c = 'Word', Output_Format__c = 'PDF',
-            Specific_Record_Ids__c = String.valueOf(a.Id),           // says "appears for a"
-            Record_Filter__c = 'Industry = \'Technology\''           // says "appears for Tech only"
+            Name = 'Filter Wins',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Specific_Record_Ids__c = String.valueOf(a.Id), // says "appears for a"
+            Record_Filter__c = 'Industry = \'Technology\'' // says "appears for Tech only"
         );
         insert t;
 
@@ -4637,8 +4980,11 @@ private class DocGenControllerTests {
         Test.stopTest();
 
         for (DocGen_Template__c v : forA) {
-            System.assertNotEquals(t.Id, v.Id,
-                'Record_Filter__c (Industry=Technology) should win over Specific_Record_Ids__c — Retail account hidden');
+            System.assertNotEquals(
+                t.Id,
+                v.Id,
+                'Record_Filter__c (Industry=Technology) should win over Specific_Record_Ids__c — Retail account hidden'
+            );
         }
     }
 
@@ -4646,8 +4992,10 @@ private class DocGenControllerTests {
     static void testRecordFilter_malformedClauseHidesTemplate() {
         Account acc = TestDataFactory.getTestAccount();
         DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Malformed', Base_Object_API__c = 'Account',
-            Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Malformed',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Record_Filter__c = 'this is ; not valid SOQL'
         );
         insert t;
@@ -4657,7 +5005,11 @@ private class DocGenControllerTests {
         Test.stopTest();
 
         for (DocGen_Template__c v : visible) {
-            System.assertNotEquals(t.Id, v.Id, 'Malformed clause = template hidden (safer default than exposing every record)');
+            System.assertNotEquals(
+                t.Id,
+                v.Id,
+                'Malformed clause = template hidden (safer default than exposing every record)'
+            );
         }
     }
 
@@ -4665,8 +5017,10 @@ private class DocGenControllerTests {
     static void testRecordFilter_emptyFilterFallsBackToIdList() {
         Account acc = TestDataFactory.getTestAccount();
         DocGen_Template__c t = new DocGen_Template__c(
-            Name = 'Id Binding Only', Base_Object_API__c = 'Account',
-            Type__c = 'Word', Output_Format__c = 'PDF',
+            Name = 'Id Binding Only',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
             Specific_Record_Ids__c = String.valueOf(acc.Id)
             // Record_Filter__c intentionally blank
         );
@@ -4677,7 +5031,9 @@ private class DocGenControllerTests {
         Test.stopTest();
 
         Boolean found = false;
-        for (DocGen_Template__c v : visible) if (v.Id == t.Id) found = true;
+        for (DocGen_Template__c v : visible)
+            if (v.Id == t.Id)
+                found = true;
         System.assert(found, 'With blank Record_Filter__c, Specific_Record_Ids__c behavior preserved');
     }
 
@@ -4695,7 +5051,8 @@ private class DocGenControllerTests {
     @isTest
     static void testTestRecordFilter_happyPath() {
         Account acc = TestDataFactory.getTestAccount();
-        acc.Industry = 'Technology'; update acc;
+        acc.Industry = 'Technology';
+        update acc;
 
         Test.startTest();
         Map<String, Object> match = DocGenController.testRecordFilter('Account', acc.Id, 'Industry = \'Technology\'');
@@ -4732,7 +5089,9 @@ private class DocGenControllerTests {
         // Relative Salesforce URLs are allowed; in test mode the method returns
         // a stub blob (no real PDF rendering). Just verify the entry is reached.
         Test.startTest();
-        String result = DocGenController.renderImageAsPdfBase64('/sfc/servlet.shepherd/version/download/068000000000000');
+        String result = DocGenController.renderImageAsPdfBase64(
+            '/sfc/servlet.shepherd/version/download/068000000000000'
+        );
         Test.stopTest();
         System.assertNotEquals(null, result, 'Relative Salesforce URL should be accepted in test stub mode');
     }
@@ -4740,7 +5099,9 @@ private class DocGenControllerTests {
     @isTest
     static void testRenderImageAsPdfBase64_acceptsForceComUrl() {
         Test.startTest();
-        String result = DocGenController.renderImageAsPdfBase64('https://example.sandbox.file.force.com/servlet/rtaImage?eid=001000000000000');
+        String result = DocGenController.renderImageAsPdfBase64(
+            'https://example.sandbox.file.force.com/servlet/rtaImage?eid=001000000000000'
+        );
         Test.stopTest();
         System.assertNotEquals(null, result, 'force.com hosted URL should be accepted in test stub mode');
     }

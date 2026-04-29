@@ -1,4 +1,3 @@
 import { LightningElement } from 'lwc';
 
-export default class DocGenAdminGuide extends LightningElement {
-}
+export default class DocGenAdminGuide extends LightningElement {}

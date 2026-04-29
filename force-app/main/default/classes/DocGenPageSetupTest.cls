@@ -7,7 +7,6 @@
  */
 @IsTest
 private class DocGenPageSetupTest {
-
     @TestSetup
     static void setup() {
         insert new Account(Name = 'PageSetup Test Co');
@@ -55,13 +54,19 @@ private class DocGenPageSetupTest {
         Test.startTest();
         DocGenService.generatePdfBlob(letterLand, a.Id);
         String html1 = DocGenService.lastRenderedHtml;
-        System.assert(html1.contains('11.0in 8.5in') || html1.contains('11in 8.5in'), 'Letter Landscape CSS should declare 11x8.5: ' + html1);
+        System.assert(
+            html1.contains('11.0in 8.5in') || html1.contains('11in 8.5in'),
+            'Letter Landscape CSS should declare 11x8.5: ' + html1
+        );
 
         // Legal Portrait — "8.5in 14in"
         Id legalPort = createHtmlTemplate('Legal', 'Portrait', 'Default', null);
         DocGenService.generatePdfBlob(legalPort, a.Id);
         String html2 = DocGenService.lastRenderedHtml;
-        System.assert(html2.contains('8.5in 14') || html2.contains('8.5in 14.0in'), 'Legal Portrait CSS should declare 8.5x14: ' + html2);
+        System.assert(
+            html2.contains('8.5in 14') || html2.contains('8.5in 14.0in'),
+            'Legal Portrait CSS should declare 8.5x14: ' + html2
+        );
 
         // A4 Landscape — ~11.69in 8.27in
         Id a4Land = createHtmlTemplate('A4', 'Landscape', 'Default', null);
@@ -98,7 +103,11 @@ private class DocGenPageSetupTest {
         // Default for size + portrait → 1in
         Id defPort = createHtmlTemplate('Letter', 'Portrait', 'Default', null);
         DocGenService.generatePdfBlob(defPort, a.Id);
-        System.assert(DocGenService.lastRenderedHtml.contains('margin: 1.0in') || DocGenService.lastRenderedHtml.contains('margin: 1in'), 'Default portrait → 1in');
+        System.assert(
+            DocGenService.lastRenderedHtml.contains('margin: 1.0in') ||
+            DocGenService.lastRenderedHtml.contains('margin: 1in'),
+            'Default portrait → 1in'
+        );
         Test.stopTest();
     }
 
@@ -115,7 +124,10 @@ private class DocGenPageSetupTest {
         // 1-value custom — applies to all sides
         Id oneVal = createHtmlTemplate('Letter', 'Portrait', 'Custom', '0.6');
         DocGenService.generatePdfBlob(oneVal, a.Id);
-        System.assert(DocGenService.lastRenderedHtml.contains('margin: 0.6in 0.6in 0.6in 0.6in'), '1-value applies to all sides');
+        System.assert(
+            DocGenService.lastRenderedHtml.contains('margin: 0.6in 0.6in 0.6in 0.6in'),
+            '1-value applies to all sides'
+        );
 
         // Invalid custom string falls back to size default
         Id invalid = createHtmlTemplate('Letter', 'Portrait', 'Custom', 'not a number');
@@ -126,8 +138,10 @@ private class DocGenPageSetupTest {
         Id clamped = createHtmlTemplate('Letter', 'Portrait', 'Custom', '5.0,0.05,2.0,1.0');
         DocGenService.generatePdfBlob(clamped, a.Id);
         String h4 = DocGenService.lastRenderedHtml;
-        System.assert(h4.contains('margin: 3.0in 0.1in 2.0in 1.0in') || h4.contains('margin: 3in 0.1in 2in 1in'),
-            'Clamped to range: ' + h4);
+        System.assert(
+            h4.contains('margin: 3.0in 0.1in 2.0in 1.0in') || h4.contains('margin: 3in 0.1in 2in 1in'),
+            'Clamped to range: ' + h4
+        );
         Test.stopTest();
     }
 
@@ -139,8 +153,10 @@ private class DocGenPageSetupTest {
         Id fs = createHtmlTemplate('Letter', 'Landscape', 'FromSource', null);
         DocGenService.generatePdfBlob(fs, a.Id);
         // Landscape default is 0.5in
-        System.assert(DocGenService.lastRenderedHtml.contains('margin: 0.5in'),
-            'FromSource on HTML falls back to landscape default 0.5in');
+        System.assert(
+            DocGenService.lastRenderedHtml.contains('margin: 0.5in'),
+            'FromSource on HTML falls back to landscape default 0.5in'
+        );
         Test.stopTest();
     }
 
@@ -183,8 +199,11 @@ private class DocGenPageSetupTest {
         };
         DocGenController.saveTemplate(detailsFields, false, null);
 
-        DocGen_Template__c after1 = [SELECT Page_Size__c, Page_Orientation__c, Page_Margins__c, Custom_Margins__c
-            FROM DocGen_Template__c WHERE Id = :t.Id];
+        DocGen_Template__c after1 = [
+            SELECT Page_Size__c, Page_Orientation__c, Page_Margins__c, Custom_Margins__c
+            FROM DocGen_Template__c
+            WHERE Id = :t.Id
+        ];
         System.assertEquals('Legal', after1.Page_Size__c);
         System.assertEquals('Portrait', after1.Page_Orientation__c);
         System.assertEquals('Custom', after1.Page_Margins__c);
@@ -204,9 +223,12 @@ private class DocGenPageSetupTest {
         };
         DocGenController.saveTemplate(versionFields, true, cv.Id);
 
-        DocGen_Template_Version__c activeVer = [SELECT Page_Size__c, Page_Orientation__c, Page_Margins__c
+        DocGen_Template_Version__c activeVer = [
+            SELECT Page_Size__c, Page_Orientation__c, Page_Margins__c
             FROM DocGen_Template_Version__c
-            WHERE Template__c = :t.Id AND Is_Active__c = true LIMIT 1];
+            WHERE Template__c = :t.Id AND Is_Active__c = TRUE
+            LIMIT 1
+        ];
         System.assertEquals('A4', activeVer.Page_Size__c);
         System.assertEquals('Landscape', activeVer.Page_Orientation__c);
         System.assertEquals('FromSource', activeVer.Page_Margins__c);
@@ -219,9 +241,13 @@ private class DocGenPageSetupTest {
         // edit-modal load defaults back to Portrait/Letter/Default.
         DocGen_Template__c t = new DocGen_Template__c(
             Name = 'WireTest ' + Datetime.now().getTime(),
-            Type__c = 'Word', Output_Format__c = 'PDF', Base_Object_API__c = 'Account',
-            Page_Size__c = 'Legal', Page_Orientation__c = 'Landscape',
-            Page_Margins__c = 'Wide', Custom_Margins__c = ''
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Base_Object_API__c = 'Account',
+            Page_Size__c = 'Legal',
+            Page_Orientation__c = 'Landscape',
+            Page_Margins__c = 'Wide',
+            Custom_Margins__c = ''
         );
         insert t;
 
@@ -230,7 +256,11 @@ private class DocGenPageSetupTest {
         Test.stopTest();
 
         DocGen_Template__c found;
-        for (DocGen_Template__c tt : tmpls) if (tt.Id == t.Id) { found = tt; break; }
+        for (DocGen_Template__c tt : tmpls)
+            if (tt.Id == t.Id) {
+                found = tt;
+                break;
+            }
         System.assertNotEquals(null, found, 'Template should be in getAllTemplates result');
         System.assertEquals('Legal', found.Page_Size__c);
         System.assertEquals('Landscape', found.Page_Orientation__c);

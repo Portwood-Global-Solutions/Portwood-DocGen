@@ -1,1052 +1,1625 @@
 <!-- CxSAST: without sharing required for guest user signing context; access gated by cryptographic token -->
-<apex:page controller="DocGenSignatureController" showHeader="false" sidebar="false"
-           standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false" docType="html-5.0">
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <!-- Allow pinch-to-zoom so signers can inspect images, QR codes, and fine print
+<apex:page
+    controller="DocGenSignatureController"
+    showHeader="false"
+    sidebar="false"
+    standardStylesheets="false"
+    applyBodyTag="false"
+    applyHtmlTag="false"
+    docType="html-5.0"
+>
+    <html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <!-- Allow pinch-to-zoom so signers can inspect images, QR codes, and fine print
          at full fidelity on mobile instead of us shrinking the document to fit. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document Signature</title>
-    <apex:slds />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Document Signature</title>
+            <apex:slds />
 
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            background-color: #f3f2f2;
-            font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; padding: 0; color: #181818;
-        }
-        .page-wrapper {
-            min-height: 100vh;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 1rem;
-        }
+            <style>
+                * {
+                    box-sizing: border-box;
+                }
+                body {
+                    background-color: #f3f2f2;
+                    font-family:
+                        'Salesforce Sans',
+                        -apple-system,
+                        BlinkMacSystemFont,
+                        'Segoe UI',
+                        Roboto,
+                        sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    color: #181818;
+                }
+                .page-wrapper {
+                    min-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                }
 
-        /* Card */
-        .sig-card {
-            max-width: 640px; width: 100%;
-            background: #fff; border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 2rem;
-        }
-        .sig-card h2 { font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem 0; }
-        .sig-card .subtitle { font-size: 0.875rem; color: #706e6b; margin: 0 0 1.25rem 0; }
+                /* Card */
+                .sig-card {
+                    max-width: 640px;
+                    width: 100%;
+                    background: #fff;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                    padding: 2rem;
+                }
+                .sig-card h2 {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    margin: 0 0 0.25rem 0;
+                }
+                .sig-card .subtitle {
+                    font-size: 0.875rem;
+                    color: #706e6b;
+                    margin: 0 0 1.25rem 0;
+                }
 
-        /* Form inputs */
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; font-size: 0.8125rem; font-weight: 600; color: #3e3e3c; margin-bottom: 0.25rem; }
-        .form-input {
-            width: 100%; padding: 0.5rem 0.75rem;
-            border: 1px solid #dddbda; border-radius: 4px;
-            font-size: 0.9375rem; font-family: inherit; color: #181818;
-            transition: border-color 0.15s;
-        }
-        .form-input:focus { outline: none; border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; }
-        .form-input::placeholder { color: #b0adab; }
+                /* Form inputs */
+                .form-group {
+                    margin-bottom: 1rem;
+                }
+                .form-group label {
+                    display: block;
+                    font-size: 0.8125rem;
+                    font-weight: 600;
+                    color: #3e3e3c;
+                    margin-bottom: 0.25rem;
+                }
+                .form-input {
+                    width: 100%;
+                    padding: 0.5rem 0.75rem;
+                    border: 1px solid #dddbda;
+                    border-radius: 4px;
+                    font-size: 0.9375rem;
+                    font-family: inherit;
+                    color: #181818;
+                    transition: border-color 0.15s;
+                }
+                .form-input:focus {
+                    outline: none;
+                    border-color: #0176d3;
+                    box-shadow: 0 0 0 1px #0176d3;
+                }
+                .form-input::placeholder {
+                    color: #b0adab;
+                }
 
-        /* PIN */
-        .pin-input { font-size: 1.5rem; letter-spacing: 8px; text-align: center; font-family: monospace; max-width: 200px; }
-        .pin-row { display: flex; align-items: center; gap: 0.75rem; }
+                /* PIN */
+                .pin-input {
+                    font-size: 1.5rem;
+                    letter-spacing: 8px;
+                    text-align: center;
+                    font-family: monospace;
+                    max-width: 200px;
+                }
+                .pin-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
 
-        /* Consent */
-        .consent-row {
-            display: flex; align-items: flex-start; gap: 0.5rem;
-            margin: 1rem 0; padding: 1rem; background: #f8f9fa;
-            border-radius: 4px; border: 1px solid #e5e5e5;
-        }
-        .consent-row input[type="checkbox"] { margin-top: 0.2rem; width: 18px; height: 18px; flex-shrink: 0; }
-        .consent-row label { font-size: 0.8125rem; color: #3e3e3c; line-height: 1.4; cursor: pointer; }
+                /* Consent */
+                .consent-row {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 0.5rem;
+                    margin: 1rem 0;
+                    padding: 1rem;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                    border: 1px solid #e5e5e5;
+                }
+                .consent-row input[type='checkbox'] {
+                    margin-top: 0.2rem;
+                    width: 18px;
+                    height: 18px;
+                    flex-shrink: 0;
+                }
+                .consent-row label {
+                    font-size: 0.8125rem;
+                    color: #3e3e3c;
+                    line-height: 1.4;
+                    cursor: pointer;
+                }
 
-        /* Buttons */
-        .btn-row { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
-        .btn {
-            display: inline-flex; align-items: center; justify-content: center;
-            padding: 0.5rem 1.25rem; border-radius: 4px;
-            font-size: 0.875rem; font-weight: 600;
-            border: 1px solid #dddbda; background: #fff; color: #181818; cursor: pointer;
-        }
-        .btn:hover { background: #f3f2f2; }
-        .btn-brand { background: #0176d3; color: #fff; border-color: #0176d3; }
-        .btn-brand:hover { background: #014486; }
-        .btn-brand:disabled { background: #c9c7c5; border-color: #c9c7c5; cursor: not-allowed; }
-        .btn-destructive { background: #fff; color: #ea001e; border-color: #ea001e; }
-        .btn-destructive:hover { background: #fef0ef; }
+                /* Buttons */
+                .btn-row {
+                    display: flex;
+                    gap: 0.5rem;
+                    justify-content: flex-end;
+                    margin-top: 1rem;
+                }
+                .btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0.5rem 1.25rem;
+                    border-radius: 4px;
+                    font-size: 0.875rem;
+                    font-weight: 600;
+                    border: 1px solid #dddbda;
+                    background: #fff;
+                    color: #181818;
+                    cursor: pointer;
+                }
+                .btn:hover {
+                    background: #f3f2f2;
+                }
+                .btn-brand {
+                    background: #0176d3;
+                    color: #fff;
+                    border-color: #0176d3;
+                }
+                .btn-brand:hover {
+                    background: #014486;
+                }
+                .btn-brand:disabled {
+                    background: #c9c7c5;
+                    border-color: #c9c7c5;
+                    cursor: not-allowed;
+                }
+                .btn-destructive {
+                    background: #fff;
+                    color: #ea001e;
+                    border-color: #ea001e;
+                }
+                .btn-destructive:hover {
+                    background: #fef0ef;
+                }
 
-        /* Messages */
-        .msg { padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.8125rem; margin-bottom: 1rem; }
-        .msg-info { background: #eef4fb; border: 1px solid #0176d3; color: #014486; }
-        .msg-success { background: #e8f5e1; border: 1px solid #2e844a; color: #2e844a; }
-        .msg-error { background: #fef0ef; border: 1px solid #ea001e; color: #ea001e; }
+                /* Messages */
+                .msg {
+                    padding: 0.75rem 1rem;
+                    border-radius: 4px;
+                    font-size: 0.8125rem;
+                    margin-bottom: 1rem;
+                }
+                .msg-info {
+                    background: #eef4fb;
+                    border: 1px solid #0176d3;
+                    color: #014486;
+                }
+                .msg-success {
+                    background: #e8f5e1;
+                    border: 1px solid #2e844a;
+                    color: #2e844a;
+                }
+                .msg-error {
+                    background: #fef0ef;
+                    border: 1px solid #ea001e;
+                    color: #ea001e;
+                }
 
-        /* Role Badge */
-        .role-badge {
-            display: inline-block; background: #0176d3; color: #fff;
-            font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem;
-            border-radius: 12px; margin-left: 0.5rem; vertical-align: middle;
-        }
+                /* Role Badge */
+                .role-badge {
+                    display: inline-block;
+                    background: #0176d3;
+                    color: #fff;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 12px;
+                    margin-left: 0.5rem;
+                    vertical-align: middle;
+                }
 
-        /* Resend */
-        .resend-link { color: #0176d3; cursor: pointer; text-decoration: underline; font-size: 0.8125rem; }
-        .resend-link:hover { color: #014486; }
-        .resend-link.disabled { color: #b0adab; cursor: not-allowed; text-decoration: none; }
+                /* Resend */
+                .resend-link {
+                    color: #0176d3;
+                    cursor: pointer;
+                    text-decoration: underline;
+                    font-size: 0.8125rem;
+                }
+                .resend-link:hover {
+                    color: #014486;
+                }
+                .resend-link.disabled {
+                    color: #b0adab;
+                    cursor: not-allowed;
+                    text-decoration: none;
+                }
 
-        /* State cards */
-        .error-card, .success-card, .waiting-card, .processing-card {
-            max-width: 480px; width: 100%; background: #fff; border-radius: 8px; padding: 2rem; text-align: center;
-        }
-        .error-card { border: 1px solid #fca5a5; }
-        .error-icon { font-size: 3rem; color: #ea001e; margin-bottom: 0.5rem; }
-        .error-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #ea001e; }
-        .error-card p { color: #706e6b; margin: 0; }
-        .success-card { border: 1px solid #91db8b; }
-        .success-icon { font-size: 3rem; color: #2e844a; margin-bottom: 0.5rem; }
-        .success-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #2e844a; }
-        .success-card p { color: #706e6b; margin: 0; }
-        .waiting-card { border: 1px solid #ffd27a; }
-        .waiting-icon { font-size: 3rem; color: #fe9339; margin-bottom: 0.5rem; }
-        .waiting-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #fe9339; }
-        .waiting-card p { color: #706e6b; margin: 0; }
-        .processing-card { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
-        .processing-card h2 { font-size: 1.125rem; font-weight: 700; margin: 0.75rem 0 0.5rem 0; }
-        .processing-card p { color: #706e6b; margin: 0; }
+                /* State cards */
+                .error-card,
+                .success-card,
+                .waiting-card,
+                .processing-card {
+                    max-width: 480px;
+                    width: 100%;
+                    background: #fff;
+                    border-radius: 8px;
+                    padding: 2rem;
+                    text-align: center;
+                }
+                .error-card {
+                    border: 1px solid #fca5a5;
+                }
+                .error-icon {
+                    font-size: 3rem;
+                    color: #ea001e;
+                    margin-bottom: 0.5rem;
+                }
+                .error-card h2 {
+                    font-size: 1.125rem;
+                    font-weight: 700;
+                    margin: 0 0 0.5rem 0;
+                    color: #ea001e;
+                }
+                .error-card p {
+                    color: #706e6b;
+                    margin: 0;
+                }
+                .success-card {
+                    border: 1px solid #91db8b;
+                }
+                .success-icon {
+                    font-size: 3rem;
+                    color: #2e844a;
+                    margin-bottom: 0.5rem;
+                }
+                .success-card h2 {
+                    font-size: 1.125rem;
+                    font-weight: 700;
+                    margin: 0 0 0.5rem 0;
+                    color: #2e844a;
+                }
+                .success-card p {
+                    color: #706e6b;
+                    margin: 0;
+                }
+                .waiting-card {
+                    border: 1px solid #ffd27a;
+                }
+                .waiting-icon {
+                    font-size: 3rem;
+                    color: #fe9339;
+                    margin-bottom: 0.5rem;
+                }
+                .waiting-card h2 {
+                    font-size: 1.125rem;
+                    font-weight: 700;
+                    margin: 0 0 0.5rem 0;
+                    color: #fe9339;
+                }
+                .waiting-card p {
+                    color: #706e6b;
+                    margin: 0;
+                }
+                .processing-card {
+                    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                }
+                .processing-card h2 {
+                    font-size: 1.125rem;
+                    font-weight: 700;
+                    margin: 0.75rem 0 0.5rem 0;
+                }
+                .processing-card p {
+                    color: #706e6b;
+                    margin: 0;
+                }
 
-        /* Spinner */
-        .spinner-container { display: flex; justify-content: center; align-items: center; padding: 2rem; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #dddbda; border-top-color: #0176d3; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+                /* Spinner */
+                .spinner-container {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 2rem;
+                }
+                .spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 4px solid #dddbda;
+                    border-top-color: #0176d3;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin {
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
 
-        /* ===== GUIDED SIGNING ===== */
-        .guided-wrapper {
-            max-width: 900px; width: 100%; display: flex; flex-direction: column; height: calc(100vh - 2rem);
-        }
+                /* ===== GUIDED SIGNING ===== */
+                .guided-wrapper {
+                    max-width: 900px;
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    height: calc(100vh - 2rem);
+                }
 
-        /* Top bar */
-        .guided-header {
-            background: #fff; padding: 1rem 1.5rem; border-radius: 8px 8px 0 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 1rem; flex-shrink: 0;
-        }
-        .guided-header h2 { font-size: 1rem; font-weight: 700; margin: 0; flex: 1; }
-        .progress-bar-container { width: 120px; height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: #2e844a; border-radius: 3px; transition: width 0.4s ease; }
-        .step-counter { font-size: 0.8125rem; color: #706e6b; white-space: nowrap; }
+                /* Top bar */
+                .guided-header {
+                    background: #fff;
+                    padding: 1rem 1.5rem;
+                    border-radius: 8px 8px 0 0;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-shrink: 0;
+                }
+                .guided-header h2 {
+                    font-size: 1rem;
+                    font-weight: 700;
+                    margin: 0;
+                    flex: 1;
+                }
+                .progress-bar-container {
+                    width: 120px;
+                    height: 6px;
+                    background: #e5e5e5;
+                    border-radius: 3px;
+                    overflow: hidden;
+                }
+                .progress-bar-fill {
+                    height: 100%;
+                    background: #2e844a;
+                    border-radius: 3px;
+                    transition: width 0.4s ease;
+                }
+                .step-counter {
+                    font-size: 0.8125rem;
+                    color: #706e6b;
+                    white-space: nowrap;
+                }
 
-        /* Document preview area */
-        .guided-document {
-            flex: 1; overflow-y: auto; overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            background: #fff; padding: 1.5rem;
-            border-left: 1px solid #e5e5e5; border-right: 1px solid #e5e5e5;
-            min-width: 0; /* allow flex item to shrink so overflow-x:auto applies */
-        }
-        .guided-document img { max-width: 100%; height: auto; }
-        .guided-document table { max-width: 100%; }
-        .guided-wrapper { min-width: 0; }
+                /* Document preview area */
+                .guided-document {
+                    flex: 1;
+                    overflow-y: auto;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    background: #fff;
+                    padding: 1.5rem;
+                    border-left: 1px solid #e5e5e5;
+                    border-right: 1px solid #e5e5e5;
+                    min-width: 0; /* allow flex item to shrink so overflow-x:auto applies */
+                }
+                .guided-document img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                .guided-document table {
+                    max-width: 100%;
+                }
+                .guided-wrapper {
+                    min-width: 0;
+                }
 
-        /* Placement highlights */
-        .docgen-sig.current {
-            background: #fff8c5 !important; border: 2px solid #f59e0b !important;
-            border-style: solid !important; animation: pulse-glow 1.5s ease-in-out infinite;
-            scroll-margin-top: 100px;
-            position: relative;
-        }
-        .docgen-sig.current::before {
-            content: '\25B6  Sign';
-            position: absolute;
-            left: -90px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #f59e0b;
-            color: #fff;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 3px 10px;
-            border-radius: 4px;
-            white-space: nowrap;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-        }
-        .docgen-sig.current[data-type="Initials"]::before { content: '\25B6  Initial'; }
-        .docgen-sig.current[data-type="Date"]::before { content: '\25B6  Date'; }
-        .docgen-sig.current[data-type="DatePick"]::before { content: '\25B6  Date'; }
-        .docgen-sig.signed {
-            background: #dcfce7 !important; border: 1px solid #22c55e !important;
-            border-style: solid !important; color: #166534 !important; font-style: italic;
-        }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
-            50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
-        }
+                /* Placement highlights */
+                .docgen-sig.current {
+                    background: #fff8c5 !important;
+                    border: 2px solid #f59e0b !important;
+                    border-style: solid !important;
+                    animation: pulse-glow 1.5s ease-in-out infinite;
+                    scroll-margin-top: 100px;
+                    position: relative;
+                }
+                .docgen-sig.current::before {
+                    content: '\25B6  Sign';
+                    position: absolute;
+                    left: -90px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: #f59e0b;
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: 700;
+                    padding: 3px 10px;
+                    border-radius: 4px;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+                }
+                .docgen-sig.current[data-type='Initials']::before {
+                    content: '\25B6  Initial';
+                }
+                .docgen-sig.current[data-type='Date']::before {
+                    content: '\25B6  Date';
+                }
+                .docgen-sig.current[data-type='DatePick']::before {
+                    content: '\25B6  Date';
+                }
+                .docgen-sig.signed {
+                    background: #dcfce7 !important;
+                    border: 1px solid #22c55e !important;
+                    border-style: solid !important;
+                    color: #166534 !important;
+                    font-style: italic;
+                }
+                @keyframes pulse-glow {
+                    0%,
+                    100% {
+                        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+                    }
+                    50% {
+                        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+                    }
+                }
 
-        /* Sticky action bar */
-        .guided-action-bar {
-            background: #fff; padding: 1rem 1.5rem; border-radius: 0 0 8px 8px;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.08); flex-shrink: 0;
-        }
-        .action-bar-content {
-            display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-        }
-        .action-label { flex: 1; min-width: 0; }
-        .action-label .step-type { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #706e6b; margin-bottom: 2px; }
-        .action-label .step-context { font-size: 0.9375rem; font-weight: 600; color: #181818; }
-        .action-input { width: 220px; }
-        .action-input input, .action-input select { width: 100%; }
+                /* Sticky action bar */
+                .guided-action-bar {
+                    background: #fff;
+                    padding: 1rem 1.5rem;
+                    border-radius: 0 0 8px 8px;
+                    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+                    flex-shrink: 0;
+                }
+                .action-bar-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+                .action-label {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .action-label .step-type {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    color: #706e6b;
+                    margin-bottom: 2px;
+                }
+                .action-label .step-context {
+                    font-size: 0.9375rem;
+                    font-weight: 600;
+                    color: #181818;
+                }
+                .action-input {
+                    width: 220px;
+                }
+                .action-input input,
+                .action-input select {
+                    width: 100%;
+                }
 
-        /* Signature input styling */
-        .sig-input-display {
-            font-family: 'Georgia', 'Times New Roman', serif;
-            font-size: 1.25rem; font-style: italic;
-        }
+                /* Signature input styling */
+                .sig-input-display {
+                    font-family: 'Georgia', 'Times New Roman', serif;
+                    font-size: 1.25rem;
+                    font-style: italic;
+                }
 
-        /* Consent overlay */
-        .consent-overlay {
-            background: #fff; padding: 1.5rem; border-radius: 8px;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
-        }
+                /* Consent overlay */
+                .consent-overlay {
+                    background: #fff;
+                    padding: 1.5rem;
+                    border-radius: 8px;
+                    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+                }
 
-        @media (max-width: 640px) {
-            .page-wrapper {
-                padding: 0; /* reclaim every pixel of horizontal space on phones */
-                justify-content: flex-start; /* don't vertically-center tall guided content */
-            }
-            .guided-wrapper { height: auto; min-height: 100vh; border-radius: 0; }
+                @media (max-width: 640px) {
+                    .page-wrapper {
+                        padding: 0; /* reclaim every pixel of horizontal space on phones */
+                        justify-content: flex-start; /* don't vertically-center tall guided content */
+                    }
+                    .guided-wrapper {
+                        height: auto;
+                        min-height: 100vh;
+                        border-radius: 0;
+                    }
 
-            /* Let the document render at its natural width and enable horizontal scroll +
+                    /* Let the document render at its natural width and enable horizontal scroll +
                pinch-to-zoom so signers can read fine print, images, and QR codes at full
                fidelity. DO NOT force-shrink tables or images to viewport width —
                that wrecks QR scanability and image clarity. Minimal horizontal padding
                so the content uses essentially full viewport width. */
-            .guided-document {
-                padding: 0.25rem 0.25rem 240px 0.25rem; /* tiny side padding, big bottom buffer for fixed bar */
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                border-radius: 0;
-            }
-            /* Let tables and wide content use natural width — user pinch-zooms to inspect.
+                    .guided-document {
+                        padding: 0.25rem 0.25rem 240px 0.25rem; /* tiny side padding, big bottom buffer for fixed bar */
+                        overflow-x: auto;
+                        -webkit-overflow-scrolling: touch;
+                        border-radius: 0;
+                    }
+                    /* Let tables and wide content use natural width — user pinch-zooms to inspect.
                Previously max-width:100% compressed tables into the container; that constrained
                Word documents with fixed column widths to unreadable narrowness on phones. */
-            .guided-document table { max-width: none; }
+                    .guided-document table {
+                        max-width: none;
+                    }
 
-            /* Pin action bar to viewport bottom, always visible regardless of zoom */
-            .guided-action-bar {
-                position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-                padding: 0.75rem 1rem;
-                border-radius: 0;
-                box-shadow: 0 -4px 16px rgba(0,0,0,0.18);
-                border-top: 3px solid #0176d3;
-                padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-            }
-            .action-bar-content { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-            .action-input { width: 100%; }
+                    /* Pin action bar to viewport bottom, always visible regardless of zoom */
+                    .guided-action-bar {
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        z-index: 100;
+                        padding: 0.75rem 1rem;
+                        border-radius: 0;
+                        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+                        border-top: 3px solid #0176d3;
+                        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+                    }
+                    .action-bar-content {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 0.5rem;
+                    }
+                    .action-input {
+                        width: 100%;
+                    }
 
-            .guided-header { padding: 0.75rem 1rem; gap: 0.5rem; flex-wrap: wrap; }
-            .guided-header h2 { font-size: 0.875rem; }
-            .progress-bar-container { width: 80px; }
-            .step-counter { font-size: 0.75rem; }
+                    .guided-header {
+                        padding: 0.75rem 1rem;
+                        gap: 0.5rem;
+                        flex-wrap: wrap;
+                    }
+                    .guided-header h2 {
+                        font-size: 0.875rem;
+                    }
+                    .progress-bar-container {
+                        width: 80px;
+                    }
+                    .step-counter {
+                        font-size: 0.75rem;
+                    }
 
-            /* Stronger highlight on the active placement so signers can find it
+                    /* Stronger highlight on the active placement so signers can find it
                even when zoomed out. Arrow pill moves above instead of 90px to the left. */
-            .docgen-sig.current {
-                outline: 3px solid #f59e0b !important;
-                outline-offset: 2px;
-                box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
-            }
-            .docgen-sig.current::before {
-                left: 0; top: -22px; transform: none;
-                font-size: 11px; padding: 3px 8px;
-            }
+                    .docgen-sig.current {
+                        outline: 3px solid #f59e0b !important;
+                        outline-offset: 2px;
+                        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+                    }
+                    .docgen-sig.current::before {
+                        left: 0;
+                        top: -22px;
+                        transform: none;
+                        font-size: 11px;
+                        padding: 3px 8px;
+                    }
 
-            .sig-card { padding: 1.25rem; }
-        }
-    </style>
-</head>
-<body>
-    <div class="page-wrapper" id="page-wrapper">
-
-        <!-- STATE: Loading -->
-        <div id="state-loading">
-            <div class="spinner-container"><div class="spinner"></div></div>
-        </div>
-
-        <!-- STATE: Error -->
-        <div id="state-error" style="display:none">
-            <div class="error-card">
-                <div class="error-icon">&#9888;</div>
-                <h2>Signature Error</h2>
-                <p id="error-message"></p>
-            </div>
-        </div>
-
-        <!-- STATE: Email Verification -->
-        <div id="state-verify" style="display:none">
-            <div class="sig-card">
-                <h2 id="verify-doc-title"></h2>
-                <p class="subtitle">Verify your email to continue</p>
-                <div id="verify-msg"></div>
-                <div class="form-group">
-                    <label for="verify-email">Email Address</label>
-                    <input id="verify-email" type="email" class="form-input" placeholder="Enter your email address" />
-                </div>
-                <div id="pin-section" style="display:none">
-                    <div class="form-group">
-                        <label for="verify-pin">Verification Code</label>
-                        <div class="pin-row">
-                            <input id="verify-pin" type="text" class="form-input pin-input" maxlength="6" placeholder="000000" inputmode="numeric" pattern="[0-9]{6}" />
-                            <button id="btn-verify-pin" class="btn btn-brand" type="button">Verify</button>
-                        </div>
-                    </div>
-                    <p id="resend-link" class="resend-link disabled">Resend code</p>
-                </div>
-                <div class="btn-row">
-                    <button id="btn-send-pin" class="btn btn-brand" type="button">Send Verification Code</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- STATE: Guided Signing -->
-        <div id="state-guided" style="display:none">
-            <div class="guided-wrapper">
-                <!-- Header with progress -->
-                <div class="guided-header">
-                    <h2 id="guided-doc-title">Document Signature</h2>
-                    <div class="step-counter" id="guided-step-counter">Step 1 of 1</div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar-fill" id="guided-progress-bar" style="width:0%"></div>
-                    </div>
-                </div>
-
-                <!-- Document preview -->
-                <div class="guided-document" id="guided-document">
+                    .sig-card {
+                        padding: 1.25rem;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="page-wrapper" id="page-wrapper">
+                <!-- STATE: Loading -->
+                <div id="state-loading">
                     <div class="spinner-container"><div class="spinner"></div></div>
                 </div>
 
-                <!-- Action bar -->
-                <div class="guided-action-bar" id="guided-action-bar">
-                    <div class="action-bar-content" id="action-bar-content">
-                        <div class="action-label">
-                            <div class="step-type" id="action-step-type">SIGN HERE</div>
-                            <div class="step-context" id="action-step-context">Loading...</div>
+                <!-- STATE: Error -->
+                <div id="state-error" style="display: none">
+                    <div class="error-card">
+                        <div class="error-icon">&#9888;</div>
+                        <h2>Signature Error</h2>
+                        <p id="error-message"></p>
+                    </div>
+                </div>
+
+                <!-- STATE: Email Verification -->
+                <div id="state-verify" style="display: none">
+                    <div class="sig-card">
+                        <h2 id="verify-doc-title"></h2>
+                        <p class="subtitle">Verify your email to continue</p>
+                        <div id="verify-msg"></div>
+                        <div class="form-group">
+                            <label for="verify-email">Email Address</label>
+                            <input
+                                id="verify-email"
+                                type="email"
+                                class="form-input"
+                                placeholder="Enter your email address"
+                            />
                         </div>
-                        <div class="action-input" id="action-input-container">
-                            <input id="action-input" type="text" class="form-input sig-input-display" placeholder="Type your full name" />
+                        <div id="pin-section" style="display: none">
+                            <div class="form-group">
+                                <label for="verify-pin">Verification Code</label>
+                                <div class="pin-row">
+                                    <input
+                                        id="verify-pin"
+                                        type="text"
+                                        class="form-input pin-input"
+                                        maxlength="6"
+                                        placeholder="000000"
+                                        inputmode="numeric"
+                                        pattern="[0-9]{6}"
+                                    />
+                                    <button id="btn-verify-pin" class="btn btn-brand" type="button">Verify</button>
+                                </div>
+                            </div>
+                            <p id="resend-link" class="resend-link disabled">Resend code</p>
                         </div>
-                        <button id="btn-confirm-step" class="btn btn-brand" type="button" disabled="disabled">Confirm</button>
+                        <div class="btn-row">
+                            <button id="btn-send-pin" class="btn btn-brand" type="button">
+                                Send Verification Code
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Consent (shown after last placement) -->
-                <div class="guided-action-bar" id="guided-consent-bar" style="display:none">
-                    <div class="consent-row" style="margin:0;">
-                        <input id="guided-consent-checkbox" type="checkbox" />
-                        <label for="guided-consent-checkbox">
-                            I agree to sign this document electronically. I understand that my typed name constitutes
-                            my legal electronic signature, and I consent to conducting this transaction electronically.
-                        </label>
+                <!-- STATE: Guided Signing -->
+                <div id="state-guided" style="display: none">
+                    <div class="guided-wrapper">
+                        <!-- Header with progress -->
+                        <div class="guided-header">
+                            <h2 id="guided-doc-title">Document Signature</h2>
+                            <div class="step-counter" id="guided-step-counter">Step 1 of 1</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="guided-progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Document preview -->
+                        <div class="guided-document" id="guided-document">
+                            <div class="spinner-container"><div class="spinner"></div></div>
+                        </div>
+
+                        <!-- Action bar -->
+                        <div class="guided-action-bar" id="guided-action-bar">
+                            <div class="action-bar-content" id="action-bar-content">
+                                <div class="action-label">
+                                    <div class="step-type" id="action-step-type">SIGN HERE</div>
+                                    <div class="step-context" id="action-step-context">Loading...</div>
+                                </div>
+                                <div class="action-input" id="action-input-container">
+                                    <input
+                                        id="action-input"
+                                        type="text"
+                                        class="form-input sig-input-display"
+                                        placeholder="Type your full name"
+                                    />
+                                </div>
+                                <button id="btn-confirm-step" class="btn btn-brand" type="button" disabled="disabled">
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Consent (shown after last placement) -->
+                        <div class="guided-action-bar" id="guided-consent-bar" style="display: none">
+                            <div class="consent-row" style="margin: 0">
+                                <input id="guided-consent-checkbox" type="checkbox" />
+                                <label for="guided-consent-checkbox">
+                                    I agree to sign this document electronically. I understand that my typed name
+                                    constitutes my legal electronic signature, and I consent to conducting this
+                                    transaction electronically.
+                                </label>
+                            </div>
+                            <div class="btn-row">
+                                <button id="btn-decline" class="btn btn-destructive" type="button">
+                                    Decline to Sign
+                                </button>
+                                <button
+                                    id="btn-complete-signing"
+                                    class="btn btn-brand"
+                                    type="button"
+                                    disabled="disabled"
+                                >
+                                    Complete Signing
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="btn-row">
-                        <button id="btn-decline" class="btn btn-destructive" type="button">Decline to Sign</button>
-                        <button id="btn-complete-signing" class="btn btn-brand" type="button" disabled="disabled">Complete Signing</button>
+                </div>
+
+                <!-- STATE: Decline Confirmation -->
+                <div id="state-decline" style="display: none">
+                    <div class="sig-card" style="max-width: 480px">
+                        <h2 style="color: #ea001e">Decline Signature</h2>
+                        <p class="subtitle">Are you sure you want to decline this signature request?</p>
+                        <div class="form-group">
+                            <label for="decline-reason">Reason (optional)</label>
+                            <textarea
+                                id="decline-reason"
+                                class="form-input"
+                                rows="3"
+                                placeholder="Let the sender know why you're declining..."
+                            ></textarea>
+                        </div>
+                        <div class="btn-row">
+                            <button id="btn-decline-cancel" class="btn" type="button">Go Back</button>
+                            <button id="btn-decline-confirm" class="btn btn-destructive" type="button">
+                                Confirm Decline
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATE: Legacy Signature (v2 fallback — no placements) -->
+                <div id="state-signature" style="display: none">
+                    <div class="sig-card">
+                        <h2 id="doc-title"></h2>
+                        <p class="subtitle">
+                            Signing as: <strong id="signer-name"></strong>
+                            <span id="role-badge" class="role-badge" style="display: none"></span>
+                        </p>
+                        <p id="progress-info" class="progress-info" style="display: none"></p>
+                        <div
+                            id="doc-preview-panel"
+                            class="doc-preview-panel"
+                            style="
+                                border: 1px solid #dddbda;
+                                border-radius: 8px;
+                                margin-bottom: 1.25rem;
+                                max-height: 400px;
+                                overflow-y: auto;
+                            "
+                        >
+                            <div
+                                id="doc-preview-toggle"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: space-between;
+                                    padding: 0.75rem 1rem;
+                                    cursor: pointer;
+                                    font-size: 0.875rem;
+                                    font-weight: 600;
+                                    color: #0176d3;
+                                    border-bottom: 1px solid #dddbda;
+                                    background: #f8fafc;
+                                    border-radius: 8px 8px 0 0;
+                                "
+                            >
+                                <span>&#128196; Review Document Before Signing</span>
+                                <span class="chevron">&#9660;</span>
+                            </div>
+                            <div id="doc-preview-content" style="padding: 1rem; font-size: 0.8125rem; line-height: 1.4">
+                                <div style="text-align: center; color: #706e6b; font-size: 0.8125rem">
+                                    Loading document preview...
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="typed-name">Type your full name to sign</label>
+                            <input
+                                id="typed-name"
+                                type="text"
+                                class="form-input"
+                                placeholder="e.g., John Smith"
+                                autocomplete="name"
+                            />
+                        </div>
+                        <div
+                            style="
+                                border: 2px solid #e5e5e5;
+                                border-radius: 8px;
+                                padding: 1.5rem;
+                                margin: 1rem 0;
+                                background: #fafafa;
+                                min-height: 80px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            "
+                        >
+                            <span
+                                id="sig-preview-name"
+                                style="
+                                    font-family: Georgia, serif;
+                                    font-size: 1.75rem;
+                                    font-style: italic;
+                                    color: #181818;
+                                    display: none;
+                                "
+                            ></span>
+                            <span
+                                id="sig-preview-placeholder"
+                                style="color: #b0adab; font-style: italic; font-size: 0.875rem"
+                                >Your signature will appear here</span
+                            >
+                        </div>
+                        <div class="consent-row">
+                            <input id="consent-checkbox" type="checkbox" />
+                            <label for="consent-checkbox">
+                                I agree to sign this document electronically. I understand that my typed name
+                                constitutes my legal electronic signature, and I consent to conducting this transaction
+                                electronically.
+                            </label>
+                        </div>
+                        <div class="btn-row">
+                            <button id="btn-submit" class="btn btn-brand" type="button" disabled="disabled">
+                                Sign Document
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATE: Processing -->
+                <div id="state-processing" style="display: none">
+                    <div class="processing-card">
+                        <div class="spinner-container" style="padding: 0.5rem"><div class="spinner"></div></div>
+                        <h2>Processing Signature</h2>
+                        <p id="processing-status">Finalizing your signature...</p>
+                    </div>
+                </div>
+
+                <!-- STATE: Success -->
+                <div id="state-success" style="display: none">
+                    <div class="success-card">
+                        <div class="success-icon">&#10003;</div>
+                        <h2>Signature Complete</h2>
+                        <p>Your document has been signed and processed securely. You may close this window.</p>
+                    </div>
+                </div>
+
+                <!-- STATE: Waiting -->
+                <div id="state-waiting" style="display: none">
+                    <div class="waiting-card">
+                        <div class="waiting-icon">&#10003;</div>
+                        <h2>Signature Recorded</h2>
+                        <p id="waiting-message">
+                            Your signature has been recorded. Waiting for other signers to complete.
+                        </p>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- STATE: Decline Confirmation -->
-        <div id="state-decline" style="display:none">
-            <div class="sig-card" style="max-width:480px;">
-                <h2 style="color:#ea001e;">Decline Signature</h2>
-                <p class="subtitle">Are you sure you want to decline this signature request?</p>
-                <div class="form-group">
-                    <label for="decline-reason">Reason (optional)</label>
-                    <textarea id="decline-reason" class="form-input" rows="3" placeholder="Let the sender know why you're declining..."></textarea>
-                </div>
-                <div class="btn-row">
-                    <button id="btn-decline-cancel" class="btn" type="button">Go Back</button>
-                    <button id="btn-decline-confirm" class="btn btn-destructive" type="button">Confirm Decline</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- STATE: Legacy Signature (v2 fallback — no placements) -->
-        <div id="state-signature" style="display:none">
-            <div class="sig-card">
-                <h2 id="doc-title"></h2>
-                <p class="subtitle">
-                    Signing as: <strong id="signer-name"></strong>
-                    <span id="role-badge" class="role-badge" style="display:none"></span>
-                </p>
-                <p id="progress-info" class="progress-info" style="display:none"></p>
-                <div id="doc-preview-panel" class="doc-preview-panel" style="border:1px solid #dddbda;border-radius:8px;margin-bottom:1.25rem;max-height:400px;overflow-y:auto;">
-                    <div id="doc-preview-toggle" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;cursor:pointer;font-size:0.875rem;font-weight:600;color:#0176d3;border-bottom:1px solid #dddbda;background:#f8fafc;border-radius:8px 8px 0 0;">
-                        <span>&#128196; Review Document Before Signing</span>
-                        <span class="chevron">&#9660;</span>
-                    </div>
-                    <div id="doc-preview-content" style="padding:1rem;font-size:0.8125rem;line-height:1.4;">
-                        <div style="text-align:center;color:#706e6b;font-size:0.8125rem;">Loading document preview...</div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="typed-name">Type your full name to sign</label>
-                    <input id="typed-name" type="text" class="form-input" placeholder="e.g., John Smith" autocomplete="name" />
-                </div>
-                <div style="border:2px solid #e5e5e5;border-radius:8px;padding:1.5rem;margin:1rem 0;background:#fafafa;min-height:80px;display:flex;align-items:center;justify-content:center;">
-                    <span id="sig-preview-name" style="font-family:Georgia,serif;font-size:1.75rem;font-style:italic;color:#181818;display:none"></span>
-                    <span id="sig-preview-placeholder" style="color:#b0adab;font-style:italic;font-size:0.875rem;">Your signature will appear here</span>
-                </div>
-                <div class="consent-row">
-                    <input id="consent-checkbox" type="checkbox" />
-                    <label for="consent-checkbox">
-                        I agree to sign this document electronically. I understand that my typed name constitutes
-                        my legal electronic signature, and I consent to conducting this transaction electronically.
-                    </label>
-                </div>
-                <div class="btn-row">
-                    <button id="btn-submit" class="btn btn-brand" type="button" disabled="disabled">Sign Document</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- STATE: Processing -->
-        <div id="state-processing" style="display:none">
-            <div class="processing-card">
-                <div class="spinner-container" style="padding:0.5rem"><div class="spinner"></div></div>
-                <h2>Processing Signature</h2>
-                <p id="processing-status">Finalizing your signature...</p>
-            </div>
-        </div>
-
-        <!-- STATE: Success -->
-        <div id="state-success" style="display:none">
-            <div class="success-card">
-                <div class="success-icon">&#10003;</div>
-                <h2>Signature Complete</h2>
-                <p>Your document has been signed and processed securely. You may close this window.</p>
-            </div>
-        </div>
-
-        <!-- STATE: Waiting -->
-        <div id="state-waiting" style="display:none">
-            <div class="waiting-card">
-                <div class="waiting-icon">&#10003;</div>
-                <h2>Signature Recorded</h2>
-                <p id="waiting-message">Your signature has been recorded. Waiting for other signers to complete.</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    (function() {
-        // ===== STATE MANAGEMENT =====
-        var stateIds = ['loading', 'error', 'verify', 'guided', 'signature', 'processing', 'success', 'waiting', 'decline'];
-        function showState(name) {
-            for (var i = 0; i < stateIds.length; i++) {
-                document.getElementById('state-' + stateIds[i]).style.display = (stateIds[i] === name) ? '' : 'none';
-            }
-            // For guided state, switch page-wrapper to flex-start alignment
-            var pw = document.getElementById('page-wrapper');
-            if (name === 'guided') {
-                pw.style.justifyContent = 'flex-start';
-                pw.style.padding = '1rem';
-            } else {
-                pw.style.justifyContent = 'center';
-                pw.style.padding = '1rem';
-            }
-        }
-        function showError(msg) {
-            document.getElementById('error-message').textContent = msg;
-            showState('error');
-        }
-        function showVerifyMsg(msg, type) {
-            document.getElementById('verify-msg').innerHTML = '<div class="msg msg-' + type + '">' + msg + '</div>';
-        }
-
-        // ===== TOKEN FROM URL =====
-        var urlParams = new URLSearchParams(window.location.search);
-        var token = urlParams.get('token');
-        if (!token) { showError('Invalid or missing security token. Please check your signature link.'); return; }
-
-        // ===== GLOBAL STATE =====
-        var signerData = null;
-        var isMultiSigner = false;
-        var resendTimer = null;
-        var placements = [];
-        var currentStepIndex = 0;
-        var capturedIp = '';
-
-        // ===== CLIENT-SIDE IP CAPTURE =====
-        // The signing page is hosted on a Salesforce Site, so signers are Guest users.
-        // Auth.SessionManagement.getCurrentSession() is blocked for Guest, and
-        // X-Forwarded-For headers aren't always set by Salesforce's edge for VF requests.
-        // Asking the browser to fetch its own public IP is the most reliable path —
-        // the third-party service only sees the signer's IP (which they'd see anyway
-        // by virtue of the request), no other PII flows. Server-side resolveClientIp()
-        // falls back to header inspection if this fetch fails.
-        try {
-            fetch('https://api.ipify.org?format=json', { cache: 'no-store' })
-                .then(function(r) { return r.ok ? r.json() : null; })
-                .then(function(j) { if (j && j.ip) capturedIp = j.ip; })
-                .catch(function() { /* fallback to server-side capture */ });
-        } catch (e) { /* fetch unavailable — fall back to server-side capture */ }
-
-        // ===== STEP 1: VALIDATE TOKEN =====
-        Visualforce.remoting.Manager.invokeAction(
-            '{!$RemoteAction.DocGenSignatureController.validateToken}',
-            token,
-            function(result, event) {
-                if (event.status && result && result.isValid) {
-                    signerData = result;
-                    if (result.requiresPin) {
-                        initVerifyScreen(result);
-                    } else {
-                        initAfterVerification(result);
+            <script>
+                (function () {
+                    // ===== STATE MANAGEMENT =====
+                    var stateIds = [
+                        'loading',
+                        'error',
+                        'verify',
+                        'guided',
+                        'signature',
+                        'processing',
+                        'success',
+                        'waiting',
+                        'decline'
+                    ];
+                    function showState(name) {
+                        for (var i = 0; i < stateIds.length; i++) {
+                            document.getElementById('state-' + stateIds[i]).style.display =
+                                stateIds[i] === name ? '' : 'none';
+                        }
+                        // For guided state, switch page-wrapper to flex-start alignment
+                        var pw = document.getElementById('page-wrapper');
+                        if (name === 'guided') {
+                            pw.style.justifyContent = 'flex-start';
+                            pw.style.padding = '1rem';
+                        } else {
+                            pw.style.justifyContent = 'center';
+                            pw.style.padding = '1rem';
+                        }
                     }
-                } else {
-                    showError((result && result.errorMessage) ? result.errorMessage : 'This signature request is no longer active.');
-                }
-            },
-            { escape: false }
-        );
-
-        // ===== EMAIL VERIFICATION =====
-        function initVerifyScreen(data) {
-            document.getElementById('verify-doc-title').textContent = data.documentTitle || 'Document Signature';
-            if (data.signerEmail) {
-                var parts = data.signerEmail.split('@');
-                document.getElementById('verify-email').placeholder = 'Enter: ' + parts[0].substring(0, 2) + '***@' + parts[1];
-            }
-            showState('verify');
-            document.getElementById('btn-send-pin').addEventListener('click', handleSendPin);
-            document.getElementById('btn-verify-pin').addEventListener('click', handleVerifyPin);
-            document.getElementById('resend-link').addEventListener('click', handleResendPin);
-            document.getElementById('verify-pin').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleVerifyPin(); });
-            document.getElementById('verify-email').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleSendPin(); });
-        }
-
-        function handleSendPin() {
-            var email = document.getElementById('verify-email').value.trim();
-            if (!email) { showVerifyMsg('Please enter your email address.', 'error'); return; }
-            var btn = document.getElementById('btn-send-pin');
-            btn.disabled = true; btn.textContent = 'Sending...';
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.sendPin}', token, email,
-                function(result, event) {
-                    btn.disabled = false; btn.textContent = 'Send Verification Code';
-                    if (event.status && result && result.success) {
-                        showVerifyMsg(result.message, 'success');
-                        document.getElementById('pin-section').style.display = '';
-                        btn.style.display = 'none';
-                        startResendTimer();
-                    } else {
-                        showVerifyMsg(result ? result.message : 'Failed to send verification code.', 'error');
+                    function showError(msg) {
+                        document.getElementById('error-message').textContent = msg;
+                        showState('error');
                     }
-                }, { escape: false }
-            );
-        }
-
-        function handleVerifyPin() {
-            var pin = document.getElementById('verify-pin').value.trim();
-            if (!pin || pin.length !== 6) { showVerifyMsg('Please enter the 6-digit code from your email.', 'error'); return; }
-            var btn = document.getElementById('btn-verify-pin');
-            btn.disabled = true; btn.textContent = 'Verifying...';
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.verifyPin}', token, pin,
-                function(result, event) {
-                    btn.disabled = false; btn.textContent = 'Verify';
-                    if (event.status && result && result.success) {
-                        initAfterVerification(signerData);
-                    } else {
-                        showVerifyMsg(result ? result.message : 'Verification failed.', 'error');
+                    function showVerifyMsg(msg, type) {
+                        document.getElementById('verify-msg').innerHTML =
+                            '<div class="msg msg-' + type + '">' + msg + '</div>';
                     }
-                }, { escape: false }
-            );
-        }
 
-        function handleResendPin() {
-            if (document.getElementById('resend-link').classList.contains('disabled')) return;
-            var email = document.getElementById('verify-email').value.trim();
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.sendPin}', token, email,
-                function(result, event) {
-                    if (event.status && result && result.success) {
-                        showVerifyMsg('New verification code sent.', 'success');
-                        startResendTimer();
-                    } else {
-                        showVerifyMsg(result ? result.message : 'Failed to resend code.', 'error');
+                    // ===== TOKEN FROM URL =====
+                    var urlParams = new URLSearchParams(window.location.search);
+                    var token = urlParams.get('token');
+                    if (!token) {
+                        showError('Invalid or missing security token. Please check your signature link.');
+                        return;
                     }
-                }, { escape: false }
-            );
-        }
 
-        function startResendTimer() {
-            var link = document.getElementById('resend-link');
-            link.classList.add('disabled');
-            var seconds = 60;
-            link.textContent = 'Resend code (' + seconds + 's)';
-            if (resendTimer) clearInterval(resendTimer);
-            resendTimer = setInterval(function() {
-                seconds--;
-                if (seconds <= 0) { clearInterval(resendTimer); link.classList.remove('disabled'); link.textContent = 'Resend code'; }
-                else { link.textContent = 'Resend code (' + seconds + 's)'; }
-            }, 1000);
-        }
+                    // ===== GLOBAL STATE =====
+                    var signerData = null;
+                    var isMultiSigner = false;
+                    var resendTimer = null;
+                    var placements = [];
+                    var currentStepIndex = 0;
+                    var capturedIp = '';
 
-        // ===== AFTER VERIFICATION: CHECK FOR PLACEMENTS =====
-        function initAfterVerification(data) {
-            isMultiSigner = data.isSignerToken === true;
-
-            // Try to load placements for guided flow
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.getSignerPlacements}', token,
-                function(result, event) {
-                    if (event.status && result && result.length > 0) {
-                        placements = result;
-                        initGuidedSigning(data);
-                    } else {
-                        // No placements — fall back to v2 legacy signing
-                        initLegacySignatureScreen(data);
+                    // ===== CLIENT-SIDE IP CAPTURE =====
+                    // The signing page is hosted on a Salesforce Site, so signers are Guest users.
+                    // Auth.SessionManagement.getCurrentSession() is blocked for Guest, and
+                    // X-Forwarded-For headers aren't always set by Salesforce's edge for VF requests.
+                    // Asking the browser to fetch its own public IP is the most reliable path —
+                    // the third-party service only sees the signer's IP (which they'd see anyway
+                    // by virtue of the request), no other PII flows. Server-side resolveClientIp()
+                    // falls back to header inspection if this fetch fails.
+                    try {
+                        fetch('https://api.ipify.org?format=json', { cache: 'no-store' })
+                            .then(function (r) {
+                                return r.ok ? r.json() : null;
+                            })
+                            .then(function (j) {
+                                if (j && j.ip) capturedIp = j.ip;
+                            })
+                            .catch(function () {
+                                /* fallback to server-side capture */
+                            });
+                    } catch (e) {
+                        /* fetch unavailable — fall back to server-side capture */
                     }
-                }, { escape: false }
-            );
-        }
 
-        // ===== GUIDED SIGNING FLOW =====
-        function initGuidedSigning(data) {
-            document.getElementById('guided-doc-title').textContent = data.documentTitle || 'Document Signature';
-            showState('guided');
-
-            // Load document preview
-            loadGuidedPreview();
-
-            // Wire up action bar
-            document.getElementById('btn-confirm-step').addEventListener('click', handleConfirmStep);
-            document.getElementById('action-input').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') handleConfirmStep();
-            });
-            document.getElementById('action-input').addEventListener('input', function() {
-                document.getElementById('btn-confirm-step').disabled = !this.value.trim();
-            });
-
-            // Wire up consent
-            document.getElementById('guided-consent-checkbox').addEventListener('change', function() {
-                document.getElementById('btn-complete-signing').disabled = !this.checked;
-            });
-            document.getElementById('btn-complete-signing').addEventListener('click', handleCompleteSigning);
-
-            // Decline button
-            document.getElementById('btn-decline').addEventListener('click', function() { showState('decline'); });
-            document.getElementById('btn-decline-cancel').addEventListener('click', function() { showState('guided'); });
-            document.getElementById('btn-decline-confirm').addEventListener('click', handleDecline);
-
-            // Find first pending placement
-            currentStepIndex = 0;
-            for (var i = 0; i < placements.length; i++) {
-                if (placements[i].status === 'Pending') { currentStepIndex = i; break; }
-            }
-            updateGuidedUI();
-        }
-
-        function loadGuidedPreview() {
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.fetchDocumentData}', token,
-                function(result, event) {
-                    var docEl = document.getElementById('guided-document');
-                    if (event.status && result && result.templateBase64) {
-                        docEl.innerHTML = result.templateBase64;
-                        // Resolve images for guest user
-                        resolveGuestImages(docEl);
-                        // Apply already-signed placements
-                        applySignedPlacements();
-                        // Highlight current placement
-                        highlightCurrentPlacement();
-                    } else {
-                        docEl.innerHTML = '<p style="color:#706e6b;text-align:center;padding:2rem;">Document preview unavailable.</p>';
-                    }
-                },
-                { escape: false, buffer: false, timeout: 60000 }
-            );
-        }
-
-        function resolveGuestImages(container) {
-            var imgs = container.querySelectorAll('img[src*="/sfc/servlet.shepherd/"]');
-            for (var i = 0; i < imgs.length; i++) {
-                (function(img) {
-                    var src = img.getAttribute('src');
-                    var cvId = src.split('/').pop();
-                    if (!cvId || !cvId.startsWith('068')) return;
+                    // ===== STEP 1: VALIDATE TOKEN =====
                     Visualforce.remoting.Manager.invokeAction(
-                        '{!$RemoteAction.DocGenSignatureController.getImageBase64}', token, cvId,
-                        function(result, event) {
-                            if (event.status && result && result.base64) {
-                                img.src = 'data:' + result.mimeType + ';base64,' + result.base64;
+                        '{!$RemoteAction.DocGenSignatureController.validateToken}',
+                        token,
+                        function (result, event) {
+                            if (event.status && result && result.isValid) {
+                                signerData = result;
+                                if (result.requiresPin) {
+                                    initVerifyScreen(result);
+                                } else {
+                                    initAfterVerification(result);
+                                }
+                            } else {
+                                showError(
+                                    result && result.errorMessage
+                                        ? result.errorMessage
+                                        : 'This signature request is no longer active.'
+                                );
                             }
-                        }, { escape: false, buffer: false }
+                        },
+                        { escape: false }
                     );
-                })(imgs[i]);
-            }
-        }
 
-        function updateGuidedUI() {
-            var total = placements.length;
-            var signedCount = 0;
-            for (var i = 0; i < total; i++) { if (placements[i].status === 'Signed') signedCount++; }
+                    // ===== EMAIL VERIFICATION =====
+                    function initVerifyScreen(data) {
+                        document.getElementById('verify-doc-title').textContent =
+                            data.documentTitle || 'Document Signature';
+                        if (data.signerEmail) {
+                            var parts = data.signerEmail.split('@');
+                            document.getElementById('verify-email').placeholder =
+                                'Enter: ' + parts[0].substring(0, 2) + '***@' + parts[1];
+                        }
+                        showState('verify');
+                        document.getElementById('btn-send-pin').addEventListener('click', handleSendPin);
+                        document.getElementById('btn-verify-pin').addEventListener('click', handleVerifyPin);
+                        document.getElementById('resend-link').addEventListener('click', handleResendPin);
+                        document.getElementById('verify-pin').addEventListener('keydown', function (e) {
+                            if (e.key === 'Enter') handleVerifyPin();
+                        });
+                        document.getElementById('verify-email').addEventListener('keydown', function (e) {
+                            if (e.key === 'Enter') handleSendPin();
+                        });
+                    }
 
-            // If all signed, show consent
-            if (signedCount >= total) {
-                document.getElementById('guided-action-bar').style.display = 'none';
-                document.getElementById('guided-consent-bar').style.display = '';
-                document.getElementById('guided-step-counter').textContent = 'All placements signed';
-                document.getElementById('guided-progress-bar').style.width = '100%';
-                return;
-            }
+                    function handleSendPin() {
+                        var email = document.getElementById('verify-email').value.trim();
+                        if (!email) {
+                            showVerifyMsg('Please enter your email address.', 'error');
+                            return;
+                        }
+                        var btn = document.getElementById('btn-send-pin');
+                        btn.disabled = true;
+                        btn.textContent = 'Sending...';
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.sendPin}',
+                            token,
+                            email,
+                            function (result, event) {
+                                btn.disabled = false;
+                                btn.textContent = 'Send Verification Code';
+                                if (event.status && result && result.success) {
+                                    showVerifyMsg(result.message, 'success');
+                                    document.getElementById('pin-section').style.display = '';
+                                    btn.style.display = 'none';
+                                    startResendTimer();
+                                } else {
+                                    showVerifyMsg(
+                                        result ? result.message : 'Failed to send verification code.',
+                                        'error'
+                                    );
+                                }
+                            },
+                            { escape: false }
+                        );
+                    }
 
-            // Update progress
-            var pct = total > 0 ? Math.round((signedCount / total) * 100) : 0;
-            document.getElementById('guided-progress-bar').style.width = pct + '%';
-            document.getElementById('guided-step-counter').textContent = 'Step ' + (signedCount + 1) + ' of ' + total;
+                    function handleVerifyPin() {
+                        var pin = document.getElementById('verify-pin').value.trim();
+                        if (!pin || pin.length !== 6) {
+                            showVerifyMsg('Please enter the 6-digit code from your email.', 'error');
+                            return;
+                        }
+                        var btn = document.getElementById('btn-verify-pin');
+                        btn.disabled = true;
+                        btn.textContent = 'Verifying...';
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.verifyPin}',
+                            token,
+                            pin,
+                            function (result, event) {
+                                btn.disabled = false;
+                                btn.textContent = 'Verify';
+                                if (event.status && result && result.success) {
+                                    initAfterVerification(signerData);
+                                } else {
+                                    showVerifyMsg(result ? result.message : 'Verification failed.', 'error');
+                                }
+                            },
+                            { escape: false }
+                        );
+                    }
 
-            var current = placements[currentStepIndex];
-            if (!current) return;
+                    function handleResendPin() {
+                        if (document.getElementById('resend-link').classList.contains('disabled')) return;
+                        var email = document.getElementById('verify-email').value.trim();
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.sendPin}',
+                            token,
+                            email,
+                            function (result, event) {
+                                if (event.status && result && result.success) {
+                                    showVerifyMsg('New verification code sent.', 'success');
+                                    startResendTimer();
+                                } else {
+                                    showVerifyMsg(result ? result.message : 'Failed to resend code.', 'error');
+                                }
+                            },
+                            { escape: false }
+                        );
+                    }
 
-            // Check for document boundary — show transition if document changed
-            var maxDocIdx = 0;
-            for (var d = 0; d < placements.length; d++) {
-                if ((placements[d].documentIndex || 0) > maxDocIdx) maxDocIdx = placements[d].documentIndex;
-            }
-            if (maxDocIdx > 0) {
-                // Multi-document packet — show document indicator
-                var docNum = (current.documentIndex || 0) + 1;
-                var totalDocs = maxDocIdx + 1;
-                document.getElementById('guided-step-counter').textContent =
-                    'Doc ' + docNum + '/' + totalDocs + ' — Step ' + (signedCount + 1) + ' of ' + total;
-            }
+                    function startResendTimer() {
+                        var link = document.getElementById('resend-link');
+                        link.classList.add('disabled');
+                        var seconds = 60;
+                        link.textContent = 'Resend code (' + seconds + 's)';
+                        if (resendTimer) clearInterval(resendTimer);
+                        resendTimer = setInterval(function () {
+                            seconds--;
+                            if (seconds <= 0) {
+                                clearInterval(resendTimer);
+                                link.classList.remove('disabled');
+                                link.textContent = 'Resend code';
+                            } else {
+                                link.textContent = 'Resend code (' + seconds + 's)';
+                            }
+                        }, 1000);
+                    }
 
-            // Update action bar label
-            var typeLabel = 'SIGN HERE';
-            var inputPlaceholder = 'Type your full name';
-            if (current.type === 'Initials') { typeLabel = 'INITIAL HERE'; inputPlaceholder = 'Type your initials'; }
-            else if (current.type === 'Date') { typeLabel = 'DATE (AUTO)'; }
-            else if (current.type === 'DatePick') { typeLabel = 'SELECT DATE'; }
+                    // ===== AFTER VERIFICATION: CHECK FOR PLACEMENTS =====
+                    function initAfterVerification(data) {
+                        isMultiSigner = data.isSignerToken === true;
 
-            document.getElementById('action-step-type').textContent = typeLabel;
-            document.getElementById('action-step-context').textContent = current.sectionContext || ('Placement ' + (currentStepIndex + 1));
+                        // Try to load placements for guided flow
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.getSignerPlacements}',
+                            token,
+                            function (result, event) {
+                                if (event.status && result && result.length > 0) {
+                                    placements = result;
+                                    initGuidedSigning(data);
+                                } else {
+                                    // No placements — fall back to v2 legacy signing
+                                    initLegacySignatureScreen(data);
+                                }
+                            },
+                            { escape: false }
+                        );
+                    }
 
-            // Update input
-            var inputContainer = document.getElementById('action-input-container');
-            var confirmBtn = document.getElementById('btn-confirm-step');
-            if (current.type === 'Date') {
-                // Auto date — no input needed, just confirm
-                inputContainer.innerHTML = '<span style="font-size:0.9375rem;color:#706e6b;">Date will be auto-filled</span>';
-                confirmBtn.disabled = false;
-            } else if (current.type === 'DatePick') {
-                inputContainer.innerHTML = '<input id="action-input" type="date" class="form-input" />';
-                document.getElementById('action-input').addEventListener('input', function() {
-                    confirmBtn.disabled = !this.value;
-                });
-                confirmBtn.disabled = true;
-            } else {
-                var signerName = signerData ? signerData.signerName : '';
-                var prefill = current.type === 'Initials' ? getInitials(signerName) : signerName;
-                inputContainer.innerHTML = '<input id="action-input" type="text" class="form-input' +
-                    (current.type === 'Full' ? ' sig-input-display' : '') + '" placeholder="' + inputPlaceholder + '" value="' + escHtml(prefill) + '" />';
-                document.getElementById('action-input').addEventListener('input', function() {
-                    confirmBtn.disabled = !this.value.trim();
-                });
-                document.getElementById('action-input').addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') handleConfirmStep();
-                });
-                confirmBtn.disabled = !prefill;
-                // Focus the input
-                setTimeout(function() { document.getElementById('action-input').focus(); }, 100);
-            }
+                    // ===== GUIDED SIGNING FLOW =====
+                    function initGuidedSigning(data) {
+                        document.getElementById('guided-doc-title').textContent =
+                            data.documentTitle || 'Document Signature';
+                        showState('guided');
 
-            highlightCurrentPlacement();
-        }
+                        // Load document preview
+                        loadGuidedPreview();
 
-        function getInitials(name) {
-            if (!name) return '';
-            return name.split(/\s+/).map(function(w) { return w.charAt(0).toUpperCase(); }).join('.');
-        }
+                        // Wire up action bar
+                        document.getElementById('btn-confirm-step').addEventListener('click', handleConfirmStep);
+                        document.getElementById('action-input').addEventListener('keydown', function (e) {
+                            if (e.key === 'Enter') handleConfirmStep();
+                        });
+                        document.getElementById('action-input').addEventListener('input', function () {
+                            document.getElementById('btn-confirm-step').disabled = !this.value.trim();
+                        });
 
-        function highlightCurrentPlacement() {
-            // Remove all current highlights
-            var allSpans = document.querySelectorAll('.docgen-sig');
-            for (var i = 0; i < allSpans.length; i++) {
-                allSpans[i].classList.remove('current');
-            }
+                        // Wire up consent
+                        document.getElementById('guided-consent-checkbox').addEventListener('change', function () {
+                            document.getElementById('btn-complete-signing').disabled = !this.checked;
+                        });
+                        document
+                            .getElementById('btn-complete-signing')
+                            .addEventListener('click', handleCompleteSigning);
 
-            if (currentStepIndex >= placements.length) return;
-            var current = placements[currentStepIndex];
+                        // Decline button
+                        document.getElementById('btn-decline').addEventListener('click', function () {
+                            showState('decline');
+                        });
+                        document.getElementById('btn-decline-cancel').addEventListener('click', function () {
+                            showState('guided');
+                        });
+                        document.getElementById('btn-decline-confirm').addEventListener('click', handleDecline);
 
-            // Find the matching span by data-tag attribute
-            var spans = document.querySelectorAll('.docgen-sig[data-tag="' + current.tagText + '"]');
-            // Find the first non-signed span with this tag
-            for (var j = 0; j < spans.length; j++) {
-                if (!spans[j].classList.contains('signed')) {
-                    spans[j].classList.add('current');
-                    // Vertical-only smooth scroll — never horizontal. scrollIntoView with
-                    // inline:'nearest' still triggers horizontal scroll on iOS when a
-                    // right-side placement is off-screen, clipping the document's left edge.
-                    // Manual window.scrollTo(top) scrolls only the vertical axis; user
-                    // pans/pinches horizontally themselves.
-                    var r = spans[j].getBoundingClientRect();
-                    var targetTop = window.scrollY + r.top - (window.innerHeight / 2) + (r.height / 2);
-                    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-                    break;
-                }
-            }
-        }
-
-        function applySignedPlacements() {
-            for (var i = 0; i < placements.length; i++) {
-                if (placements[i].status === 'Signed') {
-                    markSpanAsSigned(placements[i]);
-                }
-            }
-        }
-
-        function markSpanAsSigned(placement) {
-            var spans = document.querySelectorAll('.docgen-sig[data-tag="' + placement.tagText + '"]');
-            for (var j = 0; j < spans.length; j++) {
-                if (!spans[j].classList.contains('signed')) {
-                    spans[j].classList.remove('current');
-                    spans[j].classList.add('signed');
-                    spans[j].textContent = placement.signedValue || placement.type;
-                    break;
-                }
-            }
-        }
-
-        function handleConfirmStep() {
-            var current = placements[currentStepIndex];
-            if (!current) return;
-
-            var value = '';
-            var inputEl = document.getElementById('action-input');
-            if (current.type === 'Date') {
-                value = ''; // Server auto-fills
-            } else if (inputEl) {
-                value = inputEl.value.trim();
-                if (!value && current.type !== 'Date') return;
-            }
-
-            var confirmBtn = document.getElementById('btn-confirm-step');
-            confirmBtn.disabled = true;
-            confirmBtn.textContent = 'Saving...';
-
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.signPlacement}',
-                token, current.id, value,
-                function(result, event) {
-                    confirmBtn.textContent = 'Confirm';
-                    if (event.status && result) {
-                        placements = result;
-                        // Update the DOM
-                        var signed = placements[currentStepIndex];
-                        markSpanAsSigned(signed);
-
-                        // Advance to next pending
-                        var found = false;
+                        // Find first pending placement
+                        currentStepIndex = 0;
                         for (var i = 0; i < placements.length; i++) {
                             if (placements[i].status === 'Pending') {
                                 currentStepIndex = i;
-                                found = true;
                                 break;
                             }
                         }
-                        if (!found) {
-                            currentStepIndex = placements.length; // All done
-                        }
                         updateGuidedUI();
-                    } else {
-                        confirmBtn.disabled = false;
-                        alert('Failed to save: ' + (event.message || 'Unknown error'));
                     }
-                },
-                { escape: false, buffer: false, timeout: 30000 }
-            );
-        }
 
-        function handleCompleteSigning() {
-            var consentGiven = document.getElementById('guided-consent-checkbox').checked;
-            if (!consentGiven) return;
-
-            showState('processing');
-            document.getElementById('processing-status').textContent = 'Saving your signature...';
-
-            // Use the signer's name from the first Full placement, or from signerData
-            var typedName = signerData.signerName;
-            for (var i = 0; i < placements.length; i++) {
-                if (placements[i].type === 'Full' && placements[i].signedValue) {
-                    typedName = placements[i].signedValue;
-                    break;
-                }
-            }
-
-            var userAgent = navigator.userAgent || 'Unknown';
-
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.saveSignature}',
-                token, typedName, true, capturedIp, userAgent,
-                function(result, event) {
-                    if (!event.status) { showError('Save failed: ' + (event.message || 'Unknown error')); return; }
-                    if (result.isComplete) {
-                        // PDF generation is triggered server-side via platform event (published in saveSignature).
-                        // No need to call stampAndReturnSource — that would fail in guest context.
-                        showState('success');
-                    } else {
-                        document.getElementById('waiting-message').textContent =
-                            'Your signature has been recorded. Waiting for ' + result.remaining +
-                            ' more signer' + (result.remaining > 1 ? 's' : '') + ' to complete.';
-                        showState('waiting');
+                    function loadGuidedPreview() {
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.fetchDocumentData}',
+                            token,
+                            function (result, event) {
+                                var docEl = document.getElementById('guided-document');
+                                if (event.status && result && result.templateBase64) {
+                                    docEl.innerHTML = result.templateBase64;
+                                    // Resolve images for guest user
+                                    resolveGuestImages(docEl);
+                                    // Apply already-signed placements
+                                    applySignedPlacements();
+                                    // Highlight current placement
+                                    highlightCurrentPlacement();
+                                } else {
+                                    docEl.innerHTML =
+                                        '<p style="color:#706e6b;text-align:center;padding:2rem;">Document preview unavailable.</p>';
+                                }
+                            },
+                            { escape: false, buffer: false, timeout: 60000 }
+                        );
                     }
-                },
-                { escape: false, buffer: false, timeout: 120000 }
-            );
-        }
 
-        // ===== DECLINE =====
-        function handleDecline() {
-            var reason = document.getElementById('decline-reason').value.trim();
-            var btn = document.getElementById('btn-decline-confirm');
-            btn.disabled = true;
-            btn.textContent = 'Declining...';
-
-            var ua = navigator.userAgent || 'Unknown';
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.declineSignature}',
-                token, reason, capturedIp, ua,
-                function(result, event) {
-                    btn.disabled = false;
-                    btn.textContent = 'Confirm Decline';
-                    if (event.status && result && result.success) {
-                        document.getElementById('error-message').textContent = 'You have declined this signature request.';
-                        document.querySelector('.error-card h2').textContent = 'Request Declined';
-                        document.querySelector('.error-icon').textContent = '\u2716';
-                        showState('error');
-                    } else {
-                        alert(result ? result.message : 'Failed to decline. Please try again.');
-                    }
-                },
-                { escape: false }
-            );
-        }
-
-        // ===== LEGACY V2 SIGNING (fallback when no placements) =====
-        function initLegacySignatureScreen(data) {
-            document.getElementById('doc-title').textContent = data.documentTitle || 'Confidential Document';
-            document.getElementById('signer-name').textContent = data.signerName || '';
-            if (data.roleName) {
-                var badge = document.getElementById('role-badge');
-                badge.textContent = data.roleName;
-                badge.style.display = 'inline-block';
-            }
-            isMultiSigner = data.isSignerToken === true;
-            if (isMultiSigner) {
-                var progressEl = document.getElementById('progress-info');
-                progressEl.textContent = 'Signer ' + ((data.signedCount || 0) + 1) + ' of ' + (data.totalSigners || 1);
-                progressEl.style.display = 'block';
-            }
-            showState('signature');
-            loadLegacyPreview();
-
-            document.getElementById('doc-preview-toggle').addEventListener('click', function() {
-                var content = document.getElementById('doc-preview-content');
-                content.style.display = content.style.display === 'none' ? '' : 'none';
-            });
-            var nameInput = document.getElementById('typed-name');
-            var previewName = document.getElementById('sig-preview-name');
-            var previewPlaceholder = document.getElementById('sig-preview-placeholder');
-            nameInput.addEventListener('input', function() {
-                var val = this.value.trim();
-                previewName.textContent = val;
-                previewName.style.display = val ? '' : 'none';
-                previewPlaceholder.style.display = val ? 'none' : '';
-                updateLegacySubmitState();
-            });
-            document.getElementById('consent-checkbox').addEventListener('change', updateLegacySubmitState);
-            document.getElementById('btn-submit').addEventListener('click', handleLegacySubmit);
-        }
-
-        function updateLegacySubmitState() {
-            var nameVal = document.getElementById('typed-name').value.trim();
-            var consentVal = document.getElementById('consent-checkbox').checked;
-            document.getElementById('btn-submit').disabled = !(nameVal && consentVal);
-        }
-
-        function loadLegacyPreview() {
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.fetchDocumentData}', token,
-                function(result, event) {
-                    var contentEl = document.getElementById('doc-preview-content');
-                    if (event.status && result && result.templateBase64) {
-                        contentEl.innerHTML = result.templateBase64;
-                    } else {
-                        contentEl.innerHTML = '<p style="color:#706e6b;text-align:center;">Document preview unavailable.</p>';
-                    }
-                },
-                { escape: false, buffer: false, timeout: 60000 }
-            );
-        }
-
-        function handleLegacySubmit() {
-            var typedName = document.getElementById('typed-name').value.trim();
-            var consentGiven = document.getElementById('consent-checkbox').checked;
-            if (!typedName || !consentGiven) return;
-            showState('processing');
-            var userAgent = navigator.userAgent || 'Unknown';
-
-            if (isMultiSigner) {
-                document.getElementById('processing-status').textContent = 'Saving your signature...';
-                Visualforce.remoting.Manager.invokeAction(
-                    '{!$RemoteAction.DocGenSignatureController.saveSignature}',
-                    token, typedName, consentGiven, capturedIp, userAgent,
-                    function(result, event) {
-                        if (!event.status) { showError('Save failed: ' + (event.message || 'Unknown error')); return; }
-                        if (result.isComplete) {
-                            document.getElementById('processing-status').textContent = 'All signatures collected. Generating final PDF...';
-                            callStampAndSave(typedName);
-                        } else {
-                            document.getElementById('waiting-message').textContent =
-                                'Your signature has been recorded. Waiting for ' + result.remaining +
-                                ' more signer' + (result.remaining > 1 ? 's' : '') + ' to complete.';
-                            showState('waiting');
+                    function resolveGuestImages(container) {
+                        var imgs = container.querySelectorAll('img[src*="/sfc/servlet.shepherd/"]');
+                        for (var i = 0; i < imgs.length; i++) {
+                            (function (img) {
+                                var src = img.getAttribute('src');
+                                var cvId = src.split('/').pop();
+                                if (!cvId || !cvId.startsWith('068')) return;
+                                Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.DocGenSignatureController.getImageBase64}',
+                                    token,
+                                    cvId,
+                                    function (result, event) {
+                                        if (event.status && result && result.base64) {
+                                            img.src = 'data:' + result.mimeType + ';base64,' + result.base64;
+                                        }
+                                    },
+                                    { escape: false, buffer: false }
+                                );
+                            })(imgs[i]);
                         }
-                    },
-                    { escape: false, buffer: false, timeout: 120000 }
-                );
-            } else {
-                document.getElementById('processing-status').textContent = 'Saving signature...';
-                Visualforce.remoting.Manager.invokeAction(
-                    '{!$RemoteAction.DocGenSignatureController.saveLegacySignature}',
-                    token, typedName,
-                    function(saveResult, saveEvent) {
-                        if (!saveEvent.status) { showError('Save failed: ' + (saveEvent.message || 'Unknown error')); return; }
-                        document.getElementById('processing-status').textContent = 'Generating signed PDF...';
-                        callStampAndSave(typedName);
-                    },
-                    { escape: false, buffer: false, timeout: 120000 }
-                );
-            }
-        }
+                    }
 
-        // ===== STAMP AND SAVE (shared) =====
-        function callStampAndSave(typedName) {
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenSignatureController.stampAndReturnSource}',
-                token, typedName,
-                function(result, event) {
-                    if (!event.status) { showError('Processing failed: ' + (event.message || 'Unknown error')); return; }
-                    showState('success');
-                },
-                { escape: false, buffer: false, timeout: 120000 }
-            );
-        }
+                    function updateGuidedUI() {
+                        var total = placements.length;
+                        var signedCount = 0;
+                        for (var i = 0; i < total; i++) {
+                            if (placements[i].status === 'Signed') signedCount++;
+                        }
 
-        // ===== UTILS =====
-        function escHtml(s) {
-            if (!s) return '';
-            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-    })();
-    </script>
-</body>
-</html>
+                        // If all signed, show consent
+                        if (signedCount >= total) {
+                            document.getElementById('guided-action-bar').style.display = 'none';
+                            document.getElementById('guided-consent-bar').style.display = '';
+                            document.getElementById('guided-step-counter').textContent = 'All placements signed';
+                            document.getElementById('guided-progress-bar').style.width = '100%';
+                            return;
+                        }
+
+                        // Update progress
+                        var pct = total > 0 ? Math.round((signedCount / total) * 100) : 0;
+                        document.getElementById('guided-progress-bar').style.width = pct + '%';
+                        document.getElementById('guided-step-counter').textContent =
+                            'Step ' + (signedCount + 1) + ' of ' + total;
+
+                        var current = placements[currentStepIndex];
+                        if (!current) return;
+
+                        // Check for document boundary — show transition if document changed
+                        var maxDocIdx = 0;
+                        for (var d = 0; d < placements.length; d++) {
+                            if ((placements[d].documentIndex || 0) > maxDocIdx) maxDocIdx = placements[d].documentIndex;
+                        }
+                        if (maxDocIdx > 0) {
+                            // Multi-document packet — show document indicator
+                            var docNum = (current.documentIndex || 0) + 1;
+                            var totalDocs = maxDocIdx + 1;
+                            document.getElementById('guided-step-counter').textContent =
+                                'Doc ' + docNum + '/' + totalDocs + ' — Step ' + (signedCount + 1) + ' of ' + total;
+                        }
+
+                        // Update action bar label
+                        var typeLabel = 'SIGN HERE';
+                        var inputPlaceholder = 'Type your full name';
+                        if (current.type === 'Initials') {
+                            typeLabel = 'INITIAL HERE';
+                            inputPlaceholder = 'Type your initials';
+                        } else if (current.type === 'Date') {
+                            typeLabel = 'DATE (AUTO)';
+                        } else if (current.type === 'DatePick') {
+                            typeLabel = 'SELECT DATE';
+                        }
+
+                        document.getElementById('action-step-type').textContent = typeLabel;
+                        document.getElementById('action-step-context').textContent =
+                            current.sectionContext || 'Placement ' + (currentStepIndex + 1);
+
+                        // Update input
+                        var inputContainer = document.getElementById('action-input-container');
+                        var confirmBtn = document.getElementById('btn-confirm-step');
+                        if (current.type === 'Date') {
+                            // Auto date — no input needed, just confirm
+                            inputContainer.innerHTML =
+                                '<span style="font-size:0.9375rem;color:#706e6b;">Date will be auto-filled</span>';
+                            confirmBtn.disabled = false;
+                        } else if (current.type === 'DatePick') {
+                            inputContainer.innerHTML = '<input id="action-input" type="date" class="form-input" />';
+                            document.getElementById('action-input').addEventListener('input', function () {
+                                confirmBtn.disabled = !this.value;
+                            });
+                            confirmBtn.disabled = true;
+                        } else {
+                            var signerName = signerData ? signerData.signerName : '';
+                            var prefill = current.type === 'Initials' ? getInitials(signerName) : signerName;
+                            inputContainer.innerHTML =
+                                '<input id="action-input" type="text" class="form-input' +
+                                (current.type === 'Full' ? ' sig-input-display' : '') +
+                                '" placeholder="' +
+                                inputPlaceholder +
+                                '" value="' +
+                                escHtml(prefill) +
+                                '" />';
+                            document.getElementById('action-input').addEventListener('input', function () {
+                                confirmBtn.disabled = !this.value.trim();
+                            });
+                            document.getElementById('action-input').addEventListener('keydown', function (e) {
+                                if (e.key === 'Enter') handleConfirmStep();
+                            });
+                            confirmBtn.disabled = !prefill;
+                            // Focus the input
+                            setTimeout(function () {
+                                document.getElementById('action-input').focus();
+                            }, 100);
+                        }
+
+                        highlightCurrentPlacement();
+                    }
+
+                    function getInitials(name) {
+                        if (!name) return '';
+                        return name
+                            .split(/\s+/)
+                            .map(function (w) {
+                                return w.charAt(0).toUpperCase();
+                            })
+                            .join('.');
+                    }
+
+                    function highlightCurrentPlacement() {
+                        // Remove all current highlights
+                        var allSpans = document.querySelectorAll('.docgen-sig');
+                        for (var i = 0; i < allSpans.length; i++) {
+                            allSpans[i].classList.remove('current');
+                        }
+
+                        if (currentStepIndex >= placements.length) return;
+                        var current = placements[currentStepIndex];
+
+                        // Find the matching span by data-tag attribute
+                        var spans = document.querySelectorAll('.docgen-sig[data-tag="' + current.tagText + '"]');
+                        // Find the first non-signed span with this tag
+                        for (var j = 0; j < spans.length; j++) {
+                            if (!spans[j].classList.contains('signed')) {
+                                spans[j].classList.add('current');
+                                // Vertical-only smooth scroll — never horizontal. scrollIntoView with
+                                // inline:'nearest' still triggers horizontal scroll on iOS when a
+                                // right-side placement is off-screen, clipping the document's left edge.
+                                // Manual window.scrollTo(top) scrolls only the vertical axis; user
+                                // pans/pinches horizontally themselves.
+                                var r = spans[j].getBoundingClientRect();
+                                var targetTop = window.scrollY + r.top - window.innerHeight / 2 + r.height / 2;
+                                window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+                                break;
+                            }
+                        }
+                    }
+
+                    function applySignedPlacements() {
+                        for (var i = 0; i < placements.length; i++) {
+                            if (placements[i].status === 'Signed') {
+                                markSpanAsSigned(placements[i]);
+                            }
+                        }
+                    }
+
+                    function markSpanAsSigned(placement) {
+                        var spans = document.querySelectorAll('.docgen-sig[data-tag="' + placement.tagText + '"]');
+                        for (var j = 0; j < spans.length; j++) {
+                            if (!spans[j].classList.contains('signed')) {
+                                spans[j].classList.remove('current');
+                                spans[j].classList.add('signed');
+                                spans[j].textContent = placement.signedValue || placement.type;
+                                break;
+                            }
+                        }
+                    }
+
+                    function handleConfirmStep() {
+                        var current = placements[currentStepIndex];
+                        if (!current) return;
+
+                        var value = '';
+                        var inputEl = document.getElementById('action-input');
+                        if (current.type === 'Date') {
+                            value = ''; // Server auto-fills
+                        } else if (inputEl) {
+                            value = inputEl.value.trim();
+                            if (!value && current.type !== 'Date') return;
+                        }
+
+                        var confirmBtn = document.getElementById('btn-confirm-step');
+                        confirmBtn.disabled = true;
+                        confirmBtn.textContent = 'Saving...';
+
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.signPlacement}',
+                            token,
+                            current.id,
+                            value,
+                            function (result, event) {
+                                confirmBtn.textContent = 'Confirm';
+                                if (event.status && result) {
+                                    placements = result;
+                                    // Update the DOM
+                                    var signed = placements[currentStepIndex];
+                                    markSpanAsSigned(signed);
+
+                                    // Advance to next pending
+                                    var found = false;
+                                    for (var i = 0; i < placements.length; i++) {
+                                        if (placements[i].status === 'Pending') {
+                                            currentStepIndex = i;
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!found) {
+                                        currentStepIndex = placements.length; // All done
+                                    }
+                                    updateGuidedUI();
+                                } else {
+                                    confirmBtn.disabled = false;
+                                    alert('Failed to save: ' + (event.message || 'Unknown error'));
+                                }
+                            },
+                            { escape: false, buffer: false, timeout: 30000 }
+                        );
+                    }
+
+                    function handleCompleteSigning() {
+                        var consentGiven = document.getElementById('guided-consent-checkbox').checked;
+                        if (!consentGiven) return;
+
+                        showState('processing');
+                        document.getElementById('processing-status').textContent = 'Saving your signature...';
+
+                        // Use the signer's name from the first Full placement, or from signerData
+                        var typedName = signerData.signerName;
+                        for (var i = 0; i < placements.length; i++) {
+                            if (placements[i].type === 'Full' && placements[i].signedValue) {
+                                typedName = placements[i].signedValue;
+                                break;
+                            }
+                        }
+
+                        var userAgent = navigator.userAgent || 'Unknown';
+
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.saveSignature}',
+                            token,
+                            typedName,
+                            true,
+                            capturedIp,
+                            userAgent,
+                            function (result, event) {
+                                if (!event.status) {
+                                    showError('Save failed: ' + (event.message || 'Unknown error'));
+                                    return;
+                                }
+                                if (result.isComplete) {
+                                    // PDF generation is triggered server-side via platform event (published in saveSignature).
+                                    // No need to call stampAndReturnSource — that would fail in guest context.
+                                    showState('success');
+                                } else {
+                                    document.getElementById('waiting-message').textContent =
+                                        'Your signature has been recorded. Waiting for ' +
+                                        result.remaining +
+                                        ' more signer' +
+                                        (result.remaining > 1 ? 's' : '') +
+                                        ' to complete.';
+                                    showState('waiting');
+                                }
+                            },
+                            { escape: false, buffer: false, timeout: 120000 }
+                        );
+                    }
+
+                    // ===== DECLINE =====
+                    function handleDecline() {
+                        var reason = document.getElementById('decline-reason').value.trim();
+                        var btn = document.getElementById('btn-decline-confirm');
+                        btn.disabled = true;
+                        btn.textContent = 'Declining...';
+
+                        var ua = navigator.userAgent || 'Unknown';
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.declineSignature}',
+                            token,
+                            reason,
+                            capturedIp,
+                            ua,
+                            function (result, event) {
+                                btn.disabled = false;
+                                btn.textContent = 'Confirm Decline';
+                                if (event.status && result && result.success) {
+                                    document.getElementById('error-message').textContent =
+                                        'You have declined this signature request.';
+                                    document.querySelector('.error-card h2').textContent = 'Request Declined';
+                                    document.querySelector('.error-icon').textContent = '\u2716';
+                                    showState('error');
+                                } else {
+                                    alert(result ? result.message : 'Failed to decline. Please try again.');
+                                }
+                            },
+                            { escape: false }
+                        );
+                    }
+
+                    // ===== LEGACY V2 SIGNING (fallback when no placements) =====
+                    function initLegacySignatureScreen(data) {
+                        document.getElementById('doc-title').textContent =
+                            data.documentTitle || 'Confidential Document';
+                        document.getElementById('signer-name').textContent = data.signerName || '';
+                        if (data.roleName) {
+                            var badge = document.getElementById('role-badge');
+                            badge.textContent = data.roleName;
+                            badge.style.display = 'inline-block';
+                        }
+                        isMultiSigner = data.isSignerToken === true;
+                        if (isMultiSigner) {
+                            var progressEl = document.getElementById('progress-info');
+                            progressEl.textContent =
+                                'Signer ' + ((data.signedCount || 0) + 1) + ' of ' + (data.totalSigners || 1);
+                            progressEl.style.display = 'block';
+                        }
+                        showState('signature');
+                        loadLegacyPreview();
+
+                        document.getElementById('doc-preview-toggle').addEventListener('click', function () {
+                            var content = document.getElementById('doc-preview-content');
+                            content.style.display = content.style.display === 'none' ? '' : 'none';
+                        });
+                        var nameInput = document.getElementById('typed-name');
+                        var previewName = document.getElementById('sig-preview-name');
+                        var previewPlaceholder = document.getElementById('sig-preview-placeholder');
+                        nameInput.addEventListener('input', function () {
+                            var val = this.value.trim();
+                            previewName.textContent = val;
+                            previewName.style.display = val ? '' : 'none';
+                            previewPlaceholder.style.display = val ? 'none' : '';
+                            updateLegacySubmitState();
+                        });
+                        document.getElementById('consent-checkbox').addEventListener('change', updateLegacySubmitState);
+                        document.getElementById('btn-submit').addEventListener('click', handleLegacySubmit);
+                    }
+
+                    function updateLegacySubmitState() {
+                        var nameVal = document.getElementById('typed-name').value.trim();
+                        var consentVal = document.getElementById('consent-checkbox').checked;
+                        document.getElementById('btn-submit').disabled = !(nameVal && consentVal);
+                    }
+
+                    function loadLegacyPreview() {
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.fetchDocumentData}',
+                            token,
+                            function (result, event) {
+                                var contentEl = document.getElementById('doc-preview-content');
+                                if (event.status && result && result.templateBase64) {
+                                    contentEl.innerHTML = result.templateBase64;
+                                } else {
+                                    contentEl.innerHTML =
+                                        '<p style="color:#706e6b;text-align:center;">Document preview unavailable.</p>';
+                                }
+                            },
+                            { escape: false, buffer: false, timeout: 60000 }
+                        );
+                    }
+
+                    function handleLegacySubmit() {
+                        var typedName = document.getElementById('typed-name').value.trim();
+                        var consentGiven = document.getElementById('consent-checkbox').checked;
+                        if (!typedName || !consentGiven) return;
+                        showState('processing');
+                        var userAgent = navigator.userAgent || 'Unknown';
+
+                        if (isMultiSigner) {
+                            document.getElementById('processing-status').textContent = 'Saving your signature...';
+                            Visualforce.remoting.Manager.invokeAction(
+                                '{!$RemoteAction.DocGenSignatureController.saveSignature}',
+                                token,
+                                typedName,
+                                consentGiven,
+                                capturedIp,
+                                userAgent,
+                                function (result, event) {
+                                    if (!event.status) {
+                                        showError('Save failed: ' + (event.message || 'Unknown error'));
+                                        return;
+                                    }
+                                    if (result.isComplete) {
+                                        document.getElementById('processing-status').textContent =
+                                            'All signatures collected. Generating final PDF...';
+                                        callStampAndSave(typedName);
+                                    } else {
+                                        document.getElementById('waiting-message').textContent =
+                                            'Your signature has been recorded. Waiting for ' +
+                                            result.remaining +
+                                            ' more signer' +
+                                            (result.remaining > 1 ? 's' : '') +
+                                            ' to complete.';
+                                        showState('waiting');
+                                    }
+                                },
+                                { escape: false, buffer: false, timeout: 120000 }
+                            );
+                        } else {
+                            document.getElementById('processing-status').textContent = 'Saving signature...';
+                            Visualforce.remoting.Manager.invokeAction(
+                                '{!$RemoteAction.DocGenSignatureController.saveLegacySignature}',
+                                token,
+                                typedName,
+                                function (saveResult, saveEvent) {
+                                    if (!saveEvent.status) {
+                                        showError('Save failed: ' + (saveEvent.message || 'Unknown error'));
+                                        return;
+                                    }
+                                    document.getElementById('processing-status').textContent =
+                                        'Generating signed PDF...';
+                                    callStampAndSave(typedName);
+                                },
+                                { escape: false, buffer: false, timeout: 120000 }
+                            );
+                        }
+                    }
+
+                    // ===== STAMP AND SAVE (shared) =====
+                    function callStampAndSave(typedName) {
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenSignatureController.stampAndReturnSource}',
+                            token,
+                            typedName,
+                            function (result, event) {
+                                if (!event.status) {
+                                    showError('Processing failed: ' + (event.message || 'Unknown error'));
+                                    return;
+                                }
+                                showState('success');
+                            },
+                            { escape: false, buffer: false, timeout: 120000 }
+                        );
+                    }
+
+                    // ===== UTILS =====
+                    function escHtml(s) {
+                        if (!s) return '';
+                        return s
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;');
+                    }
+                })();
+            </script>
+        </body>
+    </html>
 </apex:page>

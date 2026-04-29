@@ -49,7 +49,6 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     _pollTimer;
 
-
     // Wire Templates
     _wiredTemplateResult;
     _templateDataMap = {};
@@ -59,10 +58,16 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         this._wiredTemplateResult = result;
         if (result.data) {
             this._templateDataMap = {};
-            this.templates = result.data.map(t => {
+            this.templates = result.data.map((t) => {
                 this._templateDataMap[t.Id] = t;
                 return {
-                    label: t.Name + ' (' + t[BASE_OBJ_FIELD.fieldApiName] + ' \u2022 ' + (t[OUT_FMT_FIELD.fieldApiName] || 'Document') + ')',
+                    label:
+                        t.Name +
+                        ' (' +
+                        t[BASE_OBJ_FIELD.fieldApiName] +
+                        ' \u2022 ' +
+                        (t[OUT_FMT_FIELD.fieldApiName] || 'Document') +
+                        ')',
                     value: t.Id,
                     baseObject: t[BASE_OBJ_FIELD.fieldApiName]
                 };
@@ -104,9 +109,14 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     get analysisItems() {
         if (!this.analysis || !this.analysis.items) return [];
-        return this.analysis.items.map(item => ({
+        return this.analysis.items.map((item) => ({
             ...item,
-            iconName: item.status === 'ok' ? 'utility:success' : item.status === 'warning' ? 'utility:warning' : 'utility:error',
+            iconName:
+                item.status === 'ok'
+                    ? 'utility:success'
+                    : item.status === 'warning'
+                      ? 'utility:warning'
+                      : 'utility:error',
             iconVariant: item.status === 'ok' ? 'success' : item.status === 'warning' ? 'warning' : 'error'
         }));
     }
@@ -132,7 +142,7 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     get filteredTemplates() {
         const term = (this.templateSearchTerm || '').toLowerCase();
         if (!term) return this.templates;
-        return this.templates.filter(t => t.label.toLowerCase().includes(term));
+        return this.templates.filter((t) => t.label.toLowerCase().includes(term));
     }
 
     get canPreview() {
@@ -157,7 +167,7 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         this.selectedTemplateId = templateId;
         this.showTemplateDropdown = false;
 
-        const selected = this.templates.find(t => t.value === templateId);
+        const selected = this.templates.find((t) => t.value === templateId);
         if (selected) {
             this.baseObject = selected.baseObject;
             this.selectedTemplateName = selected.label;
@@ -197,7 +207,7 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
             this.showToast('Success', 'Sample PDF downloaded', 'success');
         } catch (error) {
-            const msg = error.body ? error.body.message : (error.message || 'Could not generate preview.');
+            const msg = error.body ? error.body.message : error.message || 'Could not generate preview.';
             this.showToast('Preview Error', msg, 'error');
         } finally {
             this.isGeneratingPreview = false;
@@ -214,8 +224,8 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     loadRecentJobs() {
         getRecentJobs()
-            .then(data => {
-                this.recentJobs = data.map(j => ({
+            .then((data) => {
+                this.recentJobs = data.map((j) => ({
                     id: j.Id,
                     name: j.Name,
                     label: j[JOB_LABEL_FIELD.fieldApiName] || '',
@@ -226,7 +236,9 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
                     error: j[JOB_ERROR_FIELD.fieldApiName] || 0,
                     total: j[JOB_TOTAL_FIELD.fieldApiName] || 0,
                     date: new Date(j.CreatedDate).toLocaleDateString(),
-                    isRunning: !['Completed', 'Failed', 'Completed with Errors'].includes(j[JOB_STATUS_FIELD.fieldApiName]),
+                    isRunning: !['Completed', 'Failed', 'Completed with Errors'].includes(
+                        j[JOB_STATUS_FIELD.fieldApiName]
+                    ),
                     displayName: j[JOB_LABEL_FIELD.fieldApiName] || (j.Template__r ? j.Template__r.Name : j.Name)
                 }));
             })
@@ -247,7 +259,7 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     handleBatchSizeChange(event) {
         const val = parseInt(event.target.value, 10);
-        this.batchSize = (val >= 1 && val <= 200) ? val : 1;
+        this.batchSize = val >= 1 && val <= 200 ? val : 1;
         if (this.filterValidated) this.runAnalysis();
     }
 
@@ -261,7 +273,9 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     handleOutputModeChange(event) {
         this.outputMode = event.detail.value;
-        if (this.filterValidated) { this.runAnalysis(); }
+        if (this.filterValidated) {
+            this.runAnalysis();
+        }
     }
 
     get mergePdf() {
@@ -279,10 +293,11 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     get filteredRecentJobs() {
         if (!this.jobSearchTerm) return this.recentJobs;
         const term = this.jobSearchTerm.toLowerCase();
-        return this.recentJobs.filter(j =>
-            j.displayName.toLowerCase().includes(term) ||
-            j.templateName.toLowerCase().includes(term) ||
-            j.status.toLowerCase().includes(term)
+        return this.recentJobs.filter(
+            (j) =>
+                j.displayName.toLowerCase().includes(term) ||
+                j.templateName.toLowerCase().includes(term) ||
+                j.status.toLowerCase().includes(term)
         );
     }
 
@@ -301,7 +316,7 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     handleTemplateChange(event) {
         this.selectedTemplateId = event.detail.value;
-        const selected = this.templates.find(t => t.value === this.selectedTemplateId);
+        const selected = this.templates.find((t) => t.value === this.selectedTemplateId);
         if (selected) {
             this.baseObject = selected.baseObject;
             this.recordCount = null;
@@ -314,11 +329,10 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
 
     loadSavedQueries() {
         getSavedQueries({ templateId: this.selectedTemplateId })
-            .then(data => {
+            .then((data) => {
                 this.savedQueries = data;
             })
-            .catch(() => {
-            });
+            .catch(() => {});
     }
 
     /**
@@ -336,7 +350,7 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         this.condition = autoFilter;
         this.showToast('Filter Applied', 'Report filter loaded.', 'info');
 
-        const existingMatch = this.savedQueries.find(q => q.Query_Condition__c === autoFilter);
+        const existingMatch = this.savedQueries.find((q) => q.Query_Condition__c === autoFilter);
         if (!existingMatch) {
             // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
             saveQuery({
@@ -344,13 +358,15 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
                 label: 'From Report',
                 description: 'Auto-saved from report import',
                 condition: autoFilter
-            }).then(() => this.loadSavedQueries()).catch(() => {});
+            })
+                .then(() => this.loadSavedQueries())
+                .catch(() => {});
         }
     }
 
     handleLoadQuery(event) {
         const queryId = event.target.dataset.id;
-        const query = this.savedQueries.find(q => q.Id === queryId);
+        const query = this.savedQueries.find((q) => q.Id === queryId);
         if (query) {
             this.condition = query.Query_Condition__c;
             this.recordCount = null;
@@ -390,8 +406,12 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         this.isSaveModalOpen = false;
     }
 
-    handleNewQueryNameChange(event) { this.newQueryName = event.target.value; }
-    handleNewQueryDescChange(event) { this.newQueryDesc = event.target.value; }
+    handleNewQueryNameChange(event) {
+        this.newQueryName = event.target.value;
+    }
+    handleNewQueryDescChange(event) {
+        this.newQueryDesc = event.target.value;
+    }
 
     // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
     handleSaveQuery() {
@@ -407,14 +427,14 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
             description: this.newQueryDesc,
             condition: this.condition
         })
-        .then(() => {
-            this.showToast('Success', 'Query saved.', 'success');
-            this.isSaveModalOpen = false;
-            this.loadSavedQueries();
-        })
-        .catch(error => {
-            this.showToast('Error', error.body.message, 'error');
-        });
+            .then(() => {
+                this.showToast('Success', 'Query saved.', 'success');
+                this.isSaveModalOpen = false;
+                this.loadSavedQueries();
+            })
+            .catch((error) => {
+                this.showToast('Error', error.body.message, 'error');
+            });
     }
 
     handleConditionChange(event) {
@@ -506,8 +526,13 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
             if (TERMINAL_STATUSES.includes(this.jobStatus)) {
                 this.stopPolling();
                 this.isProcessing = false;
-                const variant = this.jobStatus === 'Completed' ? 'success' : (this.jobStatus === 'Failed' ? 'error' : 'warning');
-                this.showToast('Job Finished', `Status: ${this.jobStatus} — ${this.jobProgress.success} succeeded, ${this.jobProgress.error} failed`, variant);
+                const variant =
+                    this.jobStatus === 'Completed' ? 'success' : this.jobStatus === 'Failed' ? 'error' : 'warning';
+                this.showToast(
+                    'Job Finished',
+                    `Status: ${this.jobStatus} — ${this.jobProgress.success} succeeded, ${this.jobProgress.error} failed`,
+                    variant
+                );
                 this.loadRecentJobs();
             }
         } catch {
@@ -520,13 +545,16 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         this.stopPolling();
         // Archive completed job info
         if (this.jobId && this.jobStatus) {
-            this.completedJobs = [{
-                id: this.jobId,
-                status: this.jobStatus,
-                success: this.jobProgress.success || 0,
-                error: this.jobProgress.error || 0,
-                total: this.jobProgress.total || 0
-            }, ...this.completedJobs].slice(0, 5); // Keep last 5
+            this.completedJobs = [
+                {
+                    id: this.jobId,
+                    status: this.jobStatus,
+                    success: this.jobProgress.success || 0,
+                    error: this.jobProgress.error || 0,
+                    total: this.jobProgress.total || 0
+                },
+                ...this.completedJobs
+            ].slice(0, 5); // Keep last 5
         }
         this.jobId = null;
         this.jobStatus = null;
@@ -554,6 +582,11 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     }
 
     get isRunDisabled() {
-        return !this.selectedTemplateId || this.isProcessing || !this.filterValidated || (this.analysis && !this.analysis.canProceed);
+        return (
+            !this.selectedTemplateId ||
+            this.isProcessing ||
+            !this.filterValidated ||
+            (this.analysis && !this.analysis.canProceed)
+        );
     }
 }

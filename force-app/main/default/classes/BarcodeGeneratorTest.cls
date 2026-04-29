@@ -1,6 +1,5 @@
 @IsTest
 private class BarcodeGeneratorTest {
-
     @IsTest
     static void testGetPatternCode128() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
@@ -21,9 +20,21 @@ private class BarcodeGeneratorTest {
     static void testGetPatternNullAndBlank() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            System.assertEquals(null, BarcodeGenerator.getPattern(null, 'code128'), 'Null input should return null pattern');
-            System.assertEquals(null, BarcodeGenerator.getPattern('', 'code128'), 'Blank input should return null pattern');
-            System.assertEquals(null, BarcodeGenerator.getPattern('test', 'unsupported'), 'Unsupported type should return null pattern');
+            System.assertEquals(
+                null,
+                BarcodeGenerator.getPattern(null, 'code128'),
+                'Null input should return null pattern'
+            );
+            System.assertEquals(
+                null,
+                BarcodeGenerator.getPattern('', 'code128'),
+                'Blank input should return null pattern'
+            );
+            System.assertEquals(
+                null,
+                BarcodeGenerator.getPattern('test', 'unsupported'),
+                'Unsupported type should return null pattern'
+            );
         }
     }
 
@@ -113,7 +124,9 @@ private class BarcodeGeneratorTest {
         System.runAs(u) {
             // Standard text field max — should fit in version 14 or below
             String longText = '';
-                        for (Integer i = 0; i < 255; i++) { longText += 'A'; }
+            for (Integer i = 0; i < 255; i++) {
+                longText += 'A';
+            }
             String qr = BarcodeGenerator.getPattern(longText, 'qr');
             System.assertNotEquals(null, qr, '255 chars should fit in QR');
         }
@@ -123,8 +136,16 @@ private class BarcodeGeneratorTest {
     static void testQrNullAndBlank() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            System.assertEquals(null, BarcodeGenerator.getPattern(null, 'qr'), 'Null input should return null QR pattern');
-            System.assertEquals(null, BarcodeGenerator.getPattern('', 'qr'), 'Blank input should return null QR pattern');
+            System.assertEquals(
+                null,
+                BarcodeGenerator.getPattern(null, 'qr'),
+                'Null input should return null QR pattern'
+            );
+            System.assertEquals(
+                null,
+                BarcodeGenerator.getPattern('', 'qr'),
+                'Blank input should return null QR pattern'
+            );
         }
     }
 

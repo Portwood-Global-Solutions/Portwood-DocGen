@@ -1,293 +1,456 @@
 <!-- CxSAST: without sharing required for guest user signing context; access gated by cryptographic token -->
-<apex:page controller="DocGenAuthenticatorController" showHeader="false" sidebar="false"
-           standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false" docType="html-5.0">
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document Authenticator</title>
-    <apex:slds />
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            background: #f3f2f2;
-            font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; padding: 0; color: #181818;
-        }
-        .page-wrapper {
-            min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;
-        }
-        .verify-card {
-            max-width: 640px; width: 100%; background: #fff; border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 2rem;
-        }
-        .verify-card h2 { font-size: 1.25rem; font-weight: 700; margin: 0 0 0.5rem 0; text-align: center; }
-        .verify-card .subtitle { font-size: 0.8125rem; color: #706e6b; text-align: center; margin-bottom: 1.5rem; }
-
-        .signer-card {
-            border: 1px solid #dddbda; border-radius: 6px; padding: 1rem; margin-bottom: 0.75rem; background: #fafafa;
-        }
-        .signer-card .row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-        .signer-card .col { flex: 1 1 45%; min-width: 200px; margin-bottom: 0.5rem; }
-        .signer-card .col strong { display: block; font-size: 0.6875rem; color: #706e6b; text-transform: uppercase; margin-bottom: 2px; }
-        .signer-card .col span { font-size: 0.8125rem; }
-        .badge { display: inline-block; background: #0176d3; color: #fff; font-size: 0.6875rem; font-weight: 700; padding: 1px 8px; border-radius: 10px; margin-left: 4px; }
-        .hash-row { font-size: 0.6875rem; color: #706e6b; word-break: break-all; margin-top: 4px; }
-        .check { color: #2e844a; }
-
-        .success-banner { background: #e8f5e1; border: 1px solid #2e844a; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem; text-align: center; }
-        .success-banner h3 { color: #2e844a; margin: 0 0 0.25rem 0; font-size: 1rem; }
-        .error-banner { background: #fef0ef; border: 1px solid #ea001e; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; text-align: center; }
-        .error-banner h3 { color: #ea001e; margin: 0 0 0.25rem 0; }
-
-        .drop-zone {
-            border: 2px dashed #0176d3; border-radius: 8px; padding: 1.5rem; text-align: center;
-            cursor: pointer; position: relative; margin-top: 1.5rem; background: #f8fafc;
-        }
-        .drop-zone:hover { background: #eef4fb; }
-        .drop-zone input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .drop-zone p { color: #706e6b; font-size: 0.8125rem; margin: 0; }
-
-        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #dddbda; border-top-color: #0176d3; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
-</head>
-<body>
-<div class="page-wrapper">
-    <div class="verify-card">
-        <h2>&#128737; Document Authenticator</h2>
-        <p class="subtitle">Verify the authenticity of an electronically signed document.</p>
-
-        <div id="request-results"></div>
-        <div id="file-result"></div>
-
-        <div class="drop-zone" id="drop-zone">
-            <p>Drag and drop a signed PDF here, or click to browse.</p>
-            <p style="font-size:0.6875rem;color:#b0adab;margin-top:4px;">The file never leaves your browser. Only the hash is verified.</p>
-            <input type="file" accept=".pdf" id="file-input" />
-        </div>
-
-        <div id="processing" style="display:none;text-align:center;margin-top:1rem;">
-            <div class="spinner"></div>
-            <span style="margin-left:8px;font-size:0.8125rem;">Computing SHA-256 hash...</span>
-        </div>
-    </div>
-</div>
-
-<script>
-(function() {
-    // DOM helper — creates an element with optional className, style, and text content
-    function el(tag, opts) {
-        var node = document.createElement(tag);
-        if (opts) {
-            if (opts.className) node.className = opts.className;
-            if (opts.style) node.setAttribute('style', opts.style);
-            if (opts.text) node.textContent = opts.text;
-        }
-        return node;
-    }
-
-    // Clears all children of a container (safe alternative to innerHTML = '')
-    function clearNode(node) {
-        while (node.firstChild) { node.removeChild(node.firstChild); }
-    }
-
-    // Creates a column element: <div class="col"><strong>label</strong><span>value</span></div>
-    function colEl(label, value) {
-        var col = el('div', { className: 'col' });
-        col.appendChild(el('strong', { text: label }));
-        col.appendChild(el('span', { text: value || '' }));
-        return col;
-    }
-
-    // Creates a column with a checkmark prefix
-    function colElCheck(label, value) {
-        var col = el('div', { className: 'col' });
-        col.appendChild(el('strong', { text: label }));
-        var span = el('span');
-        var check = el('span', { className: 'check', text: '\u2713 ' });
-        span.appendChild(check);
-        span.appendChild(document.createTextNode(value));
-        col.appendChild(span);
-        return col;
-    }
-
-    // Creates a signer name column, optionally with a badge
-    function signerColEl(name, roleName) {
-        var col = el('div', { className: 'col' });
-        col.appendChild(el('strong', { text: 'Signer' }));
-        var span = el('span');
-        span.appendChild(document.createTextNode(name || ''));
-        if (roleName) {
-            span.appendChild(document.createTextNode(' '));
-            span.appendChild(el('span', { className: 'badge', text: roleName }));
-        }
-        col.appendChild(span);
-        return col;
-    }
-
-    // Creates a success banner element
-    function successBanner(title, subtitle) {
-        var banner = el('div', { className: 'success-banner' });
-        banner.appendChild(el('h3', { text: '\u2713 ' + title }));
-        if (subtitle) {
-            banner.appendChild(el('p', { style: 'font-size:0.8125rem;color:#2e844a;', text: subtitle }));
-        }
-        return banner;
-    }
-
-    // Creates an error banner element
-    function errorBanner(title, message) {
-        var banner = el('div', { className: 'error-banner' });
-        banner.appendChild(el('h3', { text: title }));
-        if (message) {
-            banner.appendChild(el('p', { style: 'font-size:0.8125rem;', text: message }));
-        }
-        return banner;
-    }
-
-    function formatDate(d) {
-        if (!d) return 'N/A';
-        try {
-            return new Date(d).toLocaleString(undefined, {
-                year: 'numeric', month: 'short', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                timeZoneName: 'short'
-            });
-        } catch(e) { return String(d); }
-    }
-
-    // Check for request ID in URL
-    var params = new URLSearchParams(window.location.search);
-    var reqId = params.get('id');
-
-    // CxSAST: DOM XSS mitigation — validate ID matches Salesforce ID pattern before use
-    if (reqId && /^[a-zA-Z0-9]{15,18}$/.test(reqId)) {
-        Visualforce.remoting.Manager.invokeAction(
-            '{!$RemoteAction.DocGenAuthenticatorController.verifyByRequestId}',
-            reqId,
-            function(results, event) {
-                var container = document.getElementById('request-results');
-                clearNode(container);
-                if (event.status && results && results.length > 0) {
-                    container.appendChild(successBanner(
-                        'Signature Certificate Verified',
-                        'The following signatures were recorded for this document.'
-                    ));
-
-                    for (var i = 0; i < results.length; i++) {
-                        var s = results[i];
-                        var card = el('div', { className: 'signer-card' });
-                        var row = el('div', { className: 'row' });
-
-                        row.appendChild(signerColEl(s.signerName || '', s.roleName));
-                        row.appendChild(colEl('Email', s.signerEmail || ''));
-                        row.appendChild(colEl('Signed', formatDate(s.signedDate)));
-
-                        // Email Verified
-                        if (s.pinVerifiedAt) {
-                            row.appendChild(colElCheck('Email Verified', formatDate(s.pinVerifiedAt)));
-                        } else {
-                            row.appendChild(colEl('Email Verified', 'N/A'));
-                        }
-
-                        // Consent
-                        if (s.consentCaptured) {
-                            row.appendChild(colElCheck('Consent', 'Granted'));
-                        } else {
-                            row.appendChild(colEl('Consent', 'Not recorded'));
-                        }
-
-                        row.appendChild(colEl('IP Address', s.ipAddress || 'Unknown'));
-                        card.appendChild(row);
-
-                        if (s.documentHash) {
-                            var hashRow = el('div', { className: 'hash-row' });
-                            hashRow.appendChild(el('strong', { text: 'SHA-256: ' }));
-                            hashRow.appendChild(document.createTextNode(s.documentHash));
-                            card.appendChild(hashRow);
-                        }
-                        container.appendChild(card);
-                    }
-                } else {
-                    container.appendChild(errorBanner('No signatures found', 'No audit records found for this document ID.'));
+<apex:page
+    controller="DocGenAuthenticatorController"
+    showHeader="false"
+    sidebar="false"
+    standardStylesheets="false"
+    applyBodyTag="false"
+    applyHtmlTag="false"
+    docType="html-5.0"
+>
+    <html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Document Authenticator</title>
+            <apex:slds />
+            <style>
+                * {
+                    box-sizing: border-box;
                 }
-            },
-            { escape: false }
-        );
-    }
+                body {
+                    background: #f3f2f2;
+                    font-family:
+                        'Salesforce Sans',
+                        -apple-system,
+                        BlinkMacSystemFont,
+                        'Segoe UI',
+                        Roboto,
+                        sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    color: #181818;
+                }
+                .page-wrapper {
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                }
+                .verify-card {
+                    max-width: 640px;
+                    width: 100%;
+                    background: #fff;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                    padding: 2rem;
+                }
+                .verify-card h2 {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    margin: 0 0 0.5rem 0;
+                    text-align: center;
+                }
+                .verify-card .subtitle {
+                    font-size: 0.8125rem;
+                    color: #706e6b;
+                    text-align: center;
+                    margin-bottom: 1.5rem;
+                }
 
-    // File upload verification
-    var dropZone = document.getElementById('drop-zone');
-    var fileInput = document.getElementById('file-input');
+                .signer-card {
+                    border: 1px solid #dddbda;
+                    border-radius: 6px;
+                    padding: 1rem;
+                    margin-bottom: 0.75rem;
+                    background: #fafafa;
+                }
+                .signer-card .row {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+                .signer-card .col {
+                    flex: 1 1 45%;
+                    min-width: 200px;
+                    margin-bottom: 0.5rem;
+                }
+                .signer-card .col strong {
+                    display: block;
+                    font-size: 0.6875rem;
+                    color: #706e6b;
+                    text-transform: uppercase;
+                    margin-bottom: 2px;
+                }
+                .signer-card .col span {
+                    font-size: 0.8125rem;
+                }
+                .badge {
+                    display: inline-block;
+                    background: #0176d3;
+                    color: #fff;
+                    font-size: 0.6875rem;
+                    font-weight: 700;
+                    padding: 1px 8px;
+                    border-radius: 10px;
+                    margin-left: 4px;
+                }
+                .hash-row {
+                    font-size: 0.6875rem;
+                    color: #706e6b;
+                    word-break: break-all;
+                    margin-top: 4px;
+                }
+                .check {
+                    color: #2e844a;
+                }
 
-    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); });
-    dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        if (e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
-    });
-    fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) processFile(e.target.files[0]);
-    });
+                .success-banner {
+                    background: #e8f5e1;
+                    border: 1px solid #2e844a;
+                    border-radius: 6px;
+                    padding: 1rem;
+                    margin-bottom: 1.5rem;
+                    text-align: center;
+                }
+                .success-banner h3 {
+                    color: #2e844a;
+                    margin: 0 0 0.25rem 0;
+                    font-size: 1rem;
+                }
+                .error-banner {
+                    background: #fef0ef;
+                    border: 1px solid #ea001e;
+                    border-radius: 6px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                    text-align: center;
+                }
+                .error-banner h3 {
+                    color: #ea001e;
+                    margin: 0 0 0.25rem 0;
+                }
 
-    function processFile(file) {
-        clearNode(document.getElementById('file-result'));
-        document.getElementById('processing').style.display = '';
+                .drop-zone {
+                    border: 2px dashed #0176d3;
+                    border-radius: 8px;
+                    padding: 1.5rem;
+                    text-align: center;
+                    cursor: pointer;
+                    position: relative;
+                    margin-top: 1.5rem;
+                    background: #f8fafc;
+                }
+                .drop-zone:hover {
+                    background: #eef4fb;
+                }
+                .drop-zone input {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    opacity: 0;
+                    cursor: pointer;
+                }
+                .drop-zone p {
+                    color: #706e6b;
+                    font-size: 0.8125rem;
+                    margin: 0;
+                }
 
-        file.arrayBuffer().then(function(buffer) {
-            return crypto.subtle.digest('SHA-256', buffer);
-        }).then(function(hashBuffer) {
-            var hashArray = Array.from(new Uint8Array(hashBuffer));
-            var hashHex = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-
-            Visualforce.remoting.Manager.invokeAction(
-                '{!$RemoteAction.DocGenAuthenticatorController.verifyDocument}',
-                hashHex,
-                function(result, event) {
-                    document.getElementById('processing').style.display = 'none';
-                    var container = document.getElementById('file-result');
-                    clearNode(container);
-                    if (event.status && result && result.isValid) {
-                        var banner = el('div', { className: 'success-banner', style: 'margin-top:1rem;' });
-                        banner.appendChild(el('h3', { text: '\u2713 ' + (result.message || '') }));
-                        container.appendChild(banner);
-
-                        var card = el('div', { className: 'signer-card' });
-                        var row = el('div', { className: 'row' });
-                        row.appendChild(colEl('Signer', result.signerName));
-                        row.appendChild(colEl('Email', result.signerEmail));
-                        row.appendChild(colEl('Signed', formatDate(result.signedDate)));
-                        row.appendChild(colEl('IP Address', result.ipAddress));
-                        card.appendChild(row);
-
-                        if (result.documentHash) {
-                            var hashRow = el('div', { className: 'hash-row' });
-                            hashRow.appendChild(el('strong', { text: 'SHA-256: ' }));
-                            hashRow.appendChild(document.createTextNode(result.documentHash));
-                            card.appendChild(hashRow);
-                        }
-                        container.appendChild(card);
-                    } else {
-                        var errBanner = el('div', { className: 'error-banner', style: 'margin-top:1rem;' });
-                        errBanner.appendChild(el('h3', { text: '\u26A0 Verification Failed' }));
-                        errBanner.appendChild(el('p', { style: 'font-size:0.8125rem;', text: result ? result.message : 'Unknown error' }));
-                        container.appendChild(errBanner);
+                .spinner {
+                    display: inline-block;
+                    width: 20px;
+                    height: 20px;
+                    border: 3px solid #dddbda;
+                    border-top-color: #0176d3;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin {
+                    to {
+                        transform: rotate(360deg);
                     }
-                },
-                { escape: false }
-            );
-        }).catch(function(err) {
-            document.getElementById('processing').style.display = 'none';
-            var container = document.getElementById('file-result');
-            clearNode(container);
-            var errBanner = el('div', { className: 'error-banner', style: 'margin-top:1rem;' });
-            errBanner.appendChild(el('h3', { text: 'Error' }));
-            errBanner.appendChild(el('p', { text: err.message || 'Unknown error' }));
-            container.appendChild(errBanner);
-        });
-    }
-})();
-</script>
-</body>
-</html>
+                }
+            </style>
+        </head>
+        <body>
+            <div class="page-wrapper">
+                <div class="verify-card">
+                    <h2>&#128737; Document Authenticator</h2>
+                    <p class="subtitle">Verify the authenticity of an electronically signed document.</p>
+
+                    <div id="request-results"></div>
+                    <div id="file-result"></div>
+
+                    <div class="drop-zone" id="drop-zone">
+                        <p>Drag and drop a signed PDF here, or click to browse.</p>
+                        <p style="font-size: 0.6875rem; color: #b0adab; margin-top: 4px">
+                            The file never leaves your browser. Only the hash is verified.
+                        </p>
+                        <input type="file" accept=".pdf" id="file-input" />
+                    </div>
+
+                    <div id="processing" style="display: none; text-align: center; margin-top: 1rem">
+                        <div class="spinner"></div>
+                        <span style="margin-left: 8px; font-size: 0.8125rem">Computing SHA-256 hash...</span>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                (function () {
+                    // DOM helper — creates an element with optional className, style, and text content
+                    function el(tag, opts) {
+                        var node = document.createElement(tag);
+                        if (opts) {
+                            if (opts.className) node.className = opts.className;
+                            if (opts.style) node.setAttribute('style', opts.style);
+                            if (opts.text) node.textContent = opts.text;
+                        }
+                        return node;
+                    }
+
+                    // Clears all children of a container (safe alternative to innerHTML = '')
+                    function clearNode(node) {
+                        while (node.firstChild) {
+                            node.removeChild(node.firstChild);
+                        }
+                    }
+
+                    // Creates a column element: <div class="col"><strong>label</strong><span>value</span></div>
+                    function colEl(label, value) {
+                        var col = el('div', { className: 'col' });
+                        col.appendChild(el('strong', { text: label }));
+                        col.appendChild(el('span', { text: value || '' }));
+                        return col;
+                    }
+
+                    // Creates a column with a checkmark prefix
+                    function colElCheck(label, value) {
+                        var col = el('div', { className: 'col' });
+                        col.appendChild(el('strong', { text: label }));
+                        var span = el('span');
+                        var check = el('span', { className: 'check', text: '\u2713 ' });
+                        span.appendChild(check);
+                        span.appendChild(document.createTextNode(value));
+                        col.appendChild(span);
+                        return col;
+                    }
+
+                    // Creates a signer name column, optionally with a badge
+                    function signerColEl(name, roleName) {
+                        var col = el('div', { className: 'col' });
+                        col.appendChild(el('strong', { text: 'Signer' }));
+                        var span = el('span');
+                        span.appendChild(document.createTextNode(name || ''));
+                        if (roleName) {
+                            span.appendChild(document.createTextNode(' '));
+                            span.appendChild(el('span', { className: 'badge', text: roleName }));
+                        }
+                        col.appendChild(span);
+                        return col;
+                    }
+
+                    // Creates a success banner element
+                    function successBanner(title, subtitle) {
+                        var banner = el('div', { className: 'success-banner' });
+                        banner.appendChild(el('h3', { text: '\u2713 ' + title }));
+                        if (subtitle) {
+                            banner.appendChild(
+                                el('p', { style: 'font-size:0.8125rem;color:#2e844a;', text: subtitle })
+                            );
+                        }
+                        return banner;
+                    }
+
+                    // Creates an error banner element
+                    function errorBanner(title, message) {
+                        var banner = el('div', { className: 'error-banner' });
+                        banner.appendChild(el('h3', { text: title }));
+                        if (message) {
+                            banner.appendChild(el('p', { style: 'font-size:0.8125rem;', text: message }));
+                        }
+                        return banner;
+                    }
+
+                    function formatDate(d) {
+                        if (!d) return 'N/A';
+                        try {
+                            return new Date(d).toLocaleString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                timeZoneName: 'short'
+                            });
+                        } catch (e) {
+                            return String(d);
+                        }
+                    }
+
+                    // Check for request ID in URL
+                    var params = new URLSearchParams(window.location.search);
+                    var reqId = params.get('id');
+
+                    // CxSAST: DOM XSS mitigation — validate ID matches Salesforce ID pattern before use
+                    if (reqId && /^[a-zA-Z0-9]{15,18}$/.test(reqId)) {
+                        Visualforce.remoting.Manager.invokeAction(
+                            '{!$RemoteAction.DocGenAuthenticatorController.verifyByRequestId}',
+                            reqId,
+                            function (results, event) {
+                                var container = document.getElementById('request-results');
+                                clearNode(container);
+                                if (event.status && results && results.length > 0) {
+                                    container.appendChild(
+                                        successBanner(
+                                            'Signature Certificate Verified',
+                                            'The following signatures were recorded for this document.'
+                                        )
+                                    );
+
+                                    for (var i = 0; i < results.length; i++) {
+                                        var s = results[i];
+                                        var card = el('div', { className: 'signer-card' });
+                                        var row = el('div', { className: 'row' });
+
+                                        row.appendChild(signerColEl(s.signerName || '', s.roleName));
+                                        row.appendChild(colEl('Email', s.signerEmail || ''));
+                                        row.appendChild(colEl('Signed', formatDate(s.signedDate)));
+
+                                        // Email Verified
+                                        if (s.pinVerifiedAt) {
+                                            row.appendChild(colElCheck('Email Verified', formatDate(s.pinVerifiedAt)));
+                                        } else {
+                                            row.appendChild(colEl('Email Verified', 'N/A'));
+                                        }
+
+                                        // Consent
+                                        if (s.consentCaptured) {
+                                            row.appendChild(colElCheck('Consent', 'Granted'));
+                                        } else {
+                                            row.appendChild(colEl('Consent', 'Not recorded'));
+                                        }
+
+                                        row.appendChild(colEl('IP Address', s.ipAddress || 'Unknown'));
+                                        card.appendChild(row);
+
+                                        if (s.documentHash) {
+                                            var hashRow = el('div', { className: 'hash-row' });
+                                            hashRow.appendChild(el('strong', { text: 'SHA-256: ' }));
+                                            hashRow.appendChild(document.createTextNode(s.documentHash));
+                                            card.appendChild(hashRow);
+                                        }
+                                        container.appendChild(card);
+                                    }
+                                } else {
+                                    container.appendChild(
+                                        errorBanner(
+                                            'No signatures found',
+                                            'No audit records found for this document ID.'
+                                        )
+                                    );
+                                }
+                            },
+                            { escape: false }
+                        );
+                    }
+
+                    // File upload verification
+                    var dropZone = document.getElementById('drop-zone');
+                    var fileInput = document.getElementById('file-input');
+
+                    dropZone.addEventListener('dragover', function (e) {
+                        e.preventDefault();
+                    });
+                    dropZone.addEventListener('drop', function (e) {
+                        e.preventDefault();
+                        if (e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
+                    });
+                    fileInput.addEventListener('change', function (e) {
+                        if (e.target.files.length > 0) processFile(e.target.files[0]);
+                    });
+
+                    function processFile(file) {
+                        clearNode(document.getElementById('file-result'));
+                        document.getElementById('processing').style.display = '';
+
+                        file.arrayBuffer()
+                            .then(function (buffer) {
+                                return crypto.subtle.digest('SHA-256', buffer);
+                            })
+                            .then(function (hashBuffer) {
+                                var hashArray = Array.from(new Uint8Array(hashBuffer));
+                                var hashHex = hashArray
+                                    .map(function (b) {
+                                        return b.toString(16).padStart(2, '0');
+                                    })
+                                    .join('');
+
+                                Visualforce.remoting.Manager.invokeAction(
+                                    '{!$RemoteAction.DocGenAuthenticatorController.verifyDocument}',
+                                    hashHex,
+                                    function (result, event) {
+                                        document.getElementById('processing').style.display = 'none';
+                                        var container = document.getElementById('file-result');
+                                        clearNode(container);
+                                        if (event.status && result && result.isValid) {
+                                            var banner = el('div', {
+                                                className: 'success-banner',
+                                                style: 'margin-top:1rem;'
+                                            });
+                                            banner.appendChild(el('h3', { text: '\u2713 ' + (result.message || '') }));
+                                            container.appendChild(banner);
+
+                                            var card = el('div', { className: 'signer-card' });
+                                            var row = el('div', { className: 'row' });
+                                            row.appendChild(colEl('Signer', result.signerName));
+                                            row.appendChild(colEl('Email', result.signerEmail));
+                                            row.appendChild(colEl('Signed', formatDate(result.signedDate)));
+                                            row.appendChild(colEl('IP Address', result.ipAddress));
+                                            card.appendChild(row);
+
+                                            if (result.documentHash) {
+                                                var hashRow = el('div', { className: 'hash-row' });
+                                                hashRow.appendChild(el('strong', { text: 'SHA-256: ' }));
+                                                hashRow.appendChild(document.createTextNode(result.documentHash));
+                                                card.appendChild(hashRow);
+                                            }
+                                            container.appendChild(card);
+                                        } else {
+                                            var errBanner = el('div', {
+                                                className: 'error-banner',
+                                                style: 'margin-top:1rem;'
+                                            });
+                                            errBanner.appendChild(el('h3', { text: '\u26A0 Verification Failed' }));
+                                            errBanner.appendChild(
+                                                el('p', {
+                                                    style: 'font-size:0.8125rem;',
+                                                    text: result ? result.message : 'Unknown error'
+                                                })
+                                            );
+                                            container.appendChild(errBanner);
+                                        }
+                                    },
+                                    { escape: false }
+                                );
+                            })
+                            .catch(function (err) {
+                                document.getElementById('processing').style.display = 'none';
+                                var container = document.getElementById('file-result');
+                                clearNode(container);
+                                var errBanner = el('div', { className: 'error-banner', style: 'margin-top:1rem;' });
+                                errBanner.appendChild(el('h3', { text: 'Error' }));
+                                errBanner.appendChild(el('p', { text: err.message || 'Unknown error' }));
+                                container.appendChild(errBanner);
+                            });
+                    }
+                })();
+            </script>
+        </body>
+    </html>
 </apex:page>

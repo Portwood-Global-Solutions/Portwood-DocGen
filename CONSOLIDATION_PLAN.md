@@ -1,6 +1,6 @@
 # DocGen Consolidation Plan — Session N+1
 
-**Goal:** Reduce the engine from five sprawling subsystems into one path per feature. Delete more lines than we add. Coverage reaches 90%+ as a *side effect* of having less code to test, not as the goal.
+**Goal:** Reduce the engine from five sprawling subsystems into one path per feature. Delete more lines than we add. Coverage reaches 90%+ as a _side effect_ of having less code to test, not as the goal.
 
 **Non-goal:** Adding features. Adding abstractions. Rewriting anything.
 
@@ -10,13 +10,14 @@
 
 ## 🛑 FEATURE PRESERVATION GUARANTEE — RULE ZERO
 
-**Every single customer-facing feature that works today must still work after this session.** Consolidation is about deleting *duplicate implementations*, not deleting *capabilities*.
+**Every single customer-facing feature that works today must still work after this session.** Consolidation is about deleting _duplicate implementations_, not deleting _capabilities_.
 
 Before starting ANY item, ask: "If I complete this, is there a user flow that stops working?" If the answer is yes — or even "maybe" — STOP. Either the consolidation approach is wrong, or a migration path is needed before deletion.
 
 ### Feature inventory — must all work after consolidation
 
 **Document generation:**
+
 - [ ] Generate PDF from template (all merge tag types)
 - [ ] Generate DOCX from template (images preserved, fonts preserved)
 - [ ] Generate PPTX from template
@@ -32,6 +33,7 @@ Before starting ANY item, ask: "If I complete this, is there a user flow that st
 - [ ] Unicode (Arabic, Chinese, Hebrew, emoji) in output
 
 **Signatures:**
+
 - [ ] Create signature request from LWC (`docGenSignatureSender`)
 - [ ] Create signature request from Flow (`DocGenSignatureFlowAction`)
 - [ ] Create signature request with Signer apex type (new Flow path)
@@ -55,6 +57,7 @@ Before starting ANY item, ask: "If I complete this, is there a user flow that st
 - [ ] Setup validation checklist in settings UI
 
 **Admin:**
+
 - [ ] Create template via `docGenCommandHub`
 - [ ] Upload DOCX/PPTX to template
 - [ ] Activate template version
@@ -64,6 +67,7 @@ Before starting ANY item, ask: "If I complete this, is there a user flow that st
 - [ ] Permission set assignment flow
 
 **Integration:**
+
 - [ ] Flow invocable: `DocGen: Generate Document`
 - [ ] Flow invocable: `DocGen: Create Signature Request`
 - [ ] All three permission sets grant correct access
@@ -142,10 +146,12 @@ sf code-analyzer run --workspace "force-app/" \
 ### Item 1.1 — Collapse the two signature creation paths into one
 
 **Current state:**
+
 - `DocGenSignatureSenderController.createTemplateSignerRequestWithOrder()` — called by `docGenSignatureSender` LWC
 - `DocGenSignatureSenderController.createTemplateSignatureRequestForFlow()` — called by `DocGenSignatureFlowAction`
 
 Both do essentially the same thing: insert request → merge template → build preview HTML with placement spans → create signers + placements → send emails. They diverge on:
+
 - Signing order handling
 - Whether `injectPlacementSpans()` or `convertToHtml()` is called
 - Default `sendEmails` value
@@ -153,10 +159,12 @@ Both do essentially the same thing: insert request → merge template → build 
 **Target state:** ONE shared `private static Result createSignatureRequest(SignatureRequestOptions opts)` method. Both entry points become thin adapters that build an `opts` struct and call it.
 
 **Delete candidates:**
+
 - The divergent body of `createTemplateSignatureRequestForFlow` (keep only the signature + adapter)
 - Any duplicated HTML-building code
 
 **Test implications:**
+
 - `DocGenSignatureSenderControllerTest` existing tests must still pass unchanged
 - `DocGenSignatureFlowActionTest` existing tests must still pass unchanged
 - If any test breaks, the consolidation missed a behavioral difference — investigate, don't just patch the test
@@ -168,6 +176,7 @@ Both do essentially the same thing: insert request → merge template → build 
 ### Item 1.2 — Remove `Test.isRunningTest()` bypass in `DocGenSignatureEmailService`
 
 **Current state:** Line ~48 of `DocGenSignatureEmailService.cls`:
+
 ```apex
 if (String.isBlank(owaId) && !Test.isRunningTest()) {
     // skip send in tests
@@ -179,10 +188,12 @@ This is a code smell. It prevents the "no OWA configured" branch from being test
 **Target state:** Extract OWA resolution into a `@TestVisible private static String resolveOwaId()` helper. Remove the `Test.isRunningTest()` check. Tests that need to exercise the OWA-missing branch set `resolveOwaIdOverride = ''`; tests that need a "successful" OWA set `resolveOwaIdOverride = 'fake-owa-id'`. Real sends in tests still don't happen (Messaging.sendEmail in test context is a no-op that returns success).
 
 **Delete candidates:**
+
 - The `!Test.isRunningTest()` check itself
 - Any test that relied on the bypass to "pass" without asserting anything meaningful
 
 **Test implications:**
+
 - Add one test that asserts `Email_Status__c` is populated with the "no OWA configured" message when OWA is blank
 - Add one test that asserts emails were "sent" (use `Limits.getEmailInvocations()`) when OWA is set
 
@@ -193,6 +204,7 @@ This is a code smell. It prevents the "no OWA configured" branch from being test
 ### Item 1.3 — Delete the v2 signature tag fallback in stamping
 
 **Current state:** `DocGenSignatureService.stampSignaturesInXml()` has two code paths:
+
 1. v3: query placements, stamp each with its typed value
 2. v2 fallback: replace every `{@Signature_Role}` with the signer's typed name
 
@@ -202,10 +214,12 @@ This is a code smell. It prevents the "no OWA configured" branch from being test
 **Target state:** Only the v3 path remains. At template save, any bare `{@Signature_Role}` tag is auto-rewritten to `{@Signature_Role:1:Full}` so it flows through the v3 placement pipeline.
 
 **Delete candidates:**
+
 - The v2 fallback branch in `stampSignaturesInXml()`
 - Any "legacy" comments referring to v2 tags
 
 **Test implications:**
+
 - `e2e-06-signatures.apex` — remove any v2-only assertions
 - `e2e-07-syntax.apex` — ensure v3 tag assertions still pass
 
@@ -221,16 +235,19 @@ This is a code smell. It prevents the "no OWA configured" branch from being test
 
 **If confirmed unused:**
 **Target state:**
+
 - Delete the three methods entirely from `DocGenSignatureSenderController`
 - Delete the corresponding handlers/imports from `docGenSignatureSender.js`
 - Delete any related template HTML
 
 **Delete candidates:**
+
 - `createMultiSignerRequest`, `getRelatedDocuments`, `getDocumentSignatureRoles` and their tests
 - Any LWC state variables: `documentOptions`, `selectedDocId`, handler methods
 - Imports of those three methods in the JS
 
 **Test implications:**
+
 - Remove test methods in `DocGenSignatureSenderControllerTest` for the deleted methods
 - Coverage should go UP because we deleted more uncovered code than test code
 
@@ -247,15 +264,18 @@ This is a code smell. It prevents the "no OWA configured" branch from being test
 **Target state:** ONE parser — V3 (`getRecordDataV3`). At template save time, `DocGenController.saveTemplate()` converts V1 and V2 configs to V3 format before persisting. Any template saved going forward is V3.
 
 **Migration handling:**
+
 - Don't force-migrate existing `Query_Config__c` values in the DB — leave them alone
 - But at READ time (when generating), if we encounter V1 or V2, convert on-the-fly and SAVE BACK the V3 version
 - After a week, V1/V2 configs will be rare; after a month, essentially zero
 
 **Delete candidates:**
+
 - `getRecordData` and `getRecordDataV2` methods and their private helpers (but NOT the format detection — we still need that to know what to convert)
 - Duplicate parsing logic
 
 **Test implications:**
+
 - Add one test per format ensuring the converter produces equivalent V3 config (same records retrieved, same field values)
 - Delete the V1-specific and V2-specific deep tests — they become redundant with V3 tests
 - `e2e-05-generate-bulk.apex` should produce identical output before and after
@@ -277,10 +297,12 @@ This is a code smell. It prevents the "no OWA configured" branch from being test
 Keep it but consolidate the image pipeline code (which is duplicated between paths) into one helper.
 
 **Delete candidates:**
+
 - Server-side ZIP writer loops
 - Duplicate image map building code
 
 **Test implications:**
+
 - `e2e-04-generate-docx.apex` must produce byte-identical ZIP output
 - Manual: open generated DOCX in Word, verify rendering unchanged
 
@@ -299,10 +321,12 @@ Keep it but consolidate the image pipeline code (which is duplicated between pat
 **Ask first:** Confirm no subscriber orgs have added `docGenAdminGuide` to custom lightning pages. (Low risk — it's been a stub for weeks.)
 
 **Delete candidates:**
+
 - The entire `force-app/main/default/lwc/docGenAdminGuide/` folder
 - Any metadata referencing it (Lightning pages, tabs)
 
 **Test implications:**
+
 - None — it's already a stub with no logic
 
 **Commit message:** `chore(lwc): delete deprecated docGenAdminGuide stub`
@@ -334,11 +358,12 @@ Skip this item. It's not worth the risk.
 Replace fragmented unit tests with end-to-end integration tests. Target: **15-20 total tests**, each covering a real customer scenario. See `TEST_PLAN.md` (to be created alongside this consolidation) for the full list.
 
 Each test:
+
 - Creates real data via `TestDataFactory.createStandardTestData()`
 - Uses `attachRealDocxToTestTemplate()` for a real DOCX payload
 - Drives the full pipeline (merge → generate / request → PIN → sign → PDF)
 - Uses `Test.getEventBus().deliver()` to exercise platform event handlers
-- Asserts on the **actual output** (PDF blob size > 0, DOCX unzip + contains merged values, signature placement has Status='Signed' with Signed_Value__c populated, etc.)
+- Asserts on the **actual output** (PDF blob size > 0, DOCX unzip + contains merged values, signature placement has Status='Signed' with Signed_Value\_\_c populated, etc.)
 
 **Commit message (per test):** `test(feature-name): integration test for [feature]`
 

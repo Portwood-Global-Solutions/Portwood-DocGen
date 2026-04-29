@@ -1,5 +1,4 @@
 public without sharing class DocGenSignatureSubmitter {
-
     public class FlowInput {
         @InvocableVariable(label='Secure Token' required=true)
         public String token;
@@ -18,7 +17,8 @@ public without sharing class DocGenSignatureSubmitter {
     // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
     public static List<FlowOutput> submitSignature(List<FlowInput> inputs) {
         List<FlowOutput> results = new List<FlowOutput>();
-        for (FlowInput input : inputs) { // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
+        for (FlowInput input : inputs) {
+            // CxSAST: Loop bounded by design — max 1 iteration (InvocableMethod single-record pattern)
             FlowOutput out = new FlowOutput();
             try {
                 // Call the privileged submission handler directly

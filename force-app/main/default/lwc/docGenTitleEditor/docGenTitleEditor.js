@@ -2,8 +2,12 @@ import { LightningElement, api, track } from 'lwc';
 
 export default class DocGenTitleEditor extends LightningElement {
     @api
-    get value() { return this._value; }
-    set value(val) { this._value = val; }
+    get value() {
+        return this._value;
+    }
+    set value(val) {
+        this._value = val;
+    }
     @track _value = '';
 
     @api queryConfig = '';
@@ -38,7 +42,7 @@ export default class DocGenTitleEditor extends LightningElement {
             const keys = this.parseFields();
             const term = match[1].toLowerCase();
 
-            this.suggestions = keys.filter(k => k.toLowerCase().includes(term));
+            this.suggestions = keys.filter((k) => k.toLowerCase().includes(term));
             this.showSuggestions = true;
         } else {
             this.showSuggestions = false;
@@ -85,9 +89,11 @@ export default class DocGenTitleEditor extends LightningElement {
     }
 
     notifyChange() {
-        this.dispatchEvent(new CustomEvent('change', {
-            detail: { value: this._value }
-        }));
+        this.dispatchEvent(
+            new CustomEvent('change', {
+                detail: { value: this._value }
+            })
+        );
     }
 
     parseFields() {
@@ -101,9 +107,7 @@ export default class DocGenTitleEditor extends LightningElement {
         const tokens = clean.split(',');
 
         // 3. Trim and Filter
-        const fields = tokens
-            .map(t => t.trim())
-            .filter(t => t && !t.startsWith('(')); // Double check
+        const fields = tokens.map((t) => t.trim()).filter((t) => t && !t.startsWith('(')); // Double check
 
         return fields;
     }

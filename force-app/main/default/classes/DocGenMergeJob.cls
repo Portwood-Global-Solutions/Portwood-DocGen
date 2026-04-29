@@ -11,7 +11,6 @@
  * 6. Sends a bell/push notification to the job submitter
  */
 public with sharing class DocGenMergeJob implements Queueable {
-
     private Id jobId;
 
     /**
@@ -32,7 +31,8 @@ public with sharing class DocGenMergeJob implements Queueable {
             // Read all HTML snippets in order
             String prefix = 'docgen_merge_' + jobId + '_';
             List<ContentVersion> snippets = [
-                SELECT VersionData, ContentDocumentId FROM ContentVersion
+                SELECT VersionData, ContentDocumentId
+                FROM ContentVersion
                 WHERE Title LIKE :(prefix + '%')
                 WITH USER_MODE
                 ORDER BY Title
@@ -45,9 +45,11 @@ public with sharing class DocGenMergeJob implements Queueable {
 
             // Get job + template details (template type drives the merge strategy)
             DocGen_Job__c job = [
-                SELECT Label__c, Name, CreatedById, Success_Count__c, Total_Records__c,
-                       Template__r.Type__c
-                FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE LIMIT 1
+                SELECT Label__c, Name, CreatedById, Success_Count__c, Total_Records__c, Template__r.Type__c
+                FROM DocGen_Job__c
+                WHERE Id = :jobId
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
             Boolean isHtmlTemplate = job.Template__r != null && job.Template__r.Type__c == 'HTML';
 
@@ -79,7 +81,8 @@ public with sharing class DocGenMergeJob implements Queueable {
                     }
                     combinedBody += body;
                 }
-                fullHtml = '<html><head><meta charset="utf-8"/><style>' +
+                fullHtml =
+                    '<html><head><meta charset="utf-8"/><style>' +
                     combinedStyles +
                     '</style></head><body>' +
                     combinedBody +
@@ -108,7 +111,10 @@ public with sharing class DocGenMergeJob implements Queueable {
                 IsMajorVersion = true,
                 FirstPublishLocationId = jobId
             );
-            SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
+            SObjectAccessDecision cvDec = Security.stripInaccessible(
+                AccessType.CREATABLE,
+                new List<ContentVersion>{ pdfCv }
+            );
             insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             pdfCv.Id = cvDec.getRecords()[0].Id;
 
@@ -126,7 +132,6 @@ public with sharing class DocGenMergeJob implements Queueable {
 
             // Send bell + push notification to the job submitter
             sendCompletionNotification(job, fileName, snippetCount);
-
         } catch (Exception e) {
             update new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
         }
@@ -136,9 +141,11 @@ public with sharing class DocGenMergeJob implements Queueable {
         try {
             // Look up the custom notification type
             List<CustomNotificationType> types = [
-                SELECT Id FROM CustomNotificationType
+                SELECT Id
+                FROM CustomNotificationType
                 WHERE DeveloperName = 'DocGen_Job_Complete'
-                WITH SYSTEM_MODE LIMIT 1
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
             if (types.isEmpty()) {
                 return;
@@ -148,9 +155,10 @@ public with sharing class DocGenMergeJob implements Queueable {
             notification.setNotificationTypeId(types[0].Id);
             notification.setTargetId(jobId);
             notification.setTitle('DocGen: ' + fileName + ' is ready');
-            notification.setBody(pageCount + ' pages merged from ' + Integer.valueOf(job.Success_Count__c) + ' records. Tap to view.');
+            notification.setBody(
+                pageCount + ' pages merged from ' + Integer.valueOf(job.Success_Count__c) + ' records. Tap to view.'
+            );
             notification.send(new Set<String>{ job.CreatedById });
-
         } catch (Exception e) {
             // Intentionally swallowed — notification failure is non-fatal
             String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
@@ -159,7 +167,9 @@ public with sharing class DocGenMergeJob implements Queueable {
 
     public with sharing class DocGenMergeJobFinalizer implements Finalizer {
         private Id jobId;
-        public DocGenMergeJobFinalizer(Id jobId) { this.jobId = jobId; }
+        public DocGenMergeJobFinalizer(Id jobId) {
+            this.jobId = jobId;
+        }
         public void execute(FinalizerContext ctx) {
             if (ctx.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
                 try {

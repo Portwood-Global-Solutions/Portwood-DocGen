@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>66.0</apiVersion>
-    <description>Record-Triggered Flow: when a Contact is created, generates a welcome document using the default DocGen template for Contact, saves it as a File on the Contact, and creates a Task for the Contact Owner. Requires at least one Contact template with Default Template checked.</description>
+    <description
+    >Record-Triggered Flow: when a Contact is created, generates a welcome document using the default DocGen template for Contact, saves it as a File on the Contact, and creates a Task for the Contact Owner. Requires at least one Contact template with Default Template checked.</description>
     <interviewLabel>DocGen Welcome Pack New Contact {!$Flow.CurrentDateTime}</interviewLabel>
     <label>DocGen: Welcome Pack on New Contact</label>
     <processMetadataValues>
@@ -83,7 +84,8 @@
             <assignToReference>debugMessage</assignToReference>
             <operator>Assign</operator>
             <value>
-                <stringValue>No default Contact template found. Open DocGen, go to Templates, and check Default Template on a Contact template to enable this flow.</stringValue>
+                <stringValue
+                >No default Contact template found. Open DocGen, go to Templates, and check Default Template on a Contact template to enable this flow.</stringValue>
             </value>
         </assignmentItems>
     </assignments>
@@ -198,7 +200,8 @@
         <inputAssignments>
             <field>Description</field>
             <value>
-                <stringValue>A welcome document was automatically generated and attached to this Contact. Please review and follow up if needed.</stringValue>
+                <stringValue
+                >A welcome document was automatically generated and attached to this Contact. Please review and follow up if needed.</stringValue>
             </value>
         </inputAssignments>
         <inputAssignments>
@@ -250,7 +253,8 @@
     <formulas>
         <name>welcomeDocTitle</name>
         <dataType>String</dataType>
-        <expression>&quot;Welcome Pack — &quot; &amp; $Record.FirstName &amp; &quot; &quot; &amp; $Record.LastName</expression>
+        <expression
+        >&quot;Welcome Pack — &quot; &amp; $Record.FirstName &amp; &quot; &quot; &amp; $Record.LastName</expression>
     </formulas>
     <formulas>
         <name>taskDueDate</name>

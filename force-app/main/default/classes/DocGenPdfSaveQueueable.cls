@@ -21,10 +21,17 @@ public with sharing class DocGenPdfSaveQueueable implements Queueable {
         try {
             DocGenService.generateDocument(templateId, recordId);
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR,
-                'DocGenPdfSaveQueueable failed. templateId=' + templateId +
-                ' recordId=' + recordId + ' error=' + e.getMessage() +
-                ' stack=' + e.getStackTraceString());
+            System.debug(
+                LoggingLevel.ERROR,
+                'DocGenPdfSaveQueueable failed. templateId=' +
+                    templateId +
+                    ' recordId=' +
+                    recordId +
+                    ' error=' +
+                    e.getMessage() +
+                    ' stack=' +
+                    e.getStackTraceString()
+            );
             throw e;
         }
     }

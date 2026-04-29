@@ -10,7 +10,6 @@
  * the dataset size isn't known in advance.
  */
 global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModifier — global required for @InvocableMethod visibility in subscriber orgs
-
     private static final Integer GIANT_THRESHOLD = 2000;
 
     global class Request {
@@ -20,21 +19,33 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
         @InvocableVariable(label='Record ID' required=true description='The source record ID to merge data from')
         global Id recordId;
 
-        @InvocableVariable(label='Save to Record' description='If true, attach the generated file to the source record. Default: true for sync, always true for async Giant Query.')
+        @InvocableVariable(
+            label='Save to Record'
+            description='If true, attach the generated file to the source record. Default: true for sync, always true for async Giant Query.'
+        )
         global Boolean saveToRecord;
     }
 
     global class Response {
-        @InvocableVariable(label='Content Document ID' description='The generated file ID (sync only — null for async Giant Query)')
+        @InvocableVariable(
+            label='Content Document ID'
+            description='The generated file ID (sync only — null for async Giant Query)'
+        )
         global Id contentDocumentId;
 
         @InvocableVariable(label='Content Version ID' description='The generated file version ID (sync only)')
         global Id contentVersionId;
 
-        @InvocableVariable(label='Job ID' description='The DocGen Job record ID (async Giant Query only — poll for completion)')
+        @InvocableVariable(
+            label='Job ID'
+            description='The DocGen Job record ID (async Giant Query only — poll for completion)'
+        )
         global Id jobId;
 
-        @InvocableVariable(label='Is Giant Query' description='True if the dataset exceeded 2,000 rows and generation is async')
+        @InvocableVariable(
+            label='Is Giant Query'
+            description='True if the dataset exceeded 2,000 rows and generation is async'
+        )
         global Boolean isGiantQuery;
 
         @InvocableVariable(label='Error Message')
@@ -44,7 +55,10 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
         global Boolean success;
     }
 
-    @InvocableMethod(label='Generate Document (Auto Giant Query)' description='Generates a document, automatically using async Giant Query for datasets over 2,000 child records. PDF is saved to the record when complete.')
+    @InvocableMethod(
+        label='Generate Document (Auto Giant Query)'
+        description='Generates a document, automatically using async Giant Query for datasets over 2,000 child records. PDF is saved to the record when complete.'
+    )
     global static List<Response> generateDocument(List<Request> requests) {
         List<Response> responses = new List<Response>();
 
@@ -57,7 +71,8 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
                     SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c
                     FROM DocGen_Template__c
                     WHERE Id = :req.templateId
-                    WITH SYSTEM_MODE LIMIT 1
+                    WITH SYSTEM_MODE
+                    LIMIT 1
                 ];
                 if (templates.isEmpty()) {
                     throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
@@ -105,9 +120,11 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
 
                     // Resolve ContentVersion ID
                     List<ContentVersion> cvs = [
-                        SELECT Id FROM ContentVersion
-                        WHERE ContentDocumentId = :docId AND IsLatest = true
-                        WITH USER_MODE LIMIT 1
+                        SELECT Id
+                        FROM ContentVersion
+                        WHERE ContentDocumentId = :docId AND IsLatest = TRUE
+                        WITH USER_MODE
+                        LIMIT 1
                     ];
                     if (!cvs.isEmpty()) {
                         res.contentVersionId = cvs[0].Id;
@@ -132,19 +149,29 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
      * Launches the Giant Query batch for async PDF generation.
      * Returns the DocGen_Job__c record ID for status tracking.
      */
-    private static Id launchGiantBatch(Id templateId, Id recordId, String giantRelationship, Map<String, Object> childNodeConfig) {
+    private static Id launchGiantBatch(
+        Id templateId,
+        Id recordId,
+        String giantRelationship,
+        Map<String, Object> childNodeConfig
+    ) {
         // Get document XML from pre-decomposed parts
         List<DocGen_Template_Version__c> activeVersions = [
-            SELECT Id FROM DocGen_Template_Version__c
-            WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            SELECT Id
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         String documentXml = null;
         if (!activeVersions.isEmpty()) {
             String xmlKey = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_word__document.xml';
             List<ContentVersion> xmlCvs = [
-                SELECT VersionData FROM ContentVersion
-                WHERE Title = :xmlKey WITH USER_MODE LIMIT 1 // NOPMD — internal pre-decomposed part
+                SELECT VersionData
+                FROM ContentVersion
+                WHERE Title = :xmlKey
+                WITH USER_MODE
+                LIMIT 1 // NOPMD — internal pre-decomposed part
             ];
             if (!xmlCvs.isEmpty()) {
                 documentXml = xmlCvs[0].VersionData.toString();
@@ -174,8 +201,12 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
         childNodeConfig.put('relationshipName', giantRelationship);
 
         DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
-            job.Id, templateId, recordId, childNodeConfig,
-            loopParts.get('innerXml'), 'PDF'
+            job.Id,
+            templateId,
+            recordId,
+            childNodeConfig,
+            loopParts.get('innerXml'),
+            'PDF'
         );
         Database.executeBatch(batch, 1);
 
@@ -187,9 +218,11 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
      */
     private static void linkToRecord(Id docId, Id recordId) {
         List<ContentDocumentLink> existing = [
-            SELECT Id FROM ContentDocumentLink
+            SELECT Id
+            FROM ContentDocumentLink
             WHERE ContentDocumentId = :docId AND LinkedEntityId = :recordId
-            WITH USER_MODE LIMIT 1
+            WITH USER_MODE
+            LIMIT 1
         ];
         if (existing.isEmpty()) {
             ContentDocumentLink cdl = new ContentDocumentLink(
@@ -198,7 +231,10 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
                 ShareType = 'V',
                 Visibility = 'AllUsers'
             );
-            SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+            SObjectAccessDecision decision = Security.stripInaccessible(
+                AccessType.CREATABLE,
+                new List<ContentDocumentLink>{ cdl }
+            );
             insert decision.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced via stripInaccessible
         }
     }

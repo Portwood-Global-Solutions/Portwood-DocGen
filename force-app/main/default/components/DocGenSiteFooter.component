@@ -1,9 +1,25 @@
-<apex:component >
+<apex:component>
     <style>
-        .dg-footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 2rem; text-align: center; color: #475569; font-size: 0.8rem; }
-        .dg-footer a { color: #60a5fa; text-decoration: none; } .dg-footer a:hover { text-decoration: underline; }
-        .dg-footer-links { margin-bottom: 0.75rem; }
-        .dg-footer-links a { margin: 0 0.75rem; }
+        .dg-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 2rem;
+            text-align: center;
+            color: #475569;
+            font-size: 0.8rem;
+        }
+        .dg-footer a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        .dg-footer a:hover {
+            text-decoration: underline;
+        }
+        .dg-footer-links {
+            margin-bottom: 0.75rem;
+        }
+        .dg-footer-links a {
+            margin: 0 0.75rem;
+        }
     </style>
     <footer class="dg-footer">
         <div class="dg-footer-links">

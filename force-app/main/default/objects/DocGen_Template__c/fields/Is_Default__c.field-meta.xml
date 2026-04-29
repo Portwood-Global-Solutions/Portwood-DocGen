@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Is_Default__c</fullName>
     <defaultValue>false</defaultValue>
-    <description>When checked, this template will be automatically selected when a user opens DocGen Runner on a record of the matching Base Object type. If multiple templates are marked as default for the same object, the first one (alphabetically) is used.</description>
+    <description
+    >When checked, this template will be automatically selected when a user opens DocGen Runner on a record of the matching Base Object type. If multiple templates are marked as default for the same object, the first one (alphabetically) is used.</description>
     <label>Default Template</label>
     <type>Checkbox</type>
 </CustomField>

@@ -1,11 +1,15 @@
 public with sharing class DocGenSignatureSenderController {
-
     public class SignerResult {
-        @AuraEnabled public String signerName;
-        @AuraEnabled public String roleName;
-        @AuraEnabled public String signerUrl;
-        @AuraEnabled public String signerEmail;
-        @AuraEnabled public Id signerId; // 1.49 — LWC uses this for in-person PIN bypass
+        @AuraEnabled
+        public String signerName;
+        @AuraEnabled
+        public String roleName;
+        @AuraEnabled
+        public String signerUrl;
+        @AuraEnabled
+        public String signerEmail;
+        @AuraEnabled
+        public Id signerId; // 1.49 — LWC uses this for in-person PIN bypass
     }
 
     /**
@@ -25,8 +29,15 @@ public with sharing class DocGenSignatureSenderController {
     public static List<DocGen_Template__c> getDocGenTemplatesForRecord(String relatedRecordId) {
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template__c> all = [
-            SELECT Id, Name, Category__c, Sort_Order__c, Specific_Record_Ids__c,
-                   Required_Permission_Sets__c, Record_Filter__c, Base_Object_API__c
+            SELECT
+                Id,
+                Name,
+                Category__c,
+                Sort_Order__c,
+                Specific_Record_Ids__c,
+                Required_Permission_Sets__c,
+                Record_Filter__c,
+                Base_Object_API__c
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
             ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC
@@ -39,10 +50,14 @@ public with sharing class DocGenSignatureSenderController {
      * Data class for a parsed signature placement from template tags.
      */
     public class PlacementInfo implements Comparable {
-        @AuraEnabled public String role;
-        @AuraEnabled public Integer sequence;
-        @AuraEnabled public String placementType; // Full, Initials, Date, DatePick
-        @AuraEnabled public String tagText;       // Original tag for reference
+        @AuraEnabled
+        public String role;
+        @AuraEnabled
+        public Integer sequence;
+        @AuraEnabled
+        public String placementType; // Full, Initials, Date, DatePick
+        @AuraEnabled
+        public String tagText; // Original tag for reference
 
         public PlacementInfo(String role, Integer sequence, String placementType, String tagText) {
             this.role = role;
@@ -81,7 +96,8 @@ public with sharing class DocGenSignatureSenderController {
     @AuraEnabled
     public static List<PlacementInfo> getTemplateSignaturePlacements(Id templateId) {
         String plainText = extractTemplatePlainText(templateId);
-        if (plainText == null) return new List<PlacementInfo>();
+        if (plainText == null)
+            return new List<PlacementInfo>();
         return parseSignaturePlacements(plainText);
     }
 
@@ -92,16 +108,20 @@ public with sharing class DocGenSignatureSenderController {
     private static String extractTemplatePlainText(Id templateId) {
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template_Version__c> activeVersions = [
-            SELECT Id FROM DocGen_Template_Version__c
-            WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            SELECT Id
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
-        if (activeVersions.isEmpty()) return null;
+        if (activeVersions.isEmpty())
+            return null;
 
         String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
         /* code-analyzer-suppress ApexFlsViolation */
         List<ContentVersion> xmlCvs = [
-            SELECT Title, VersionData FROM ContentVersion
+            SELECT Title, VersionData
+            FROM ContentVersion
             WHERE Title LIKE :(xmlPrefix + '%')
             WITH SYSTEM_MODE
         ];
@@ -115,7 +135,8 @@ public with sharing class DocGenSignatureSenderController {
                 break;
             }
         }
-        if (documentXml == null) return null;
+        if (documentXml == null)
+            return null;
 
         // Extract text from <w:t> elements
         String plainText = '';
@@ -196,16 +217,22 @@ public with sharing class DocGenSignatureSenderController {
             Map<String, Object> out = new Map<String, Object>();
             try {
                 List<DocGen_Template_Version__c> vs = [
-                    SELECT Watermark_Image_CV_Id__c FROM DocGen_Template_Version__c
-                    WHERE Template__c = :templateId AND Is_Active__c = true LIMIT 1
+                    SELECT Watermark_Image_CV_Id__c
+                    FROM DocGen_Template_Version__c
+                    WHERE Template__c = :templateId AND Is_Active__c = TRUE
+                    LIMIT 1
                 ];
-                if (vs.isEmpty() || String.isBlank(vs[0].Watermark_Image_CV_Id__c)) return null;
+                if (vs.isEmpty() || String.isBlank(vs[0].Watermark_Image_CV_Id__c))
+                    return null;
                 Id wmCvId = vs[0].Watermark_Image_CV_Id__c;
                 List<ContentVersion> cvs = [
-                    SELECT VersionData, FileExtension FROM ContentVersion
-                    WHERE Id = :wmCvId LIMIT 1
+                    SELECT VersionData, FileExtension
+                    FROM ContentVersion
+                    WHERE Id = :wmCvId
+                    LIMIT 1
                 ];
-                if (cvs.isEmpty()) return null;
+                if (cvs.isEmpty())
+                    return null;
                 out.put('data', cvs[0].VersionData);
                 out.put('ext', String.isNotBlank(cvs[0].FileExtension) ? cvs[0].FileExtension.toLowerCase() : 'png');
                 return out;
@@ -217,17 +244,18 @@ public with sharing class DocGenSignatureSenderController {
 
     @TestVisible
     public static String injectPreviewWatermarkOverlay(String html, Id templateId) {
-        if (String.isBlank(html) || templateId == null) return html;
+        if (String.isBlank(html) || templateId == null)
+            return html;
 
         Map<String, Object> wm = new WatermarkResolver().resolve(templateId);
-        if (wm == null) return html;
+        if (wm == null)
+            return html;
         Blob wmData = (Blob) wm.get('data');
         String wmExt = (String) wm.get('ext');
-        if (wmData == null) return html;
+        if (wmData == null)
+            return html;
 
-        String mime = (wmExt == 'jpg' || wmExt == 'jpeg') ? 'image/jpeg'
-                    : (wmExt == 'gif') ? 'image/gif'
-                    : 'image/png';
+        String mime = (wmExt == 'jpg' || wmExt == 'jpeg') ? 'image/jpeg' : (wmExt == 'gif') ? 'image/gif' : 'image/png';
         String dataUri = 'data:' + mime + ';base64,' + EncodingUtil.base64Encode(wmData);
 
         // Render the watermark as a real <img> element with explicit max-height. Using a
@@ -236,22 +264,24 @@ public with sharing class DocGenSignatureSenderController {
         // effectively invisible. An <img> sizes from its intrinsic dimensions and respects
         // max-height, so it shows at a usable size regardless of how short the document is.
         String overlay =
-            '<style>'
-            + '@media screen {'
-            + ' .docgen-preview-wrap { position: relative; min-height: 400px; }'
-            + ' .docgen-preview-watermark { position: absolute; top: 0; left: 0; right: 0; '
-            + 'text-align: center; opacity: 0.35; pointer-events: none; z-index: 0; }'
-            + ' .docgen-preview-watermark img { width: 90% !important; max-width: 90% !important; '
-            + 'height: auto !important; max-height: none !important; display: inline-block !important; }'
-            + ' .docgen-preview-wrap > *:not(.docgen-preview-watermark) { position: relative; z-index: 1; }'
-            + '}'
-            + '@media print { .docgen-preview-watermark { display: none !important; } }'
-            + '</style>';
+            '<style>' +
+            '@media screen {' +
+            ' .docgen-preview-wrap { position: relative; min-height: 400px; }' +
+            ' .docgen-preview-watermark { position: absolute; top: 0; left: 0; right: 0; ' +
+            'text-align: center; opacity: 0.35; pointer-events: none; z-index: 0; }' +
+            ' .docgen-preview-watermark img { width: 90% !important; max-width: 90% !important; ' +
+            'height: auto !important; max-height: none !important; display: inline-block !important; }' +
+            ' .docgen-preview-wrap > *:not(.docgen-preview-watermark) { position: relative; z-index: 1; }' +
+            '}' +
+            '@media print { .docgen-preview-watermark { display: none !important; } }' +
+            '</style>';
 
         String overlayDiv =
-            '<div class="docgen-preview-watermark" aria-hidden="true">'
-            + '<img src="' + dataUri + '" alt=""/>'
-            + '</div>';
+            '<div class="docgen-preview-watermark" aria-hidden="true">' +
+            '<img src="' +
+            dataUri +
+            '" alt=""/>' +
+            '</div>';
 
         Integer bodyOpen = html.indexOf('<body');
         Integer bodyClose = html.lastIndexOf('</body>');
@@ -261,25 +291,16 @@ public with sharing class DocGenSignatureSenderController {
                 String prefix = html.substring(0, openEnd + 1);
                 String middle = html.substring(openEnd + 1, bodyClose);
                 String suffix = html.substring(bodyClose);
-                return prefix
-                    + overlay
-                    + '<div class="docgen-preview-wrap">'
-                    + overlayDiv
-                    + middle
-                    + '</div>'
-                    + suffix;
+                return prefix + overlay + '<div class="docgen-preview-wrap">' + overlayDiv + middle + '</div>' + suffix;
             }
         }
-        return overlay
-            + '<div class="docgen-preview-wrap">'
-            + overlayDiv
-            + html
-            + '</div>';
+        return overlay + '<div class="docgen-preview-wrap">' + overlayDiv + html + '</div>';
     }
 
     @TestVisible
     private static String injectPlacementSpans(String html) {
-        if (String.isBlank(html)) return html;
+        if (String.isBlank(html))
+            return html;
 
         // Match v3 tags: {@Signature_Role:Order:Type} and v2: {@Signature_Role}
         Pattern sigPat = Pattern.compile('\\{@Signature_([^:}]+)(?::(\\d+))?(?::([^}]+))?\\}');
@@ -296,11 +317,11 @@ public with sharing class DocGenSignatureSenderController {
         // Reset matcher to scan all matches
         sigMatch.reset();
         while (sigMatch.find()) {
-            matchPositions.add(new Integer[]{ sigMatch.start(), sigMatch.end() });
+            matchPositions.add(new List<Integer>{ sigMatch.start(), sigMatch.end() });
             String role = sigMatch.group(1).replaceAll('_', ' ');
             String order = sigMatch.group(2) != null ? sigMatch.group(2) : '1';
             String pType = sigMatch.group(3) != null ? sigMatch.group(3) : 'Full';
-            matchData.add(new String[]{ role, order, pType, sigMatch.group(0) });
+            matchData.add(new List<String>{ role, order, pType, sigMatch.group(0) });
         }
 
         // Replace in reverse order so positions stay valid
@@ -313,31 +334,47 @@ public with sharing class DocGenSignatureSenderController {
             String originalTag = matchData[i][3];
 
             String label;
-            if (pType == 'Full') label = 'SIGN HERE';
-            else if (pType == 'Initials') label = 'INITIAL HERE';
-            else if (pType == 'Date' || pType == 'DatePick') label = 'DATE';
-            else label = 'SIGN HERE';
+            if (pType == 'Full')
+                label = 'SIGN HERE';
+            else if (pType == 'Initials')
+                label = 'INITIAL HERE';
+            else if (pType == 'Date' || pType == 'DatePick')
+                label = 'DATE';
+            else
+                label = 'SIGN HERE';
 
-            String span = '<span class="docgen-sig"'
-                + ' data-role="' + role.escapeHtml4() + '"'
-                + ' data-order="' + order + '"'
-                + ' data-type="' + pType + '"'
-                + ' data-tag="' + originalTag.escapeHtml4() + '"'
-                + ' style="display:inline-block;background:#fff8c5;border:2px dashed #f59e0b;'
-                + 'padding:2px 10px;border-radius:4px;font-weight:bold;color:#92400e;font-size:0.85em;">'
-                + label + ' — ' + role.escapeHtml4()
-                + '</span>';
+            String span =
+                '<span class="docgen-sig"' +
+                ' data-role="' +
+                role.escapeHtml4() +
+                '"' +
+                ' data-order="' +
+                order +
+                '"' +
+                ' data-type="' +
+                pType +
+                '"' +
+                ' data-tag="' +
+                originalTag.escapeHtml4() +
+                '"' +
+                ' style="display:inline-block;background:#fff8c5;border:2px dashed #f59e0b;' +
+                'padding:2px 10px;border-radius:4px;font-weight:bold;color:#92400e;font-size:0.85em;">' +
+                label +
+                ' — ' +
+                role.escapeHtml4() +
+                '</span>';
 
             result = result.substring(0, startPos) + span + result.substring(endPos);
         }
 
         // Also handle bare {@Signature} tag
         if (result.contains('{@Signature}')) {
-            String span = '<span class="docgen-sig"'
-                + ' data-role="Signer" data-order="1" data-type="Full" data-tag="{@Signature}"'
-                + ' style="display:inline-block;background:#fff8c5;border:2px dashed #f59e0b;'
-                + 'padding:2px 10px;border-radius:4px;font-weight:bold;color:#92400e;font-size:0.85em;">'
-                + 'SIGN HERE — Signer</span>';
+            String span =
+                '<span class="docgen-sig"' +
+                ' data-role="Signer" data-order="1" data-type="Full" data-tag="{@Signature}"' +
+                ' style="display:inline-block;background:#fff8c5;border:2px dashed #f59e0b;' +
+                'padding:2px 10px;border-radius:4px;font-weight:bold;color:#92400e;font-size:0.85em;">' +
+                'SIGN HERE — Signer</span>';
             result = result.replace('{@Signature}', span);
         }
 
@@ -351,17 +388,32 @@ public with sharing class DocGenSignatureSenderController {
     @AuraEnabled
     // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
     // CxSAST: Apex_CRUD_ContentDistribution — ContentDistribution created for signature preview images
-    public static List<SignerResult> createTemplateSignerRequest(Id templateId, String relatedRecordId, String signersJson) {
+    public static List<SignerResult> createTemplateSignerRequest(
+        Id templateId,
+        String relatedRecordId,
+        String signersJson
+    ) {
         return createTemplateSignerRequestWithOrder(templateId, relatedRecordId, signersJson, 'Parallel');
     }
 
     @AuraEnabled
     // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
     // CxSAST: Apex_CRUD_ContentDistribution — ContentDistribution created for signature preview images
-    public static List<SignerResult> createTemplateSignerRequestWithOrder(Id templateId, String relatedRecordId, String signersJson, String signingOrder) {
+    public static List<SignerResult> createTemplateSignerRequestWithOrder(
+        Id templateId,
+        String relatedRecordId,
+        String signersJson,
+        String signingOrder
+    ) {
         // Validate template exists
         /* code-analyzer-suppress ApexFlsViolation */
-        List<DocGen_Template__c> templates = [SELECT Id, Name FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
+        List<DocGen_Template__c> templates = [
+            SELECT Id, Name
+            FROM DocGen_Template__c
+            WHERE Id = :templateId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
         if (templates.isEmpty()) {
             throw new AuraHandledException('Template not found.');
         }
@@ -416,7 +468,10 @@ public with sharing class DocGenSignatureSenderController {
                         dist = [SELECT ContentDownloadUrl FROM ContentDistribution WHERE Id = :dist.Id]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
                         previewImageMap.put(relId, dist.ContentDownloadUrl);
                     } catch (Exception e) {
-                        System.debug(LoggingLevel.WARN, 'DocGen: Could not create public link for ' + relId + ': ' + e.getMessage());
+                        System.debug(
+                            LoggingLevel.WARN,
+                            'DocGen: Could not create public link for ' + relId + ': ' + e.getMessage()
+                        );
                     }
                 }
             }
@@ -436,8 +491,12 @@ public with sharing class DocGenSignatureSenderController {
             // The signed-PDF queueable runs as Automated Process which can't query the
             // pre-decomposed styles.xml ContentVersion regardless of sharing model — so we
             // cache just the attributes the renderer needs for async fallback.
-            Map<String, String> tableBordersMap = DocGenHtmlRenderer.extractTableStyleBorderMap(DocGenHtmlRenderer.stylesXml);
-            Map<String, Map<String, String>> textAttrsMap = DocGenHtmlRenderer.extractStyleTextAttributeMap(DocGenHtmlRenderer.stylesXml);
+            Map<String, String> tableBordersMap = DocGenHtmlRenderer.extractTableStyleBorderMap(
+                DocGenHtmlRenderer.stylesXml
+            );
+            Map<String, Map<String, String>> textAttrsMap = DocGenHtmlRenderer.extractStyleTextAttributeMap(
+                DocGenHtmlRenderer.stylesXml
+            );
 
             // Store image map (for Queueable) + preview HTML (for guest VF page) + style maps (for async render)
             Map<String, Object> cachedData = new Map<String, Object>{
@@ -465,10 +524,16 @@ public with sharing class DocGenSignatureSenderController {
      */
     @AuraEnabled
     // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
-    public static List<SignerResult> createPacketSignerRequest(String templateIdsJson, String relatedRecordId, String signersJson, String signingOrder) {
+    public static List<SignerResult> createPacketSignerRequest(
+        String templateIdsJson,
+        String relatedRecordId,
+        String signersJson,
+        String signingOrder
+    ) {
         List<Object> rawTemplateIds = (List<Object>) JSON.deserializeUntyped(templateIdsJson);
         List<Id> templateIds = new List<Id>();
-        for (Object t : rawTemplateIds) templateIds.add((Id) t);
+        for (Object t : rawTemplateIds)
+            templateIds.add((Id) t);
 
         if (templateIds.isEmpty()) {
             throw new AuraHandledException('At least one template is required.');
@@ -481,9 +546,9 @@ public with sharing class DocGenSignatureSenderController {
 
         // Validate all templates exist
         /* code-analyzer-suppress ApexFlsViolation */
-        Map<Id, DocGen_Template__c> templateMap = new Map<Id, DocGen_Template__c>([
-            SELECT Id, Name FROM DocGen_Template__c WHERE Id IN :templateIds WITH SYSTEM_MODE
-        ]); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+        Map<Id, DocGen_Template__c> templateMap = new Map<Id, DocGen_Template__c>(
+            [SELECT Id, Name FROM DocGen_Template__c WHERE Id IN :templateIds WITH SYSTEM_MODE]
+        ); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
         for (Id tid : templateIds) {
             if (!templateMap.containsKey(tid)) {
                 throw new AuraHandledException('Template not found: ' + tid);
@@ -551,9 +616,15 @@ public with sharing class DocGenSignatureSenderController {
 
                 // Add document title header
                 String docTitle = templateMap.get(tid).Name;
-                String titleHtml = '<div style="background:#f8fafc;border:1px solid #e5e5e5;border-radius:6px;padding:12px 16px;margin-bottom:16px;text-align:center;">'
-                    + '<strong style="font-size:14px;color:#3e3e3c;">Document ' + (docIdx + 1) + ' of ' + templateIds.size()
-                    + ': ' + docTitle.escapeHtml4() + '</strong></div>';
+                String titleHtml =
+                    '<div style="background:#f8fafc;border:1px solid #e5e5e5;border-radius:6px;padding:12px 16px;margin-bottom:16px;text-align:center;">' +
+                    '<strong style="font-size:14px;color:#3e3e3c;">Document ' +
+                    (docIdx + 1) +
+                    ' of ' +
+                    templateIds.size() +
+                    ': ' +
+                    docTitle.escapeHtml4() +
+                    '</strong></div>';
 
                 if (docIdx > 0) {
                     previewHtmlParts.add('<div style="page-break-before:always"></div>');
@@ -578,14 +649,22 @@ public with sharing class DocGenSignatureSenderController {
             if (templateIds.size() > 1) {
                 documentTitle += ' (+' + (templateIds.size() - 1) + ' more)';
             }
-            List<SignerResult> results = createSignersAndNotifyWithoutPlacements(req.Id, templateIds[0], documentTitle, signerInputs);
+            List<SignerResult> results = createSignersAndNotifyWithoutPlacements(
+                req.Id,
+                templateIds[0],
+                documentTitle,
+                signerInputs
+            );
 
             // Now create placements per document
             // Re-query signer records to get IDs
             /* code-analyzer-suppress ApexFlsViolation */
             List<DocGen_Signer__c> signerRecords = [
-                SELECT Id, Role_Name__c FROM DocGen_Signer__c
-                WHERE Signature_Request__c = :req.Id WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC
+                SELECT Id, Role_Name__c
+                FROM DocGen_Signer__c
+                WHERE Signature_Request__c = :req.Id
+                WITH SYSTEM_MODE
+                ORDER BY Sort_Order__c ASC
             ]; // NOPMD
 
             Map<String, DocGen_Signer__c> roleSignerMap = new Map<String, DocGen_Signer__c>();
@@ -600,7 +679,8 @@ public with sharing class DocGenSignatureSenderController {
             for (Integer docIdx = 0; docIdx < allPlacements.size(); docIdx++) {
                 for (PlacementInfo p : allPlacements[docIdx]) {
                     DocGen_Signer__c signer = roleSignerMap.get(p.role);
-                    if (signer == null) continue;
+                    if (signer == null)
+                        continue;
 
                     DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c();
                     plc.Signer__c = signer.Id;
@@ -630,22 +710,32 @@ public with sharing class DocGenSignatureSenderController {
      * Creates signers and sends emails WITHOUT creating placements.
      * Used by packet flow which creates placements separately per document.
      */
-    private static List<SignerResult> createSignersAndNotifyWithoutPlacements(Id requestId, Id templateId, String documentTitle, List<Map<String, Object>> signerInputs) {
+    private static List<SignerResult> createSignersAndNotifyWithoutPlacements(
+        Id requestId,
+        Id templateId,
+        String documentTitle,
+        List<Map<String, Object>> signerInputs
+    ) {
         // Temporarily null the templateId to skip placement creation in createSignersAndNotify
         return createSignersAndNotify(requestId, null, documentTitle, signerInputs, true);
     }
 
     @AuraEnabled
     public static List<ContentVersion> getRelatedDocuments(Id recordId) {
-        List<ContentDocumentLink> links = [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = :recordId WITH USER_MODE];
+        List<ContentDocumentLink> links = [
+            SELECT ContentDocumentId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId = :recordId
+            WITH USER_MODE
+        ];
         Set<Id> docIds = new Set<Id>();
-        for (ContentDocumentLink link : links) docIds.add(link.ContentDocumentId);
+        for (ContentDocumentLink link : links)
+            docIds.add(link.ContentDocumentId);
 
         return [
             SELECT Id, Title, FileExtension, ContentDocumentId
             FROM ContentVersion
-            WHERE ContentDocumentId IN :docIds AND IsLatest = true
-            AND FileExtension = 'docx'
+            WHERE ContentDocumentId IN :docIds AND IsLatest = TRUE AND FileExtension = 'docx'
             WITH USER_MODE
             ORDER BY CreatedDate DESC
         ];
@@ -658,9 +748,19 @@ public with sharing class DocGenSignatureSenderController {
      */
     @AuraEnabled
     // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
-    public static List<SignerResult> createMultiSignerRequest(Id contentDocumentId, String relatedRecordId, String signersJson) {
+    public static List<SignerResult> createMultiSignerRequest(
+        Id contentDocumentId,
+        String relatedRecordId,
+        String signersJson
+    ) {
         // Resolve latest ContentVersionId
-        List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :contentDocumentId WITH SYSTEM_MODE LIMIT 1];
+        List<ContentDocument> docs = [
+            SELECT LatestPublishedVersionId
+            FROM ContentDocument
+            WHERE Id = :contentDocumentId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
         if (docs.isEmpty()) {
             throw new AuraHandledException('Document not found or has been deleted.');
         }
@@ -672,7 +772,6 @@ public with sharing class DocGenSignatureSenderController {
         for (Object item : rawInputs) {
             signerInputs.add((Map<String, Object>) item);
         }
-
 
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
 
@@ -695,8 +794,19 @@ public with sharing class DocGenSignatureSenderController {
      */
     @AuraEnabled
     // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
-    public static String createSignatureRequest(Id contentDocumentId, String relatedRecordId, String signerName, String signerEmail) {
-        List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :contentDocumentId WITH SYSTEM_MODE LIMIT 1];
+    public static String createSignatureRequest(
+        Id contentDocumentId,
+        String relatedRecordId,
+        String signerName,
+        String signerEmail
+    ) {
+        List<ContentDocument> docs = [
+            SELECT LatestPublishedVersionId
+            FROM ContentDocument
+            WHERE Id = :contentDocumentId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
         if (docs.isEmpty()) {
             throw new AuraHandledException('Document not found or has been deleted.');
         }
@@ -704,12 +814,14 @@ public with sharing class DocGenSignatureSenderController {
 
         // CxSAST: Crypto operations for signature token/PIN generation — not hardcoded secrets
         Blob randomBytes = Crypto.generateAesKey(256);
-        Blob hash = Crypto.generateDigest('SHA-256', Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + signerEmail));
+        Blob hash = Crypto.generateDigest(
+            'SHA-256',
+            Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + signerEmail)
+        );
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         String token = EncodingUtil.convertToHex(hash);
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         String signingPageUrl = getSiteBaseUrl() + getSigningPagePath() + '?token=' + token;
-
 
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
 
@@ -747,10 +859,7 @@ public with sharing class DocGenSignatureSenderController {
         Schema.DescribeFieldResult fieldResult = DocGen_Signer__c.Role_Name__c.getDescribe();
         for (Schema.PicklistEntry entry : fieldResult.getPicklistValues()) {
             if (entry.isActive()) {
-                options.add(new Map<String, String>{
-                    'label' => entry.getLabel(),
-                    'value' => entry.getValue()
-                });
+                options.add(new Map<String, String>{ 'label' => entry.getLabel(), 'value' => entry.getValue() });
             }
         }
         return options;
@@ -771,11 +880,15 @@ public with sharing class DocGenSignatureSenderController {
         // Permission check — only DocGen_Admin users can bypass PIN
         Boolean isAdmin = false;
         for (PermissionSetAssignment psa : [
-            SELECT PermissionSet.Name FROM PermissionSetAssignment
+            SELECT PermissionSet.Name
+            FROM PermissionSetAssignment
             WHERE AssigneeId = :UserInfo.getUserId()
             WITH SYSTEM_MODE
         ]) {
-            if (psa.PermissionSet.Name == 'DocGen_Admin') { isAdmin = true; break; }
+            if (psa.PermissionSet.Name == 'DocGen_Admin') {
+                isAdmin = true;
+                break;
+            }
         }
         if (!isAdmin) {
             throw new AuraHandledException('Only DocGen Admin users can mark signers as verified in person.');
@@ -784,7 +897,10 @@ public with sharing class DocGenSignatureSenderController {
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Signer__c> signers = [
             SELECT Id, Signature_Request__c, Signer_Name__c, Signer_Email__c, Secure_Token__c, Status__c
-            FROM DocGen_Signer__c WHERE Id = :signerId WITH SYSTEM_MODE LIMIT 1
+            FROM DocGen_Signer__c
+            WHERE Id = :signerId
+            WITH SYSTEM_MODE
+            LIMIT 1
         ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
         if (signers.isEmpty()) {
             throw new AuraHandledException('Signer not found.');
@@ -808,7 +924,11 @@ public with sharing class DocGenSignatureSenderController {
                 Signer_Email__c = signer.Signer_Email__c,
                 PIN_Verified_At__c = System.now(),
                 IP_Address__c = 'in-person-bypass:' + UserInfo.getUserId(),
-                User_Agent__c = 'PIN bypassed for in-person signing by ' + UserInfo.getName() + ' (' + UserInfo.getUserEmail() + ')',
+                User_Agent__c = 'PIN bypassed for in-person signing by ' +
+                    UserInfo.getName() +
+                    ' (' +
+                    UserInfo.getUserEmail() +
+                    ')',
                 Consent_Captured__c = true
             );
             /* code-analyzer-suppress ApexFlsViolation */
@@ -846,10 +966,17 @@ public with sharing class DocGenSignatureSenderController {
 
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Signature_Request__c> requests = [
-            SELECT Id, Name, Status__c, Source_Document_Id__c, CreatedDate,
-                   (SELECT Id, Signer_Name__c, Signer_Email__c, Role_Name__c,
-                           Status__c, Secure_Token__c, Sort_Order__c
-                    FROM Signers__r ORDER BY Sort_Order__c ASC)
+            SELECT
+                Id,
+                Name,
+                Status__c,
+                Source_Document_Id__c,
+                CreatedDate,
+                (
+                    SELECT Id, Signer_Name__c, Signer_Email__c, Role_Name__c, Status__c, Secure_Token__c, Sort_Order__c
+                    FROM Signers__r
+                    ORDER BY Sort_Order__c ASC
+                )
             FROM DocGen_Signature_Request__c
             WHERE Related_Record_Id__c = :relatedRecordId
             WITH SYSTEM_MODE
@@ -880,7 +1007,12 @@ public with sharing class DocGenSignatureSenderController {
 
             // Get document title from pre-fetched map
             if (req.Source_Document_Id__c != null) {
-                reqMap.put('documentTitle', docTitleMap.containsKey(req.Source_Document_Id__c) ? docTitleMap.get(req.Source_Document_Id__c) : 'Unknown');
+                reqMap.put(
+                    'documentTitle',
+                    docTitleMap.containsKey(req.Source_Document_Id__c)
+                        ? docTitleMap.get(req.Source_Document_Id__c)
+                        : 'Unknown'
+                );
             }
 
             List<Map<String, Object>> signerList = new List<Map<String, Object>>();
@@ -907,11 +1039,25 @@ public with sharing class DocGenSignatureSenderController {
      */
     @AuraEnabled
     public static List<String> getDocumentSignatureRoles(Id contentDocumentId) {
-        List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :contentDocumentId WITH SYSTEM_MODE LIMIT 1];
-        if (docs.isEmpty()) return new List<String>();
+        List<ContentDocument> docs = [
+            SELECT LatestPublishedVersionId
+            FROM ContentDocument
+            WHERE Id = :contentDocumentId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        if (docs.isEmpty())
+            return new List<String>();
 
-        ContentVersion cv = [SELECT VersionData FROM ContentVersion WHERE Id = :docs[0].LatestPublishedVersionId WITH SYSTEM_MODE LIMIT 1];
-        if (cv == null || cv.VersionData == null) return new List<String>();
+        ContentVersion cv = [
+            SELECT VersionData
+            FROM ContentVersion
+            WHERE Id = :docs[0].LatestPublishedVersionId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        if (cv == null || cv.VersionData == null)
+            return new List<String>();
 
         // Extract document.xml from the DOCX ZIP
         Compression.ZipReader reader = new Compression.ZipReader(cv.VersionData);
@@ -922,7 +1068,8 @@ public with sharing class DocGenSignatureSenderController {
                 break;
             }
         }
-        if (documentXml == null) return new List<String>();
+        if (documentXml == null)
+            return new List<String>();
 
         // Extract all text from <w:t> elements (handles tags split across runs)
         String plainText = '';
@@ -959,9 +1106,15 @@ public with sharing class DocGenSignatureSenderController {
      * Creates DocGen_Signature_Placement__c records for each signer based on template tags.
      * Maps v3 tags ({@Signature_Role:Order:Type}) to signer records by role name.
      */
-    private static void createPlacementsForSigners(Id requestId, Id templateId, List<DocGen_Signer__c> signerRecords, List<Map<String, Object>> signerInputs) {
+    private static void createPlacementsForSigners(
+        Id requestId,
+        Id templateId,
+        List<DocGen_Signer__c> signerRecords,
+        List<Map<String, Object>> signerInputs
+    ) {
         List<PlacementInfo> placements = getTemplateSignaturePlacements(templateId);
-        if (placements.isEmpty()) return;
+        if (placements.isEmpty())
+            return;
 
         // Build role → signer record map
         Map<String, DocGen_Signer__c> roleSignerMap = new Map<String, DocGen_Signer__c>();
@@ -975,7 +1128,8 @@ public with sharing class DocGenSignatureSenderController {
         List<DocGen_Signature_Placement__c> placementRecords = new List<DocGen_Signature_Placement__c>();
         for (PlacementInfo p : placements) {
             DocGen_Signer__c signer = roleSignerMap.get(p.role);
-            if (signer == null) continue; // No signer assigned for this role
+            if (signer == null)
+                continue; // No signer assigned for this role
 
             DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c();
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
@@ -995,11 +1149,22 @@ public with sharing class DocGenSignatureSenderController {
         }
     }
 
-    private static List<SignerResult> createSignersAndNotify(Id requestId, Id templateId, String documentTitle, List<Map<String, Object>> signerInputs) {
+    private static List<SignerResult> createSignersAndNotify(
+        Id requestId,
+        Id templateId,
+        String documentTitle,
+        List<Map<String, Object>> signerInputs
+    ) {
         return createSignersAndNotify(requestId, templateId, documentTitle, signerInputs, true);
     }
 
-    private static List<SignerResult> createSignersAndNotify(Id requestId, Id templateId, String documentTitle, List<Map<String, Object>> signerInputs, Boolean sendEmails) {
+    private static List<SignerResult> createSignersAndNotify(
+        Id requestId,
+        Id templateId,
+        String documentTitle,
+        List<Map<String, Object>> signerInputs,
+        Boolean sendEmails
+    ) {
         String siteUrl = getSiteBaseUrl();
         List<DocGen_Signer__c> signerRecords = new List<DocGen_Signer__c>();
         List<SignerResult> results = new List<SignerResult>();
@@ -1012,13 +1177,13 @@ public with sharing class DocGenSignatureSenderController {
             String contactId = (String) input.get('contactId');
 
             Blob randomBytes = Crypto.generateAesKey(256);
-            Blob hash = Crypto.generateDigest('SHA-256',
+            Blob hash = Crypto.generateDigest(
+                'SHA-256',
                 Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + signerEmail + i)
-            // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
+                // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             );
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             String token = EncodingUtil.convertToHex(hash);
-
 
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
 
@@ -1070,7 +1235,11 @@ public with sharing class DocGenSignatureSenderController {
             try {
                 /* code-analyzer-suppress ApexFlsViolation */
                 DocGen_Signature_Request__c reqCheck = [
-                    SELECT Signing_Order__c FROM DocGen_Signature_Request__c WHERE Id = :requestId WITH SYSTEM_MODE LIMIT 1
+                    SELECT Signing_Order__c
+                    FROM DocGen_Signature_Request__c
+                    WHERE Id = :requestId
+                    WITH SYSTEM_MODE
+                    LIMIT 1
                 ]; // NOPMD
                 isSequential = reqCheck.Signing_Order__c == 'Sequential';
             } catch (Exception e) {
@@ -1080,26 +1249,35 @@ public with sharing class DocGenSignatureSenderController {
             List<DocGenSignatureEmailService.SignerEmail> emailList = new List<DocGenSignatureEmailService.SignerEmail>();
             for (Integer i = 0; i < results.size(); i++) {
                 // Sequential: only send to first signer (Sort_Order 1)
-                if (isSequential && i > 0) break;
+                if (isSequential && i > 0)
+                    break;
 
                 SignerResult sr = results[i];
                 Id cId = null;
                 for (Map<String, Object> input : signerInputs) {
-                    if (sr.signerEmail == (String) input.get('signerEmail') && String.isNotBlank((String) input.get('contactId'))) {
+                    if (
+                        sr.signerEmail == (String) input.get('signerEmail') &&
+                        String.isNotBlank((String) input.get('contactId'))
+                    ) {
                         cId = (Id) input.get('contactId');
                         break;
                     }
                 }
-                emailList.add(new DocGenSignatureEmailService.SignerEmail(
-                    sr.signerName, sr.signerEmail, sr.roleName, sr.signerUrl, cId
-                ));
+                emailList.add(
+                    new DocGenSignatureEmailService.SignerEmail(
+                        sr.signerName,
+                        sr.signerEmail,
+                        sr.roleName,
+                        sr.signerUrl,
+                        cId
+                    )
+                );
             }
             DocGenSignatureEmailService.sendSignatureRequestEmails(emailList, documentTitle, requestId);
         }
 
         return results;
     }
-
 
     /**
      * Resends signature request emails to all pending/viewed signers on a request.
@@ -1113,7 +1291,8 @@ public with sharing class DocGenSignatureSenderController {
             SELECT Id, Status__c, Template__r.Name, Source_Document_Id__c
             FROM DocGen_Signature_Request__c
             WHERE Id = :requestId
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (req.Status__c == 'Signed' || req.Status__c == 'Cancelled') {
@@ -1146,10 +1325,11 @@ public with sharing class DocGenSignatureSenderController {
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             Blob randomBytes = Crypto.generateAesKey(256);
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-            Blob hash = Crypto.generateDigest('SHA-256',
+            Blob hash = Crypto.generateDigest(
+                'SHA-256',
                 // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
                 Blob.valueOf(EncodingUtil.convertToHex(randomBytes) + s.Signer_Email__c + System.now())
-            // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
+                // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             );
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             String newToken = EncodingUtil.convertToHex(hash);
@@ -1163,10 +1343,16 @@ public with sharing class DocGenSignatureSenderController {
             s.PIN_Verified_At__c = null;
 
             String sigUrl = siteUrl + getSigningPagePath() + '?token=' + newToken;
-            emailList.add(new DocGenSignatureEmailService.SignerEmail(
-                s.Signer_Name__c, s.Signer_Email__c, s.Role_Name__c, sigUrl, s.Contact__c
-            // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-            ));
+            emailList.add(
+                new DocGenSignatureEmailService.SignerEmail(
+                    s.Signer_Name__c,
+                    s.Signer_Email__c,
+                    s.Role_Name__c,
+                    sigUrl,
+                    s.Contact__c
+                    // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
+                )
+            );
         }
 
         /* code-analyzer-suppress ApexFlsViolation */
@@ -1189,12 +1375,13 @@ public with sharing class DocGenSignatureSenderController {
             SELECT Id, Status__c
             FROM DocGen_Signature_Request__c
             WHERE Id = :requestId
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (req.Status__c == 'Signed') {
             throw new AuraHandledException('Cannot cancel a completed signature request.');
-        // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
+            // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         }
         if (req.Status__c == 'Cancelled') {
             throw new AuraHandledException('This request is already cancelled.');
@@ -1208,7 +1395,8 @@ public with sharing class DocGenSignatureSenderController {
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Signer__c> unsignedSigners = [
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-            SELECT Id, Status__c FROM DocGen_Signer__c
+            SELECT Id, Status__c
+            FROM DocGen_Signer__c
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             WHERE Signature_Request__c = :requestId AND Status__c != 'Signed'
             WITH SYSTEM_MODE
@@ -1224,7 +1412,13 @@ public with sharing class DocGenSignatureSenderController {
     }
 
     private static String getDocumentTitle(Id contentVersionId) {
-        List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE Id = :contentVersionId WITH USER_MODE LIMIT 1];
+        List<ContentVersion> cvs = [
+            SELECT Title
+            FROM ContentVersion
+            WHERE Id = :contentVersionId
+            WITH USER_MODE
+            LIMIT 1
+        ];
         return !cvs.isEmpty() ? cvs[0].Title : 'Document';
     }
 
@@ -1265,7 +1459,13 @@ public with sharing class DocGenSignatureSenderController {
         if (String.isBlank(siteUrl)) {
             List<Site> sites = [SELECT Id FROM Site WHERE Status = 'Active' WITH SYSTEM_MODE LIMIT 1];
             if (!sites.isEmpty()) {
-                SiteDetail sd = [SELECT SecureUrl FROM SiteDetail WHERE DurableId = :sites[0].Id WITH SYSTEM_MODE LIMIT 1];
+                SiteDetail sd = [
+                    SELECT SecureUrl
+                    FROM SiteDetail
+                    WHERE DurableId = :sites[0].Id
+                    WITH SYSTEM_MODE
+                    LIMIT 1
+                ];
                 siteUrl = sd.SecureUrl;
             }
         }

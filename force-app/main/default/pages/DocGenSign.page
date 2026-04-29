@@ -1,21 +1,27 @@
-<apex:page showHeader="false" sidebar="false" standardStylesheets="false"
-           applyBodyTag="false" applyHtmlTag="false" docType="html-5.0">
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <title>Document Signature</title>
-    <script>
-        // Redirect to the main signature page, preserving the token
-        // Use Visualforce $Page reference to get namespace-aware URL
-        var params = new URLSearchParams(window.location.search);
-        var token = params.get('token');
-        if (token) {
-            window.location.replace('{!URLFOR($Page.DocGenSignature)}' + '?token=' + encodeURIComponent(token));
-        } else {
-            document.body.textContent = 'Invalid signature link. Please check your email for the correct URL.';
-        }
-    </script>
-</head>
-<body></body>
-</html>
+<apex:page
+    showHeader="false"
+    sidebar="false"
+    standardStylesheets="false"
+    applyBodyTag="false"
+    applyHtmlTag="false"
+    docType="html-5.0"
+>
+    <html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <title>Document Signature</title>
+            <script>
+                // Redirect to the main signature page, preserving the token
+                // Use Visualforce $Page reference to get namespace-aware URL
+                var params = new URLSearchParams(window.location.search);
+                var token = params.get('token');
+                if (token) {
+                    window.location.replace('{!URLFOR($Page.DocGenSignature)}' + '?token=' + encodeURIComponent(token));
+                } else {
+                    document.body.textContent = 'Invalid signature link. Please check your email for the correct URL.';
+                }
+            </script>
+        </head>
+        <body></body>
+    </html>
 </apex:page>

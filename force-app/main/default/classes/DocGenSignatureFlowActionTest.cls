@@ -1,7 +1,6 @@
 // CxSAST: Test class — SOQL/DML findings are test data operations, not production code paths
 @isTest
 private class DocGenSignatureFlowActionTest {
-
     @testSetup
     static void setup() {
         TestDataFactory.createStandardTestData();
@@ -14,9 +13,9 @@ private class DocGenSignatureFlowActionTest {
         DocGenSignatureFlowAction.Request r = new DocGenSignatureFlowAction.Request();
         r.templateId = tmpl.Id;
         r.relatedRecordId = acc.Id;
-        r.signerNames = new List<String>{'Alice Flow', 'Bob Flow'};
-        r.signerEmails = new List<String>{'alice@flow.test', 'bob@flow.test'};
-        r.signerRoles = new List<String>{'Buyer', 'Seller'};
+        r.signerNames = new List<String>{ 'Alice Flow', 'Bob Flow' };
+        r.signerEmails = new List<String>{ 'alice@flow.test', 'bob@flow.test' };
+        r.signerRoles = new List<String>{ 'Buyer', 'Seller' };
         r.signerContactIds = null;
         return r;
     }
@@ -33,8 +32,9 @@ private class DocGenSignatureFlowActionTest {
         Integer emailsBefore = Limits.getEmailInvocations();
 
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ req });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ req }
+        );
         Test.stopTest();
 
         Integer emailsAfter = Limits.getEmailInvocations();
@@ -53,11 +53,19 @@ private class DocGenSignatureFlowActionTest {
         System.assert(r.signerUrls[0].contains('token='), 'URL contains signing token');
 
         // Verify the signature request + signers were persisted
-        DocGen_Signature_Request__c persisted =
-            [SELECT Id, Template__c, Status__c FROM DocGen_Signature_Request__c WHERE Id = :r.signatureRequestId LIMIT 1];
+        DocGen_Signature_Request__c persisted = [
+            SELECT Id, Template__c, Status__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :r.signatureRequestId
+            LIMIT 1
+        ];
         System.assertEquals('Sent', persisted.Status__c);
-        List<DocGen_Signer__c> signers =
-            [SELECT Id, Role_Name__c, Signer_Email__c FROM DocGen_Signer__c WHERE Signature_Request__c = :r.signatureRequestId ORDER BY Sort_Order__c];
+        List<DocGen_Signer__c> signers = [
+            SELECT Id, Role_Name__c, Signer_Email__c
+            FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :r.signatureRequestId
+            ORDER BY Sort_Order__c
+        ];
         System.assertEquals(2, signers.size());
         System.assertEquals('Buyer', signers[0].Role_Name__c);
         System.assertEquals('Seller', signers[1].Role_Name__c);
@@ -73,8 +81,9 @@ private class DocGenSignatureFlowActionTest {
         req.sendEmails = true;
 
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ req });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ req }
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
@@ -90,13 +99,14 @@ private class DocGenSignatureFlowActionTest {
     static void testGenerate_multipleRequests() {
         DocGenSignatureFlowAction.Request r1 = buildRequest();
         DocGenSignatureFlowAction.Request r2 = buildRequest();
-        r2.signerNames = new List<String>{'Carol Flow'};
-        r2.signerEmails = new List<String>{'carol@flow.test'};
-        r2.signerRoles = new List<String>{'Witness'};
+        r2.signerNames = new List<String>{ 'Carol Flow' };
+        r2.signerEmails = new List<String>{ 'carol@flow.test' };
+        r2.signerRoles = new List<String>{ 'Witness' };
 
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ r1, r2 });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ r1, r2 }
+        );
         Test.stopTest();
 
         System.assertEquals(2, results.size(), 'One result per request');
@@ -112,11 +122,12 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testGenerate_roleDefaulting() {
         DocGenSignatureFlowAction.Request r = buildRequest();
-        r.signerRoles = null;  // no roles → should default to "Signer"
+        r.signerRoles = null; // no roles → should default to "Signer"
 
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ r });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ r }
+        );
         Test.stopTest();
 
         System.assertEquals('Signer', results[0].signerRoles[0]);
@@ -126,11 +137,12 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testGenerate_partialRolesList() {
         DocGenSignatureFlowAction.Request r = buildRequest();
-        r.signerRoles = new List<String>{'Buyer'};  // only one role for two signers
+        r.signerRoles = new List<String>{ 'Buyer' }; // only one role for two signers
 
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ r });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ r }
+        );
         Test.stopTest();
 
         System.assertEquals('Buyer', results[0].signerRoles[0]);
@@ -144,8 +156,9 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testGenerate_emptyInputList() {
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>());
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>()
+        );
         Test.stopTest();
         System.assertEquals(0, results.size());
     }
@@ -166,8 +179,8 @@ private class DocGenSignatureFlowActionTest {
     static void testValidate_nullTemplateId() {
         DocGenSignatureFlowAction.Request r = new DocGenSignatureFlowAction.Request();
         r.relatedRecordId = TestDataFactory.getTestAccount().Id;
-        r.signerNames = new List<String>{'X'};
-        r.signerEmails = new List<String>{'x@test.com'};
+        r.signerNames = new List<String>{ 'X' };
+        r.signerEmails = new List<String>{ 'x@test.com' };
 
         Test.startTest();
         Boolean caught = false;
@@ -185,8 +198,8 @@ private class DocGenSignatureFlowActionTest {
     static void testValidate_nullRelatedRecordId() {
         DocGenSignatureFlowAction.Request r = new DocGenSignatureFlowAction.Request();
         r.templateId = TestDataFactory.getTestTemplate().Id;
-        r.signerNames = new List<String>{'X'};
-        r.signerEmails = new List<String>{'x@test.com'};
+        r.signerNames = new List<String>{ 'X' };
+        r.signerEmails = new List<String>{ 'x@test.com' };
 
         Test.startTest();
         Boolean caught = false;
@@ -220,7 +233,7 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testValidate_signerListLengthMismatch() {
         DocGenSignatureFlowAction.Request r = buildRequest();
-        r.signerEmails = new List<String>{'a@test.com'};  // two names, one email
+        r.signerEmails = new List<String>{ 'a@test.com' }; // two names, one email
 
         Test.startTest();
         Boolean caught = false;
@@ -236,8 +249,8 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testValidate_blankSignerName() {
         DocGenSignatureFlowAction.Request r = buildRequest();
-        r.signerNames = new List<String>{''};
-        r.signerEmails = new List<String>{'x@test.com'};
+        r.signerNames = new List<String>{ '' };
+        r.signerEmails = new List<String>{ 'x@test.com' };
 
         Test.startTest();
         Boolean caught = false;
@@ -254,8 +267,8 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testValidate_blankSignerEmail() {
         DocGenSignatureFlowAction.Request r = buildRequest();
-        r.signerNames = new List<String>{'X'};
-        r.signerEmails = new List<String>{''};
+        r.signerNames = new List<String>{ 'X' };
+        r.signerEmails = new List<String>{ '' };
 
         Test.startTest();
         Boolean caught = false;
@@ -282,13 +295,15 @@ private class DocGenSignatureFlowActionTest {
         r.signerContactIds = new List<String>{ contacts[0].Id, contacts[1].Id };
 
         Test.startTest();
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ r });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ r }
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
         List<DocGen_Signer__c> signers = [
-            SELECT Contact__c FROM DocGen_Signer__c
+            SELECT Contact__c
+            FROM DocGen_Signer__c
             WHERE Signature_Request__c = :results[0].signatureRequestId
             ORDER BY Sort_Order__c
         ];
@@ -321,13 +336,14 @@ private class DocGenSignatureFlowActionTest {
     @isTest
     static void testGenerate_templateNotFound() {
         DocGenSignatureFlowAction.Request r = buildRequest();
-        r.templateId = '001000000000000AAA';  // any fake Id
+        r.templateId = '001000000000000AAA'; // any fake Id
 
         Test.startTest();
         // Runtime errors (like template not found) are caught and returned in Result
         // so Flows get a structured error instead of crashing the Flow.
-        List<DocGenSignatureFlowAction.Result> results =
-            DocGenSignatureFlowAction.generate(new List<DocGenSignatureFlowAction.Request>{ r });
+        List<DocGenSignatureFlowAction.Result> results = DocGenSignatureFlowAction.generate(
+            new List<DocGenSignatureFlowAction.Request>{ r }
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());

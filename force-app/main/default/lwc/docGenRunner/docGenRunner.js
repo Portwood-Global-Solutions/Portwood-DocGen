@@ -86,21 +86,46 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         return value !== false && value !== 'false';
     }
 
-    get canDownload() { return this._isEnabled(this.showDownloadOption); }
-    get canSaveToRecord() { return this._isEnabled(this.showSaveToRecordOption); }
-    get canUseDocumentPacket() { return this._isEnabled(this.showDocumentPacketOption); }
-    get canUseCombinePdfs() { return this._isEnabled(this.showCombinePdfsOption); }
-    get canUseCombineWithExistingPdfs() { return this._isEnabled(this.showCombineWithExistingPdfsOption); }
+    get canDownload() {
+        return this._isEnabled(this.showDownloadOption);
+    }
+    get canSaveToRecord() {
+        return this._isEnabled(this.showSaveToRecordOption);
+    }
+    get canUseDocumentPacket() {
+        return this._isEnabled(this.showDocumentPacketOption);
+    }
+    get canUseCombinePdfs() {
+        return this._isEnabled(this.showCombinePdfsOption);
+    }
+    get canUseCombineWithExistingPdfs() {
+        return this._isEnabled(this.showCombineWithExistingPdfsOption);
+    }
 
     get modernModeOptions() {
         const options = [
-            { label: 'Create Document', value: 'generate', icon: '📄', class: this.appMode === 'generate' ? 'seg-btn active' : 'seg-btn' }
+            {
+                label: 'Create Document',
+                value: 'generate',
+                icon: '📄',
+                class: this.appMode === 'generate' ? 'seg-btn active' : 'seg-btn'
+            }
         ];
         if (this.canUseDocumentPacket) {
-            options.push({ label: 'Document Packet', value: 'packet', icon: '📚', class: this.appMode === 'packet' ? 'seg-btn active' : 'seg-btn' });
+            options.push({
+                label: 'Document Packet',
+                value: 'packet',
+                icon: '📚',
+                class: this.appMode === 'packet' ? 'seg-btn active' : 'seg-btn'
+            });
         }
         if (this.canUseCombinePdfs) {
-            options.push({ label: 'Combine PDFs', value: 'mergeOnly', icon: '🔗', class: this.appMode === 'mergeOnly' ? 'seg-btn active' : 'seg-btn' });
+            options.push({
+                label: 'Combine PDFs',
+                value: 'mergeOnly',
+                icon: '🔗',
+                class: this.appMode === 'mergeOnly' ? 'seg-btn active' : 'seg-btn'
+            });
         }
         return options;
     }
@@ -122,8 +147,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             return this.canDownload ? ['download'] : [];
         }
         const modes = [];
-        if (this.canDownload) { modes.push('download'); }
-        if (this.canSaveToRecord) { modes.push('save'); }
+        if (this.canDownload) {
+            modes.push('download');
+        }
+        if (this.canSaveToRecord) {
+            modes.push('save');
+        }
         return modes;
     }
 
@@ -132,10 +161,20 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         const resolvedMode = allowedModes.includes(this.outputMode) ? this.outputMode : allowedModes[0];
         const options = [];
         if (allowedModes.includes('download')) {
-            options.push({ label: 'Download', value: 'download', icon: '⬇️', class: resolvedMode === 'download' ? 'pill-btn active' : 'pill-btn' });
+            options.push({
+                label: 'Download',
+                value: 'download',
+                icon: '⬇️',
+                class: resolvedMode === 'download' ? 'pill-btn active' : 'pill-btn'
+            });
         }
         if (allowedModes.includes('save')) {
-            options.push({ label: 'Save to Record', value: 'save', icon: '☁️', class: resolvedMode === 'save' ? 'pill-btn active' : 'pill-btn' });
+            options.push({
+                label: 'Save to Record',
+                value: 'save',
+                icon: '☁️',
+                class: resolvedMode === 'save' ? 'pill-btn active' : 'pill-btn'
+            });
         }
         return options;
     }
@@ -158,24 +197,46 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         return 'download';
     }
 
-    get isGenerateMode() { return this.appMode === 'generate'; }
-    get isPacketMode() { return this.appMode === 'packet'; }
-    get isMergeOnlyMode() { return this.appMode === 'mergeOnly'; }
-    get isMergeChildrenMode() { return this.appMode === 'mergeChildren'; }
+    get isGenerateMode() {
+        return this.appMode === 'generate';
+    }
+    get isPacketMode() {
+        return this.appMode === 'packet';
+    }
+    get isMergeOnlyMode() {
+        return this.appMode === 'mergeOnly';
+    }
+    get isMergeChildrenMode() {
+        return this.appMode === 'mergeChildren';
+    }
 
     get templateOutputFormat() {
-        const t = this._templateData.find(tmpl => tmpl.Id === this.selectedTemplateId);
+        const t = this._templateData.find((tmpl) => tmpl.Id === this.selectedTemplateId);
         return t ? t[OUT_FMT_FIELD.fieldApiName] : null;
     }
 
-    get showMergeOption() { return this.templateOutputFormat === 'PDF' && this.canUseCombineWithExistingPdfs; }
-    get progressBarStyle() { return `width: ${this.progressPercent}%`; }
-    get hasRecordPdfs() { return this.recordPdfOptions.length > 0; }
+    get showMergeOption() {
+        return this.templateOutputFormat === 'PDF' && this.canUseCombineWithExistingPdfs;
+    }
+    get progressBarStyle() {
+        return `width: ${this.progressPercent}%`;
+    }
+    get hasRecordPdfs() {
+        return this.recordPdfOptions.length > 0;
+    }
 
-    get isGenerateDisabled() { return !this.selectedTemplateId || this.isLoading || this.modernOutputOptions.length === 0; }
-    get isPacketDisabled() { return this.packetTemplateIds.length < 1 || this.isLoading || this.modernOutputOptions.length === 0; }
-    get isMergeOnlyDisabled() { return this.mergeOnlyCvIds.length < 2 || this.isLoading || this.modernOutputOptions.length === 0; }
-    get isMergeChildrenDisabled() { return this.selectedChildPdfCvIds.length < 1 || this.isLoading || this.modernOutputOptions.length === 0; }
+    get isGenerateDisabled() {
+        return !this.selectedTemplateId || this.isLoading || this.modernOutputOptions.length === 0;
+    }
+    get isPacketDisabled() {
+        return this.packetTemplateIds.length < 1 || this.isLoading || this.modernOutputOptions.length === 0;
+    }
+    get isMergeOnlyDisabled() {
+        return this.mergeOnlyCvIds.length < 2 || this.isLoading || this.modernOutputOptions.length === 0;
+    }
+    get isMergeChildrenDisabled() {
+        return this.selectedChildPdfCvIds.length < 1 || this.isLoading || this.modernOutputOptions.length === 0;
+    }
 
     get generateButtonLabel() {
         if (this.mergeEnabled && this.selectedPdfCvIds.length > 0) {
@@ -219,16 +280,21 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
      */
     _rebuildTemplateOptions() {
         const data = this._templateData || [];
-        const filtered = (this.selectedCategory && this.selectedCategory !== '__ALL__')
-            ? data.filter(t => (t[CATEGORY_FIELD.fieldApiName] || '__UNCATEGORIZED__') === this.selectedCategory)
-            : data;
-        const defaultTemplate = filtered.find(t => t[IS_DEFAULT_FIELD.fieldApiName]);
-        const stillSelected = filtered.some(t => t.Id === this.selectedTemplateId);
+        const filtered =
+            this.selectedCategory && this.selectedCategory !== '__ALL__'
+                ? data.filter((t) => (t[CATEGORY_FIELD.fieldApiName] || '__UNCATEGORIZED__') === this.selectedCategory)
+                : data;
+        const defaultTemplate = filtered.find((t) => t[IS_DEFAULT_FIELD.fieldApiName]);
+        const stillSelected = filtered.some((t) => t.Id === this.selectedTemplateId);
         const selectedTemplateId = stillSelected
             ? this.selectedTemplateId
-            : (defaultTemplate ? defaultTemplate.Id : (filtered[0] ? filtered[0].Id : ''));
+            : defaultTemplate
+              ? defaultTemplate.Id
+              : filtered[0]
+                ? filtered[0].Id
+                : '';
         this.selectedTemplateId = selectedTemplateId;
-        this.templateOptions = filtered.map(t => {
+        this.templateOptions = filtered.map((t) => {
             const isDefault = !!t[IS_DEFAULT_FIELD.fieldApiName];
             const catVal = t[CATEGORY_FIELD.fieldApiName];
             const cat = catVal ? `[${catVal}] ` : '';
@@ -262,10 +328,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         return opts;
     }
 
-    get showCategoryFilter() { return this.categoryOptions.length > 0; }
+    get showCategoryFilter() {
+        return this.categoryOptions.length > 0;
+    }
 
     get selectedTemplate() {
-        return this._templateData.find(t => t.Id === this.selectedTemplateId);
+        return this._templateData.find((t) => t.Id === this.selectedTemplateId);
     }
 
     /**
@@ -288,7 +356,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         return [];
     }
 
-    get showOutputFormatPicker() { return this.outputFormatPickerOptions.length > 0; }
+    get showOutputFormatPicker() {
+        return this.outputFormatPickerOptions.length > 0;
+    }
 
     /**
      * Effective Output_Format__c value for THIS run — 'PDF' or 'Native'.
@@ -306,7 +376,11 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     }
 
     get emptyStateMessage() {
-        return 'No templates available for this record. Check the template\'s Specific Record Ids and Required Permission Sets, or ask an admin to create a template for ' + (this.objectApiName || 'this object') + '.';
+        return (
+            "No templates available for this record. Check the template's Specific Record Ids and Required Permission Sets, or ask an admin to create a template for " +
+            (this.objectApiName || 'this object') +
+            '.'
+        );
     }
 
     handleCategoryChange(event) {
@@ -326,13 +400,13 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     }
 
     get childRelComboboxOptions() {
-        return this.childRelationships.map(rel => ({ label: rel.label, value: rel.value }));
+        return this.childRelationships.map((rel) => ({ label: rel.label, value: rel.value }));
     }
 
     get pdfTemplateOptions() {
         return this._templateData
-            .filter(t => t[OUT_FMT_FIELD.fieldApiName] === 'PDF')
-            .map(t => ({ label: t.Name, value: t.Id }));
+            .filter((t) => t[OUT_FMT_FIELD.fieldApiName] === 'PDF')
+            .map((t) => ({ label: t.Name, value: t.Id }));
     }
 
     async loadRecordPdfs() {
@@ -359,7 +433,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         this.selectedPdfCvIds = [];
         // Keep templateOptions.selected in sync so the <select> re-renders
         // correctly when the Generate section is destroyed/recreated by lwc:if
-        this.templateOptions = this.templateOptions.map(t => ({
+        this.templateOptions = this.templateOptions.map((t) => ({
             ...t,
             selected: t.value === this.selectedTemplateId
         }));
@@ -377,7 +451,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         if (event.target.checked) {
             this.selectedPdfCvIds = [...this.selectedPdfCvIds, val];
         } else {
-            this.selectedPdfCvIds = this.selectedPdfCvIds.filter(id => id !== val);
+            this.selectedPdfCvIds = this.selectedPdfCvIds.filter((id) => id !== val);
         }
     }
 
@@ -409,7 +483,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     async handleLoadChildPdfs() {
         this.isLoading = true;
         try {
-            const rel = this.childRelationships.find(r => r.value === this.selectedChildRel);
+            const rel = this.childRelationships.find((r) => r.value === this.selectedChildRel);
             const data = await getChildRecordPdfs({
                 parentRecordId: this.recordId,
                 childObject: rel.childObjectApiName,
@@ -426,9 +500,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     }
 
     get childRecordGroupsWithState() {
-        return this.childRecordGroups.map(group => ({
+        return this.childRecordGroups.map((group) => ({
             ...group,
-            pdfs: group.pdfs.map(pdf => ({
+            pdfs: group.pdfs.map((pdf) => ({
                 ...pdf,
                 checked: this.selectedChildPdfCvIds.includes(pdf.value)
             }))
@@ -440,7 +514,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         if (event.target.checked) {
             this.selectedChildPdfCvIds = [...this.selectedChildPdfCvIds, cvId];
         } else {
-            this.selectedChildPdfCvIds = this.selectedChildPdfCvIds.filter(id => id !== cvId);
+            this.selectedChildPdfCvIds = this.selectedChildPdfCvIds.filter((id) => id !== cvId);
         }
     }
 
@@ -454,7 +528,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
      * If not giant, falls through to normal generation.
      */
     async handleGenerate() {
-        const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
+        const selected = this._templateData.find((t) => t.Id === this.selectedTemplateId);
         const templateType = selected ? selected[TYPE_FIELD.fieldApiName] : 'Word';
         const isPPT = templateType === 'PowerPoint';
         const isExcel = templateType === 'Excel';
@@ -491,7 +565,8 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 }
                 this.isLoading = false;
                 this.loadingMessage = '';
-                this.error = `This record has ${giantRel[1].toLocaleString()} ${giantRel[0]} records — ` +
+                this.error =
+                    `This record has ${giantRel[1].toLocaleString()} ${giantRel[0]} records — ` +
                     'too large for sync PowerPoint/Excel output. Please generate as DOCX (Word) or PDF.';
                 return;
             }
@@ -514,7 +589,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         this.isLoading = true;
         this.error = null;
         try {
-            const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
+            const selected = this._templateData.find((t) => t.Id === this.selectedTemplateId);
             const templateType = selected ? selected[TYPE_FIELD.fieldApiName] : 'Word';
             const isPPT = templateType === 'PowerPoint';
             const isExcel = templateType === 'Excel';
@@ -537,9 +612,16 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         resolvedImages: null,
                         outputFormatOverride: this.outputFormatOverride
                     });
-                    if (await this._handledHeapPressure(result)) { return; }
+                    if (await this._handledHeapPressure(result)) {
+                        return;
+                    }
                     if (saveToRecord) {
-                        await saveGeneratedDocument({ recordId: this.recordId, fileName: (result.title || 'Document'), base64Data: result.base64, extension: 'pdf' });
+                        await saveGeneratedDocument({
+                            recordId: this.recordId,
+                            fileName: result.title || 'Document',
+                            base64Data: result.base64,
+                            extension: 'pdf'
+                        });
                         this.showToast('Success', 'PDF saved to record.', 'success');
                     } else {
                         this.downloadBase64(result.base64, (result.title || 'Document') + '.pdf', 'application/pdf');
@@ -569,7 +651,11 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         templateId: this.selectedTemplateId,
                         recordId: this.recordId
                     });
-                    this.showToast('Success', 'PDF is being generated. It will appear on the record in a moment — refresh the page to see it.', 'success');
+                    this.showToast(
+                        'Success',
+                        'PDF is being generated. It will appear on the record in a moment — refresh the page to see it.',
+                        'success'
+                    );
                 } else {
                     this.showToast('Info', 'Generating PDF...', 'info');
                     const result = await generatePdf({
@@ -577,7 +663,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                         recordId: this.recordId,
                         saveToRecord: false
                     });
-                    if (await this._handledHeapPressure(result)) { return; }
+                    if (await this._handledHeapPressure(result)) {
+                        return;
+                    }
                     if (result.base64) {
                         this.downloadBase64(result.base64, (result.title || 'Document') + '.pdf', 'application/pdf');
                     }
@@ -593,11 +681,18 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     templateId: this.selectedTemplateId,
                     recordId: this.recordId
                 });
-                if (!result || !result.base64) { throw new Error('Document generation returned empty result.'); }
+                if (!result || !result.base64) {
+                    throw new Error('Document generation returned empty result.');
+                }
                 const docTitle = result.title || 'Document';
                 if (saveToRecord) {
                     // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                    await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: result.base64, extension: 'pptx' });
+                    await saveGeneratedDocument({
+                        recordId: this.recordId,
+                        fileName: docTitle,
+                        base64Data: result.base64,
+                        extension: 'pptx'
+                    });
                     this.showToast('Success', 'PPTX saved to record.', 'success');
                 } else {
                     this.downloadBase64(result.base64, docTitle + '.pptx', 'application/octet-stream');
@@ -618,7 +713,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
      * Returns true if we handled the signal, false otherwise.
      */
     async _handledHeapPressure(result) {
-        if (!result || !result.heapPressure) { return false; }
+        if (!result || !result.heapPressure) {
+            return false;
+        }
         if (!this._scoutCache) {
             this.error = 'Dataset exceeds sync heap limit — open the Command Hub and generate via the bulk pipeline.';
             return true;
@@ -632,7 +729,10 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         if (!rel) {
             let maxCount = 0;
             for (const [name, count] of Object.entries(counts || {})) {
-                if (count > maxCount) { maxCount = count; rel = name; }
+                if (count > maxCount) {
+                    maxCount = count;
+                    rel = name;
+                }
             }
         }
         if (!rel || !childNodes[rel]) {
@@ -657,13 +757,22 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 recordId: this.recordId
             });
             if (result.isGiantQuery) {
-                this.showToast('Success', 'Large dataset detected \u2014 generating asynchronously. Check Job History for progress.', 'success');
+                this.showToast(
+                    'Success',
+                    'Large dataset detected \u2014 generating asynchronously. Check Job History for progress.',
+                    'success'
+                );
             } else if (result.base64) {
                 const saveToRecord = this.resolvedOutputMode === 'save';
                 const docTitle = result.title || 'Document';
                 if (saveToRecord) {
                     // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                    await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: result.base64, extension: 'pdf' });
+                    await saveGeneratedDocument({
+                        recordId: this.recordId,
+                        fileName: docTitle,
+                        base64Data: result.base64,
+                        extension: 'pdf'
+                    });
                     this.showToast('Success', 'PDF saved to record.', 'success');
                 } else {
                     this.downloadBase64(result.base64, docTitle + '.pdf', 'application/pdf');
@@ -680,19 +789,32 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     async _generateMergedPdf(saveToRecord) {
         const totalPdfs = this.selectedPdfCvIds.length + 1;
         this.showToast('Info', `Generating and merging ${totalPdfs} PDFs...`, 'info');
-        const result = await generatePdf({ templateId: this.selectedTemplateId, recordId: this.recordId, saveToRecord: false });
-        if (!result || !result.base64) { throw new Error('Template PDF generation returned empty result.'); }
+        const result = await generatePdf({
+            templateId: this.selectedTemplateId,
+            recordId: this.recordId,
+            saveToRecord: false
+        });
+        if (!result || !result.base64) {
+            throw new Error('Template PDF generation returned empty result.');
+        }
         const docTitle = result.title || 'Document';
         const pdfBytesArray = [this._base64ToUint8Array(result.base64)];
         for (const cvId of this.selectedPdfCvIds) {
             const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-            if (b64) { pdfBytesArray.push(this._base64ToUint8Array(b64)); }
+            if (b64) {
+                pdfBytesArray.push(this._base64ToUint8Array(b64));
+            }
         }
         const mergedBytes = mergePdfs(pdfBytesArray);
         const mergedBase64 = this._uint8ArrayToBase64(mergedBytes);
         if (saveToRecord) {
             // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-            await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: mergedBase64, extension: 'pdf' });
+            await saveGeneratedDocument({
+                recordId: this.recordId,
+                fileName: docTitle,
+                base64Data: mergedBase64,
+                extension: 'pdf'
+            });
             this.showToast('Success', 'Merged PDF saved to record.', 'success');
         } else {
             this.downloadBase64(mergedBase64, docTitle + '.pdf', 'application/pdf');
@@ -710,15 +832,21 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const pdfBytesArray = [];
             for (const templateId of this.packetTemplateIds) {
                 const result = await generatePdf({ templateId, recordId: this.recordId, saveToRecord: false });
-                if (result && result.base64) { pdfBytesArray.push(this._base64ToUint8Array(result.base64)); }
+                if (result && result.base64) {
+                    pdfBytesArray.push(this._base64ToUint8Array(result.base64));
+                }
             }
             if (this.packetIncludeExisting && this.packetExistingPdfIds.length > 0) {
                 for (const cvId of this.packetExistingPdfIds) {
                     const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-                    if (b64) { pdfBytesArray.push(this._base64ToUint8Array(b64)); }
+                    if (b64) {
+                        pdfBytesArray.push(this._base64ToUint8Array(b64));
+                    }
                 }
             }
-            if (pdfBytesArray.length === 0) { throw new Error('No documents were generated.'); }
+            if (pdfBytesArray.length === 0) {
+                throw new Error('No documents were generated.');
+            }
             let finalBase64;
             if (pdfBytesArray.length === 1) {
                 finalBase64 = this._uint8ArrayToBase64(pdfBytesArray[0]);
@@ -728,7 +856,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                await saveGeneratedDocument({ recordId: this.recordId, fileName: 'Document Packet', base64Data: finalBase64, extension: 'pdf' });
+                await saveGeneratedDocument({
+                    recordId: this.recordId,
+                    fileName: 'Document Packet',
+                    base64Data: finalBase64,
+                    extension: 'pdf'
+                });
                 this.showToast('Success', 'Document packet saved to record.', 'success');
             } else {
                 this.downloadBase64(finalBase64, 'Document Packet.pdf', 'application/pdf');
@@ -750,15 +883,24 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const pdfBytesArray = [];
             for (const cvId of this.mergeOnlyCvIds) {
                 const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-                if (b64) { pdfBytesArray.push(this._base64ToUint8Array(b64)); }
+                if (b64) {
+                    pdfBytesArray.push(this._base64ToUint8Array(b64));
+                }
             }
-            if (pdfBytesArray.length < 2) { throw new Error('Need at least 2 PDFs to merge.'); }
+            if (pdfBytesArray.length < 2) {
+                throw new Error('Need at least 2 PDFs to merge.');
+            }
             const mergedBytes = mergePdfs(pdfBytesArray);
             const mergedBase64 = this._uint8ArrayToBase64(mergedBytes);
             const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                await saveGeneratedDocument({ recordId: this.recordId, fileName: 'Merged Document', base64Data: mergedBase64, extension: 'pdf' });
+                await saveGeneratedDocument({
+                    recordId: this.recordId,
+                    fileName: 'Merged Document',
+                    base64Data: mergedBase64,
+                    extension: 'pdf'
+                });
                 this.showToast('Success', 'Merged PDF saved to record.', 'success');
             } else {
                 this.downloadBase64(mergedBase64, 'Merged Document.pdf', 'application/pdf');
@@ -780,17 +922,29 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const pdfBytesArray = [];
             for (const cvId of this.selectedChildPdfCvIds) {
                 const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-                if (b64) { pdfBytesArray.push(this._base64ToUint8Array(b64)); }
+                if (b64) {
+                    pdfBytesArray.push(this._base64ToUint8Array(b64));
+                }
             }
-            if (pdfBytesArray.length < 1) { throw new Error('No PDFs could be loaded.'); }
+            if (pdfBytesArray.length < 1) {
+                throw new Error('No PDFs could be loaded.');
+            }
             let finalBytes;
-            if (pdfBytesArray.length === 1) { finalBytes = pdfBytesArray[0]; }
-            else { finalBytes = mergePdfs(pdfBytesArray); }
+            if (pdfBytesArray.length === 1) {
+                finalBytes = pdfBytesArray[0];
+            } else {
+                finalBytes = mergePdfs(pdfBytesArray);
+            }
             const finalBase64 = this._uint8ArrayToBase64(finalBytes);
             const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                await saveGeneratedDocument({ recordId: this.recordId, fileName: 'Merged Child PDFs', base64Data: finalBase64, extension: 'pdf' });
+                await saveGeneratedDocument({
+                    recordId: this.recordId,
+                    fileName: 'Merged Child PDFs',
+                    base64Data: finalBase64,
+                    extension: 'pdf'
+                });
                 this.showToast('Success', 'Merged PDF saved to record.', 'success');
             } else {
                 this.downloadBase64(finalBase64, 'Merged Child PDFs.pdf', 'application/pdf');
@@ -825,21 +979,31 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             templateId: this.selectedTemplateId,
             recordId: this.recordId
         });
-        if (!parts || !parts.allXmlParts) { throw new Error('Document generation returned empty result.'); }
+        if (!parts || !parts.allXmlParts) {
+            throw new Error('Document generation returned empty result.');
+        }
         const docTitle = parts.title || 'Document';
 
         const allImages = { ...(parts.imageBase64Map || {}) };
         if (parts.imageCvIdMap) {
             const uniqueCvIds = new Map();
             for (const [mediaPath, cvId] of Object.entries(parts.imageCvIdMap)) {
-                if (!uniqueCvIds.has(cvId)) { uniqueCvIds.set(cvId, []); }
+                if (!uniqueCvIds.has(cvId)) {
+                    uniqueCvIds.set(cvId, []);
+                }
                 uniqueCvIds.get(cvId).push(mediaPath);
             }
             for (const [cvId, mediaPaths] of uniqueCvIds) {
                 try {
                     const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-                    if (b64) { for (const mp of mediaPaths) { allImages[mp] = b64; } }
-                } catch (imgErr) { console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr); }
+                    if (b64) {
+                        for (const mp of mediaPaths) {
+                            allImages[mp] = b64;
+                        }
+                    }
+                } catch (imgErr) {
+                    console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr);
+                }
             }
         }
         // Lightning rich text inline images (0EM ContentReference) — only path:
@@ -860,7 +1024,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                             this._updateDocxImageSizeIfNotExplicit(parts, mediaPath, extracted.width, extracted.height);
                         }
                     }
-                } catch (urlErr) { console.warn('DocGen: rich text image extract failed for ' + url, urlErr); }
+                } catch (urlErr) {
+                    console.warn('DocGen: rich text image extract failed for ' + url, urlErr);
+                }
             }
         }
 
@@ -868,7 +1034,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         const fileBase64 = this._uint8ArrayToBase64(fileBytes);
         if (saveToRecord) {
             // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-            await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: fileBase64, extension });
+            await saveGeneratedDocument({
+                recordId: this.recordId,
+                fileName: docTitle,
+                base64Data: fileBase64,
+                extension
+            });
             this.showToast('Success', extension.toUpperCase() + ' saved to record.', 'success');
         } else {
             this.downloadBase64(fileBase64, docTitle + '.' + extension, mimeType);
@@ -891,7 +1062,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             let status = 'Harvesting';
             while (status !== 'Completed' && status !== 'Failed') {
                 // eslint-disable-next-line no-await-in-loop
-                await new Promise(resolve => { setTimeout(resolve, 3000); }); // NOSONAR — intentional poll delay
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 3000);
+                }); // NOSONAR — intentional poll delay
                 // eslint-disable-next-line no-await-in-loop
                 const jobStatus = await getGiantQueryJobStatus({ jobId });
                 status = jobStatus.status;
@@ -949,15 +1122,23 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (parts.imageCvIdMap) {
                 const uniqueCvIds = new Map();
                 for (const [mediaPath, cvId] of Object.entries(parts.imageCvIdMap)) {
-                    if (!uniqueCvIds.has(cvId)) { uniqueCvIds.set(cvId, []); }
+                    if (!uniqueCvIds.has(cvId)) {
+                        uniqueCvIds.set(cvId, []);
+                    }
                     uniqueCvIds.get(cvId).push(mediaPath);
                 }
                 for (const [cvId, mediaPaths] of uniqueCvIds) {
                     try {
                         // eslint-disable-next-line no-await-in-loop
                         const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-                        if (b64) { for (const mp of mediaPaths) { allImages[mp] = b64; } }
-                    } catch (imgErr) { console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr); }
+                        if (b64) {
+                            for (const mp of mediaPaths) {
+                                allImages[mp] = b64;
+                            }
+                        }
+                    } catch (imgErr) {
+                        console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr);
+                    }
                 }
             }
             if (parts.imageUrlMap) {
@@ -977,7 +1158,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                             //     this._updateDocxImageSizeIfNotExplicit(parts, mediaPath, extracted.width, extracted.height);
                             // }
                         }
-                    } catch (urlErr) { console.warn('DocGen: rich text image extract failed for ' + url, urlErr); }
+                    } catch (urlErr) {
+                        console.warn('DocGen: rich text image extract failed for ' + url, urlErr);
+                    }
                 }
             }
 
@@ -990,7 +1173,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: fileBase64, extension: 'docx' });
+                await saveGeneratedDocument({
+                    recordId: this.recordId,
+                    fileName: docTitle,
+                    base64Data: fileBase64,
+                    extension: 'docx'
+                });
                 this.showToast('Success', 'DOCX saved to record.', 'success');
             } else {
                 this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
@@ -1046,7 +1234,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const lookupField = serverChildNode.lookupField;
             const childFields = serverChildNode.fields || [];
             const parentFields = serverChildNode.parentFields || [];
-            const allFields = ['Id', ...childFields.filter(f => f !== 'Id'), ...parentFields].join(', ');
+            const allFields = ['Id', ...childFields.filter((f) => f !== 'Id'), ...parentFields].join(', ');
 
             // 3. Get the loop body XML from the template (extracted by generateDocumentPartsGiantQuery)
             const innerXml = parts.giantLoopBodyXml || '';
@@ -1084,7 +1272,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     });
 
                     fetched += records.length;
-                    this._renderGiantDocxRows(records, innerXml, childFields, parentFields, (xml) => { allRenderedXml += xml; });
+                    this._renderGiantDocxRows(records, innerXml, childFields, parentFields, (xml) => {
+                        allRenderedXml += xml;
+                    });
 
                     this.progressPercent = Math.round((fetched / totalRecords) * 80);
                 }
@@ -1111,7 +1301,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     hasMore = page.hasMore;
                     fetched += records.length;
 
-                    this._renderGiantDocxRows(records, innerXml, childFields, parentFields, (xml) => { allRenderedXml += xml; });
+                    this._renderGiantDocxRows(records, innerXml, childFields, parentFields, (xml) => {
+                        allRenderedXml += xml;
+                    });
 
                     this.progressPercent = Math.round((fetched / totalRecords) * 80);
                 }
@@ -1132,15 +1324,23 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (parts.imageCvIdMap) {
                 const uniqueCvIds = new Map();
                 for (const [mediaPath, cvId] of Object.entries(parts.imageCvIdMap)) {
-                    if (!uniqueCvIds.has(cvId)) { uniqueCvIds.set(cvId, []); }
+                    if (!uniqueCvIds.has(cvId)) {
+                        uniqueCvIds.set(cvId, []);
+                    }
                     uniqueCvIds.get(cvId).push(mediaPath);
                 }
                 for (const [cvId, mediaPaths] of uniqueCvIds) {
                     try {
                         // eslint-disable-next-line no-await-in-loop
                         const b64 = await getContentVersionBase64({ contentVersionId: cvId });
-                        if (b64) { for (const mp of mediaPaths) { allImages[mp] = b64; } }
-                    } catch (imgErr) { console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr); }
+                        if (b64) {
+                            for (const mp of mediaPaths) {
+                                allImages[mp] = b64;
+                            }
+                        }
+                    } catch (imgErr) {
+                        console.warn('DocGen: Failed to fetch image CV ' + cvId, imgErr);
+                    }
                 }
             }
             if (parts.imageUrlMap) {
@@ -1160,7 +1360,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                             //     this._updateDocxImageSizeIfNotExplicit(parts, mediaPath, extracted.width, extracted.height);
                             // }
                         }
-                    } catch (urlErr) { console.warn('DocGen: rich text image extract failed for ' + url, urlErr); }
+                    } catch (urlErr) {
+                        console.warn('DocGen: rich text image extract failed for ' + url, urlErr);
+                    }
                 }
             }
 
@@ -1170,9 +1372,13 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const fileBase64 = this._uint8ArrayToBase64(fileBytes);
 
             // 8. Giant Query always downloads — file size exceeds Aura 4MB payload limit
-            const fileSizeMB = (fileBase64.length * 0.75 / 1048576).toFixed(1);
+            const fileSizeMB = ((fileBase64.length * 0.75) / 1048576).toFixed(1);
             this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
-            this.showToast('Success', `DOCX downloaded (${fileSizeMB}MB) — ${fetched.toLocaleString()} ${giantRelationship} rows.`, 'success');
+            this.showToast(
+                'Success',
+                `DOCX downloaded (${fileSizeMB}MB) — ${fetched.toLocaleString()} ${giantRelationship} rows.`,
+                'success'
+            );
         } catch (e) {
             this.error = 'Giant Query Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
         } finally {
@@ -1221,7 +1427,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 if (fieldName.includes('.')) {
                     const parts = fieldName.split('.');
                     let cur = rec;
-                    for (let i = 0; i < parts.length && cur; i++) { cur = cur[parts[i]]; }
+                    for (let i = 0; i < parts.length && cur; i++) {
+                        cur = cur[parts[i]];
+                    }
                     val = cur;
                 }
                 if (val == null) return '';
@@ -1268,7 +1476,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             let status = 'Harvesting';
             while (status !== 'Completed' && status !== 'Failed') {
                 // eslint-disable-next-line no-await-in-loop
-                await new Promise(resolve => { setTimeout(resolve, 3000); }); // NOSONAR — intentional poll delay
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 3000);
+                }); // NOSONAR — intentional poll delay
                 // eslint-disable-next-line no-await-in-loop
                 const jobStatus = await getGiantQueryJobStatus({ jobId });
                 status = jobStatus.status;
@@ -1294,7 +1504,11 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (finalCvId) {
                 // Single PDF — already saved to record
                 this.progressPercent = 100;
-                this.showToast('Success', `PDF saved to record — ${totalRecords.toLocaleString()} ${giantRelationship} rows.`, 'success');
+                this.showToast(
+                    'Success',
+                    `PDF saved to record — ${totalRecords.toLocaleString()} ${giantRelationship} rows.`,
+                    'success'
+                );
             } else if (partIds.length > 0) {
                 // Multiple parts — fetch and merge client-side
                 const pdfParts = [];
@@ -1302,18 +1516,28 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     this.loadingMessage = `Merging PDF parts (${i + 1}/${partIds.length})... Do not leave this page.`;
                     // eslint-disable-next-line no-await-in-loop
                     const partB64 = await getContentVersionBase64({ contentVersionId: partIds[i] });
-                    if (partB64) { pdfParts.push(this._base64ToUint8Array(partB64)); }
+                    if (partB64) {
+                        pdfParts.push(this._base64ToUint8Array(partB64));
+                    }
                 }
                 this.loadingMessage = 'Assembling final PDF...';
                 const mergedPdf = mergePdfs(pdfParts);
                 const mergedBase64 = this._uint8ArrayToBase64(mergedPdf);
-                const fileSizeMB = (mergedBase64.length * 0.75 / 1048576).toFixed(1);
+                const fileSizeMB = ((mergedBase64.length * 0.75) / 1048576).toFixed(1);
                 this.downloadBase64(mergedBase64, 'Document.pdf', 'application/pdf');
                 this.progressPercent = 100;
-                this.showToast('Success', `PDF downloaded (${fileSizeMB}MB) — ${totalRecords.toLocaleString()} ${giantRelationship} rows.`, 'success');
+                this.showToast(
+                    'Success',
+                    `PDF downloaded (${fileSizeMB}MB) — ${totalRecords.toLocaleString()} ${giantRelationship} rows.`,
+                    'success'
+                );
                 // Clean up parts
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
-                try { await cleanupGiantQueryFragments({ jobId }); } catch (cleanupErr) { console.warn('Cleanup:', cleanupErr); }
+                try {
+                    await cleanupGiantQueryFragments({ jobId });
+                } catch (cleanupErr) {
+                    console.warn('Cleanup:', cleanupErr);
+                }
             } else {
                 throw new Error('PDF generation completed but no output found.');
             }
@@ -1331,13 +1555,17 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     _base64ToUint8Array(base64) {
         const binaryStr = atob(base64);
         const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) { bytes[i] = binaryStr.charCodeAt(i); }
+        for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+        }
         return bytes;
     }
 
     _uint8ArrayToBase64(bytes) {
         let binary = '';
-        for (let i = 0; i < bytes.length; i++) { binary += String.fromCharCode(bytes[i]); }
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
         return btoa(binary);
     }
 
@@ -1358,7 +1586,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
         // mediaPath like "word/media/docgen_image_1.png" → look up rels Target
         const targetName = mediaPath.replace(/^word\//, ''); // "media/docgen_image_1.png"
-        const relMatch = relsXml.match(new RegExp('<Relationship\\s+Id="([^"]+)"[^>]*?Target="' + targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"', 'i'));
+        const relMatch = relsXml.match(
+            new RegExp(
+                '<Relationship\\s+Id="([^"]+)"[^>]*?Target="' + targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"',
+                'i'
+            )
+        );
         if (!relMatch) return;
         const relId = relMatch[1];
 

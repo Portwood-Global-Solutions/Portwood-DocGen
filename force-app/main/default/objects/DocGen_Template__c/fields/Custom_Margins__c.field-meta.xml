@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Custom_Margins__c</fullName>
-    <description>Custom PDF margins in inches as "Top,Right,Bottom,Left" (e.g., "0.5,0.75,0.5,0.75"). Only honored when Page_Margins__c = Custom. Single value (e.g., "0.75") applies to all four sides.</description>
+    <description
+    >Custom PDF margins in inches as "Top,Right,Bottom,Left" (e.g., "0.5,0.75,0.5,0.75"). Only honored when Page_Margins__c = Custom. Single value (e.g., "0.75") applies to all four sides.</description>
     <label>Custom Margins (in)</label>
     <length>40</length>
     <required>false</required>

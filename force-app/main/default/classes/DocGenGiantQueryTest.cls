@@ -1,6 +1,5 @@
 @IsTest
 private class DocGenGiantQueryTest {
-
     /**
      * Creates a test template with V3 query config for Account -> Contacts.
      * Also creates an Account with multiple Contacts for testing.
@@ -9,30 +8,32 @@ private class DocGenGiantQueryTest {
     static void setup() {
         TestDataFactory.assignAdminPermissionSet();
         // Create template with V3 config
-        String v3Config = JSON.serialize(new Map<String, Object>{
-            'v' => 3,
-            'root' => 'Account',
-            'nodes' => new List<Object>{
-                new Map<String, Object>{
-                    'id' => 'n0',
-                    'object' => 'Account',
-                    'fields' => new List<String>{ 'Name' },
-                    'parentFields' => new List<String>(),
-                    'parentNode' => null,
-                    'lookupField' => null,
-                    'relationshipName' => null
-                },
-                new Map<String, Object>{
-                    'id' => 'n1',
-                    'object' => 'Contact',
-                    'fields' => new List<String>{ 'FirstName', 'LastName' },
-                    'parentFields' => new List<String>(),
-                    'parentNode' => 'n0',
-                    'lookupField' => 'AccountId',
-                    'relationshipName' => 'Contacts'
+        String v3Config = JSON.serialize(
+            new Map<String, Object>{
+                'v' => 3,
+                'root' => 'Account',
+                'nodes' => new List<Object>{
+                    new Map<String, Object>{
+                        'id' => 'n0',
+                        'object' => 'Account',
+                        'fields' => new List<String>{ 'Name' },
+                        'parentFields' => new List<String>(),
+                        'parentNode' => null,
+                        'lookupField' => null,
+                        'relationshipName' => null
+                    },
+                    new Map<String, Object>{
+                        'id' => 'n1',
+                        'object' => 'Contact',
+                        'fields' => new List<String>{ 'FirstName', 'LastName' },
+                        'parentFields' => new List<String>(),
+                        'parentNode' => 'n0',
+                        'lookupField' => 'AccountId',
+                        'relationshipName' => 'Contacts'
+                    }
                 }
             }
-        });
+        );
 
         DocGen_Template__c tpl = new DocGen_Template__c(
             Name = 'Giant Query Test',
@@ -63,11 +64,7 @@ private class DocGenGiantQueryTest {
 
         List<Contact> contacts = new List<Contact>();
         for (Integer i = 0; i < 10; i++) {
-            contacts.add(new Contact(
-                FirstName = 'Test' + i,
-                LastName = 'Contact' + i,
-                AccountId = acc.Id
-            ));
+            contacts.add(new Contact(FirstName = 'Test' + i, LastName = 'Contact' + i, AccountId = acc.Id));
         }
         insert contacts;
 
@@ -95,7 +92,12 @@ private class DocGenGiantQueryTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
-            DocGen_Template__c tpl = [SELECT Query_Config__c FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+            DocGen_Template__c tpl = [
+                SELECT Query_Config__c
+                FROM DocGen_Template__c
+                WHERE Name = 'Giant Query Test'
+                LIMIT 1
+            ];
 
             Test.startTest();
             Map<String, Integer> counts = DocGenDataRetriever.scoutChildCounts(acc.Id, tpl.Query_Config__c);
@@ -114,7 +116,8 @@ private class DocGenGiantQueryTest {
             Test.startTest();
             Map<String, Integer> counts1 = DocGenDataRetriever.scoutChildCounts(null, '{}');
             Map<String, Integer> counts2 = DocGenDataRetriever.scoutChildCounts(
-                [SELECT Id FROM Account LIMIT 1].Id, null
+                [SELECT Id FROM Account LIMIT 1].Id,
+                null
             );
             Test.stopTest();
 
@@ -165,7 +168,10 @@ private class DocGenGiantQueryTest {
 
             Test.startTest();
             String result = DocGenService.renderLoopBodyForRecords(
-                innerXml, 'Contacts', contacts, new List<String>{ 'FirstName', 'LastName' }
+                innerXml,
+                'Contacts',
+                contacts,
+                new List<String>{ 'FirstName', 'LastName' }
             );
             Test.stopTest();
 
@@ -183,7 +189,12 @@ private class DocGenGiantQueryTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
-            DocGen_Template__c tpl = [SELECT Id, Output_Format__c FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+            DocGen_Template__c tpl = [
+                SELECT Id, Output_Format__c
+                FROM DocGen_Template__c
+                WHERE Name = 'Giant Query Test'
+                LIMIT 1
+            ];
 
             // Create a Job record
             DocGen_Job__c job = new DocGen_Job__c(
@@ -207,7 +218,12 @@ private class DocGenGiantQueryTest {
 
             Test.startTest();
             DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
-                job.Id, tpl.Id, acc.Id, childNodeConfig, innerXml, 'PDF'
+                job.Id,
+                tpl.Id,
+                acc.Id,
+                childNodeConfig,
+                innerXml,
+                'PDF'
             );
             Database.executeBatch(batch, 1);
             Test.stopTest();
@@ -244,19 +260,25 @@ private class DocGenGiantQueryTest {
             List<ContentVersion> fragments = new List<ContentVersion>();
             for (Integer i = 0; i < 3; i++) {
                 String seq = String.valueOf(i).leftPad(5, '0');
-                fragments.add(new ContentVersion(
-                    Title = 'docgen_giant_' + job.Id + '_' + seq,
-                    PathOnClient = 'docgen_giant_' + job.Id + '_' + seq + '.xml',
-                    VersionData = Blob.valueOf('<w:tr><w:tc><w:p>Fragment' + i + '</w:p></w:tc></w:tr>'),
-                    IsMajorVersion = false,
-                    FirstPublishLocationId = job.Id
-                ));
+                fragments.add(
+                    new ContentVersion(
+                        Title = 'docgen_giant_' + job.Id + '_' + seq,
+                        PathOnClient = 'docgen_giant_' + job.Id + '_' + seq + '.xml',
+                        VersionData = Blob.valueOf('<w:tr><w:tc><w:p>Fragment' + i + '</w:p></w:tc></w:tr>'),
+                        IsMajorVersion = false,
+                        FirstPublishLocationId = job.Id
+                    )
+                );
             }
             insert fragments;
 
             Test.startTest();
             DocGenGiantQueryStitchJob stitchJob = new DocGenGiantQueryStitchJob(
-                job.Id, tpl.Id, acc.Id, 'Contacts', 'PDF'
+                job.Id,
+                tpl.Id,
+                acc.Id,
+                'Contacts',
+                'PDF'
             );
             Database.executeBatch(stitchJob, 1);
             Test.stopTest();
@@ -282,7 +304,11 @@ private class DocGenGiantQueryTest {
             try {
                 Map<String, Object> result = DocGenController.generateDocumentGiantQuery(tpl.Id, acc.Id);
                 // If it doesn't throw (template file may be invalid), verify it reports non-giant
-                System.assertEquals(false, result.get('isGiantQuery'), 'Should not trigger Giant Query for 10 contacts');
+                System.assertEquals(
+                    false,
+                    result.get('isGiantQuery'),
+                    'Should not trigger Giant Query for 10 contacts'
+                );
             } catch (Exception e) {
                 // Expected — the test template file is not a real DOCX ZIP
                 System.assert(e.getMessage() != null, 'Error message should not be null');
@@ -332,7 +358,12 @@ private class DocGenGiantQueryTest {
             Test.startTest();
             try {
                 DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
-                    job.Id, tpl.Id, acc.Id, badConfig, '<w:p>{Name}</w:p>', 'PDF'
+                    job.Id,
+                    tpl.Id,
+                    acc.Id,
+                    badConfig,
+                    '<w:p>{Name}</w:p>',
+                    'PDF'
                 );
                 Database.executeBatch(batch, 1);
                 Test.stopTest();
@@ -342,8 +373,10 @@ private class DocGenGiantQueryTest {
             }
             // Batch may also fail asynchronously — check job status
             DocGen_Job__c updatedJob = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
-            System.assert(updatedJob.Status__c == 'Draft' || updatedJob.Status__c == 'Failed',
-                'Invalid object batch should fail or stay in Draft');
+            System.assert(
+                updatedJob.Status__c == 'Draft' || updatedJob.Status__c == 'Failed',
+                'Invalid object batch should fail or stay in Draft'
+            );
         }
     }
 
@@ -355,7 +388,11 @@ private class DocGenGiantQueryTest {
 
             Test.startTest();
             List<Id> sortedIds = DocGenController.getSortedChildIds(
-                'Contact', 'AccountId', acc.Id, 'LastName ASC', null
+                'Contact',
+                'AccountId',
+                acc.Id,
+                'LastName ASC',
+                null
             );
             Test.stopTest();
 
@@ -370,7 +407,11 @@ private class DocGenGiantQueryTest {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
             Test.startTest();
             List<Id> sortedIds = DocGenController.getSortedChildIds(
-                'Contact', 'AccountId', acc.Id, 'LastName ASC', 'LastName LIKE \'Contact0%\''
+                'Contact',
+                'AccountId',
+                acc.Id,
+                'LastName ASC',
+                'LastName LIKE \'Contact0%\''
             );
             Test.stopTest();
             System.assert(sortedIds.size() > 0, 'Should return contacts matching WHERE');
@@ -385,12 +426,15 @@ private class DocGenGiantQueryTest {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
             DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
             DocGen_Job__c job = new DocGen_Job__c(
-                Status__c = 'Draft', Template__c = tpl.Id, Label__c = 'WHERE Test',
+                Status__c = 'Draft',
+                Template__c = tpl.Id,
+                Label__c = 'WHERE Test',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
             Map<String, Object> childNodeConfig = new Map<String, Object>{
-                'object' => 'Contact', 'lookupField' => 'AccountId',
+                'object' => 'Contact',
+                'lookupField' => 'AccountId',
                 'relationshipName' => 'Contacts',
                 'fields' => new List<String>{ 'FirstName', 'LastName' },
                 'parentFields' => new List<String>(),
@@ -400,7 +444,12 @@ private class DocGenGiantQueryTest {
             String innerXml = '<w:tr><w:tc><w:p>{FirstName}</w:p></w:tc></w:tr>';
             Test.startTest();
             DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
-                job.Id, tpl.Id, acc.Id, childNodeConfig, innerXml, 'PDF'
+                job.Id,
+                tpl.Id,
+                acc.Id,
+                childNodeConfig,
+                innerXml,
+                'PDF'
             );
             Database.executeBatch(batch, 1);
             Test.stopTest();
@@ -415,11 +464,15 @@ private class DocGenGiantQueryTest {
         System.runAs(u) {
             Account acc = [SELECT Id FROM Account LIMIT 1];
             DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
-            DocGen_Job__c job = new DocGen_Job__c(Status__c = 'Draft', Template__c = tpl.Id,
-                Parent_Record_Id__c = String.valueOf(acc.Id));
+            DocGen_Job__c job = new DocGen_Job__c(
+                Status__c = 'Draft',
+                Template__c = tpl.Id,
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
             insert job;
             Map<String, Object> badConfig = new Map<String, Object>{
-                'object' => 'Contact', 'lookupField' => 'AccountId',
+                'object' => 'Contact',
+                'lookupField' => 'AccountId',
                 'relationshipName' => 'Contacts',
                 'fields' => new List<String>{ 'FirstName' },
                 'parentFields' => new List<String>(),
@@ -428,7 +481,9 @@ private class DocGenGiantQueryTest {
             Boolean caught = false;
             try {
                 new DocGenGiantQueryBatch(job.Id, tpl.Id, acc.Id, badConfig, '<w:p>{Name}</w:p>', 'PDF');
-            } catch (DocGenException e) { caught = true; }
+            } catch (DocGenException e) {
+                caught = true;
+            }
             System.assert(caught, 'Should reject WHERE with injection');
         }
     }
@@ -454,11 +509,15 @@ private class DocGenGiantQueryTest {
         System.runAs(u) {
             List<Contact> contacts = [SELECT Id FROM Contact ORDER BY LastName ASC LIMIT 5];
             List<Id> ids = new List<Id>();
-            for (Contact c : contacts) { ids.add(c.Id); }
+            for (Contact c : contacts) {
+                ids.add(c.Id);
+            }
 
             Test.startTest();
             List<Map<String, Object>> result = DocGenController.getChildRecordsByIds(
-                'Contact', 'Id, FirstName, LastName', ids
+                'Contact',
+                'Id, FirstName, LastName',
+                ids
             );
             Test.stopTest();
 
@@ -471,7 +530,9 @@ private class DocGenGiantQueryTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             List<Map<String, Object>> result = DocGenController.getChildRecordsByIds(
-                'Contact', 'Id, FirstName', new List<Id>()
+                'Contact',
+                'Id, FirstName',
+                new List<Id>()
             );
             System.assert(result.isEmpty(), 'Empty input should return empty list');
         }
@@ -503,8 +564,9 @@ private class DocGenGiantQueryTest {
             insert job; // NOPMD ApexCRUDViolation — test data
 
             Test.startTest();
-            DocGenGiantQueryStitchJob.DocGenGiantQueryStitchFinalizer finalizer =
-                new DocGenGiantQueryStitchJob.DocGenGiantQueryStitchFinalizer(job.Id);
+            DocGenGiantQueryStitchJob.DocGenGiantQueryStitchFinalizer finalizer = new DocGenGiantQueryStitchJob.DocGenGiantQueryStitchFinalizer(
+                job.Id
+            );
             System.assertNotEquals(null, finalizer, 'Finalizer should be instantiable');
             Test.stopTest();
         }
@@ -516,8 +578,12 @@ private class DocGenGiantQueryTest {
      */
     private static ContentVersion attachDocxToLocalTemplate() {
         DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
-        DocGen_Template_Version__c ver = [SELECT Id, Content_Version_Id__c FROM DocGen_Template_Version__c
-            WHERE Template__c = :tpl.Id AND Is_Active__c = true LIMIT 1];
+        DocGen_Template_Version__c ver = [
+            SELECT Id, Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :tpl.Id AND Is_Active__c = TRUE
+            LIMIT 1
+        ];
         ContentVersion cv = TestDataFactory.createValidDocxFile(tpl.Id, TestDataFactory.buildSimpleDocXml());
         ver.Content_Version_Id__c = cv.Id;
         update ver;
@@ -529,7 +595,12 @@ private class DocGenGiantQueryTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
-            DocGen_Template__c tpl = [SELECT Id, Output_Format__c FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
+            DocGen_Template__c tpl = [
+                SELECT Id, Output_Format__c
+                FROM DocGen_Template__c
+                WHERE Name = 'Giant Query Test'
+                LIMIT 1
+            ];
 
             DocGen_Job__c job = new DocGen_Job__c(
                 Status__c = 'Draft',
@@ -553,7 +624,12 @@ private class DocGenGiantQueryTest {
 
             Test.startTest();
             DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
-                job.Id, tpl.Id, acc.Id, childNodeConfig, innerXml, 'PDF'
+                job.Id,
+                tpl.Id,
+                acc.Id,
+                childNodeConfig,
+                innerXml,
+                'PDF'
             );
             Database.executeBatch(batch, 1);
             Test.stopTest();
@@ -592,12 +668,13 @@ private class DocGenGiantQueryTest {
 
             Boolean caught = false;
             try {
-                new DocGenGiantQueryBatch(
-                    job.Id, tpl.Id, acc.Id, badConfig, '<w:p>{Name}</w:p>', 'PDF'
-                );
+                new DocGenGiantQueryBatch(job.Id, tpl.Id, acc.Id, badConfig, '<w:p>{Name}</w:p>', 'PDF');
             } catch (DocGenException e) {
                 caught = true;
-                System.assert(e.getMessage().contains('Invalid ORDER BY'), 'Should report invalid ORDER BY: ' + e.getMessage());
+                System.assert(
+                    e.getMessage().contains('Invalid ORDER BY'),
+                    'Should report invalid ORDER BY: ' + e.getMessage()
+                );
             }
             System.assert(caught, 'Should reject ORDER BY with injection attempt');
         }
@@ -629,9 +706,7 @@ private class DocGenGiantQueryTest {
 
             Boolean caught = false;
             try {
-                new DocGenGiantQueryBatch(
-                    job.Id, tpl.Id, acc.Id, badConfig, '<w:p>{Name}</w:p>', 'PDF'
-                );
+                new DocGenGiantQueryBatch(job.Id, tpl.Id, acc.Id, badConfig, '<w:p>{Name}</w:p>', 'PDF');
             } catch (DocGenException e) {
                 caught = true;
             }
@@ -657,8 +732,9 @@ private class DocGenGiantQueryTest {
             req.saveToRecord = false;
 
             Test.startTest();
-            List<DocGenGiantQueryFlowAction.Response> responses =
-                DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+            List<DocGenGiantQueryFlowAction.Response> responses = DocGenGiantQueryFlowAction.generateDocument(
+                new List<DocGenGiantQueryFlowAction.Request>{ req }
+            );
             Test.stopTest();
 
             System.assertEquals(1, responses.size(), 'Should return one response');
@@ -680,8 +756,9 @@ private class DocGenGiantQueryTest {
             req.recordId = acc.Id;
 
             Test.startTest();
-            List<DocGenGiantQueryFlowAction.Response> responses =
-                DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+            List<DocGenGiantQueryFlowAction.Response> responses = DocGenGiantQueryFlowAction.generateDocument(
+                new List<DocGenGiantQueryFlowAction.Request>{ req }
+            );
             Test.stopTest();
 
             System.assertEquals(false, responses[0].success, 'Should fail with null template');
@@ -702,8 +779,9 @@ private class DocGenGiantQueryTest {
             req.saveToRecord = false;
 
             Test.startTest();
-            List<DocGenGiantQueryFlowAction.Response> responses =
-                DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+            List<DocGenGiantQueryFlowAction.Response> responses = DocGenGiantQueryFlowAction.generateDocument(
+                new List<DocGenGiantQueryFlowAction.Request>{ req }
+            );
             Test.stopTest();
 
             System.assertEquals(false, responses[0].success, 'Should fail with wrong record type');
@@ -757,12 +835,19 @@ private class DocGenGiantQueryTest {
             Account acc = [SELECT Id FROM Account LIMIT 1];
 
             // Create template version + pre-baked HTML
-            DocGen_Template_Version__c ver = [SELECT Id FROM DocGen_Template_Version__c WHERE Is_Active__c = true LIMIT 1];
+            DocGen_Template_Version__c ver = [
+                SELECT Id
+                FROM DocGen_Template_Version__c
+                WHERE Is_Active__c = TRUE
+                LIMIT 1
+            ];
             String htmlTitle = 'docgen_tmpl_html_' + ver.Id;
             ContentVersion htmlCv = new ContentVersion(
                 Title = htmlTitle,
                 PathOnClient = htmlTitle + '.html',
-                VersionData = Blob.valueOf('<html><head><style>td{border:1px solid}</style></head><body><table><tr><td>{#Contacts}{FirstName}{/Contacts}</td></tr></table></body></html>')
+                VersionData = Blob.valueOf(
+                    '<html><head><style>td{border:1px solid}</style></head><body><table><tr><td>{#Contacts}{FirstName}{/Contacts}</td></tr></table></body></html>'
+                )
             );
             insert htmlCv; // NOPMD
 
@@ -777,11 +862,13 @@ private class DocGenGiantQueryTest {
             String prefix = 'docgen_giant_' + job.Id + '_';
             List<ContentVersion> frags = new List<ContentVersion>();
             for (Integer i = 0; i < 3; i++) {
-                frags.add(new ContentVersion(
-                    Title = prefix + String.valueOf(i).leftPad(5, '0'),
-                    PathOnClient = prefix + i + '.html',
-                    VersionData = Blob.valueOf('<tr><td>Row ' + i + '</td></tr>')
-                ));
+                frags.add(
+                    new ContentVersion(
+                        Title = prefix + String.valueOf(i).leftPad(5, '0'),
+                        PathOnClient = prefix + i + '.html',
+                        VersionData = Blob.valueOf('<tr><td>Row ' + i + '</td></tr>')
+                    )
+                );
             }
             insert frags; // NOPMD
 
@@ -802,8 +889,9 @@ private class DocGenGiantQueryTest {
         req.saveToRecord = false;
 
         Test.startTest();
-        List<DocGenGiantQueryFlowAction.Response> responses =
-            DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+        List<DocGenGiantQueryFlowAction.Response> responses = DocGenGiantQueryFlowAction.generateDocument(
+            new List<DocGenGiantQueryFlowAction.Request>{ req }
+        );
         Test.stopTest();
 
         System.assertEquals(false, responses[0].success, 'Should fail with null template');
@@ -822,8 +910,9 @@ private class DocGenGiantQueryTest {
         req.saveToRecord = true;
 
         Test.startTest();
-        List<DocGenGiantQueryFlowAction.Response> responses =
-            DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+        List<DocGenGiantQueryFlowAction.Response> responses = DocGenGiantQueryFlowAction.generateDocument(
+            new List<DocGenGiantQueryFlowAction.Request>{ req }
+        );
         Test.stopTest();
 
         // With few contacts, should take sync path (not giant query)
@@ -854,13 +943,13 @@ private class DocGenGiantQueryTest {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
             DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
             DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
 
-            DocGenGiantQueryAssembler assembler =
-                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+            DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
 
             String html = '<html><body>Total contacts: {COUNT:Contacts}</body></html>';
 
@@ -868,10 +957,8 @@ private class DocGenGiantQueryTest {
             String resolved = assembler.resolveGiantAggregateTags(html);
             Test.stopTest();
 
-            System.assert(resolved.contains('Total contacts: 10'),
-                'COUNT should equal 10 contacts; got: ' + resolved);
-            System.assert(!resolved.contains('{COUNT:Contacts}'),
-                'Tag should be replaced; got: ' + resolved);
+            System.assert(resolved.contains('Total contacts: 10'), 'COUNT should equal 10 contacts; got: ' + resolved);
+            System.assert(!resolved.contains('{COUNT:Contacts}'), 'Tag should be replaced; got: ' + resolved);
         }
     }
 
@@ -891,36 +978,43 @@ private class DocGenGiantQueryTest {
             update contacts;
 
             // Rewrite query_config to declare MailingLatitude so the aggregate resolver accepts it
-            String v3Config = JSON.serialize(new Map<String, Object>{
-                'v' => 3,
-                'root' => 'Account',
-                'nodes' => new List<Object>{
-                    new Map<String, Object>{
-                        'id' => 'n0', 'object' => 'Account',
-                        'fields' => new List<String>{ 'Name' },
-                        'parentFields' => new List<String>(),
-                        'parentNode' => null, 'lookupField' => null, 'relationshipName' => null
-                    },
-                    new Map<String, Object>{
-                        'id' => 'n1', 'object' => 'Contact',
-                        'fields' => new List<String>{ 'FirstName', 'MailingLatitude' },
-                        'parentFields' => new List<String>(),
-                        'parentNode' => 'n0', 'lookupField' => 'AccountId',
-                        'relationshipName' => 'Contacts'
+            String v3Config = JSON.serialize(
+                new Map<String, Object>{
+                    'v' => 3,
+                    'root' => 'Account',
+                    'nodes' => new List<Object>{
+                        new Map<String, Object>{
+                            'id' => 'n0',
+                            'object' => 'Account',
+                            'fields' => new List<String>{ 'Name' },
+                            'parentFields' => new List<String>(),
+                            'parentNode' => null,
+                            'lookupField' => null,
+                            'relationshipName' => null
+                        },
+                        new Map<String, Object>{
+                            'id' => 'n1',
+                            'object' => 'Contact',
+                            'fields' => new List<String>{ 'FirstName', 'MailingLatitude' },
+                            'parentFields' => new List<String>(),
+                            'parentNode' => 'n0',
+                            'lookupField' => 'AccountId',
+                            'relationshipName' => 'Contacts'
+                        }
                     }
                 }
-            });
+            );
             tpl.Query_Config__c = v3Config;
             update tpl;
 
             DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
 
-            DocGenGiantQueryAssembler assembler =
-                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+            DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
 
             String html = '<html><body>Sum: {SUM:Contacts.MailingLatitude} Count: {COUNT:Contacts}</body></html>';
 
@@ -958,15 +1052,21 @@ private class DocGenGiantQueryTest {
             update contacts;
 
             DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
 
             // Use the new 7-arg constructor (the batch uses this path in production)
             DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(
-                job.Id, tpl.Id, acc.Id, 'Contacts',
-                'Contact', 'AccountId', null
+                job.Id,
+                tpl.Id,
+                acc.Id,
+                'Contacts',
+                'Contact',
+                'AccountId',
+                null
             );
 
             String html = '<html><body>Count: {COUNT:Contacts} Sum: {SUM:Contacts.MailingLatitude}</body></html>';
@@ -976,9 +1076,9 @@ private class DocGenGiantQueryTest {
             Test.stopTest();
 
             System.assert(!resolved.contains('{COUNT:'), 'COUNT should resolve under V1 config; got: ' + resolved);
-            System.assert(!resolved.contains('{SUM:'),   'SUM should resolve under V1 config; got: '   + resolved);
+            System.assert(!resolved.contains('{SUM:'), 'SUM should resolve under V1 config; got: ' + resolved);
             System.assert(resolved.contains('Count: 10'), 'COUNT expected 10; got: ' + resolved);
-            System.assert(resolved.contains('Sum: 50'),   'SUM expected 5.0 × 10 = 50; got: ' + resolved);
+            System.assert(resolved.contains('Sum: 50'), 'SUM expected 5.0 × 10 = 50; got: ' + resolved);
         }
     }
 
@@ -995,25 +1095,32 @@ private class DocGenGiantQueryTest {
             // Template config declares Contact's FirstName only as a rendered column —
             // but we aggregate MailingLatitude which is NOT in the column list. That
             // simulates the real-world pattern "show some columns, aggregate others".
-            String v3Config = JSON.serialize(new Map<String, Object>{
-                'v' => 3,
-                'root' => 'Account',
-                'nodes' => new List<Object>{
-                    new Map<String, Object>{
-                        'id' => 'n0', 'object' => 'Account',
-                        'fields' => new List<String>{ 'Name' },
-                        'parentFields' => new List<String>(),
-                        'parentNode' => null, 'lookupField' => null, 'relationshipName' => null
-                    },
-                    new Map<String, Object>{
-                        'id' => 'n1', 'object' => 'Contact',
-                        'fields' => new List<String>{ 'FirstName' }, // intentionally omits MailingLatitude
-                        'parentFields' => new List<String>(),
-                        'parentNode' => 'n0', 'lookupField' => 'AccountId',
-                        'relationshipName' => 'Contacts'
+            String v3Config = JSON.serialize(
+                new Map<String, Object>{
+                    'v' => 3,
+                    'root' => 'Account',
+                    'nodes' => new List<Object>{
+                        new Map<String, Object>{
+                            'id' => 'n0',
+                            'object' => 'Account',
+                            'fields' => new List<String>{ 'Name' },
+                            'parentFields' => new List<String>(),
+                            'parentNode' => null,
+                            'lookupField' => null,
+                            'relationshipName' => null
+                        },
+                        new Map<String, Object>{
+                            'id' => 'n1',
+                            'object' => 'Contact',
+                            'fields' => new List<String>{ 'FirstName' }, // intentionally omits MailingLatitude
+                            'parentFields' => new List<String>(),
+                            'parentNode' => 'n0',
+                            'lookupField' => 'AccountId',
+                            'relationshipName' => 'Contacts'
+                        }
                     }
                 }
-            });
+            );
             tpl.Query_Config__c = v3Config;
             update tpl;
 
@@ -1026,13 +1133,13 @@ private class DocGenGiantQueryTest {
             update contacts;
 
             DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
 
-            DocGenGiantQueryAssembler assembler =
-                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+            DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
 
             String html =
                 'Count: {COUNT:Contacts:number} | ' +
@@ -1047,15 +1154,15 @@ private class DocGenGiantQueryTest {
 
             // No unresolved aggregate tags should remain
             System.assert(!resolved.contains('{COUNT:'), 'COUNT tag unresolved: ' + resolved);
-            System.assert(!resolved.contains('{AVG:'),   'AVG tag unresolved: '   + resolved);
-            System.assert(!resolved.contains('{MIN:'),   'MIN tag unresolved: '   + resolved);
-            System.assert(!resolved.contains('{MAX:'),   'MAX tag unresolved: '   + resolved);
-            System.assert(!resolved.contains('{SUM:'),   'SUM tag unresolved: '   + resolved);
+            System.assert(!resolved.contains('{AVG:'), 'AVG tag unresolved: ' + resolved);
+            System.assert(!resolved.contains('{MIN:'), 'MIN tag unresolved: ' + resolved);
+            System.assert(!resolved.contains('{MAX:'), 'MAX tag unresolved: ' + resolved);
+            System.assert(!resolved.contains('{SUM:'), 'SUM tag unresolved: ' + resolved);
 
             // Currency format should produce a $-prefixed string on AVG/MIN/MAX/SUM
-            System.assert(resolved.contains('Avg: $25'),  'AVG should format with $: ' + resolved);
-            System.assert(resolved.contains('Min: $25'),  'MIN should format with $: ' + resolved);
-            System.assert(resolved.contains('Max: $25'),  'MAX should format with $: ' + resolved);
+            System.assert(resolved.contains('Avg: $25'), 'AVG should format with $: ' + resolved);
+            System.assert(resolved.contains('Min: $25'), 'MIN should format with $: ' + resolved);
+            System.assert(resolved.contains('Max: $25'), 'MAX should format with $: ' + resolved);
             System.assert(resolved.contains('Sum: $250'), 'SUM (10×25) should format with $: ' + resolved);
             // COUNT with :number format — 10 contacts, no decimal
             System.assert(resolved.contains('Count: 10'), 'COUNT should format as 10: ' + resolved);
@@ -1076,38 +1183,50 @@ private class DocGenGiantQueryTest {
 
             DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
             DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
 
             // Use a minimal HTML template via pre-baked CV. Parent tags sit in the header.
-            DocGen_Template_Version__c ver = [SELECT Id FROM DocGen_Template_Version__c
-                WHERE Template__c = :tpl.Id AND Is_Active__c = true LIMIT 1];
+            DocGen_Template_Version__c ver = [
+                SELECT Id
+                FROM DocGen_Template_Version__c
+                WHERE Template__c = :tpl.Id AND Is_Active__c = TRUE
+                LIMIT 1
+            ];
             String htmlTitle = 'docgen_tmpl_html_' + ver.Id;
             // Clean up any pre-existing html CV from a prior test
-            List<ContentDocument> old = [SELECT Id FROM ContentDocument
-                WHERE Title = :htmlTitle];
-            if (!old.isEmpty()) { delete old; }
+            List<ContentDocument> old = [
+                SELECT Id
+                FROM ContentDocument
+                WHERE Title = :htmlTitle
+            ];
+            if (!old.isEmpty()) {
+                delete old;
+            }
 
-            String tmpl = '<html><head><style>td{border:1px solid #ccc}</style></head><body>' +
+            String tmpl =
+                '<html><head><style>td{border:1px solid #ccc}</style></head><body>' +
                 '<p>Account: {Name} | Revenue: {AnnualRevenue:currency}</p>' +
                 '<table><tr><td>{#Contacts}{FirstName}{/Contacts}</td></tr></table>' +
                 '</body></html>';
             insert new ContentVersion(
-                Title = htmlTitle, PathOnClient = htmlTitle + '.html',
+                Title = htmlTitle,
+                PathOnClient = htmlTitle + '.html',
                 VersionData = Blob.valueOf(tmpl)
             );
 
             // Exercise via resolveGiantAggregateTags sibling path: call assembler's
             // private method via @TestVisible by building and invoking.
-            DocGenGiantQueryAssembler assembler =
-                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+            DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
 
             // Insert a fragment so the assembler has something to render
             String prefix = 'docgen_giant_' + job.Id + '_';
             insert new ContentVersion(
-                Title = prefix + '00001', PathOnClient = prefix + '00001.html',
+                Title = prefix + '00001',
+                PathOnClient = prefix + '00001.html',
                 VersionData = Blob.valueOf('<tr><td>Test0</td></tr>')
             );
 
@@ -1116,20 +1235,27 @@ private class DocGenGiantQueryTest {
             Test.stopTest();
 
             // After render, the debug HTML CV captures the wrapped output
-            List<ContentVersion> dbg = [SELECT VersionData FROM ContentVersion
-                WHERE Title = :(prefix + 'debug_html') LIMIT 1];
+            List<ContentVersion> dbg = [
+                SELECT VersionData
+                FROM ContentVersion
+                WHERE Title = :(prefix + 'debug_html')
+                LIMIT 1
+            ];
             System.assert(!dbg.isEmpty(), 'Debug HTML CV should have been written');
             String out = dbg[0].VersionData.toString();
 
             // Raw value stays (Name)
-            System.assert(out.contains('Giant Query Test Account'),
-                'Plain parent field should resolve; got: ' + out.left(500));
+            System.assert(
+                out.contains('Giant Query Test Account'),
+                'Plain parent field should resolve; got: ' + out.left(500)
+            );
             // Formatted value should appear (currency format on AnnualRevenue)
-            System.assert(out.contains('$') && out.contains('1,234,567'),
-                'Currency format should produce $-prefixed grouped number; got: ' + out);
+            System.assert(
+                out.contains('$') && out.contains('1,234,567'),
+                'Currency format should produce $-prefixed grouped number; got: ' + out
+            );
             // Tag itself should be gone
-            System.assert(!out.contains('{AnnualRevenue:currency}'),
-                'Formatted tag should be replaced; got: ' + out);
+            System.assert(!out.contains('{AnnualRevenue:currency}'), 'Formatted tag should be replaced; got: ' + out);
         }
     }
 
@@ -1140,13 +1266,13 @@ private class DocGenGiantQueryTest {
             Account acc = [SELECT Id FROM Account WHERE Name = 'Giant Query Test Account' LIMIT 1];
             DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c WHERE Name = 'Giant Query Test' LIMIT 1];
             DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = tpl.Id, Status__c = 'Harvesting',
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
                 Parent_Record_Id__c = String.valueOf(acc.Id)
             );
             insert job;
 
-            DocGenGiantQueryAssembler assembler =
-                new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
+            DocGenGiantQueryAssembler assembler = new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts');
 
             // Tag references a different relationship — should pass through untouched
             String html = '<html><body>{SUM:OpportunityLineItems.Quantity}</body></html>';
@@ -1155,8 +1281,11 @@ private class DocGenGiantQueryTest {
             String resolved = assembler.resolveGiantAggregateTags(html);
             Test.stopTest();
 
-            System.assertEquals(html, resolved,
-                'Tags for other relationships must be left untouched for downstream resolvers');
+            System.assertEquals(
+                html,
+                resolved,
+                'Tags for other relationships must be left untouched for downstream resolvers'
+            );
         }
     }
 
@@ -1175,14 +1304,15 @@ private class DocGenGiantQueryTest {
             insert c;
             Case ca = new Case(Subject = 'The Case', ContactId = c.Id, AccountId = a.Id);
             Case cb = new Case(Subject = 'Other Case', ContactId = c.Id, AccountId = a.Id);
-            insert new List<Case>{ca, cb};
+            insert new List<Case>{ ca, cb };
             insert new List<CaseComment>{
                 new CaseComment(ParentId = ca.Id, CommentBody = 'first'),
                 new CaseComment(ParentId = ca.Id, CommentBody = 'second'),
                 new CaseComment(ParentId = cb.Id, CommentBody = 'lonely')
             };
 
-            String cfg = 'Name, ' +
+            String cfg =
+                'Name, ' +
                 '(SELECT Id, LastName, ' +
                 '  (SELECT Id, Subject, ' +
                 '    (SELECT Id, CommentBody FROM CaseComments) ' +
@@ -1207,8 +1337,11 @@ private class DocGenGiantQueryTest {
             for (Object kr : caseRecs) {
                 Map<String, Object> kase = (Map<String, Object>) kr;
                 Map<String, Object> commentsWrap = (Map<String, Object>) kase.get('CaseComments');
-                System.assertNotEquals(null, commentsWrap,
-                    'great-grandchild CaseComments must be stitched onto each Case');
+                System.assertNotEquals(
+                    null,
+                    commentsWrap,
+                    'great-grandchild CaseComments must be stitched onto each Case'
+                );
                 List<Object> commentRecs = (List<Object>) commentsWrap.get('records');
                 totalComments += commentRecs.size();
             }

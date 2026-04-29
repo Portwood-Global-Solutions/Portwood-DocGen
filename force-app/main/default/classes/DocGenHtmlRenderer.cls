@@ -3,7 +3,6 @@
  * Uses string-based XML parsing for DOCX-specific namespace handling.
  */
 public with sharing class DocGenHtmlRenderer {
-
     private static final String HTML_PREFIX =
         '<html><head><meta charset="utf-8"/><style>' +
         '@page { size: letter; margin: 1in; }' + // default — overridden by convertToHtmlWithHeaderFooter
@@ -82,7 +81,8 @@ public with sharing class DocGenHtmlRenderer {
      */
     public static Map<String, Map<String, String>> extractStyleTextAttributeMap(String stylesXmlSource) {
         Map<String, Map<String, String>> out = new Map<String, Map<String, String>>();
-        if (String.isBlank(stylesXmlSource)) return out;
+        if (String.isBlank(stylesXmlSource))
+            return out;
         Pattern p = Pattern.compile('<w:style [^>]*w:styleId="([^"]+)"[^>]*>([\\s\\S]*?)</w:style>');
         Matcher m = p.matcher(stylesXmlSource);
         while (m.find()) {
@@ -90,31 +90,42 @@ public with sharing class DocGenHtmlRenderer {
             String styleDef = m.group(2);
             Map<String, String> attrs = new Map<String, String>();
             String color = extractAttr(styleDef, 'w:color', 'w:val');
-            if (color != null && color != 'auto' && color.length() >= 6) attrs.put('color', color);
+            if (color != null && color != 'auto' && color.length() >= 6)
+                attrs.put('color', color);
             String font = extractAttr(styleDef, 'w:rFonts', 'w:ascii');
-            if (font == null) font = extractAttr(styleDef, 'w:rFonts', 'w:hAnsi');
-            if (String.isNotBlank(font)) attrs.put('fontFamily', font);
+            if (font == null)
+                font = extractAttr(styleDef, 'w:rFonts', 'w:hAnsi');
+            if (String.isNotBlank(font))
+                attrs.put('fontFamily', font);
             String sz = extractAttr(styleDef, 'w:sz', 'w:val');
-            if (sz != null && sz.isNumeric()) attrs.put('fontSize', sz);
-            if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b ')) attrs.put('bold', 'true');
-            if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i ')) attrs.put('italic', 'true');
-            if (!attrs.isEmpty()) out.put(styleName, attrs);
+            if (sz != null && sz.isNumeric())
+                attrs.put('fontSize', sz);
+            if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b '))
+                attrs.put('bold', 'true');
+            if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i '))
+                attrs.put('italic', 'true');
+            if (!attrs.isEmpty())
+                out.put(styleName, attrs);
         }
         return out;
     }
 
     public static Map<String, String> extractTableStyleBorderMap(String stylesXmlSource) {
         Map<String, String> out = new Map<String, String>();
-        if (String.isBlank(stylesXmlSource)) return out;
+        if (String.isBlank(stylesXmlSource))
+            return out;
         Pattern p = Pattern.compile('<w:style [^>]*w:styleId="([^"]+)"[^>]*>([\\s\\S]*?)</w:style>');
         Matcher m = p.matcher(stylesXmlSource);
         while (m.find()) {
             String styleName = m.group(1);
             String styleDef = m.group(2);
-            if (!styleDef.contains('<w:tblBorders')) continue;
+            if (!styleDef.contains('<w:tblBorders'))
+                continue;
             String border = parseBorderSide(styleDef, 'w:top');
-            if (border == null) border = parseBorderSide(styleDef, 'w:insideH');
-            if (border == null) border = '0.5pt solid #000';
+            if (border == null)
+                border = parseBorderSide(styleDef, 'w:insideH');
+            if (border == null)
+                border = '0.5pt solid #000';
             out.put(styleName, border);
         }
         return out;
@@ -123,26 +134,42 @@ public with sharing class DocGenHtmlRenderer {
     // Numbering XML from template — set before calling convertToHtml for list type resolution
     public static String numberingXml;
 
-
     // Unit conversions
-    private static final Decimal HALF_POINTS_TO_PT = 0.5;     // half-points → pt (÷2)
-    private static final Decimal TWIPS_TO_PT = 0.05;           // twips → pt (÷20)
-    private static final Decimal EMU_TO_PX = 0.000104987;      // EMU → px (÷9525)
+    private static final Decimal HALF_POINTS_TO_PT = 0.5; // half-points → pt (÷2)
+    private static final Decimal TWIPS_TO_PT = 0.05; // twips → pt (÷20)
+    private static final Decimal EMU_TO_PX = 0.000104987; // EMU → px (÷9525)
 
     // Standard Word heading style IDs → HTML heading levels
     private static final Map<String, Integer> HEADING_STYLE_MAP = new Map<String, Integer>{
-        'Heading1' => 1, 'heading1' => 1, 'Heading 1' => 1,
-        'Heading2' => 2, 'heading2' => 2, 'Heading 2' => 2,
-        'Heading3' => 3, 'heading3' => 3, 'Heading 3' => 3,
-        'Heading4' => 4, 'heading4' => 4, 'Heading 4' => 4,
-        'Heading5' => 5, 'heading5' => 5, 'Heading 5' => 5,
-        'Heading6' => 6, 'heading6' => 6, 'Heading 6' => 6
+        'Heading1' => 1,
+        'heading1' => 1,
+        'Heading 1' => 1,
+        'Heading2' => 2,
+        'heading2' => 2,
+        'Heading 2' => 2,
+        'Heading3' => 3,
+        'heading3' => 3,
+        'Heading 3' => 3,
+        'Heading4' => 4,
+        'heading4' => 4,
+        'Heading 4' => 4,
+        'Heading5' => 5,
+        'heading5' => 5,
+        'Heading 5' => 5,
+        'Heading6' => 6,
+        'heading6' => 6,
+        'Heading 6' => 6
     };
 
     // Word style IDs that imply a list item
     private static final Set<String> LIST_STYLE_IDS = new Set<String>{
-        'ListParagraph', 'listparagraph', 'ListBullet', 'ListNumber',
-        'List Paragraph', 'List Bullet', 'List Number'
+        'ListParagraph',
+        'listparagraph',
+        'ListBullet',
+        'ListNumber',
+        'List Paragraph',
+        'List Bullet',
+        'List Number'
     };
 
     /**
@@ -177,12 +204,14 @@ public with sharing class DocGenHtmlRenderer {
         String footerXml = '';
         String mainXml = documentXml;
         if (documentXml.contains('<!-- DOCGEN_HEADER_START -->')) {
-            Integer hStart = documentXml.indexOf('<!-- DOCGEN_HEADER_START -->') + '<!-- DOCGEN_HEADER_START -->'.length();
+            Integer hStart =
+                documentXml.indexOf('<!-- DOCGEN_HEADER_START -->') + '<!-- DOCGEN_HEADER_START -->'.length();
             Integer hEnd = documentXml.indexOf('<!-- DOCGEN_HEADER_END -->');
             if (hEnd > hStart) {
                 headerXml = documentXml.substring(hStart, hEnd);
-                mainXml = documentXml.substring(0, documentXml.indexOf('<!-- DOCGEN_HEADER_START -->')) +
-                          documentXml.substring(hEnd + '<!-- DOCGEN_HEADER_END -->'.length());
+                mainXml =
+                    documentXml.substring(0, documentXml.indexOf('<!-- DOCGEN_HEADER_START -->')) +
+                    documentXml.substring(hEnd + '<!-- DOCGEN_HEADER_END -->'.length());
             }
         }
         if (mainXml.contains('<!-- DOCGEN_FOOTER_START -->')) {
@@ -205,8 +234,11 @@ public with sharing class DocGenHtmlRenderer {
         //      with documented Scale/Washout/rotation limitations
         String watermarkPageBgCss = '';
         if (String.isNotBlank(overrideWatermarkCvId)) {
-            watermarkPageBgCss = 'background-image: url(\'/sfc/servlet.shepherd/version/download/' + overrideWatermarkCvId + '\'); ' +
-                                 'background-position: center center; background-repeat: no-repeat; background-size: contain;';
+            watermarkPageBgCss =
+                'background-image: url(\'/sfc/servlet.shepherd/version/download/' +
+                overrideWatermarkCvId +
+                '\'); ' +
+                'background-position: center center; background-repeat: no-repeat; background-size: contain;';
         }
         Map<String, String> bodyExtract = extractWatermarks(html);
         html = bodyExtract.get('html');
@@ -257,9 +289,21 @@ public with sharing class DocGenHtmlRenderer {
         // CSS and Flying Saucer falls back to default 8.5×11 portrait. Keep
         // the explicit-dimension form: width > height implicitly produces
         // landscape orientation through the engine's MediaBox derivation.
-        String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
-            'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
-            pageDims.get('marginBottom') + 'in ' + pageDims.get('marginLeft') + 'in;';
+        String dynamicPageCss =
+            '@page { size: ' +
+            pageDims.get('pageWidth') +
+            'in ' +
+            pageDims.get('pageHeight') +
+            'in; ' +
+            'margin: ' +
+            pageDims.get('marginTop') +
+            'in ' +
+            pageDims.get('marginRight') +
+            'in ' +
+            pageDims.get('marginBottom') +
+            'in ' +
+            pageDims.get('marginLeft') +
+            'in;';
         if (String.isNotBlank(watermarkPageBgCss)) {
             dynamicPageCss += ' ' + watermarkPageBgCss;
         }
@@ -295,8 +339,14 @@ public with sharing class DocGenHtmlRenderer {
         String bodyFont = isDocRtl ? '\'Arial Unicode MS\', Arial, sans-serif' : 'Arial, sans-serif';
 
         String rtlBodyCss = isDocRtl ? ' text-align: right;' : '';
-        String dynamicCss = dynamicPageCss + runningCss +
-            'body { font-family: ' + bodyFont + '; font-size: 11pt; line-height: 1.15; color: #000;' + rtlBodyCss + ' }' +
+        String dynamicCss =
+            dynamicPageCss +
+            runningCss +
+            'body { font-family: ' +
+            bodyFont +
+            '; font-size: 11pt; line-height: 1.15; color: #000;' +
+            rtlBodyCss +
+            ' }' +
             'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }' +
             'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }' +
             'h3 { font-size: 14pt; font-weight: bold; margin: 0 0 4pt 0; }' +
@@ -314,7 +364,9 @@ public with sharing class DocGenHtmlRenderer {
             // width is the OUTER width (including tcMar padding). Without this the default
             // content-box adds padding on top of width, so each cell renders ~10.8pt wider
             // than authored and multi-column tables overflow the page margins.
-            'td, th { padding: ' + cellPadding + '; vertical-align: top; box-sizing: border-box; }' +
+            'td, th { padding: ' +
+            cellPadding +
+            '; vertical-align: top; box-sizing: border-box; }' +
             // Tight defaults: Word always emits explicit <w:spacing> when authors want
             // paragraph spacing — letting it default to 8pt produces "flabby" output the
             // author never asked for (especially noticeable in tight address blocks).
@@ -334,7 +386,12 @@ public with sharing class DocGenHtmlRenderer {
         // Always use dynamic prefix — it has resolved page dimensions and cell padding
         // Inject font-face CSS if provided
         if (String.isNotBlank(fontFaceCss)) {
-            dynamicPrefix = '<html><head><meta charset="utf-8"/><style>' + fontFaceCss + dynamicCss + '</style></head>' + bodyTag;
+            dynamicPrefix =
+                '<html><head><meta charset="utf-8"/><style>' +
+                fontFaceCss +
+                dynamicCss +
+                '</style></head>' +
+                bodyTag;
         }
 
         // Insert running header/footer divs at top of body — Flying Saucer pulls them
@@ -367,8 +424,12 @@ public with sharing class DocGenHtmlRenderer {
      * Used for rendering header/footer content separately.
      */
     public static String convertToHtmlFragment(String xml, Map<String, String> images) {
-        if (String.isBlank(xml)) { return ''; }
-        if (images == null) { images = new Map<String, String>(); }
+        if (String.isBlank(xml)) {
+            return '';
+        }
+        if (images == null) {
+            images = new Map<String, String>();
+        }
         String bodyContent = extractBodyContent(xml);
         if (String.isBlank(bodyContent)) {
             bodyContent = xml;
@@ -380,17 +441,29 @@ public with sharing class DocGenHtmlRenderer {
      * Converts DOCX XML to HTML with header/footer positioned via CSS running elements.
      * Flying Saucer (Blob.toPdf engine) supports position:running() and @page margin boxes.
      */
-    public static String convertToHtmlWithHeaderFooter(String documentXml, Map<String, String> images, String headerHtml, String footerHtml) {
+    public static String convertToHtmlWithHeaderFooter(
+        String documentXml,
+        Map<String, String> images,
+        String headerHtml,
+        String footerHtml
+    ) {
         if (String.isBlank(documentXml)) {
             return HTML_PREFIX + HTML_SUFFIX;
         }
-        if (images == null) { images = new Map<String, String>(); }
+        if (images == null) {
+            images = new Map<String, String>();
+        }
 
         String bodyContent = extractBodyContent(documentXml);
         String html = processBodyContent(bodyContent, images);
 
         // Build CSS with fixed-position header/footer for Flying Saucer
-        String css = '@page { size: letter; margin: 1in; margin-top: ' + (String.isNotBlank(headerHtml) ? '1.75in' : '1in') + '; margin-bottom: ' + (String.isNotBlank(footerHtml) ? '1.75in' : '1in') + '; }';
+        String css =
+            '@page { size: letter; margin: 1in; margin-top: ' +
+            (String.isNotBlank(headerHtml) ? '1.75in' : '1in') +
+            '; margin-bottom: ' +
+            (String.isNotBlank(footerHtml) ? '1.75in' : '1in') +
+            '; }';
         css += 'body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }';
         css += 'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }';
         css += 'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }';
@@ -435,19 +508,23 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static String extractBodyContent(String xml) {
         String combinedContent = '';
-        
+
         // 1. Extract all headers
         Integer cursor = 0;
         while ((cursor = xml.indexOf('<w:hdr', cursor)) != -1) {
             Integer tagEnd = xml.indexOf('>', cursor);
-            if (tagEnd == -1) { break; }
+            if (tagEnd == -1) {
+                break;
+            }
             Integer hdrEnd = findClosingTag(xml, cursor, 'w:hdr');
             if (hdrEnd != -1) {
                 combinedContent += xml.substring(tagEnd + 1, hdrEnd);
                 cursor = hdrEnd;
-            } else { cursor = tagEnd + 1; }
+            } else {
+                cursor = tagEnd + 1;
+            }
         }
-        
+
         // 2. Extract main body
         Integer bodyStart = xml.indexOf('<w:body');
         if (bodyStart != -1) {
@@ -472,8 +549,12 @@ public with sharing class DocGenHtmlRenderer {
                     Integer sectEnd = content.indexOf('</w:sectPr>', sectStart);
                     if (sectEnd == -1) {
                         sectEnd = content.indexOf('/>', sectStart);
-                        if (sectEnd != -1) { sectEnd += 2; }
-                        else { processedContent += content.substring(sectCursor); break; }
+                        if (sectEnd != -1) {
+                            sectEnd += 2;
+                        } else {
+                            processedContent += content.substring(sectCursor);
+                            break;
+                        }
                     } else {
                         sectEnd += 11;
                     }
@@ -496,19 +577,23 @@ public with sharing class DocGenHtmlRenderer {
             // Fallback for raw content
             combinedContent = xml;
         }
-        
+
         // 3. Extract all footers
         cursor = 0;
         while ((cursor = xml.indexOf('<w:ftr', cursor)) != -1) {
             Integer tagEnd = xml.indexOf('>', cursor);
-            if (tagEnd == -1) { break; }
+            if (tagEnd == -1) {
+                break;
+            }
             Integer ftrEnd = findClosingTag(xml, cursor, 'w:ftr');
             if (ftrEnd != -1) {
                 combinedContent += xml.substring(tagEnd + 1, ftrEnd);
                 cursor = ftrEnd;
-            } else { cursor = tagEnd + 1; }
+            } else {
+                cursor = tagEnd + 1;
+            }
         }
-        
+
         return combinedContent;
     }
 
@@ -524,7 +609,9 @@ public with sharing class DocGenHtmlRenderer {
 
         while (cursor < xml.length()) {
             Integer nextTag = xml.indexOf('<', cursor);
-                        if (nextTag == -1) { break; }
+            if (nextTag == -1) {
+                break;
+            }
             cursor = nextTag;
 
             if (xml.substring(cursor).startsWith('<w:tbl')) {
@@ -536,7 +623,11 @@ public with sharing class DocGenHtmlRenderer {
                 } else {
                     cursor++;
                 }
-            } else if (xml.substring(cursor).startsWith('<w:p ') || xml.substring(cursor).startsWith('<w:p>') || xml.substring(cursor).startsWith('<w:p/>')) {
+            } else if (
+                xml.substring(cursor).startsWith('<w:p ') ||
+                xml.substring(cursor).startsWith('<w:p>') ||
+                xml.substring(cursor).startsWith('<w:p/>')
+            ) {
                 Integer pEnd = findClosingTag(xml, cursor, 'w:p');
                 if (pEnd != -1) {
                     elements.add(xml.substring(cursor, pEnd));
@@ -573,7 +664,9 @@ public with sharing class DocGenHtmlRenderer {
                     Integer j = i + 1;
                     while (j < elements.size() && elementTypes[j] == 'p') {
                         ListInfo nextLi = getListInfo(elements[j]);
-                                                if (!nextLi.isList) { break; }
+                        if (!nextLi.isList) {
+                            break;
+                        }
                         listItems.add(elements[j]);
                         j++;
                     }
@@ -598,7 +691,9 @@ public with sharing class DocGenHtmlRenderer {
         li.isNumbered = false;
 
         String pPr = extractElement(pXml, 'w:pPr');
-                if (String.isBlank(pPr)) { return li; }
+        if (String.isBlank(pPr)) {
+            return li;
+        }
 
         // Check for explicit numbering properties
         if (pPr.contains('<w:numPr')) {
@@ -611,7 +706,9 @@ public with sharing class DocGenHtmlRenderer {
             }
             // Determine list type from numbering.xml definitions
             String ilvl = extractAttr(pPr, 'w:ilvl', 'w:val');
-            if (ilvl == null) { ilvl = '0'; }
+            if (ilvl == null) {
+                ilvl = '0';
+            }
             li.isNumbered = isNumberedList(numId, ilvl);
             return li;
         }
@@ -634,7 +731,9 @@ public with sharing class DocGenHtmlRenderer {
         String result = '<' + tag + '>';
         for (String pXml : listItems) {
             String content = processRuns(pXml, images);
-                        if (String.isBlank(content)) { content = '&nbsp;'; }
+            if (String.isBlank(content)) {
+                content = '&nbsp;';
+            }
 
             // Extract paragraph-level styles for the <li>
             String pPr = extractElement(pXml, 'w:pPr');
@@ -687,7 +786,11 @@ public with sharing class DocGenHtmlRenderer {
                     style += (String.isNotBlank(style) ? ';' : '') + 'color:#' + pAttrs.get('color');
                 }
                 if (pAttrs.containsKey('fontFamily')) {
-                    style += (String.isNotBlank(style) ? ';' : '') + 'font-family:\'' + pAttrs.get('fontFamily').escapeHtml4() + '\',sans-serif';
+                    style +=
+                        (String.isNotBlank(style) ? ';' : '') +
+                        'font-family:\'' +
+                        pAttrs.get('fontFamily').escapeHtml4() +
+                        '\',sans-serif';
                 }
             }
 
@@ -729,20 +832,36 @@ public with sharing class DocGenHtmlRenderer {
             return pageBreakDiv + '<p' + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>&nbsp;</p>';
         }
 
-
         // Heading
         if (headingLevel > 0) {
             String tag = 'h' + headingLevel;
-            return pageBreakDiv + '<' + tag + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>' + content + '</' + tag + '>';
+            return pageBreakDiv +
+                '<' +
+                tag +
+                (String.isNotBlank(style) ? ' style="' + style + '"' : '') +
+                '>' +
+                content +
+                '</' +
+                tag +
+                '>';
         }
 
         // Title style
         if (isTitle) {
-            return pageBreakDiv + '<h1 style="font-size:26pt;font-weight:normal' +
-                (String.isNotBlank(style) ? ';' + style : '') + '">' + content + '</h1>';
+            return pageBreakDiv +
+                '<h1 style="font-size:26pt;font-weight:normal' +
+                (String.isNotBlank(style) ? ';' + style : '') +
+                '">' +
+                content +
+                '</h1>';
         }
 
-        return pageBreakDiv + '<p' + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>' + content + '</p>';
+        return pageBreakDiv +
+            '<p' +
+            (String.isNotBlank(style) ? ' style="' + style + '"' : '') +
+            '>' +
+            content +
+            '</p>';
     }
 
     /**
@@ -760,9 +879,13 @@ public with sharing class DocGenHtmlRenderer {
         // Alignment: <w:jc w:val="center"/>
         String jcVal = extractAttr(pPr, 'w:jc', 'w:val');
         if (jcVal != null) {
-                        if (jcVal == 'center') { styles.add('text-align:center'); }
-                        else if (jcVal == 'right' || jcVal == 'end') { styles.add('text-align:right'); }
-                        else if (jcVal == 'both' || jcVal == 'distribute') { styles.add('text-align:justify'); }
+            if (jcVal == 'center') {
+                styles.add('text-align:center');
+            } else if (jcVal == 'right' || jcVal == 'end') {
+                styles.add('text-align:right');
+            } else if (jcVal == 'both' || jcVal == 'distribute') {
+                styles.add('text-align:justify');
+            }
         }
 
         // Spacing: <w:spacing w:before="120" w:after="120" w:line="240" w:lineRule="auto"/>
@@ -794,13 +917,17 @@ public with sharing class DocGenHtmlRenderer {
         // Indent: <w:ind w:left="720" w:right="0" w:firstLine="360" w:hanging="360"/>
         // Also supports bidi-aware w:start/w:end as fallback for w:left/w:right
         String indLeft = extractAttr(pPr, 'w:ind', 'w:left');
-        if (indLeft == null) { indLeft = extractAttr(pPr, 'w:ind', 'w:start'); }
+        if (indLeft == null) {
+            indLeft = extractAttr(pPr, 'w:ind', 'w:start');
+        }
         String indHanging = extractAttr(pPr, 'w:ind', 'w:hanging');
         if (indLeft != null && indLeft.isNumeric()) {
             styles.add('margin-left:' + twipsToPt(Integer.valueOf(indLeft)) + 'pt');
         }
         String indRight = extractAttr(pPr, 'w:ind', 'w:right');
-        if (indRight == null) { indRight = extractAttr(pPr, 'w:ind', 'w:end'); }
+        if (indRight == null) {
+            indRight = extractAttr(pPr, 'w:ind', 'w:end');
+        }
         if (indRight != null && indRight.isNumeric()) {
             styles.add('margin-right:' + twipsToPt(Integer.valueOf(indRight)) + 'pt');
         }
@@ -832,16 +959,34 @@ public with sharing class DocGenHtmlRenderer {
                 String bottomBdr = parseBorderSide(pBdr, 'w:bottom');
                 String leftBdr = parseBorderSide(pBdr, 'w:left');
                 String rightBdr = parseBorderSide(pBdr, 'w:right');
-                
-                if (String.isNotBlank(topBdr) && topBdr != 'none' && topBdr != 'nil') { styles.add('border-top:' + topBdr); }
-                if (String.isNotBlank(bottomBdr) && bottomBdr != 'none' && bottomBdr != 'nil') { styles.add('border-bottom:' + bottomBdr); }
-                if (String.isNotBlank(leftBdr) && leftBdr != 'none' && leftBdr != 'nil') { styles.add('border-left:' + leftBdr); }
-                if (String.isNotBlank(rightBdr) && rightBdr != 'none' && rightBdr != 'nil') { styles.add('border-right:' + rightBdr); }
-                
-                if ((String.isNotBlank(topBdr) && topBdr != 'none' && topBdr != 'nil') || 
-                    (String.isNotBlank(bottomBdr) && bottomBdr != 'none' && bottomBdr != 'nil') || 
-                    (String.isNotBlank(leftBdr) && leftBdr != 'none' && leftBdr != 'nil') || 
-                    (String.isNotBlank(rightBdr) && rightBdr != 'none' && rightBdr != 'nil')) {
+
+                if (String.isNotBlank(topBdr) && topBdr != 'none' && topBdr != 'nil') {
+                    styles.add('border-top:' + topBdr);
+                }
+                if (String.isNotBlank(bottomBdr) && bottomBdr != 'none' && bottomBdr != 'nil') {
+                    styles.add('border-bottom:' + bottomBdr);
+                }
+                if (String.isNotBlank(leftBdr) && leftBdr != 'none' && leftBdr != 'nil') {
+                    styles.add('border-left:' + leftBdr);
+                }
+                if (String.isNotBlank(rightBdr) && rightBdr != 'none' && rightBdr != 'nil') {
+                    styles.add('border-right:' + rightBdr);
+                }
+
+                if (
+                    (String.isNotBlank(topBdr) &&
+                    topBdr != 'none' &&
+                    topBdr != 'nil') ||
+                    (String.isNotBlank(bottomBdr) &&
+                    bottomBdr != 'none' &&
+                    bottomBdr != 'nil') ||
+                    (String.isNotBlank(leftBdr) &&
+                    leftBdr != 'none' &&
+                    leftBdr != 'nil') ||
+                    (String.isNotBlank(rightBdr) &&
+                    rightBdr != 'none' &&
+                    rightBdr != 'nil')
+                ) {
                     styles.add('padding:4pt');
                 }
             }
@@ -866,7 +1011,9 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static String parseBorderSide(String bdrXml, String side) {
         String val = extractAttr(bdrXml, side, 'w:val');
-                if (val == null || val == 'none' || val == 'nil') { return null; }
+        if (val == null || val == 'none' || val == 'nil') {
+            return null;
+        }
 
         String sz = extractAttr(bdrXml, side, 'w:sz');
         String color = extractAttr(bdrXml, side, 'w:color');
@@ -875,7 +1022,9 @@ public with sharing class DocGenHtmlRenderer {
         Decimal widthPt = 1;
         if (sz != null && sz.isNumeric()) {
             widthPt = Integer.valueOf(sz) / 8.0;
-                        if (widthPt < 0.5) { widthPt = 0.5; }
+            if (widthPt < 0.5) {
+                widthPt = 0.5;
+            }
         }
 
         String cssColor = '#000000';
@@ -885,9 +1034,13 @@ public with sharing class DocGenHtmlRenderer {
 
         // Map common Word border styles to CSS
         String cssStyle = 'solid';
-                if (val == 'dashed' || val == 'dashSmallGap') { cssStyle = 'dashed'; }
-                else if (val == 'dotted') { cssStyle = 'dotted'; }
-                else if (val == 'double') { cssStyle = 'double'; }
+        if (val == 'dashed' || val == 'dashSmallGap') {
+            cssStyle = 'dashed';
+        } else if (val == 'dotted') {
+            cssStyle = 'dotted';
+        } else if (val == 'double') {
+            cssStyle = 'double';
+        }
 
         return widthPt + 'pt ' + cssStyle + ' ' + cssColor;
     }
@@ -919,44 +1072,86 @@ public with sharing class DocGenHtmlRenderer {
             Integer hyperlinkStart = pXml.indexOf('<w:hyperlink', cursor);
 
             Integer nextRun = -1;
-            if (runStart != -1 && runStart2 != -1) { nextRun = Math.min(runStart, runStart2); }
-            else if (runStart != -1) { nextRun = runStart; }
-            else if (runStart2 != -1) { nextRun = runStart2; }
+            if (runStart != -1 && runStart2 != -1) {
+                nextRun = Math.min(runStart, runStart2);
+            } else if (runStart != -1) {
+                nextRun = runStart;
+            } else if (runStart2 != -1) {
+                nextRun = runStart2;
+            }
 
             Integer nextDrawing = -1;
-            if (drawingStart != -1 && drawingStart2 != -1) { nextDrawing = Math.min(drawingStart, drawingStart2); }
-            else if (drawingStart != -1) { nextDrawing = drawingStart; }
-            else if (drawingStart2 != -1) { nextDrawing = drawingStart2; }
+            if (drawingStart != -1 && drawingStart2 != -1) {
+                nextDrawing = Math.min(drawingStart, drawingStart2);
+            } else if (drawingStart != -1) {
+                nextDrawing = drawingStart;
+            } else if (drawingStart2 != -1) {
+                nextDrawing = drawingStart2;
+            }
 
             Integer nextPict = -1;
-            if (pictStart != -1 && pictStart2 != -1) { nextPict = Math.min(pictStart, pictStart2); }
-            else if (pictStart != -1) { nextPict = pictStart; }
-            else if (pictStart2 != -1) { nextPict = pictStart2; }
+            if (pictStart != -1 && pictStart2 != -1) {
+                nextPict = Math.min(pictStart, pictStart2);
+            } else if (pictStart != -1) {
+                nextPict = pictStart;
+            } else if (pictStart2 != -1) {
+                nextPict = pictStart2;
+            }
 
             Integer nextElement = -1;
             String elementType = '';
-            if (nextRun != -1) { nextElement = nextRun; elementType = 'run'; }
-            if (nextDrawing != -1 && (nextElement == -1 || nextDrawing < nextElement)) { nextElement = nextDrawing; elementType = 'drawing'; }
-            if (nextPict != -1 && (nextElement == -1 || nextPict < nextElement)) { nextElement = nextPict; elementType = 'pict'; }
-            if (hyperlinkStart != -1 && (nextElement == -1 || hyperlinkStart < nextElement)) { nextElement = hyperlinkStart; elementType = 'hyperlink'; }
-            if (nextElement == -1) { break; }
+            if (nextRun != -1) {
+                nextElement = nextRun;
+                elementType = 'run';
+            }
+            if (nextDrawing != -1 && (nextElement == -1 || nextDrawing < nextElement)) {
+                nextElement = nextDrawing;
+                elementType = 'drawing';
+            }
+            if (nextPict != -1 && (nextElement == -1 || nextPict < nextElement)) {
+                nextElement = nextPict;
+                elementType = 'pict';
+            }
+            if (hyperlinkStart != -1 && (nextElement == -1 || hyperlinkStart < nextElement)) {
+                nextElement = hyperlinkStart;
+                elementType = 'hyperlink';
+            }
+            if (nextElement == -1) {
+                break;
+            }
 
             if (elementType == 'run') {
                 Integer runEnd = findClosingTag(pXml, nextRun, 'w:r');
-                if (runEnd != -1) { parts.add(processRun(pXml.substring(nextRun, runEnd), images)); cursor = runEnd; }
-                else { cursor = nextRun + 1; }
+                if (runEnd != -1) {
+                    parts.add(processRun(pXml.substring(nextRun, runEnd), images));
+                    cursor = runEnd;
+                } else {
+                    cursor = nextRun + 1;
+                }
             } else if (elementType == 'drawing') {
                 Integer drawEnd = findClosingTag(pXml, nextDrawing, 'w:drawing');
-                if (drawEnd != -1) { parts.add(processDrawing(pXml.substring(nextDrawing, drawEnd), images)); cursor = drawEnd; }
-                else { cursor = nextDrawing + 1; }
+                if (drawEnd != -1) {
+                    parts.add(processDrawing(pXml.substring(nextDrawing, drawEnd), images));
+                    cursor = drawEnd;
+                } else {
+                    cursor = nextDrawing + 1;
+                }
             } else if (elementType == 'pict') {
                 Integer pictEnd = findClosingTag(pXml, nextPict, 'w:pict');
-                if (pictEnd != -1) { parts.add(processPict(pXml.substring(nextPict, pictEnd), images)); cursor = pictEnd; }
-                else { cursor = nextPict + 1; }
+                if (pictEnd != -1) {
+                    parts.add(processPict(pXml.substring(nextPict, pictEnd), images));
+                    cursor = pictEnd;
+                } else {
+                    cursor = nextPict + 1;
+                }
             } else if (elementType == 'hyperlink') {
                 Integer hlEnd = findClosingTag(pXml, hyperlinkStart, 'w:hyperlink');
-                if (hlEnd != -1) { parts.add(processHyperlink(pXml.substring(hyperlinkStart, hlEnd), images)); cursor = hlEnd; }
-                else { cursor = hyperlinkStart + 1; }
+                if (hlEnd != -1) {
+                    parts.add(processHyperlink(pXml.substring(hyperlinkStart, hlEnd), images));
+                    cursor = hlEnd;
+                } else {
+                    cursor = hyperlinkStart + 1;
+                }
             }
         }
 
@@ -984,10 +1179,16 @@ public with sharing class DocGenHtmlRenderer {
             Integer runStart = hlXml.indexOf('<w:r>', cursor);
             Integer runStart2 = hlXml.indexOf('<w:r ', cursor);
             Integer nextRun = -1;
-                        if (runStart != -1 && runStart2 != -1) { nextRun = Math.min(runStart, runStart2); }
-                        else if (runStart != -1) { nextRun = runStart; }
-                        else if (runStart2 != -1) { nextRun = runStart2; }
-                        if (nextRun == -1) { break; }
+            if (runStart != -1 && runStart2 != -1) {
+                nextRun = Math.min(runStart, runStart2);
+            } else if (runStart != -1) {
+                nextRun = runStart;
+            } else if (runStart2 != -1) {
+                nextRun = runStart2;
+            }
+            if (nextRun == -1) {
+                break;
+            }
 
             Integer runEnd = findClosingTag(hlXml, nextRun, 'w:r');
             if (runEnd != -1) {
@@ -998,7 +1199,9 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
-                if (String.isBlank(innerContent)) { return ''; }
+        if (String.isBlank(innerContent)) {
+            return '';
+        }
 
         // Check for direct URL from rich text (custom attribute set by DocGenService)
         String directUrl = null;
@@ -1012,7 +1215,11 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         if (String.isNotBlank(directUrl)) {
-            return '<a href="' + directUrl + '" style="color:#0563C1;text-decoration:underline">' + innerContent + '</a>';
+            return '<a href="' +
+                directUrl +
+                '" style="color:#0563C1;text-decoration:underline">' +
+                innerContent +
+                '</a>';
         }
         // No URL available (template hyperlink without rels) — render as styled text
         return '<span style="color:#0563C1;text-decoration:underline">' + innerContent + '</span>';
@@ -1027,7 +1234,7 @@ public with sharing class DocGenHtmlRenderer {
         String style = (String.isNotBlank(rPr)) ? parseRunStyle(rPr) : '';
         // RTL run: Flying Saucer renders all chars LTR, so we reverse RTL text in Apex
         Boolean isRtlRun = String.isNotBlank(rPr) && (rPr.contains('<w:rtl/>') || rPr.contains('<w:rtl '));
-        
+
         String openTags = '';
         String closeTags = '';
         if (String.isNotBlank(rPr)) {
@@ -1064,7 +1271,7 @@ public with sharing class DocGenHtmlRenderer {
 
         String runContent = '';
         Integer cursor = 0;
-        
+
         // Walk through the run elements in order
         while (cursor < rXml.length()) {
             Integer nextBr = rXml.indexOf('<w:br', cursor);
@@ -1077,11 +1284,16 @@ public with sharing class DocGenHtmlRenderer {
             Integer tSearch = cursor;
             while (tSearch < rXml.length()) {
                 Integer candidate = rXml.indexOf('<w:t', tSearch);
-                if (candidate == -1) { break; }
+                if (candidate == -1) {
+                    break;
+                }
                 Integer afterTag = candidate + 4;
                 if (afterTag < rXml.length()) {
                     String ch = rXml.substring(afterTag, afterTag + 1);
-                    if (ch == '>' || ch == ' ') { nextT = candidate; break; }
+                    if (ch == '>' || ch == ' ') {
+                        nextT = candidate;
+                        break;
+                    }
                 }
                 tSearch = afterTag;
             }
@@ -1090,15 +1302,35 @@ public with sharing class DocGenHtmlRenderer {
             Integer nextPos = -1;
             String type = '';
 
-            if (nextT != -1 && (nextPos == -1 || nextT < nextPos)) { nextPos = nextT; type = 't'; }
-            if (nextBr != -1 && (nextPos == -1 || nextBr < nextPos)) { nextPos = nextBr; type = 'br'; }
-            if (nextTab != -1 && (nextPos == -1 || nextTab < nextPos)) { nextPos = nextTab; type = 'tab'; }
-            if (nextDrawing != -1 && (nextPos == -1 || nextDrawing < nextPos)) { nextPos = nextDrawing; type = 'drawing'; }
-            if (nextPict != -1 && (nextPos == -1 || nextPict < nextPos)) { nextPos = nextPict; type = 'pict'; }
-            if (nextSym != -1 && (nextPos == -1 || nextSym < nextPos)) { nextPos = nextSym; type = 'sym'; }
+            if (nextT != -1 && (nextPos == -1 || nextT < nextPos)) {
+                nextPos = nextT;
+                type = 't';
+            }
+            if (nextBr != -1 && (nextPos == -1 || nextBr < nextPos)) {
+                nextPos = nextBr;
+                type = 'br';
+            }
+            if (nextTab != -1 && (nextPos == -1 || nextTab < nextPos)) {
+                nextPos = nextTab;
+                type = 'tab';
+            }
+            if (nextDrawing != -1 && (nextPos == -1 || nextDrawing < nextPos)) {
+                nextPos = nextDrawing;
+                type = 'drawing';
+            }
+            if (nextPict != -1 && (nextPos == -1 || nextPict < nextPos)) {
+                nextPos = nextPict;
+                type = 'pict';
+            }
+            if (nextSym != -1 && (nextPos == -1 || nextSym < nextPos)) {
+                nextPos = nextSym;
+                type = 'sym';
+            }
 
-            if (nextPos == -1) { break; }
-            
+            if (nextPos == -1) {
+                break;
+            }
+
             if (type == 't') {
                 Integer tagEnd = rXml.indexOf('>', nextPos);
                 if (tagEnd != -1 && rXml.substring(tagEnd - 1, tagEnd) != '/') {
@@ -1113,7 +1345,9 @@ public with sharing class DocGenHtmlRenderer {
                         } else {
                             // Check for caps in rPr
                             if (String.isNotBlank(rPr)) {
-                                if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) { text = text.toUpperCase(); }
+                                if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) {
+                                    text = text.toUpperCase();
+                                }
                                 if (rPr.contains('<w:smallCaps/>') || rPr.contains('<w:smallCaps ')) {
                                     text = text.toUpperCase();
                                     if (!style.contains('font-variant:small-caps')) {
@@ -1121,12 +1355,18 @@ public with sharing class DocGenHtmlRenderer {
                                     }
                                 }
                             }
-                            if (isRtlRun) { text = reverseRtlText(text); }
+                            if (isRtlRun) {
+                                text = reverseRtlText(text);
+                            }
                             runContent += wrapUnicodeCheckmarks(text.escapeHtml4());
                         }
                         cursor = tEnd + 6;
-                    } else { cursor = tagEnd + 1; }
-                } else { cursor = (tagEnd != -1) ? tagEnd + 1 : nextPos + 1; }
+                    } else {
+                        cursor = tagEnd + 1;
+                    }
+                } else {
+                    cursor = (tagEnd != -1) ? tagEnd + 1 : nextPos + 1;
+                }
             } else if (type == 'br') {
                 if (rXml.substring(nextPos).contains('w:type="page"')) {
                     runContent += '<div style="page-break-before:always"></div>';
@@ -1146,23 +1386,31 @@ public with sharing class DocGenHtmlRenderer {
                 if (drawEnd != -1) {
                     runContent += processDrawing(rXml.substring(nextDrawing, drawEnd), images);
                     cursor = drawEnd;
-                } else { cursor = nextDrawing + 1; }
+                } else {
+                    cursor = nextDrawing + 1;
+                }
             } else if (type == 'pict') {
                 Integer pictEnd = findClosingTag(rXml, nextPict, 'w:pict');
                 if (pictEnd != -1) {
                     runContent += processPict(rXml.substring(nextPict, pictEnd), images);
                     cursor = pictEnd;
-                } else { cursor = nextPict + 1; }
+                } else {
+                    cursor = nextPict + 1;
+                }
             } else if (type == 'sym') {
                 Integer tagEnd = rXml.indexOf('>', nextPos);
                 if (tagEnd != -1) {
                     runContent += processSym(rXml.substring(nextPos, tagEnd + 1));
                     cursor = tagEnd + 1;
-                } else { cursor = nextPos + 1; }
+                } else {
+                    cursor = nextPos + 1;
+                }
             }
         }
 
-        if (runContent.length() == 0) { return ''; }
+        if (runContent.length() == 0) {
+            return '';
+        }
 
         if (String.isNotBlank(style)) {
             return '<span style="' + style + '">' + openTags + runContent + closeTags + '</span>';
@@ -1173,12 +1421,12 @@ public with sharing class DocGenHtmlRenderer {
     // Wingdings/Symbol → Unicode for checkbox/check glyphs. Flying Saucer can't render
     // Wingdings at all, but Arial Unicode MS covers the equivalent Unicode codepoints.
     private static final Map<String, String> SYM_MAP = new Map<String, String>{
-        'Wingdings|F0A8' => '☐',     // empty box
-        'Wingdings|F0FE' => '☑',     // checked box
-        'Wingdings|F0FD' => '☒',     // x'd box
-        'Wingdings|F0A2' => '✗',     // ballot x
-        'Wingdings|F0FC' => '✓',     // check
-        'Wingdings|F0FB' => '✔',     // heavy check
+        'Wingdings|F0A8' => '☐', // empty box
+        'Wingdings|F0FE' => '☑', // checked box
+        'Wingdings|F0FD' => '☒', // x'd box
+        'Wingdings|F0A2' => '✗', // ballot x
+        'Wingdings|F0FC' => '✓', // check
+        'Wingdings|F0FB' => '✔', // heavy check
         'Wingdings 2|F050' => '✗',
         'Wingdings 2|F051' => '✘',
         'Wingdings 2|F052' => '✓',
@@ -1188,14 +1436,13 @@ public with sharing class DocGenHtmlRenderer {
         'Symbol|F0FC' => '✓'
     };
 
-    private static final String[] CHECKMARK_CHARS = new String[]{
-        '☐', '☑', '☒', '✓', '✔', '✗', '✘'
-    };
+    private static final String[] CHECKMARK_CHARS = new List<String>{ '☐', '☑', '☒', '✓', '✔', '✗', '✘' };
 
     private static String processSym(String symXml) {
         String font = extractAttr(symXml, 'w:sym', 'w:font');
         String ch = extractAttr(symXml, 'w:sym', 'w:char');
-        if (String.isBlank(ch)) return '';
+        if (String.isBlank(ch))
+            return '';
         ch = ch.toUpperCase();
         String key = (String.isBlank(font) ? '' : font) + '|' + ch;
         String mapped = SYM_MAP.get(key);
@@ -1207,7 +1454,8 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static String wrapUnicodeCheckmarks(String s) {
-        if (String.isBlank(s)) return s;
+        if (String.isBlank(s))
+            return s;
         for (String c : CHECKMARK_CHARS) {
             if (s.contains(c)) {
                 s = s.replace(c, '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' + c + '</span>');
@@ -1223,7 +1471,9 @@ public with sharing class DocGenHtmlRenderer {
     private static String processTabRun(String rXml) {
         String tabResult = '<span style="display:inline-block;width:36pt"></span>';
         String text = extractTextContent(rXml);
-        if (String.isBlank(text)) { return tabResult; }
+        if (String.isBlank(text)) {
+            return tabResult;
+        }
 
         String rPr = extractElement(rXml, 'w:rPr');
         if (String.isNotBlank(rPr)) {
@@ -1244,20 +1494,25 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static Map<String, String> resolveStyleTextAttributes(String styleName) {
         Map<String, String> out = new Map<String, String>();
-        if (String.isBlank(styleName)) return out;
+        if (String.isBlank(styleName))
+            return out;
         // Async-safe fast path — cached from admin context at request creation.
         if (styleTextAttrsMap != null && styleTextAttrsMap.containsKey(styleName)) {
             Map<String, String> cached = styleTextAttrsMap.get(styleName);
-            if (cached != null) return cached;
+            if (cached != null)
+                return cached;
         }
-        if (String.isBlank(stylesXml)) return out;
+        if (String.isBlank(stylesXml))
+            return out;
         // Find <w:style ... w:styleId="STYLENAME"> ... </w:style>
         String searchKey = 'w:styleId="' + styleName + '"';
         Integer idx = stylesXml.indexOf(searchKey);
-        if (idx < 0) return out;
+        if (idx < 0)
+            return out;
         Integer startIdx = stylesXml.lastIndexOf('<w:style', idx);
         Integer endIdx = stylesXml.indexOf('</w:style>', idx);
-        if (startIdx < 0 || endIdx < 0) return out;
+        if (startIdx < 0 || endIdx < 0)
+            return out;
         String styleDef = stylesXml.substring(startIdx, endIdx);
 
         String color = extractAttr(styleDef, 'w:color', 'w:val');
@@ -1265,12 +1520,17 @@ public with sharing class DocGenHtmlRenderer {
             out.put('color', color);
         }
         String font = extractAttr(styleDef, 'w:rFonts', 'w:ascii');
-        if (font == null) font = extractAttr(styleDef, 'w:rFonts', 'w:hAnsi');
-        if (String.isNotBlank(font)) out.put('fontFamily', font);
+        if (font == null)
+            font = extractAttr(styleDef, 'w:rFonts', 'w:hAnsi');
+        if (String.isNotBlank(font))
+            out.put('fontFamily', font);
         String sz = extractAttr(styleDef, 'w:sz', 'w:val');
-        if (sz != null && sz.isNumeric()) out.put('fontSize', sz);
-        if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b ')) out.put('bold', 'true');
-        if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i ')) out.put('italic', 'true');
+        if (sz != null && sz.isNumeric())
+            out.put('fontSize', sz);
+        if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b '))
+            out.put('bold', 'true');
+        if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i '))
+            out.put('italic', 'true');
         return out;
     }
 
@@ -1289,8 +1549,12 @@ public with sharing class DocGenHtmlRenderer {
         // Font: <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="David"/>
         // w:cs = Complex Script font (Hebrew, Arabic) — try this first for RTL content
         String font = extractAttr(rPr, 'w:rFonts', 'w:ascii');
-        if (font == null) { font = extractAttr(rPr, 'w:rFonts', 'w:hAnsi'); }
-        if (font == null) { font = styleAttrs.get('fontFamily'); }
+        if (font == null) {
+            font = extractAttr(rPr, 'w:rFonts', 'w:hAnsi');
+        }
+        if (font == null) {
+            font = styleAttrs.get('fontFamily');
+        }
         String fontCs = extractAttr(rPr, 'w:rFonts', 'w:cs');
         // RTL run detection: <w:rtl/> marks a run as right-to-left
         Boolean isRtlRun = rPr.contains('<w:rtl/>') || rPr.contains('<w:rtl ');
@@ -1394,10 +1658,19 @@ public with sharing class DocGenHtmlRenderer {
                     String bRight = parseBorderSide(tblBdr, 'w:right');
                     String bInsH = parseBorderSide(tblBdr, 'w:insideH');
                     String bInsV = parseBorderSide(tblBdr, 'w:insideV');
-                    if (bTop != null || bBottom != null || bLeft != null || bRight != null || bInsH != null || bInsV != null) {
+                    if (
+                        bTop != null ||
+                        bBottom != null ||
+                        bLeft != null ||
+                        bRight != null ||
+                        bInsH != null ||
+                        bInsV != null
+                    ) {
                         hasBorders = true;
                         // Use the first real border found for the table-level style
-                        String rep = bTop != null ? bTop : (bInsH != null ? bInsH : (bLeft != null ? bLeft : '0.5pt solid #000'));
+                        String rep = bTop != null
+                            ? bTop
+                            : (bInsH != null ? bInsH : (bLeft != null ? bLeft : '0.5pt solid #000'));
                         tableStyle += ';border:' + rep;
                     }
                 }
@@ -1427,26 +1700,34 @@ public with sharing class DocGenHtmlRenderer {
             String tblCellMar = extractElement(tblPr, 'w:tblCellMar');
             if (String.isNotBlank(tblCellMar)) {
                 String leftMar = extractAttr(tblCellMar, 'w:left', 'w:w');
-                                if (leftMar == null) { leftMar = extractAttr(tblCellMar, 'w:start', 'w:w'); }
+                if (leftMar == null) {
+                    leftMar = extractAttr(tblCellMar, 'w:start', 'w:w');
+                }
                 String rightMar = extractAttr(tblCellMar, 'w:right', 'w:w');
-                                if (rightMar == null) { rightMar = extractAttr(tblCellMar, 'w:end', 'w:w'); }
+                if (rightMar == null) {
+                    rightMar = extractAttr(tblCellMar, 'w:end', 'w:w');
+                }
                 // These values will be used on cells; for now they affect the table-level default
             }
         }
 
         // RTL table: reverse cell order manually
-        Boolean isBidiVisual = String.isNotBlank(tblPr) &&
-            (tblPr.contains('<w:bidiVisual/>') || tblPr.contains('<w:bidiVisual '));
+        Boolean isBidiVisual =
+            String.isNotBlank(tblPr) && (tblPr.contains('<w:bidiVisual/>') || tblPr.contains('<w:bidiVisual '));
 
         // Process rows
         String rows = '';
         Integer cursor = 0;
         while (cursor < tblXml.length()) {
             Integer trStart = tblXml.indexOf('<w:tr', cursor);
-                        if (trStart == -1) { break; }
+            if (trStart == -1) {
+                break;
+            }
 
             Integer trEnd = findClosingTag(tblXml, trStart, 'w:tr');
-                        if (trEnd == -1) { break; }
+            if (trEnd == -1) {
+                break;
+            }
 
             rows += processTableRow(tblXml.substring(trStart, trEnd), images, tblPr, hasBorders, isBidiVisual);
             cursor = trEnd;
@@ -1458,20 +1739,31 @@ public with sharing class DocGenHtmlRenderer {
     /**
      * Processes a <w:tr> element into an HTML <tr>.
      */
-    private static String processTableRow(String trXml, Map<String, String> images, String tblPr, Boolean hasBorders, Boolean isBidiVisual) {
+    private static String processTableRow(
+        String trXml,
+        Map<String, String> images,
+        String tblPr,
+        Boolean hasBorders,
+        Boolean isBidiVisual
+    ) {
         Integer cursor = 0;
 
         // Check for header row
         String trPr = extractElement(trXml, 'w:trPr');
-        Boolean isHeader = (String.isNotBlank(trPr) && (trPr.contains('<w:tblHeader/>') || trPr.contains('<w:tblHeader ')));
+        Boolean isHeader = (String.isNotBlank(trPr) &&
+        (trPr.contains('<w:tblHeader/>') || trPr.contains('<w:tblHeader ')));
 
         List<String> cellList = new List<String>();
         while (cursor < trXml.length()) {
             Integer tcStart = trXml.indexOf('<w:tc', cursor);
-                        if (tcStart == -1) { break; }
+            if (tcStart == -1) {
+                break;
+            }
 
             Integer tcEnd = findClosingTag(trXml, tcStart, 'w:tc');
-                        if (tcEnd == -1) { break; }
+            if (tcEnd == -1) {
+                break;
+            }
 
             cellList.add(processTableCell(trXml.substring(tcStart, tcEnd), images, tblPr, hasBorders, isHeader));
             cursor = tcEnd;
@@ -1492,7 +1784,13 @@ public with sharing class DocGenHtmlRenderer {
     /**
      * Processes a <w:tc> element into an HTML <td> or <th>.
      */
-    private static String processTableCell(String tcXml, Map<String, String> images, String tblPr, Boolean hasBorders, Boolean isHeader) {
+    private static String processTableCell(
+        String tcXml,
+        Map<String, String> images,
+        String tblPr,
+        Boolean hasBorders,
+        Boolean isHeader
+    ) {
         List<String> styles = new List<String>();
         Integer colspan = 0;
 
@@ -1554,8 +1852,12 @@ public with sharing class DocGenHtmlRenderer {
         String styleStr = String.join(styles, ';');
         String tag = isHeader ? 'th' : 'td';
         String attrs = '';
-                if (String.isNotBlank(styleStr)) { attrs += ' style="' + styleStr + '"'; }
-                if (colspan > 1) { attrs += ' colspan="' + colspan + '"'; }
+        if (String.isNotBlank(styleStr)) {
+            attrs += ' style="' + styleStr + '"';
+        }
+        if (colspan > 1) {
+            attrs += ' colspan="' + colspan + '"';
+        }
 
         return '<' + tag + attrs + '>' + content + '</' + tag + '>';
     }
@@ -1605,18 +1907,24 @@ public with sharing class DocGenHtmlRenderer {
             Boolean isLandscape = 'Landscape'.equalsIgnoreCase(orientationOverride);
             String size = String.isNotBlank(pageSizeOverride) ? pageSizeOverride : 'Letter';
             // Portrait twips for each size (W, H)
-            Integer portraitW; Integer portraitH;
+            Integer portraitW;
+            Integer portraitH;
             if ('Legal'.equalsIgnoreCase(size)) {
-                portraitW = 12240; portraitH = 20160;          // 8.5 x 14 in
+                portraitW = 12240;
+                portraitH = 20160; // 8.5 x 14 in
             } else if ('A4'.equalsIgnoreCase(size)) {
-                portraitW = 11906; portraitH = 16838;          // 210 x 297 mm
+                portraitW = 11906;
+                portraitH = 16838; // 210 x 297 mm
             } else {
-                portraitW = 12240; portraitH = 15840;          // Letter 8.5 x 11 in
+                portraitW = 12240;
+                portraitH = 15840; // Letter 8.5 x 11 in
             }
             if (isLandscape) {
-                pgW = portraitH; pgH = portraitW;
+                pgW = portraitH;
+                pgH = portraitW;
             } else {
-                pgW = portraitW; pgH = portraitH;
+                pgW = portraitW;
+                pgH = portraitH;
             }
             // Resolve margins: preset → custom string → size-appropriate default
             // Special case: 'FromSource' parses <w:pgMar> from the source DOCX so
@@ -1626,12 +1934,17 @@ public with sharing class DocGenHtmlRenderer {
             if ('FromSource'.equalsIgnoreCase(marginsOverride)) {
                 Integer[] sourceMargins = readSourceMargins(xml);
                 if (sourceMargins != null) {
-                    mTop = sourceMargins[0]; mRight = sourceMargins[1];
-                    mBottom = sourceMargins[2]; mLeft = sourceMargins[3];
+                    mTop = sourceMargins[0];
+                    mRight = sourceMargins[1];
+                    mBottom = sourceMargins[2];
+                    mLeft = sourceMargins[3];
                 } else {
                     // No source margins available — use size-default
                     Integer m = isLandscape ? 720 : 1440;
-                    mTop = m; mRight = m; mBottom = m; mLeft = m;
+                    mTop = m;
+                    mRight = m;
+                    mBottom = m;
+                    mLeft = m;
                 }
             } else {
                 Integer[] resolvedMargins = resolveMarginsForOverride(size, isLandscape);
@@ -1647,17 +1960,29 @@ public with sharing class DocGenHtmlRenderer {
             try {
                 String val;
                 val = extractAttr(xml, 'w:pgSz', 'w:w');
-                if (val != null && val.isNumeric()) { pgW = Integer.valueOf(val); }
+                if (val != null && val.isNumeric()) {
+                    pgW = Integer.valueOf(val);
+                }
                 val = extractAttr(xml, 'w:pgSz', 'w:h');
-                if (val != null && val.isNumeric()) { pgH = Integer.valueOf(val); }
+                if (val != null && val.isNumeric()) {
+                    pgH = Integer.valueOf(val);
+                }
                 val = extractAttr(xml, 'w:pgMar', 'w:top');
-                if (val != null && Pattern.matches('-?\\d+', val)) { mTop = Math.abs(Integer.valueOf(val)); }
+                if (val != null && Pattern.matches('-?\\d+', val)) {
+                    mTop = Math.abs(Integer.valueOf(val));
+                }
                 val = extractAttr(xml, 'w:pgMar', 'w:right');
-                if (val != null && Pattern.matches('-?\\d+', val)) { mRight = Math.abs(Integer.valueOf(val)); }
+                if (val != null && Pattern.matches('-?\\d+', val)) {
+                    mRight = Math.abs(Integer.valueOf(val));
+                }
                 val = extractAttr(xml, 'w:pgMar', 'w:bottom');
-                if (val != null && Pattern.matches('-?\\d+', val)) { mBottom = Math.abs(Integer.valueOf(val)); }
+                if (val != null && Pattern.matches('-?\\d+', val)) {
+                    mBottom = Math.abs(Integer.valueOf(val));
+                }
                 val = extractAttr(xml, 'w:pgMar', 'w:left');
-                if (val != null && Pattern.matches('-?\\d+', val)) { mLeft = Math.abs(Integer.valueOf(val)); }
+                if (val != null && Pattern.matches('-?\\d+', val)) {
+                    mLeft = Math.abs(Integer.valueOf(val));
+                }
             } catch (Exception e) {
                 // Intentionally swallowed — page dimension parsing failed, using defaults
                 String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
@@ -1668,8 +1993,15 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     /** Shared finalization for parsePageDimensions — assembles the inch-converted map. */
-    private static Map<String, Decimal> finalizePageDims(Map<String, Decimal> dims,
-            Integer pgW, Integer pgH, Integer mTop, Integer mRight, Integer mBottom, Integer mLeft) {
+    private static Map<String, Decimal> finalizePageDims(
+        Map<String, Decimal> dims,
+        Integer pgW,
+        Integer pgH,
+        Integer mTop,
+        Integer mRight,
+        Integer mBottom,
+        Integer mLeft
+    ) {
         dims.put('pageWidth', pgW / 1440.0);
         dims.put('pageHeight', pgH / 1440.0);
         dims.put('marginTop', mTop / 1440.0);
@@ -1688,20 +2020,31 @@ public with sharing class DocGenHtmlRenderer {
      * forward while still using our canonical page-size dimensions.
      */
     private static Integer[] readSourceMargins(String xml) {
-        if (String.isBlank(xml) || !xml.contains('<w:pgMar')) return null;
+        if (String.isBlank(xml) || !xml.contains('<w:pgMar'))
+            return null;
         try {
             String t = extractAttr(xml, 'w:pgMar', 'w:top');
             String r = extractAttr(xml, 'w:pgMar', 'w:right');
             String b = extractAttr(xml, 'w:pgMar', 'w:bottom');
             String l = extractAttr(xml, 'w:pgMar', 'w:left');
-            if (t == null || r == null || b == null || l == null) return null;
-            if (!Pattern.matches('-?\\d+', t) || !Pattern.matches('-?\\d+', r)
-                || !Pattern.matches('-?\\d+', b) || !Pattern.matches('-?\\d+', l)) return null;
-            return new Integer[]{
-                Math.abs(Integer.valueOf(t)), Math.abs(Integer.valueOf(r)),
-                Math.abs(Integer.valueOf(b)), Math.abs(Integer.valueOf(l))
+            if (t == null || r == null || b == null || l == null)
+                return null;
+            if (
+                !Pattern.matches('-?\\d+', t) ||
+                !Pattern.matches('-?\\d+', r) ||
+                !Pattern.matches('-?\\d+', b) ||
+                !Pattern.matches('-?\\d+', l)
+            )
+                return null;
+            return new List<Integer>{
+                Math.abs(Integer.valueOf(t)),
+                Math.abs(Integer.valueOf(r)),
+                Math.abs(Integer.valueOf(b)),
+                Math.abs(Integer.valueOf(l))
             };
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -1713,28 +2056,29 @@ public with sharing class DocGenHtmlRenderer {
     private static Integer[] resolveMarginsForOverride(String size, Boolean isLandscape) {
         String preset = String.isNotBlank(marginsOverride) ? marginsOverride : 'Default';
         if ('Narrow'.equalsIgnoreCase(preset)) {
-            return new Integer[]{720, 720, 720, 720};
+            return new List<Integer>{ 720, 720, 720, 720 };
         }
         if ('Normal'.equalsIgnoreCase(preset)) {
-            return new Integer[]{1440, 1440, 1440, 1440};
+            return new List<Integer>{ 1440, 1440, 1440, 1440 };
         }
         if ('Wide'.equalsIgnoreCase(preset)) {
-            return new Integer[]{2160, 2160, 2160, 2160};
+            return new List<Integer>{ 2160, 2160, 2160, 2160 };
         }
         if ('Custom'.equalsIgnoreCase(preset)) {
             Integer[] parsed = parseCustomMargins(customMarginsOverride);
-            if (parsed != null) return parsed;
+            if (parsed != null)
+                return parsed;
             // Fall through to default if parse failed
         }
         // Default for size — A4 uses metric defaults, Letter/Legal use 1in/0.5in
         if ('A4'.equalsIgnoreCase(size)) {
             // 2.54cm = 1.0in = 1440 twips ; 1.27cm = 0.5in = 720 twips
             Integer m = isLandscape ? 720 : 1440;
-            return new Integer[]{m, m, m, m};
+            return new List<Integer>{ m, m, m, m };
         }
         // Letter / Legal default
         Integer mm = isLandscape ? 720 : 1440;
-        return new Integer[]{mm, mm, mm, mm};
+        return new List<Integer>{ mm, mm, mm, mm };
     }
 
     /**
@@ -1742,7 +2086,8 @@ public with sharing class DocGenHtmlRenderer {
      * or a single value applied to all four sides. Returns twips array or null.
      */
     private static Integer[] parseCustomMargins(String raw) {
-        if (String.isBlank(raw)) return null;
+        if (String.isBlank(raw))
+            return null;
         try {
             String cleaned = raw.replaceAll('\\s+', ' ').trim();
             List<String> parts;
@@ -1751,16 +2096,22 @@ public with sharing class DocGenHtmlRenderer {
             } else {
                 parts = cleaned.split(' ');
             }
-            if (parts.isEmpty()) return null;
+            if (parts.isEmpty())
+                return null;
             Decimal t = Decimal.valueOf(parts[0].trim());
             Decimal r = parts.size() >= 2 ? Decimal.valueOf(parts[1].trim()) : t;
             Decimal b = parts.size() >= 3 ? Decimal.valueOf(parts[2].trim()) : t;
             Decimal l = parts.size() >= 4 ? Decimal.valueOf(parts[3].trim()) : r;
             // Clamp to sane range (0.1in - 3in) to prevent rendering disasters
-            t = clampMargin(t); r = clampMargin(r); b = clampMargin(b); l = clampMargin(l);
-            return new Integer[]{
-                (Integer)(t * 1440), (Integer)(r * 1440),
-                (Integer)(b * 1440), (Integer)(l * 1440)
+            t = clampMargin(t);
+            r = clampMargin(r);
+            b = clampMargin(b);
+            l = clampMargin(l);
+            return new List<Integer>{
+                (Integer) (t * 1440),
+                (Integer) (r * 1440),
+                (Integer) (b * 1440),
+                (Integer) (l * 1440)
             };
         } catch (Exception e) {
             return null;
@@ -1768,8 +2119,10 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static Decimal clampMargin(Decimal v) {
-        if (v < 0.1) return 0.1;
-        if (v > 3.0) return 3.0;
+        if (v < 0.1)
+            return 0.1;
+        if (v > 3.0)
+            return 3.0;
         return v;
     }
 
@@ -1793,7 +2146,9 @@ public with sharing class DocGenHtmlRenderer {
         pXml = resolveFldSimple(pXml);
 
         // Handle complex field codes (fldChar begin/separate/end)
-        if (!pXml.contains('<w:fldChar')) { return pXml; }
+        if (!pXml.contains('<w:fldChar')) {
+            return pXml;
+        }
 
         String result = '';
         Integer cursor = 0;
@@ -1814,13 +2169,22 @@ public with sharing class DocGenHtmlRenderer {
 
             if (!inField) {
                 // Look for field begin
-                if (nextFldChar == -1) { result += pXml.substring(cursor); break; }
-                if (pXml.indexOf('fldCharType="begin"', nextFldChar) != -1 &&
-                    pXml.indexOf('fldCharType="begin"', nextFldChar) < pXml.indexOf('>', nextFldChar) + 1) {
+                if (nextFldChar == -1) {
+                    result += pXml.substring(cursor);
+                    break;
+                }
+                if (
+                    pXml.indexOf('fldCharType="begin"', nextFldChar) != -1 &&
+                    pXml.indexOf('fldCharType="begin"', nextFldChar) < pXml.indexOf('>', nextFldChar) + 1
+                ) {
                     // Found field begin — find the enclosing run start
                     fieldStartPos = pXml.lastIndexOf('<w:r>', nextFldChar);
-                    if (fieldStartPos == -1) { fieldStartPos = pXml.lastIndexOf('<w:r ', nextFldChar); }
-                    if (fieldStartPos == -1 || fieldStartPos < cursor) { fieldStartPos = nextFldChar; }
+                    if (fieldStartPos == -1) {
+                        fieldStartPos = pXml.lastIndexOf('<w:r ', nextFldChar);
+                    }
+                    if (fieldStartPos == -1 || fieldStartPos < cursor) {
+                        fieldStartPos = nextFldChar;
+                    }
                     result += pXml.substring(cursor, fieldStartPos);
                     inField = true;
                     inFieldResult = false;
@@ -1853,8 +2217,12 @@ public with sharing class DocGenHtmlRenderer {
                         if (closeInstr != -1) {
                             fieldInstr += pXml.substring(tagEnd + 1, closeInstr).trim().toUpperCase();
                             cursor = closeInstr + '</w:instrText>'.length();
-                        } else { cursor = tagEnd + 1; }
-                    } else { cursor = nextInstrText + 1; }
+                        } else {
+                            cursor = tagEnd + 1;
+                        }
+                    } else {
+                        cursor = nextInstrText + 1;
+                    }
                 } else if (nextFldChar != -1) {
                     Integer fldTagEnd = pXml.indexOf('>', nextFldChar);
                     String fldTag = (fldTagEnd != -1) ? pXml.substring(nextFldChar, fldTagEnd + 1) : '';
@@ -1894,19 +2262,32 @@ public with sharing class DocGenHtmlRenderer {
      * Replaces them with a run containing the appropriate CSS counter span.
      */
     private static String resolveFldSimple(String pXml) {
-        if (!pXml.contains('<w:fldSimple')) { return pXml; }
+        if (!pXml.contains('<w:fldSimple')) {
+            return pXml;
+        }
         String result = '';
         Integer cursor = 0;
         while (cursor < pXml.length()) {
             Integer fldStart = pXml.indexOf('<w:fldSimple', cursor);
-            if (fldStart == -1) { result += pXml.substring(cursor); break; }
+            if (fldStart == -1) {
+                result += pXml.substring(cursor);
+                break;
+            }
             result += pXml.substring(cursor, fldStart);
             Integer tagEnd = pXml.indexOf('>', fldStart);
-            if (tagEnd == -1) { result += pXml.substring(fldStart); break; }
+            if (tagEnd == -1) {
+                result += pXml.substring(fldStart);
+                break;
+            }
             String tag = pXml.substring(fldStart, tagEnd + 1).toUpperCase();
             Integer closeTag = pXml.indexOf('</w:fldSimple>', tagEnd);
-            if (closeTag == -1) { closeTag = pXml.indexOf('</w:fldSimple>', tagEnd); }
-            if (closeTag == -1) { result += pXml.substring(fldStart); break; }
+            if (closeTag == -1) {
+                closeTag = pXml.indexOf('</w:fldSimple>', tagEnd);
+            }
+            if (closeTag == -1) {
+                result += pXml.substring(fldStart);
+                break;
+            }
 
             // Capture <w:rPr> from the inner run to preserve font size on page number spans
             String innerContent = pXml.substring(tagEnd + 1, closeTag);
@@ -1946,11 +2327,16 @@ public with sharing class DocGenHtmlRenderer {
      */
 
     private static Boolean isRtlCodePoint(Integer cp) {
-        return (cp >= 1424 && cp <= 1535) ||   // Hebrew (U+0590-U+05FF)
-               (cp >= 1536 && cp <= 1791) ||   // Arabic (U+0600-U+06FF)
-               (cp >= 1872 && cp <= 1919) ||   // Arabic Supplement (U+0750-U+077F)
-               (cp >= 64336 && cp <= 65023) ||  // Arabic Presentation Forms-A
-               (cp >= 65136 && cp <= 65279);    // Arabic Presentation Forms-B
+        return (cp >= 1424 &&
+            cp <= 1535) || // Hebrew (U+0590-U+05FF)
+            (cp >= 1536 &&
+            cp <= 1791) || // Arabic (U+0600-U+06FF)
+            (cp >= 1872 &&
+            cp <= 1919) || // Arabic Supplement (U+0750-U+077F)
+            (cp >= 64336 &&
+            cp <= 65023) || // Arabic Presentation Forms-A
+            (cp >= 65136 &&
+            cp <= 65279); // Arabic Presentation Forms-B
     }
 
     /**
@@ -1959,7 +2345,9 @@ public with sharing class DocGenHtmlRenderer {
      * English merge values are left untouched.
      */
     private static String reverseRtlText(String input) {
-        if (String.isBlank(input)) { return input; }
+        if (String.isBlank(input)) {
+            return input;
+        }
 
         Boolean hasRtl = false;
         for (Integer i = 0; i < input.length(); i++) {
@@ -1968,7 +2356,9 @@ public with sharing class DocGenHtmlRenderer {
                 break;
             }
         }
-        if (!hasRtl) { return input; }
+        if (!hasRtl) {
+            return input;
+        }
 
         // Check all chars are RTL + neutral ASCII
         for (Integer i = 0; i < input.length(); i++) {
@@ -1986,15 +2376,23 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static Boolean isDefaultStyleRtl() {
-        if (String.isBlank(stylesXml)) { return false; }
+        if (String.isBlank(stylesXml)) {
+            return false;
+        }
         try {
             // Find the Normal style (default paragraph style)
             Integer normalIdx = stylesXml.indexOf('w:styleId="Normal"');
-            if (normalIdx == -1) { normalIdx = stylesXml.indexOf('w:styleId="normal"'); }
-            if (normalIdx == -1) { return false; }
+            if (normalIdx == -1) {
+                normalIdx = stylesXml.indexOf('w:styleId="normal"');
+            }
+            if (normalIdx == -1) {
+                return false;
+            }
             Integer styleStart = stylesXml.lastIndexOf('<w:style', normalIdx);
             Integer styleEnd = stylesXml.indexOf('</w:style>', normalIdx);
-            if (styleStart == -1 || styleEnd == -1) { return false; }
+            if (styleStart == -1 || styleEnd == -1) {
+                return false;
+            }
             String normalDef = stylesXml.substring(styleStart, styleEnd);
             return normalDef.contains('<w:bidi/>') || normalDef.contains('<w:bidi ');
         } catch (Exception e) {
@@ -2027,7 +2425,9 @@ public with sharing class DocGenHtmlRenderer {
     };
 
     private static String resolveThemeColor(String themeColor) {
-        if (themeColor == null) { return null; }
+        if (themeColor == null) {
+            return null;
+        }
         return THEME_COLOR_DEFAULTS.get(themeColor);
     }
 
@@ -2048,7 +2448,9 @@ public with sharing class DocGenHtmlRenderer {
             // Step 1: Find <w:num w:numId="X"> and get the abstractNumId
             String numSearch = 'w:numId="' + numId + '"';
             Integer numIdx = numberingXml.indexOf(numSearch);
-            if (numIdx == -1) { return false; }
+            if (numIdx == -1) {
+                return false;
+            }
 
             // Find the abstractNumId within this <w:num> element
             Integer numStart = numberingXml.lastIndexOf('<w:num ', numIdx);
@@ -2056,20 +2458,28 @@ public with sharing class DocGenHtmlRenderer {
             if (numStart == -1 || numEnd == -1) {
                 // Self-closing <w:num> — look for abstractNumId within the tag area
                 numEnd = numberingXml.indexOf('>', numIdx);
-                if (numEnd == -1) { return false; }
+                if (numEnd == -1) {
+                    return false;
+                }
             }
             String numBlock = numberingXml.substring(numStart, numEnd);
             String abstractNumId = extractAttr(numBlock, 'w:abstractNumId', 'w:val');
-            if (abstractNumId == null) { return false; }
+            if (abstractNumId == null) {
+                return false;
+            }
 
             // Step 2: Find <w:abstractNum w:abstractNumId="Y"> and get the numFmt for the ilvl
             String absSearch = 'w:abstractNumId="' + abstractNumId + '"';
             Integer absIdx = numberingXml.indexOf(absSearch);
-            if (absIdx == -1) { return false; }
+            if (absIdx == -1) {
+                return false;
+            }
 
             Integer absStart = numberingXml.lastIndexOf('<w:abstractNum ', absIdx);
             Integer absEnd = numberingXml.indexOf('</w:abstractNum>', absIdx);
-            if (absStart == -1 || absEnd == -1) { return false; }
+            if (absStart == -1 || absEnd == -1) {
+                return false;
+            }
             String absBlock = numberingXml.substring(absStart, absEnd);
 
             // Step 3: Find the <w:lvl w:ilvl="Z"> within the abstract definition
@@ -2078,17 +2488,23 @@ public with sharing class DocGenHtmlRenderer {
             if (lvlIdx == -1) {
                 // Try ilvl 0 as fallback
                 lvlIdx = absBlock.indexOf('w:ilvl="0"');
-                if (lvlIdx == -1) { return false; }
+                if (lvlIdx == -1) {
+                    return false;
+                }
             }
 
             Integer lvlStart = absBlock.lastIndexOf('<w:lvl ', lvlIdx);
             Integer lvlEnd = absBlock.indexOf('</w:lvl>', lvlIdx);
-            if (lvlStart == -1 || lvlEnd == -1) { return false; }
+            if (lvlStart == -1 || lvlEnd == -1) {
+                return false;
+            }
             String lvlBlock = absBlock.substring(lvlStart, lvlEnd);
 
             // Step 4: Get the numFmt value
             String numFmt = extractAttr(lvlBlock, 'w:numFmt', 'w:val');
-            if (numFmt == null) { return false; }
+            if (numFmt == null) {
+                return false;
+            }
 
             // "bullet" = bullet list, everything else = numbered
             return numFmt != 'bullet';
@@ -2098,13 +2514,19 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static String resolveDefaultCellPadding() {
-        if (String.isBlank(stylesXml)) { return '0pt 5.4pt'; }
+        if (String.isBlank(stylesXml)) {
+            return '0pt 5.4pt';
+        }
         try {
             Integer tnIdx = stylesXml.indexOf('w:styleId="TableNormal"');
-            if (tnIdx == -1) { return '0pt 5.4pt'; }
+            if (tnIdx == -1) {
+                return '0pt 5.4pt';
+            }
             Integer tnStart = stylesXml.lastIndexOf('<w:style', tnIdx);
             Integer tnEnd = stylesXml.indexOf('</w:style>', tnIdx);
-            if (tnStart == -1 || tnEnd == -1) { return '0pt 5.4pt'; }
+            if (tnStart == -1 || tnEnd == -1) {
+                return '0pt 5.4pt';
+            }
             String tnDef = stylesXml.substring(tnStart, tnEnd + 10);
 
             String topW = extractAttr(tnDef, 'w:top', 'w:w');
@@ -2124,34 +2546,47 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static String resolveTableStyleBorder(String styleName) {
-        if (String.isBlank(styleName)) return null;
+        if (String.isBlank(styleName))
+            return null;
         // Async-safe fast path — borders map pre-extracted in admin context and cached.
         if (tableStyleBorderMap != null && tableStyleBorderMap.containsKey(styleName)) {
             return tableStyleBorderMap.get(styleName);
         }
-        if (String.isBlank(stylesXml)) { return null; }
+        if (String.isBlank(stylesXml)) {
+            return null;
+        }
 
         // Find the style definition: <w:style ... w:styleId="TableGrid">
         String searchKey = 'w:styleId="' + styleName + '"';
         Integer styleIdx = stylesXml.indexOf(searchKey);
-        if (styleIdx == -1) { return null; }
+        if (styleIdx == -1) {
+            return null;
+        }
 
         Integer styleStart = stylesXml.lastIndexOf('<w:style', styleIdx);
         Integer styleEnd = stylesXml.indexOf('</w:style>', styleIdx);
-        if (styleStart == -1 || styleEnd == -1) { return null; }
+        if (styleStart == -1 || styleEnd == -1) {
+            return null;
+        }
 
         String styleDef = stylesXml.substring(styleStart, styleEnd + 10);
 
         // Check for tblBorders
-        if (!styleDef.contains('<w:tblBorders')) { return null; }
+        if (!styleDef.contains('<w:tblBorders')) {
+            return null;
+        }
 
         // Parse the first border side to get size and color
         String topBorder = parseBorderSide(styleDef, 'w:top');
-        if (topBorder != null) { return topBorder; }
+        if (topBorder != null) {
+            return topBorder;
+        }
 
         // Fallback: check for insideH (grid borders)
         String insideH = parseBorderSide(styleDef, 'w:insideH');
-        if (insideH != null) { return insideH; }
+        if (insideH != null) {
+            return insideH;
+        }
 
         return '0.5pt solid #000'; // Default for styles with tblBorders
     }
@@ -2160,13 +2595,25 @@ public with sharing class DocGenHtmlRenderer {
         String topBdr = parseBorderSide(bdrXml, 'w:top');
         String bottomBdr = parseBorderSide(bdrXml, 'w:bottom');
         String leftBdr = parseBorderSide(bdrXml, 'w:left');
-        if (leftBdr == null) { leftBdr = parseBorderSide(bdrXml, 'w:start'); }
+        if (leftBdr == null) {
+            leftBdr = parseBorderSide(bdrXml, 'w:start');
+        }
         String rightBdr = parseBorderSide(bdrXml, 'w:right');
-        if (rightBdr == null) { rightBdr = parseBorderSide(bdrXml, 'w:end'); }
-        if (topBdr != null) { styles.add('border-top:' + topBdr); }
-        if (bottomBdr != null) { styles.add('border-bottom:' + bottomBdr); }
-        if (leftBdr != null) { styles.add('border-left:' + leftBdr); }
-        if (rightBdr != null) { styles.add('border-right:' + rightBdr); }
+        if (rightBdr == null) {
+            rightBdr = parseBorderSide(bdrXml, 'w:end');
+        }
+        if (topBdr != null) {
+            styles.add('border-top:' + topBdr);
+        }
+        if (bottomBdr != null) {
+            styles.add('border-bottom:' + bottomBdr);
+        }
+        if (leftBdr != null) {
+            styles.add('border-left:' + leftBdr);
+        }
+        if (rightBdr != null) {
+            styles.add('border-right:' + rightBdr);
+        }
     }
 
     /**
@@ -2176,15 +2623,29 @@ public with sharing class DocGenHtmlRenderer {
         String cellPadTop = extractAttr(tcMar, 'w:top', 'w:w');
         String cellPadBottom = extractAttr(tcMar, 'w:bottom', 'w:w');
         String cellPadLeft = extractAttr(tcMar, 'w:left', 'w:w');
-        if (cellPadLeft == null) { cellPadLeft = extractAttr(tcMar, 'w:start', 'w:w'); }
+        if (cellPadLeft == null) {
+            cellPadLeft = extractAttr(tcMar, 'w:start', 'w:w');
+        }
         String cellPadRight = extractAttr(tcMar, 'w:right', 'w:w');
-        if (cellPadRight == null) { cellPadRight = extractAttr(tcMar, 'w:end', 'w:w'); }
+        if (cellPadRight == null) {
+            cellPadRight = extractAttr(tcMar, 'w:end', 'w:w');
+        }
 
         List<String> padParts = new List<String>();
-        padParts.add((cellPadTop != null && cellPadTop.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadTop)) + 'pt' : '4pt');
-        padParts.add((cellPadRight != null && cellPadRight.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadRight)) + 'pt' : '4pt');
-        padParts.add((cellPadBottom != null && cellPadBottom.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadBottom)) + 'pt' : '4pt');
-        padParts.add((cellPadLeft != null && cellPadLeft.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadLeft)) + 'pt' : '4pt');
+        padParts.add(
+            (cellPadTop != null && cellPadTop.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadTop)) + 'pt' : '4pt'
+        );
+        padParts.add(
+            (cellPadRight != null && cellPadRight.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadRight)) + 'pt' : '4pt'
+        );
+        padParts.add(
+            (cellPadBottom != null && cellPadBottom.isNumeric())
+                ? twipsToPt(Integer.valueOf(cellPadBottom)) + 'pt'
+                : '4pt'
+        );
+        padParts.add(
+            (cellPadLeft != null && cellPadLeft.isNumeric()) ? twipsToPt(Integer.valueOf(cellPadLeft)) + 'pt' : '4pt'
+        );
         styles.add('padding:' + String.join(padParts, ' '));
     }
 
@@ -2198,8 +2659,12 @@ public with sharing class DocGenHtmlRenderer {
 
         String cx = extractAttr(drawingXml, 'wp:extent', 'cx');
         String cy = extractAttr(drawingXml, 'wp:extent', 'cy');
-                if (cx == null) { cx = extractAttr(drawingXml, 'a:ext', 'cx'); }
-                if (cy == null) { cy = extractAttr(drawingXml, 'a:ext', 'cy'); }
+        if (cx == null) {
+            cx = extractAttr(drawingXml, 'a:ext', 'cx');
+        }
+        if (cy == null) {
+            cy = extractAttr(drawingXml, 'a:ext', 'cy');
+        }
 
         if (cx != null && cx.isNumeric()) {
             widthPx = Math.round(Long.valueOf(cx) * EMU_TO_PX);
@@ -2210,10 +2675,14 @@ public with sharing class DocGenHtmlRenderer {
 
         // Extract relationship ID from <a:blip r:embed="rIdImg1"/>
         String relId = extractAttr(drawingXml, 'a:blip', 'r:embed');
-                if (relId == null) { return ''; }
+        if (relId == null) {
+            return '';
+        }
 
         String imageValue = images.get(relId);
-                if (imageValue == null) { return ''; }
+        if (imageValue == null) {
+            return '';
+        }
 
         // Sizing strategy: default to exact width/height from wp:extent — that's
         // the authoritative value Word stores for both template-embedded images
@@ -2226,10 +2695,13 @@ public with sharing class DocGenHtmlRenderer {
             ? ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;width:auto;height:auto;')
             : ('width:' + widthPx + 'px;height:' + heightPx + 'px;');
 
-        if (imageValue.startsWith('/sfc/') || imageValue.startsWith('/servlet/') ||
-            imageValue.startsWith('/apex/') || imageValue.startsWithIgnoreCase('http')) {
-            return '<img src="' + imageValue + '" ' +
-                   'style="' + sizeStyle + 'image-orientation:from-image;" />';
+        if (
+            imageValue.startsWith('/sfc/') ||
+            imageValue.startsWith('/servlet/') ||
+            imageValue.startsWith('/apex/') ||
+            imageValue.startsWithIgnoreCase('http')
+        ) {
+            return '<img src="' + imageValue + '" ' + 'style="' + sizeStyle + 'image-orientation:from-image;" />';
         }
 
         String mimeType = 'image/png';
@@ -2237,8 +2709,14 @@ public with sharing class DocGenHtmlRenderer {
             mimeType = 'image/jpeg';
         }
 
-        return '<img src="data:' + mimeType + ';base64,' + imageValue + '" ' +
-               'style="' + sizeStyle + 'image-orientation:from-image;" />';
+        return '<img src="data:' +
+            mimeType +
+            ';base64,' +
+            imageValue +
+            '" ' +
+            'style="' +
+            sizeStyle +
+            'image-orientation:from-image;" />';
     }
 
     /**
@@ -2251,26 +2729,33 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static String processPict(String pictXml, Map<String, String> images) {
         String relId = extractAttr(pictXml, 'v:imagedata', 'r:id');
-        if (relId == null) { relId = extractAttr(pictXml, 'v:imagedata', 'r:pict'); }
-        if (relId == null) { return ''; }
+        if (relId == null) {
+            relId = extractAttr(pictXml, 'v:imagedata', 'r:pict');
+        }
+        if (relId == null) {
+            return '';
+        }
 
         String imageValue = images.get(relId);
-        if (imageValue == null) { return ''; }
+        if (imageValue == null) {
+            return '';
+        }
 
         // Use 'v:shape ' (trailing space) to disambiguate from <v:shapetype>
         // which is the shape DEFINITION, not the instance with dimensions.
         // extractAttr's substring match would otherwise grab the shapetype's
         // style (none) and fall back to default sizes.
         String shapeStyle = extractAttr(pictXml, 'v:shape ', 'style');
-        if (shapeStyle == null) { shapeStyle = ''; }
+        if (shapeStyle == null) {
+            shapeStyle = '';
+        }
         String shapeStyleLower = shapeStyle.toLowerCase();
 
         // Strict watermark detection: only the two Word-specific identifiers.
         // The mso-position-horizontal:center / rotation: heuristics matched any
         // centered/rotated header logo and incorrectly hijacked them as watermarks
         // (pushing them to @page background, removing them from inline body flow).
-        Boolean isWatermark = pictXml.contains('PowerPlusWaterMarkObject') ||
-                              pictXml.contains('WordPictureWatermark');
+        Boolean isWatermark = pictXml.contains('PowerPlusWaterMarkObject') || pictXml.contains('WordPictureWatermark');
 
         Decimal opacity = null;
         Integer fillIdx = pictXml.indexOf('<v:fill ');
@@ -2283,7 +2768,10 @@ public with sharing class DocGenHtmlRenderer {
                     Integer opStart = opIdx + 9;
                     Integer opEnd = fillTag.indexOf('"', opStart);
                     if (opEnd != -1) {
-                        try { opacity = Decimal.valueOf(fillTag.substring(opStart, opEnd)); } catch (Exception e) {}
+                        try {
+                            opacity = Decimal.valueOf(fillTag.substring(opStart, opEnd));
+                        } catch (Exception e) {
+                        }
                     }
                 }
             }
@@ -2302,11 +2790,16 @@ public with sharing class DocGenHtmlRenderer {
             Integer rotEnd = rotStart;
             while (rotEnd < shapeStyle.length()) {
                 String ch = shapeStyle.substring(rotEnd, rotEnd + 1);
-                if (ch == ';' || ch == ' ') { break; }
+                if (ch == ';' || ch == ' ') {
+                    break;
+                }
                 rotEnd++;
             }
             String rotStr = shapeStyle.substring(rotStart, rotEnd).replace('deg', '').trim();
-            try { rotation = Integer.valueOf(Decimal.valueOf(rotStr).round()); } catch (Exception e) {}
+            try {
+                rotation = Integer.valueOf(Decimal.valueOf(rotStr).round());
+            } catch (Exception e) {
+            }
         }
 
         Integer widthPx = 0;
@@ -2315,7 +2808,9 @@ public with sharing class DocGenHtmlRenderer {
         if (wIdx != -1) {
             Integer wStart = wIdx + 6;
             Integer wEnd = shapeStyle.indexOf(';', wStart);
-            if (wEnd == -1) { wEnd = shapeStyle.length(); }
+            if (wEnd == -1) {
+                wEnd = shapeStyle.length();
+            }
             String wStr = shapeStyle.substring(wStart, wEnd).trim();
             widthPx = parseVmlLengthToPx(wStr);
         }
@@ -2323,20 +2818,32 @@ public with sharing class DocGenHtmlRenderer {
         if (hIdx != -1) {
             Integer hStart = hIdx + 7;
             Integer hEnd = shapeStyle.indexOf(';', hStart);
-            if (hEnd == -1) { hEnd = shapeStyle.length(); }
+            if (hEnd == -1) {
+                hEnd = shapeStyle.length();
+            }
             String hStr = shapeStyle.substring(hStart, hEnd).trim();
             heightPx = parseVmlLengthToPx(hStr);
         }
-        if (widthPx <= 0) { widthPx = isWatermark ? 480 : 200; }
-        if (heightPx <= 0) { heightPx = isWatermark ? 240 : 150; }
+        if (widthPx <= 0) {
+            widthPx = isWatermark ? 480 : 200;
+        }
+        if (heightPx <= 0) {
+            heightPx = isWatermark ? 240 : 150;
+        }
 
         String src;
-        if (imageValue.startsWith('/sfc/') || imageValue.startsWith('/servlet/') ||
-            imageValue.startsWith('/apex/') || imageValue.startsWithIgnoreCase('http')) {
+        if (
+            imageValue.startsWith('/sfc/') ||
+            imageValue.startsWith('/servlet/') ||
+            imageValue.startsWith('/apex/') ||
+            imageValue.startsWithIgnoreCase('http')
+        ) {
             src = imageValue;
         } else {
             String mimeType = 'image/png';
-            if (imageValue.startsWith('/9j/') || imageValue.startsWith('/9J/')) { mimeType = 'image/jpeg'; }
+            if (imageValue.startsWith('/9j/') || imageValue.startsWith('/9J/')) {
+                mimeType = 'image/jpeg';
+            }
             src = 'data:' + mimeType + ';base64,' + imageValue;
         }
 
@@ -2351,8 +2858,12 @@ public with sharing class DocGenHtmlRenderer {
             // watermark expect it to span the page like a real document watermark.
             Decimal effOpacity = (opacity != null) ? opacity : 0.05;
             Decimal whiteAlpha = 1 - effOpacity;
-            if (whiteAlpha > 0.95) { whiteAlpha = 0.95; }
-            if (whiteAlpha < 0.85) { whiteAlpha = 0.85; }
+            if (whiteAlpha > 0.95) {
+                whiteAlpha = 0.95;
+            }
+            if (whiteAlpha < 0.85) {
+                whiteAlpha = 0.85;
+            }
             // Watermarks emit a marker; extractWatermarks() reads it and converts
             // into @page { background-image: url(...) } CSS — Flying Saucer's
             // documented page-background mechanism that truly extends to the
@@ -2362,8 +2873,15 @@ public with sharing class DocGenHtmlRenderer {
             return '<!--DGWM:src=' + src + '|wash=' + whiteAlpha + '|w=' + widthPx + '|h=' + heightPx + '-->';
         }
 
-        String style = 'max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;height:auto;width:auto;image-orientation:from-image;';
-        if (opacity != null) { style += 'opacity:' + opacity + ';'; }
+        String style =
+            'max-width:' +
+            widthPx +
+            'px;max-height:' +
+            heightPx +
+            'px;height:auto;width:auto;image-orientation:from-image;';
+        if (opacity != null) {
+            style += 'opacity:' + opacity + ';';
+        }
         return '<img src="' + src + '" style="' + style + '" />';
     }
 
@@ -2372,18 +2890,24 @@ public with sharing class DocGenHtmlRenderer {
      * E.g., extractAttrFromTag('<v:imagedata gain=".26" blacklevel="22938f"/>', 'gain') → '.26'.
      */
     private static String extractAttrFromTag(String tag, String attrName) {
-        if (String.isBlank(tag)) { return null; }
+        if (String.isBlank(tag)) {
+            return null;
+        }
         String marker = ' ' + attrName + '="';
         Integer idx = tag.indexOf(marker);
         if (idx == -1) {
             marker = ' ' + attrName + '=\'';
             idx = tag.indexOf(marker);
-            if (idx == -1) { return null; }
+            if (idx == -1) {
+                return null;
+            }
         }
         String quote = tag.substring(idx + marker.length() - 1, idx + marker.length());
         Integer valStart = idx + marker.length();
         Integer valEnd = tag.indexOf(quote, valStart);
-        if (valEnd == -1) { return null; }
+        if (valEnd == -1) {
+            return null;
+        }
         return tag.substring(valStart, valEnd);
     }
 
@@ -2396,7 +2920,10 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static Map<String, String> extractWatermarks(String html) {
         Map<String, String> result = new Map<String, String>{ 'html' => '', 'watermarks' => '', 'pageBgCss' => '' };
-        if (String.isBlank(html)) { result.put('html', html != null ? html : ''); return result; }
+        if (String.isBlank(html)) {
+            result.put('html', html != null ? html : '');
+            return result;
+        }
 
         String marker = '<!--DGWM:';
         String cleaned = '';
@@ -2413,28 +2940,43 @@ public with sharing class DocGenHtmlRenderer {
             }
             cleaned += html.substring(cursor, start);
             Integer endMark = html.indexOf('-->', start);
-            if (endMark == -1) { cleaned += html.substring(start); break; }
+            if (endMark == -1) {
+                cleaned += html.substring(start);
+                break;
+            }
             String payload = html.substring(start + marker.length(), endMark);
             String src = null;
             String washStr = null;
             String wStr = null;
             String hStr = null;
             for (String part : payload.split('\\|')) {
-                if (part.startsWith('src=')) { src = part.substring(4); }
-                else if (part.startsWith('wash=')) { washStr = part.substring(5); }
-                else if (part.startsWith('w=')) { wStr = part.substring(2); }
-                else if (part.startsWith('h=')) { hStr = part.substring(2); }
+                if (part.startsWith('src=')) {
+                    src = part.substring(4);
+                } else if (part.startsWith('wash=')) {
+                    washStr = part.substring(5);
+                } else if (part.startsWith('w=')) {
+                    wStr = part.substring(2);
+                } else if (part.startsWith('h=')) {
+                    hStr = part.substring(2);
+                }
             }
             if (src != null && firstSrc == null) {
                 firstSrc = src;
-                if (wStr != null && wStr.isNumeric()) { firstWidthPx = Integer.valueOf(wStr); }
-                if (hStr != null && hStr.isNumeric()) { firstHeightPx = Integer.valueOf(hStr); }
+                if (wStr != null && wStr.isNumeric()) {
+                    firstWidthPx = Integer.valueOf(wStr);
+                }
+                if (hStr != null && hStr.isNumeric()) {
+                    firstHeightPx = Integer.valueOf(hStr);
+                }
             }
             if (washStr != null) {
                 try {
                     Decimal w = Decimal.valueOf(washStr);
-                    if (w > washAlpha) { washAlpha = w; }
-                } catch (Exception e) {}
+                    if (w > washAlpha) {
+                        washAlpha = w;
+                    }
+                } catch (Exception e) {
+                }
             }
             cursor = endMark + 3;
         }
@@ -2446,9 +2988,12 @@ public with sharing class DocGenHtmlRenderer {
             // the page dimensions usually share the same aspect ratio (Word
             // sizes watermarks proportional to page), 'contain' produces the
             // user's intended scale automatically.
-            String pageBgCss = 'background-image: url(\'' + firstSrc + '\'); ' +
-                               'background-position: center center; background-repeat: no-repeat; ' +
-                               'background-size: contain;';
+            String pageBgCss =
+                'background-image: url(\'' +
+                firstSrc +
+                '\'); ' +
+                'background-position: center center; background-repeat: no-repeat; ' +
+                'background-size: contain;';
             result.put('pageBgCss', pageBgCss);
         }
         result.put('html', cleaned);
@@ -2459,19 +3004,39 @@ public with sharing class DocGenHtmlRenderer {
      * Parses a VML length value like "468pt", "6.5in", "240px" into pixels.
      */
     private static Integer parseVmlLengthToPx(String val) {
-        if (String.isBlank(val)) { return 0; }
+        if (String.isBlank(val)) {
+            return 0;
+        }
         String unit = '';
         String num = val;
-        for (String u : new List<String>{'pt', 'in', 'cm', 'mm', 'px', 'em'}) {
-            if (val.endsWith(u)) { unit = u; num = val.substring(0, val.length() - u.length()); break; }
+        for (String u : new List<String>{ 'pt', 'in', 'cm', 'mm', 'px', 'em' }) {
+            if (val.endsWith(u)) {
+                unit = u;
+                num = val.substring(0, val.length() - u.length());
+                break;
+            }
         }
         Decimal n;
-        try { n = Decimal.valueOf(num.trim()); } catch (Exception e) { return 0; }
-        if (unit == 'pt') { return Math.round(n * 96 / 72); }
-        if (unit == 'in') { return Math.round(n * 96); }
-        if (unit == 'cm') { return Math.round(n * 96 / 2.54); }
-        if (unit == 'mm') { return Math.round(n * 96 / 25.4); }
-        if (unit == 'em') { return Math.round(n * 16); }
+        try {
+            n = Decimal.valueOf(num.trim());
+        } catch (Exception e) {
+            return 0;
+        }
+        if (unit == 'pt') {
+            return Math.round(n * 96 / 72);
+        }
+        if (unit == 'in') {
+            return Math.round(n * 96);
+        }
+        if (unit == 'cm') {
+            return Math.round(n * 96 / 2.54);
+        }
+        if (unit == 'mm') {
+            return Math.round(n * 96 / 25.4);
+        }
+        if (unit == 'em') {
+            return Math.round(n * 16);
+        }
         return Math.round(n);
     }
 
@@ -2486,11 +3051,15 @@ public with sharing class DocGenHtmlRenderer {
 
         while (cursor < xml.length()) {
             Integer tStart = xml.indexOf('<w:t', cursor);
-                        if (tStart == -1) { break; }
+            if (tStart == -1) {
+                break;
+            }
 
             // Skip self-closing <w:t/>
             Integer tagEnd = xml.indexOf('>', tStart);
-                        if (tagEnd == -1) { break; }
+            if (tagEnd == -1) {
+                break;
+            }
 
             if (xml.substring(tagEnd - 1, tagEnd) == '/') {
                 cursor = tagEnd + 1;
@@ -2499,7 +3068,9 @@ public with sharing class DocGenHtmlRenderer {
 
             Integer contentStart = tagEnd + 1;
             Integer tEnd = xml.indexOf('</w:t>', contentStart);
-                        if (tEnd == -1) { break; }
+            if (tEnd == -1) {
+                break;
+            }
 
             result += xml.substring(contentStart, tEnd);
             cursor = tEnd + 6; // length of </w:t>
@@ -2512,7 +3083,9 @@ public with sharing class DocGenHtmlRenderer {
      * Unescapes standard XML entities so downstream escapeHtml4() doesn't double-encode.
      */
     private static String unescapeXmlEntities(String text) {
-        if (String.isBlank(text)) { return text; }
+        if (String.isBlank(text)) {
+            return text;
+        }
         text = text.replace('&amp;', '&');
         text = text.replace('&lt;', '<');
         text = text.replace('&gt;', '>');
@@ -2527,17 +3100,23 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static String extractElement(String xml, String tagName) {
         Integer start = xml.indexOf('<' + tagName);
-                if (start == -1) { return null; }
+        if (start == -1) {
+            return null;
+        }
 
         // Check for self-closing
         Integer tagEnd = xml.indexOf('>', start);
-                if (tagEnd == -1) { return null; }
+        if (tagEnd == -1) {
+            return null;
+        }
         if (xml.substring(tagEnd - 1, tagEnd) == '/') {
             return xml.substring(start, tagEnd + 1);
         }
 
         Integer endPos = findClosingTag(xml, start, tagName);
-                if (endPos == -1) { return xml.substring(start, tagEnd + 1); }
+        if (endPos == -1) {
+            return xml.substring(start, tagEnd + 1);
+        }
         return xml.substring(start, endPos);
     }
 
@@ -2547,30 +3126,38 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static String extractAttr(String xml, String tagName, String attrName) {
         Integer tagStart = xml.indexOf('<' + tagName);
-        if (tagStart == -1) { return null; }
+        if (tagStart == -1) {
+            return null;
+        }
 
         Integer tagEnd = xml.indexOf('>', tagStart);
-        if (tagEnd == -1) { return null; }
+        if (tagEnd == -1) {
+            return null;
+        }
 
         String tagContent = xml.substring(tagStart, tagEnd + 1);
-        
+
         // Try double quotes
         String searchDouble = attrName + '="';
         Integer attrStart = tagContent.indexOf(searchDouble);
         String quoteUsed = '"';
-        
+
         if (attrStart == -1) {
             // Try single quotes
             String searchSingle = attrName + '=\'';
             attrStart = tagContent.indexOf(searchSingle);
             quoteUsed = '\'';
         }
-        
-        if (attrStart == -1) { return null; }
+
+        if (attrStart == -1) {
+            return null;
+        }
 
         Integer valueStart = attrStart + attrName.length() + 2; // skip attr=" or attr='
         Integer valueEnd = tagContent.indexOf(quoteUsed, valueStart);
-        if (valueEnd == -1) { return null; }
+        if (valueEnd == -1) {
+            return null;
+        }
 
         return tagContent.substring(valueStart, valueEnd);
     }
@@ -2589,15 +3176,18 @@ public with sharing class DocGenHtmlRenderer {
             Integer nextOpen = xml.indexOf(openTag, cursor);
             Integer nextClose = xml.indexOf(closeTag, cursor);
 
-                        if (nextClose == -1) { return -1; }
+            if (nextClose == -1) {
+                return -1;
+            }
 
             if (nextOpen != -1 && nextOpen < nextClose) {
                 // Check if it's actually the tag (not a prefix match like <w:tblPr matching <w:tbl)
                 Integer afterOpen = nextOpen + openTag.length();
-                Boolean isRealTag = afterOpen < xml.length() &&
+                Boolean isRealTag =
+                    afterOpen < xml.length() &&
                     (xml.substring(afterOpen, afterOpen + 1) == '>' ||
-                     xml.substring(afterOpen, afterOpen + 1) == ' ' ||
-                     xml.substring(afterOpen, afterOpen + 1) == '/');
+                    xml.substring(afterOpen, afterOpen + 1) == ' ' ||
+                    xml.substring(afterOpen, afterOpen + 1) == '/');
                 if (isRealTag) {
                     depth++;
                     cursor = afterOpen;
@@ -2640,9 +3230,13 @@ public with sharing class DocGenHtmlRenderer {
     public static String renderBarcodeHtml(String text) {
         // Extract marker: ##BARCODE:type:size:VALUE##
         Integer startIdx = text.indexOf('##BARCODE:');
-                if (startIdx == -1) { return text.escapeHtml4(); }
+        if (startIdx == -1) {
+            return text.escapeHtml4();
+        }
         Integer endIdx = text.indexOf('##', startIdx + 10);
-                if (endIdx == -1) { return text.escapeHtml4(); }
+        if (endIdx == -1) {
+            return text.escapeHtml4();
+        }
 
         String marker = text.substring(startIdx + 10, endIdx);
         List<String> parts = marker.split(':', 3);
@@ -2654,7 +3248,9 @@ public with sharing class DocGenHtmlRenderer {
         value = value.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>');
 
         String pattern = BarcodeGenerator.getPattern(value, barcodeType);
-                if (pattern == null) { return value.escapeHtml4(); }
+        if (pattern == null) {
+            return value.escapeHtml4();
+        }
 
         String html;
         if (barcodeType == 'qr') {
@@ -2666,8 +3262,8 @@ public with sharing class DocGenHtmlRenderer {
         String before = text.substring(0, startIdx);
         String after = text.substring(endIdx + 2);
         return (String.isNotBlank(before) ? before.escapeHtml4() : '') +
-               html +
-               (String.isNotBlank(after) ? after.escapeHtml4() : '');
+            html +
+            (String.isNotBlank(after) ? after.escapeHtml4() : '');
     }
 
     /** Renders Code 128 as inline CSS bars. */
@@ -2686,7 +3282,14 @@ public with sharing class DocGenHtmlRenderer {
         String html = '<div style="display:inline-block;white-space:nowrap;line-height:0;">';
         for (Integer i = 0; i < pattern.length(); i++) {
             String color = pattern.substring(i, i + 1) == '1' ? '#000' : '#fff';
-            html += '<span style="display:inline-block;width:' + barWidth + 'px;height:' + barHeight + 'px;background:' + color + ';"></span>';
+            html +=
+                '<span style="display:inline-block;width:' +
+                barWidth +
+                'px;height:' +
+                barHeight +
+                'px;background:' +
+                color +
+                ';"></span>';
         }
         html += '</div>';
         return html;
@@ -2712,8 +3315,12 @@ public with sharing class DocGenHtmlRenderer {
 
         // Relative container with white background; only black modules are emitted
         // as absolutely positioned spans. No layout engine gaps possible.
-        String html = '<div style="position:relative;display:inline-block;width:' + totalSizePx
-            + 'px;height:' + totalSizePx + 'px;background:#fff;">';
+        String html =
+            '<div style="position:relative;display:inline-block;width:' +
+            totalSizePx +
+            'px;height:' +
+            totalSizePx +
+            'px;background:#fff;">';
 
         Integer yPx = quietPx;
         for (Integer r = 0; r < rows.size(); r++) {
@@ -2728,8 +3335,16 @@ public with sharing class DocGenHtmlRenderer {
                 // Only emit black modules; white is the container background
                 if (bit == '1') {
                     Integer xPx = quietPx + (c * cellPx);
-                    html += '<span style="position:absolute;left:' + xPx + 'px;top:' + yPx
-                        + 'px;width:' + (cellPx * run) + 'px;height:' + cellPx + 'px;background:#000;"></span>';
+                    html +=
+                        '<span style="position:absolute;left:' +
+                        xPx +
+                        'px;top:' +
+                        yPx +
+                        'px;width:' +
+                        (cellPx * run) +
+                        'px;height:' +
+                        cellPx +
+                        'px;background:#000;"></span>';
                 }
                 c += run;
             }

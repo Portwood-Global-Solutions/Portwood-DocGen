@@ -1,17 +1,33 @@
 <template>
     <div style={indentStyle}>
-        <div style="padding: 8px 14px; border-bottom: 1px solid #f0f0f0;">
-
+        <div style="padding: 8px 14px; border-bottom: 1px solid #f0f0f0">
             <!-- ═══ Selected field pills + picker toggle ═══ -->
-            <div style="display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap">
                 <!-- Pills for selected fields -->
                 <template for:each={selectedFields} for:item="sf">
-                    <span key={sf.apiName}
-                        style="display: inline-flex; align-items: center; gap: 3px; background: #eef4ff; border: 1px solid #c7d7f5; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">
-                        <span style="color: #1a56db;">{sf.displayLabel}</span>
-                        <span style="color: #aaa; font-family: monospace; font-size: 0.65rem;">{sf.apiName}</span>
-                        <a href="javascript:void(0)" data-api={sf.apiName} onclick={handleRemoveField}
-                            style="color: #999; text-decoration: none; margin-left: 2px; font-size: 0.7rem;">&times;</a>
+                    <span
+                        key={sf.apiName}
+                        style="
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 3px;
+                            background: #eef4ff;
+                            border: 1px solid #c7d7f5;
+                            padding: 2px 8px;
+                            border-radius: 12px;
+                            font-size: 0.75rem;
+                            white-space: nowrap;
+                        "
+                    >
+                        <span style="color: #1a56db">{sf.displayLabel}</span>
+                        <span style="color: #aaa; font-family: monospace; font-size: 0.65rem">{sf.apiName}</span>
+                        <a
+                            href="javascript:void(0)"
+                            data-api={sf.apiName}
+                            onclick={handleRemoveField}
+                            style="color: #999; text-decoration: none; margin-left: 2px; font-size: 0.7rem"
+                            >&times;</a
+                        >
                     </span>
                 </template>
 
@@ -19,42 +35,129 @@
                 <template for:each={parentRelsList} for:item="pr">
                     <template if:true={pr.hasSelectedFields}>
                         <template for:each={pr.selectedFields} for:item="pf">
-                            <span key={pf.path}
-                                style="display: inline-flex; align-items: center; gap: 3px; background: #f3e8ff; border: 1px solid #d8c4f0; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; white-space: nowrap;">
-                                <span style="color: #7c3aed;">{pr.displayLabel}</span>
-                                <span style="color: #7c3aed;">&#8250;</span>
-                                <span style="color: #7c3aed;">{pf.displayLabel}</span>
-                                <span style="color: #aaa; font-family: monospace; font-size: 0.65rem;">{pr.value}.{pf.apiName}</span>
-                                <a href="javascript:void(0)" data-api={pf.apiName} data-rel={pr.value} onclick={handleRemoveParentField}
-                                    style="color: #999; text-decoration: none; margin-left: 2px; font-size: 0.7rem;">&times;</a>
+                            <span
+                                key={pf.path}
+                                style="
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 3px;
+                                    background: #f3e8ff;
+                                    border: 1px solid #d8c4f0;
+                                    padding: 2px 8px;
+                                    border-radius: 12px;
+                                    font-size: 0.75rem;
+                                    white-space: nowrap;
+                                "
+                            >
+                                <span style="color: #7c3aed">{pr.displayLabel}</span>
+                                <span style="color: #7c3aed">&#8250;</span>
+                                <span style="color: #7c3aed">{pf.displayLabel}</span>
+                                <span style="color: #aaa; font-family: monospace; font-size: 0.65rem"
+                                    >{pr.value}.{pf.apiName}</span
+                                >
+                                <a
+                                    href="javascript:void(0)"
+                                    data-api={pf.apiName}
+                                    data-rel={pr.value}
+                                    onclick={handleRemoveParentField}
+                                    style="color: #999; text-decoration: none; margin-left: 2px; font-size: 0.7rem"
+                                    >&times;</a
+                                >
                             </span>
                         </template>
                     </template>
                 </template>
 
                 <!-- Add fields button -->
-                <a href="javascript:void(0)" onclick={togglePicker}
-                    style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; color: #1a56db; border: 1px dashed #c7d7f5; text-decoration: none; white-space: nowrap; background: #fafbff;">
+                <a
+                    href="javascript:void(0)"
+                    onclick={togglePicker}
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 3px;
+                        padding: 2px 10px;
+                        border-radius: 12px;
+                        font-size: 0.75rem;
+                        color: #1a56db;
+                        border: 1px dashed #c7d7f5;
+                        text-decoration: none;
+                        white-space: nowrap;
+                        background: #fafbff;
+                    "
+                >
                     + fields
                 </a>
             </div>
 
             <!-- ═══ Field picker dropdown ═══ -->
             <template if:true={showPicker}>
-                <div style="margin-top: 8px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafaf9; padding: 8px;">
-                    <input type="text" placeholder="Search fields..." value={_pickerSearch}
+                <div
+                    style="
+                        margin-top: 8px;
+                        border: 1px solid #e5e5e5;
+                        border-radius: 8px;
+                        background: #fafaf9;
+                        padding: 8px;
+                    "
+                >
+                    <input
+                        type="text"
+                        placeholder="Search fields..."
+                        value={_pickerSearch}
                         oninput={handlePickerSearch}
-                        style="width: 100%; padding: 6px 10px; border: 1px solid #d8dde6; border-radius: 6px; font-size: 0.8rem; margin-bottom: 6px; outline: none;">
-                    <div style="max-height: 180px; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;">
+                        style="
+                            width: 100%;
+                            padding: 6px 10px;
+                            border: 1px solid #d8dde6;
+                            border-radius: 6px;
+                            font-size: 0.8rem;
+                            margin-bottom: 6px;
+                            outline: none;
+                        "
+                    />
+                    <div
+                        style="
+                            max-height: 180px;
+                            overflow-y: auto;
+                            display: grid;
+                            grid-template-columns: repeat(2, 1fr);
+                            gap: 0;
+                        "
+                    >
                         <template for:each={pickerFields} for:item="pf">
-                            <label key={pf.apiName}
-                                style="display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 0.78rem; cursor: pointer; border-radius: 4px;"
-                                onmouseover={_hoverIn} onmouseout={_hoverOut}>
-                                <input type="checkbox" checked={pf.checked} data-api={pf.apiName}
-                                    onchange={handlePickerToggleField} style="margin: 0; flex-shrink: 0;">
-                                <span style="overflow: hidden;">
-                                    <span style="font-weight: 500; color: #181818;">{pf.displayLabel}</span>
-                                    <span style="color: #bbb; font-size: 0.65rem; font-family: monospace; margin-left: 4px;">{pf.apiName}</span>
+                            <label
+                                key={pf.apiName}
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                    padding: 4px 6px;
+                                    font-size: 0.78rem;
+                                    cursor: pointer;
+                                    border-radius: 4px;
+                                "
+                                onmouseover={_hoverIn}
+                                onmouseout={_hoverOut}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={pf.checked}
+                                    data-api={pf.apiName}
+                                    onchange={handlePickerToggleField}
+                                    style="margin: 0; flex-shrink: 0"
+                                />
+                                <span style="overflow: hidden">
+                                    <span style="font-weight: 500; color: #181818">{pf.displayLabel}</span>
+                                    <span
+                                        style="
+                                            color: #bbb;
+                                            font-size: 0.65rem;
+                                            font-family: monospace;
+                                            margin-left: 4px;
+                                        "
+                                        >{pf.apiName}</span
+                                    >
                                 </span>
                             </label>
                         </template>
@@ -64,27 +167,85 @@
 
             <!-- ═══ Active parent lookups (only those with selected fields) ═══ -->
             <template for:each={activeParentRels} for:item="pr">
-                <div key={pr.value} style="margin-top: 6px; margin-left: 12px; border-left: 2px solid #e9d5ff; padding-left: 10px;">
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                        <a href="javascript:void(0)" data-rel={pr.value} onclick={handleExpandParent}
-                            style="font-weight: 600; font-size: 0.78rem; color: #7c3aed; text-decoration: none; display: flex; align-items: center; gap: 4px;">
-                            <lightning-icon icon-name={pr.icon} size="xx-small" style="--sds-c-icon-color-foreground-default: #7c3aed;"></lightning-icon>
+                <div
+                    key={pr.value}
+                    style="margin-top: 6px; margin-left: 12px; border-left: 2px solid #e9d5ff; padding-left: 10px"
+                >
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px">
+                        <a
+                            href="javascript:void(0)"
+                            data-rel={pr.value}
+                            onclick={handleExpandParent}
+                            style="
+                                font-weight: 600;
+                                font-size: 0.78rem;
+                                color: #7c3aed;
+                                text-decoration: none;
+                                display: flex;
+                                align-items: center;
+                                gap: 4px;
+                            "
+                        >
+                            <lightning-icon
+                                icon-name={pr.icon}
+                                size="xx-small"
+                                style="--sds-c-icon-color-foreground-default: #7c3aed"
+                            ></lightning-icon>
                             {pr.displayLabel}
                         </a>
-                        <a href="javascript:void(0)" data-rel={pr.value} onclick={handleRemoveParent}
-                            style="color: #ccc; text-decoration: none; font-size: 0.8rem; margin-left: auto;" title="Remove">&times;</a>
+                        <a
+                            href="javascript:void(0)"
+                            data-rel={pr.value}
+                            onclick={handleRemoveParent}
+                            style="color: #ccc; text-decoration: none; font-size: 0.8rem; margin-left: auto"
+                            title="Remove"
+                            >&times;</a
+                        >
                     </div>
                     <template if:true={pr.expanded}>
-                        <div style="max-height: 160px; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;">
+                        <div
+                            style="
+                                max-height: 160px;
+                                overflow-y: auto;
+                                display: grid;
+                                grid-template-columns: repeat(2, 1fr);
+                                gap: 0;
+                            "
+                        >
                             <template for:each={pr.pickerFields} for:item="ppf">
-                                <label key={ppf.apiName}
-                                    style="display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 0.78rem; cursor: pointer; border-radius: 4px;"
-                                    onmouseover={_hoverIn} onmouseout={_hoverOut}>
-                                    <input type="checkbox" checked={ppf.checked} data-api={ppf.apiName} data-rel={pr.value}
-                                        onchange={handleParentFieldToggle} style="margin: 0; flex-shrink: 0;">
-                                    <span style="overflow: hidden;">
-                                        <span style="font-weight: 500; color: #181818;">{ppf.displayLabel}</span>
-                                        <span style="color: #bbb; font-size: 0.65rem; font-family: monospace; margin-left: 4px;">{ppf.apiName}</span>
+                                <label
+                                    key={ppf.apiName}
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 6px;
+                                        padding: 4px 6px;
+                                        font-size: 0.78rem;
+                                        cursor: pointer;
+                                        border-radius: 4px;
+                                    "
+                                    onmouseover={_hoverIn}
+                                    onmouseout={_hoverOut}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={ppf.checked}
+                                        data-api={ppf.apiName}
+                                        data-rel={pr.value}
+                                        onchange={handleParentFieldToggle}
+                                        style="margin: 0; flex-shrink: 0"
+                                    />
+                                    <span style="overflow: hidden">
+                                        <span style="font-weight: 500; color: #181818">{ppf.displayLabel}</span>
+                                        <span
+                                            style="
+                                                color: #bbb;
+                                                font-size: 0.65rem;
+                                                font-family: monospace;
+                                                margin-left: 4px;
+                                            "
+                                            >{ppf.apiName}</span
+                                        >
                                     </span>
                                 </label>
                             </template>
@@ -95,36 +256,99 @@
 
             <!-- ═══ Active child relationships (only expanded ones) ═══ -->
             <template for:each={activeChildRels} for:item="cr">
-                <div key={cr.value} style="margin-top: 2px;">
-                </div>
+                <div key={cr.value} style="margin-top: 2px"></div>
             </template>
 
             <!-- ═══ Add related data / parent lookup buttons ═══ -->
-            <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
-                <a href="javascript:void(0)" onclick={toggleRelPicker}
-                    style="display: inline-flex; align-items: center; gap: 3px; padding: 3px 12px; border-radius: 12px; font-size: 0.75rem; color: #065f46; border: 1px dashed #a7f3d0; text-decoration: none; background: #f0fdf4;">
+            <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap">
+                <a
+                    href="javascript:void(0)"
+                    onclick={toggleRelPicker}
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 3px;
+                        padding: 3px 12px;
+                        border-radius: 12px;
+                        font-size: 0.75rem;
+                        color: #065f46;
+                        border: 1px dashed #a7f3d0;
+                        text-decoration: none;
+                        background: #f0fdf4;
+                    "
+                >
                     + related list
                 </a>
-                <a href="javascript:void(0)" onclick={toggleParentPicker}
-                    style="display: inline-flex; align-items: center; gap: 3px; padding: 3px 12px; border-radius: 12px; font-size: 0.75rem; color: #7c3aed; border: 1px dashed #d8c4f0; text-decoration: none; background: #faf5ff;">
+                <a
+                    href="javascript:void(0)"
+                    onclick={toggleParentPicker}
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 3px;
+                        padding: 3px 12px;
+                        border-radius: 12px;
+                        font-size: 0.75rem;
+                        color: #7c3aed;
+                        border: 1px dashed #d8c4f0;
+                        text-decoration: none;
+                        background: #faf5ff;
+                    "
+                >
                     + parent lookup
                 </a>
             </div>
 
             <!-- ═══ Related list picker dropdown ═══ -->
             <template if:true={showRelPicker}>
-                <div style="margin-top: 6px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafaf9; padding: 8px;">
-                    <input type="text" placeholder="Search related lists..." value={_relPickerSearch}
+                <div
+                    style="
+                        margin-top: 6px;
+                        border: 1px solid #e5e5e5;
+                        border-radius: 8px;
+                        background: #fafaf9;
+                        padding: 8px;
+                    "
+                >
+                    <input
+                        type="text"
+                        placeholder="Search related lists..."
+                        value={_relPickerSearch}
                         oninput={handleRelPickerSearch}
-                        style="width: 100%; padding: 6px 10px; border: 1px solid #d8dde6; border-radius: 6px; font-size: 0.8rem; margin-bottom: 6px; outline: none;">
-                    <div style="max-height: 180px; overflow-y: auto;">
+                        style="
+                            width: 100%;
+                            padding: 6px 10px;
+                            border: 1px solid #d8dde6;
+                            border-radius: 6px;
+                            font-size: 0.8rem;
+                            margin-bottom: 6px;
+                            outline: none;
+                        "
+                    />
+                    <div style="max-height: 180px; overflow-y: auto">
                         <template for:each={filteredChildRels} for:item="cr">
-                            <a key={cr.value} href="javascript:void(0)" data-rel={cr.value} onclick={handleExpandChildFromPicker}
-                                style="display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 0.8rem; text-decoration: none; color: #065f46; border-radius: 4px; cursor: pointer;"
-                                onmouseover={_hoverIn} onmouseout={_hoverOut}>
+                            <a
+                                key={cr.value}
+                                href="javascript:void(0)"
+                                data-rel={cr.value}
+                                onclick={handleExpandChildFromPicker}
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                    padding: 5px 8px;
+                                    font-size: 0.8rem;
+                                    text-decoration: none;
+                                    color: #065f46;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                "
+                                onmouseover={_hoverIn}
+                                onmouseout={_hoverOut}
+                            >
                                 <lightning-icon icon-name="standard:related_list" size="xx-small"></lightning-icon>
-                                <span style="font-weight: 500;">{cr.displayLabel}</span>
-                                <span style="color: #999; font-size: 0.68rem; font-family: monospace;">{cr.value}</span>
+                                <span style="font-weight: 500">{cr.displayLabel}</span>
+                                <span style="color: #999; font-size: 0.68rem; font-family: monospace">{cr.value}</span>
                             </a>
                         </template>
                     </div>
@@ -133,18 +357,58 @@
 
             <!-- ═══ Parent lookup picker dropdown ═══ -->
             <template if:true={showParentPicker}>
-                <div style="margin-top: 6px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafaf9; padding: 8px;">
-                    <input type="text" placeholder="Search parent lookups..." value={_parentRelPickerSearch}
+                <div
+                    style="
+                        margin-top: 6px;
+                        border: 1px solid #e5e5e5;
+                        border-radius: 8px;
+                        background: #fafaf9;
+                        padding: 8px;
+                    "
+                >
+                    <input
+                        type="text"
+                        placeholder="Search parent lookups..."
+                        value={_parentRelPickerSearch}
                         oninput={handleParentRelPickerSearch}
-                        style="width: 100%; padding: 6px 10px; border: 1px solid #d8dde6; border-radius: 6px; font-size: 0.8rem; margin-bottom: 6px; outline: none;">
-                    <div style="max-height: 180px; overflow-y: auto;">
+                        style="
+                            width: 100%;
+                            padding: 6px 10px;
+                            border: 1px solid #d8dde6;
+                            border-radius: 6px;
+                            font-size: 0.8rem;
+                            margin-bottom: 6px;
+                            outline: none;
+                        "
+                    />
+                    <div style="max-height: 180px; overflow-y: auto">
                         <template for:each={filteredParentRels} for:item="pr">
-                            <a key={pr.value} href="javascript:void(0)" data-rel={pr.value} onclick={handleExpandParentFromPicker}
-                                style="display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 0.8rem; text-decoration: none; color: #7c3aed; border-radius: 4px; cursor: pointer;"
-                                onmouseover={_hoverIn} onmouseout={_hoverOut}>
-                                <lightning-icon icon-name="utility:jump_to_top" size="xx-small" style="--sds-c-icon-color-foreground-default: #7c3aed;"></lightning-icon>
-                                <span style="font-weight: 500;">{pr.displayLabel}</span>
-                                <span style="color: #999; font-size: 0.68rem; font-family: monospace;">{pr.value}</span>
+                            <a
+                                key={pr.value}
+                                href="javascript:void(0)"
+                                data-rel={pr.value}
+                                onclick={handleExpandParentFromPicker}
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                    padding: 5px 8px;
+                                    font-size: 0.8rem;
+                                    text-decoration: none;
+                                    color: #7c3aed;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                "
+                                onmouseover={_hoverIn}
+                                onmouseout={_hoverOut}
+                            >
+                                <lightning-icon
+                                    icon-name="utility:jump_to_top"
+                                    size="xx-small"
+                                    style="--sds-c-icon-color-foreground-default: #7c3aed"
+                                ></lightning-icon>
+                                <span style="font-weight: 500">{pr.displayLabel}</span>
+                                <span style="color: #999; font-size: 0.68rem; font-family: monospace">{pr.value}</span>
                             </a>
                         </template>
                     </div>
@@ -153,27 +417,44 @@
 
             <!-- ═══ Tag name / WHERE / ORDER BY / LIMIT (child nodes only) ═══ -->
             <template if:true={isChild}>
-                <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <lightning-input label="Tag name" variant="label-inline"
+                <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap">
+                    <lightning-input
+                        label="Tag name"
+                        variant="label-inline"
                         field-level-help="Optional. The merge-tag name for this loop, e.g. {#SubscriptionItems}. Defaults to the relationship name. Set a unique name when adding the same related list more than once with different filters."
                         placeholder="e.g. SubscriptionItems"
-                        value={nodeAlias} onchange={handleAliasChange}
-                        style="flex: 1; min-width: 160px;">
+                        value={nodeAlias}
+                        onchange={handleAliasChange}
+                        style="flex: 1; min-width: 160px"
+                    >
                     </lightning-input>
-                    <lightning-input label="Filter (WHERE)" variant="label-inline"
+                    <lightning-input
+                        label="Filter (WHERE)"
+                        variant="label-inline"
                         placeholder="e.g. Product2.Family = 'Subscription'"
-                        value={nodeWhereClause} onchange={handleWhereChange}
-                        style="flex: 2; min-width: 180px;">
+                        value={nodeWhereClause}
+                        onchange={handleWhereChange}
+                        style="flex: 2; min-width: 180px"
+                    >
                     </lightning-input>
-                    <lightning-input label="Sort by" variant="label-inline"
+                    <lightning-input
+                        label="Sort by"
+                        variant="label-inline"
                         placeholder="e.g. CreatedDate DESC"
-                        value={nodeOrderBy} onchange={handleOrderByChange}
-                        style="flex: 1; min-width: 120px;">
+                        value={nodeOrderBy}
+                        onchange={handleOrderByChange}
+                        style="flex: 1; min-width: 120px"
+                    >
                     </lightning-input>
-                    <lightning-input label="Limit" variant="label-inline" type="number"
+                    <lightning-input
+                        label="Limit"
+                        variant="label-inline"
+                        type="number"
                         placeholder="10"
-                        value={nodeLimitAmount} onchange={handleLimitChange}
-                        style="flex: 0 0 70px;">
+                        value={nodeLimitAmount}
+                        onchange={handleLimitChange}
+                        style="flex: 0 0 70px"
+                    >
                     </lightning-input>
                 </div>
             </template>
@@ -183,13 +464,37 @@
         <template for:each={childRels} for:item="cr">
             <template if:true={cr.expanded}>
                 <template if:true={cr.hasNode}>
-                    <div key={cr.slotKey} style="border-left: 2px solid #d1fae5; margin-left: 14px;">
-                        <div style="padding: 4px 10px 2px; font-weight: 600; font-size: 0.78rem; color: #065f46; display: flex; align-items: center; gap: 4px;">
+                    <div key={cr.slotKey} style="border-left: 2px solid #d1fae5; margin-left: 14px">
+                        <div
+                            style="
+                                padding: 4px 10px 2px;
+                                font-weight: 600;
+                                font-size: 0.78rem;
+                                color: #065f46;
+                                display: flex;
+                                align-items: center;
+                                gap: 4px;
+                            "
+                        >
                             <lightning-icon icon-name="standard:related_list" size="xx-small"></lightning-icon>
                             {cr.displayLabel}
-                            <span style="font-size: 0.65rem; color: #999; font-weight: 400; font-family: monospace;">{cr.value}</span>
-                            <a href="javascript:void(0)" data-rel={cr.slotKey} onclick={handleRemoveChild}
-                                style="color: #ccc; text-decoration: none; font-size: 0.85rem; margin-left: auto; padding: 0 4px;" title="Remove">&times;</a>
+                            <span style="font-size: 0.65rem; color: #999; font-weight: 400; font-family: monospace"
+                                >{cr.value}</span
+                            >
+                            <a
+                                href="javascript:void(0)"
+                                data-rel={cr.slotKey}
+                                onclick={handleRemoveChild}
+                                style="
+                                    color: #ccc;
+                                    text-decoration: none;
+                                    font-size: 0.85rem;
+                                    margin-left: auto;
+                                    padding: 0 4px;
+                                "
+                                title="Remove"
+                                >&times;</a
+                            >
                         </div>
                         <c-doc-gen-tree-node
                             node-data={cr.nodeData}
@@ -201,7 +506,8 @@
                             onexpandparent={handleChildParentExpandBubble}
                             onclausechange={handleChildClauseBubble}
                             onremovechild={handleChildRemoveChildBubble}
-                            onremoveparent={handleChildRemoveParentBubble}>
+                            onremoveparent={handleChildRemoveParentBubble}
+                        >
                         </c-doc-gen-tree-node>
                     </div>
                 </template>

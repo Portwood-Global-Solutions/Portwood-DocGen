@@ -1,5 +1,4 @@
 public with sharing class DocGenBulkController {
-
     /**
      * Returns all DocGen templates for the bulk generation UI.
      * @return List of DocGen_Template__c records ordered by name
@@ -8,9 +7,19 @@ public with sharing class DocGenBulkController {
     public static List<DocGen_Template__c> getBulkTemplates() {
         /* code-analyzer-suppress ApexFlsViolation */
         List<DocGen_Template__c> all = [
-            SELECT Id, Name, Base_Object_API__c, Description__c, Output_Format__c, Query_Config__c,
-                   Test_Record_Id__c, Category__c, Sort_Order__c, Lock_Output_Format__c,
-                   Required_Permission_Sets__c, Record_Filter__c
+            SELECT
+                Id,
+                Name,
+                Base_Object_API__c,
+                Description__c,
+                Output_Format__c,
+                Query_Config__c,
+                Test_Record_Id__c,
+                Category__c,
+                Sort_Order__c,
+                Lock_Output_Format__c,
+                Required_Permission_Sets__c,
+                Record_Filter__c
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
             ORDER BY Sort_Order__c ASC NULLS LAST, Name ASC
@@ -43,7 +52,9 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     public static Integer validateFilter(String objectName, String condition) {
-        if (String.isBlank(objectName)) { return 0; }
+        if (String.isBlank(objectName)) {
+            return 0;
+        }
         // Allowlist validation: object verified against Schema.getGlobalDescribe()
         SObjectType objType = Schema.getGlobalDescribe().get(objectName);
         if (objType == null) {
@@ -76,29 +87,75 @@ public with sharing class DocGenBulkController {
         List<String> tokens = stripped.split('[\\s(),]+');
         // SOQL operators and keywords to skip
         Set<String> skipTokens = new Set<String>{
-            '=', '!=', '<', '>', '<=', '>=', 'LIKE', 'IN', 'NOT', 'AND', 'OR',
-            'NULL', 'TRUE', 'FALSE', 'INCLUDES', 'EXCLUDES', 'LAST_N_DAYS',
-            'NEXT_N_DAYS', 'TODAY', 'YESTERDAY', 'TOMORROW', 'LAST_WEEK',
-            'THIS_WEEK', 'NEXT_WEEK', 'LAST_MONTH', 'THIS_MONTH', 'NEXT_MONTH',
-            'LAST_QUARTER', 'THIS_QUARTER', 'NEXT_QUARTER', 'LAST_YEAR',
-            'THIS_YEAR', 'NEXT_YEAR', 'LAST_90_DAYS', 'NEXT_90_DAYS',
-            'LAST_N_MONTHS', 'NEXT_N_MONTHS', 'LAST_N_QUARTERS', 'NEXT_N_QUARTERS',
-            'LAST_N_YEARS', 'NEXT_N_YEARS', ''
+            '=',
+            '!=',
+            '<',
+            '>',
+            '<=',
+            '>=',
+            'LIKE',
+            'IN',
+            'NOT',
+            'AND',
+            'OR',
+            'NULL',
+            'TRUE',
+            'FALSE',
+            'INCLUDES',
+            'EXCLUDES',
+            'LAST_N_DAYS',
+            'NEXT_N_DAYS',
+            'TODAY',
+            'YESTERDAY',
+            'TOMORROW',
+            'LAST_WEEK',
+            'THIS_WEEK',
+            'NEXT_WEEK',
+            'LAST_MONTH',
+            'THIS_MONTH',
+            'NEXT_MONTH',
+            'LAST_QUARTER',
+            'THIS_QUARTER',
+            'NEXT_QUARTER',
+            'LAST_YEAR',
+            'THIS_YEAR',
+            'NEXT_YEAR',
+            'LAST_90_DAYS',
+            'NEXT_90_DAYS',
+            'LAST_N_MONTHS',
+            'NEXT_N_MONTHS',
+            'LAST_N_QUARTERS',
+            'NEXT_N_QUARTERS',
+            'LAST_N_YEARS',
+            'NEXT_N_YEARS',
+            ''
         };
         for (String token : tokens) {
             String t = token.trim();
-            if (String.isBlank(t)) { continue; }
+            if (String.isBlank(t)) {
+                continue;
+            }
             String upper = t.toUpperCase();
             // Skip SOQL keywords, operators, quoted literals, numbers, date literals, bind vars
-            if (skipTokens.contains(upper)) { continue; }
-            if (t.startsWith('\'') || t.startsWith(':')) { continue; }
-            if (t.isNumeric() || Pattern.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}.*', upper)) { continue; }
-            if (Pattern.matches('LAST_N_.*:\\d+', upper) || Pattern.matches('NEXT_N_.*:\\d+', upper)) { continue; }
+            if (skipTokens.contains(upper)) {
+                continue;
+            }
+            if (t.startsWith('\'') || t.startsWith(':')) {
+                continue;
+            }
+            if (t.isNumeric() || Pattern.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}.*', upper)) {
+                continue;
+            }
+            if (Pattern.matches('LAST_N_.*:\\d+', upper) || Pattern.matches('NEXT_N_.*:\\d+', upper)) {
+                continue;
+            }
             // This looks like a field name — allowlist validate against Schema
             String baseField = t.contains('.') ? t.split('\\.')[0].toLowerCase() : t.toLowerCase();
             if (!fieldMap.containsKey(baseField)) {
                 // Try __r -> __c for custom relationship traversals
-                String asLookup = baseField.endsWith('__r') ? baseField.substring(0, baseField.length() - 3) + '__c' : baseField;
+                String asLookup = baseField.endsWith('__r')
+                    ? baseField.substring(0, baseField.length() - 3) + '__c'
+                    : baseField;
                 if (!fieldMap.containsKey(asLookup)) {
                     throw DocGenService.ahe('Invalid field in filter condition: ' + t);
                 }
@@ -112,7 +169,9 @@ public with sharing class DocGenBulkController {
      * (2) caller performs allowlist validation of field names against Schema describe.
      */
     public static String sanitizeCondition(String condition) {
-        if (String.isBlank(condition)) { return condition; }
+        if (String.isBlank(condition)) {
+            return condition;
+        }
         // Reject dangerous characters (statement termination, comments)
         if (condition.contains(';') || condition.contains('--') || condition.contains('/*')) {
             throw DocGenService.ahe('Invalid filter condition.');
@@ -121,9 +180,20 @@ public with sharing class DocGenBulkController {
         String normalized = condition.replaceAll('\\s+', ' ').toUpperCase().trim();
         // Reject conditions containing SOQL/DML keywords that don't belong in a WHERE clause
         List<String> disallowed = new List<String>{
-            'SELECT ', 'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
-            'WITH ', 'GROUP BY ', 'ORDER BY ', 'LIMIT ', 'OFFSET ', 'FOR UPDATE',
-            'HAVING ', 'TYPEOF '
+            'SELECT ',
+            'INSERT ',
+            'UPDATE ',
+            'DELETE ',
+            'MERGE ',
+            'UNDELETE ',
+            'WITH ',
+            'GROUP BY ',
+            'ORDER BY ',
+            'LIMIT ',
+            'OFFSET ',
+            'FOR UPDATE',
+            'HAVING ',
+            'TYPEOF '
         };
         for (String keyword : disallowed) {
             if (normalized.contains(keyword)) {
@@ -159,8 +229,13 @@ public with sharing class DocGenBulkController {
 
         try {
             /* code-analyzer-suppress ApexFlsViolation */
-            List<DocGen_Template__c> tempList = [SELECT Query_Config__c, Test_Record_Id__c, Output_Format__c
-                FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1];
+            List<DocGen_Template__c> tempList = [
+                SELECT Query_Config__c, Test_Record_Id__c, Output_Format__c
+                FROM DocGen_Template__c
+                WHERE Id = :templateId
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
             DocGen_Template__c temp = tempList[0];
 
             // --- 1. SOQL Queries per batch execution ---
@@ -176,11 +251,21 @@ public with sharing class DocGenBulkController {
             soqlItem.limitVal = soqlLimit;
             if (soqlPerBatch >= soqlLimit) {
                 soqlItem.status = 'error';
-                soqlItem.message = soqlPerBatch + ' / ' + soqlLimit + ' per batch — will exceed limit. Reduce batch size to ' + Math.max(1, Math.floor((soqlLimit - overhead) / queriesPerRecord)) + ' or lower.';
+                soqlItem.message =
+                    soqlPerBatch +
+                    ' / ' +
+                    soqlLimit +
+                    ' per batch — will exceed limit. Reduce batch size to ' +
+                    Math.max(1, Math.floor((soqlLimit - overhead) / queriesPerRecord)) +
+                    ' or lower.';
                 analysis.canProceed = false;
             } else if (soqlPerBatch >= 80) {
                 soqlItem.status = 'warning';
-                soqlItem.message = soqlPerBatch + ' / ' + soqlLimit + ' per batch — approaching limit. Consider reducing batch size.';
+                soqlItem.message =
+                    soqlPerBatch +
+                    ' / ' +
+                    soqlLimit +
+                    ' per batch — approaching limit. Consider reducing batch size.';
             } else {
                 soqlItem.status = 'ok';
                 soqlItem.message = soqlPerBatch + ' / ' + soqlLimit + ' per batch.';
@@ -252,7 +337,9 @@ public with sharing class DocGenBulkController {
 
                         if (totalMb >= 10.0) {
                             heapItem.status = 'error';
-                            heapItem.message = totalMb.setScale(1) + 'MB / 12MB — high risk of heap failure. Reduce record count or switch to Individual Files.';
+                            heapItem.message =
+                                totalMb.setScale(1) +
+                                'MB / 12MB — high risk of heap failure. Reduce record count or switch to Individual Files.';
                             analysis.canProceed = false;
                         } else if (totalMb >= 7.0) {
                             heapItem.status = 'warning';
@@ -273,11 +360,16 @@ public with sharing class DocGenBulkController {
 
                     if (batchMb >= 10.0) {
                         batchHeapItem.status = 'error';
-                        batchHeapItem.message = batchMb.setScale(1) + 'MB / 12MB per batch — reduce batch size to ' + Math.max(1, Math.floor(9.0 / (batchMb / safeBatchSize))) + ' or lower.';
+                        batchHeapItem.message =
+                            batchMb.setScale(1) +
+                            'MB / 12MB per batch — reduce batch size to ' +
+                            Math.max(1, Math.floor(9.0 / (batchMb / safeBatchSize))) +
+                            ' or lower.';
                         analysis.canProceed = false;
                     } else if (batchMb >= 7.0) {
                         batchHeapItem.status = 'warning';
-                        batchHeapItem.message = batchMb.setScale(1) + 'MB / 12MB per batch — consider reducing batch size.';
+                        batchHeapItem.message =
+                            batchMb.setScale(1) + 'MB / 12MB per batch — consider reducing batch size.';
                     } else {
                         batchHeapItem.status = 'ok';
                         batchHeapItem.message = batchMb.setScale(1) + 'MB / 12MB per batch.';
@@ -302,8 +394,11 @@ public with sharing class DocGenBulkController {
             Integer errors = 0;
             Integer warnings = 0;
             for (AnalysisItem item : analysis.items) {
-                if (item.status == 'error') { errors++; }
-                else if (item.status == 'warning') { warnings++; }
+                if (item.status == 'error') {
+                    errors++;
+                } else if (item.status == 'warning') {
+                    warnings++;
+                }
             }
             if (errors > 0) {
                 analysis.summary = 'Cannot proceed — ' + errors + ' limit(s) will be exceeded.';
@@ -312,7 +407,6 @@ public with sharing class DocGenBulkController {
             } else {
                 analysis.summary = 'All checks passed. Safe to proceed.';
             }
-
         } catch (Exception e) {
             analysis.summary = 'Analysis error: ' + e.getMessage();
         }
@@ -323,45 +417,65 @@ public with sharing class DocGenBulkController {
      * Counts the number of SOQL queries needed per record based on the query config format.
      */
     private static Integer countQueriesPerRecord(String queryConfig) {
-        if (String.isBlank(queryConfig)) { return 1; }
-        if (!queryConfig.trim().startsWith('{')) { return 1; } // V1 flat string
+        if (String.isBlank(queryConfig)) {
+            return 1;
+        }
+        if (!queryConfig.trim().startsWith('{')) {
+            return 1;
+        } // V1 flat string
 
         try {
             Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(queryConfig);
             Object versionObj = config.get('v');
-            Integer version = (versionObj instanceof Integer) ? (Integer) versionObj : ((Decimal) versionObj).intValue();
+            Integer version = (versionObj instanceof Integer)
+                ? (Integer) versionObj
+                : ((Decimal) versionObj).intValue();
 
             if (version == 2) {
                 // V2: 1 base + children + junctions
                 Integer count = 1;
                 List<Object> children = (List<Object>) config.get('children');
-                if (children != null) { count += children.size(); }
+                if (children != null) {
+                    count += children.size();
+                }
                 List<Object> junctions = (List<Object>) config.get('junctions');
-                if (junctions != null) { count += junctions.size() * 2; } // junction query + target query
+                if (junctions != null) {
+                    count += junctions.size() * 2;
+                } // junction query + target query
                 return count;
             } else if (version == 3) {
                 // V3: one query per node
                 List<Object> nodes = (List<Object>) config.get('nodes');
                 return (nodes != null) ? nodes.size() : 1;
             }
-        } catch (Exception e) { // NOPMD EmptyCatchBlock — intentional fallback to 1 query for unparseable configs
+        } catch (Exception e) {
+            // NOPMD EmptyCatchBlock — intentional fallback to 1 query for unparseable configs
         }
         return 1;
     }
 
     public class JobAnalysis {
-        @AuraEnabled public Integer recordCount;
-        @AuraEnabled public Boolean canProceed = true;
-        @AuraEnabled public List<AnalysisItem> items;
-        @AuraEnabled public String summary;
+        @AuraEnabled
+        public Integer recordCount;
+        @AuraEnabled
+        public Boolean canProceed = true;
+        @AuraEnabled
+        public List<AnalysisItem> items;
+        @AuraEnabled
+        public String summary;
     }
 
     public class AnalysisItem {
-        @AuraEnabled public String label;
-        @AuraEnabled public String status;   // 'ok', 'warning', 'error'
-        @AuraEnabled public String message;
-        @AuraEnabled public Decimal estimated;
-        @AuraEnabled public Decimal limitVal;
+        @AuraEnabled
+        public String label;
+        @AuraEnabled
+        public String status; // 'ok', 'warning', 'error'
+        @AuraEnabled
+        public String message;
+        @AuraEnabled
+        public Decimal estimated;
+        @AuraEnabled
+        public Decimal limitVal;
     }
 
     // Keep for backward compatibility — delegates to analyzeJob
@@ -382,9 +496,12 @@ public with sharing class DocGenBulkController {
     }
 
     public class HeapEstimate {
-        @AuraEnabled public Decimal estimatedHeapMb;
-        @AuraEnabled public Boolean isRisk = false;
-        @AuraEnabled public String message;
+        @AuraEnabled
+        public Decimal estimatedHeapMb;
+        @AuraEnabled
+        public Boolean isRisk = false;
+        @AuraEnabled
+        public String message;
     }
 
     /**
@@ -399,7 +516,14 @@ public with sharing class DocGenBulkController {
      */
     @AuraEnabled
     // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
-    public static Id submitJob(Id templateId, String condition, String jobLabel, Boolean mergePdf, Integer batchSize, Boolean mergeOnly) {
+    public static Id submitJob(
+        Id templateId,
+        String condition,
+        String jobLabel,
+        Boolean mergePdf,
+        Integer batchSize,
+        Boolean mergeOnly
+    ) {
         try {
             Boolean isMergeOnly = (mergeOnly == true);
             Boolean isMergeMode = (mergePdf == true) || isMergeOnly;
@@ -440,7 +564,12 @@ public with sharing class DocGenBulkController {
     @AuraEnabled
     public static DocGen_Job__c getJobStatus(Id jobId) {
         /* code-analyzer-suppress ApexFlsViolation */
-        List<DocGen_Job__c> jsRecords = [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
+        List<DocGen_Job__c> jsRecords = [
+            SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c
+            FROM DocGen_Job__c
+            WHERE Id = :jobId
+            WITH SYSTEM_MODE
+        ];
         return jsRecords[0];
     }
 
@@ -451,12 +580,23 @@ public with sharing class DocGenBulkController {
     @AuraEnabled
     public static List<DocGen_Job__c> getRecentJobs() {
         /* code-analyzer-suppress ApexFlsViolation */
-        return [SELECT Id, Name, Label__c, Status__c, Success_Count__c, Error_Count__c, Total_Records__c,
-                   CreatedDate, Template__r.Name, Template__r.Output_Format__c
+        return [
+            SELECT
+                Id,
+                Name,
+                Label__c,
+                Status__c,
+                Success_Count__c,
+                Error_Count__c,
+                Total_Records__c,
+                CreatedDate,
+                Template__r.Name,
+                Template__r.Output_Format__c
             FROM DocGen_Job__c
             WITH SYSTEM_MODE
             ORDER BY CreatedDate DESC
-            LIMIT 20];
+            LIMIT 20
+        ];
     }
 
     /**
@@ -468,9 +608,12 @@ public with sharing class DocGenBulkController {
     @AuraEnabled
     public static List<Map<String, String>> getJobGeneratedPdfs(Id jobId) {
         /* code-analyzer-suppress ApexFlsViolation */
-        List<DocGen_Job__c> gpRecords = [SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Name,
-                   Query_Condition__c, CreatedDate
-            FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE];
+        List<DocGen_Job__c> gpRecords = [
+            SELECT Template__c, Template__r.Base_Object_API__c, Template__r.Name, Query_Condition__c, CreatedDate
+            FROM DocGen_Job__c
+            WHERE Id = :jobId
+            WITH SYSTEM_MODE
+        ];
         DocGen_Job__c job = gpRecords[0];
 
         String baseObject = job.Template__r.Base_Object_API__c;
@@ -491,27 +634,31 @@ public with sharing class DocGenBulkController {
             recordIds.add(rec.Id);
         }
 
-        if (recordIds.isEmpty()) { return new List<Map<String, String>>(); }
+        if (recordIds.isEmpty()) {
+            return new List<Map<String, String>>();
+        }
 
         // Find PDFs attached to those records created after the job was created
         Datetime jobStart = job.CreatedDate.addMinutes(-1);
         List<ContentDocumentLink> links = [
-            SELECT ContentDocument.LatestPublishedVersionId,
-                   ContentDocument.Title, LinkedEntityId
+            SELECT ContentDocument.LatestPublishedVersionId, ContentDocument.Title, LinkedEntityId
             FROM ContentDocumentLink
-            WHERE LinkedEntityId IN :recordIds
-            AND ContentDocument.FileExtension = 'pdf'
-            AND ContentDocument.CreatedDate >= :jobStart
+            WHERE
+                LinkedEntityId IN :recordIds
+                AND ContentDocument.FileExtension = 'pdf'
+                AND ContentDocument.CreatedDate >= :jobStart
             WITH USER_MODE
             ORDER BY ContentDocument.Title
         ];
 
         List<Map<String, String>> result = new List<Map<String, String>>();
         for (ContentDocumentLink link : links) {
-            result.add(new Map<String, String>{
-                'label' => link.ContentDocument.Title + '.pdf',
-                'value' => link.ContentDocument.LatestPublishedVersionId
-            });
+            result.add(
+                new Map<String, String>{
+                    'label' => link.ContentDocument.Title + '.pdf',
+                    'value' => link.ContentDocument.LatestPublishedVersionId
+                }
+            );
         }
         return result;
     }
@@ -525,11 +672,13 @@ public with sharing class DocGenBulkController {
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Saved_Query__c> getSavedQueries(Id templateId) {
         /* code-analyzer-suppress ApexFlsViolation */
-        return [SELECT Id, Name, Description__c, Query_Condition__c
+        return [
+            SELECT Id, Name, Description__c, Query_Condition__c
             FROM DocGen_Saved_Query__c
             WHERE DocGen_Template__c = :templateId
             WITH SYSTEM_MODE
-            ORDER BY CreatedDate DESC];
+            ORDER BY CreatedDate DESC
+        ];
     }
 
     /**

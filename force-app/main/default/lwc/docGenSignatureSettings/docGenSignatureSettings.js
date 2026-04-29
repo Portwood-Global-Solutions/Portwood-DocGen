@@ -71,23 +71,43 @@ export default class DocGenSignatureSettings extends LightningElement {
         }
     }
 
-    handleSiteUrlChange(e) { this.siteUrl = e.target.value; }
-    handleCompanyNameChange(e) { this.companyName = e.target.value; }
-    handleBrandColorChange(e) { this.brandColor = e.target.value; }
-    handleLogoUrlChange(e) { this.logoUrl = e.target.value; }
-    handleOwaChange(e) { this.owaId = e.detail.value; }
-    handleEmailSubjectChange(e) { this.emailSubject = e.target.value; }
-    handleEmailMessageChange(e) { this.emailMessage = e.target.value; }
-    handleFooterTextChange(e) { this.footerText = e.target.value; }
-    handleReminderEnabledChange(e) { this.reminderEnabled = e.target.checked; }
-    handleReminderHoursChange(e) { this.reminderHours = e.target.value; }
+    handleSiteUrlChange(e) {
+        this.siteUrl = e.target.value;
+    }
+    handleCompanyNameChange(e) {
+        this.companyName = e.target.value;
+    }
+    handleBrandColorChange(e) {
+        this.brandColor = e.target.value;
+    }
+    handleLogoUrlChange(e) {
+        this.logoUrl = e.target.value;
+    }
+    handleOwaChange(e) {
+        this.owaId = e.detail.value;
+    }
+    handleEmailSubjectChange(e) {
+        this.emailSubject = e.target.value;
+    }
+    handleEmailMessageChange(e) {
+        this.emailMessage = e.target.value;
+    }
+    handleFooterTextChange(e) {
+        this.footerText = e.target.value;
+    }
+    handleReminderEnabledChange(e) {
+        this.reminderEnabled = e.target.checked;
+    }
+    handleReminderHoursChange(e) {
+        this.reminderHours = e.target.value;
+    }
 
     handleRefreshChecks() {
         this._loadSetupChecks();
     }
 
     get allChecksPassed() {
-        return this.setupChecks.length > 0 && this.setupChecks.every(c => c.passed);
+        return this.setupChecks.length > 0 && this.setupChecks.every((c) => c.passed);
     }
 
     get saveLabel() {
@@ -119,8 +139,10 @@ export default class DocGenSignatureSettings extends LightningElement {
     }
 
     get saveMessageClass() {
-        return 'slds-m-top_small slds-p-around_small slds-text-align_center ' +
-            (this.saveSuccess ? 'slds-theme_success' : 'slds-theme_error');
+        return (
+            'slds-m-top_small slds-p-around_small slds-text-align_center ' +
+            (this.saveSuccess ? 'slds-theme_success' : 'slds-theme_error')
+        );
     }
 
     async handleSave() {
@@ -145,7 +167,8 @@ export default class DocGenSignatureSettings extends LightningElement {
                 hours: parseInt(this.reminderHours, 10) || 24
             });
             this.saveSuccess = true;
-            this.saveMessage = 'Settings saved successfully.' + (this.reminderEnabled ? ' Reminders scheduled hourly.' : '');
+            this.saveMessage =
+                'Settings saved successfully.' + (this.reminderEnabled ? ' Reminders scheduled hourly.' : '');
             // Re-validate setup after save
             this._loadSetupChecks();
         } catch (err) {

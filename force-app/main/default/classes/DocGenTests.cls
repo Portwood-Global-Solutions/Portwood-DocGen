@@ -1,6 +1,5 @@
 @IsTest
 private class DocGenTests {
-
     @TestSetup
     static void setup() {
         TestDataFactory.createStandardTestData();
@@ -16,11 +15,7 @@ private class DocGenTests {
         insert cv;
 
         Id conDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
-        insert new ContentDocumentLink(
-            LinkedEntityId = tpl.Id,
-            ContentDocumentId = conDocId,
-            ShareType = 'V'
-        );
+        insert new ContentDocumentLink(LinkedEntityId = tpl.Id, ContentDocumentId = conDocId, ShareType = 'V');
     }
 
     @IsTest
@@ -109,13 +104,21 @@ private class DocGenTests {
             // 3. Verify Generation uses V2
             Test.startTest();
             String contentV2 = DocGenTemplateManager.getTemplateFileContent(tpl.Id);
-            System.assertEquals(EncodingUtil.base64Encode(Blob.valueOf('V2 Content')), contentV2, 'Should return V2 content');
+            System.assertEquals(
+                EncodingUtil.base64Encode(Blob.valueOf('V2 Content')),
+                contentV2,
+                'Should return V2 content'
+            );
 
             // 4. Activate V1
             DocGenController.activateVersion(v1.Id);
 
             String contentV1 = DocGenTemplateManager.getTemplateFileContent(tpl.Id);
-            System.assertEquals(EncodingUtil.base64Encode(Blob.valueOf('Test Content')), contentV1, 'Should return V1 content');
+            System.assertEquals(
+                EncodingUtil.base64Encode(Blob.valueOf('Test Content')),
+                contentV1,
+                'Should return V1 content'
+            );
             Test.stopTest();
         }
     }

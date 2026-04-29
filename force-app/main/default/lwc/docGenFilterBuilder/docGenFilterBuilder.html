@@ -1,44 +1,77 @@
 <template>
     <div class="slds-box slds-container_large">
         <h3 class="slds-text-heading_small slds-var-m-bottom_medium">Record Filter</h3>
-        
+
         <template if:true={isLoading}>
             <lightning-spinner size="small"></lightning-spinner>
         </template>
-        
+
         <template for:each={rows} for:item="row" for:index="index">
             <div key={row.id} class="slds-grid slds-gutters slds-var-m-bottom_small slds-grid_vertical-align-center">
                 <!-- Logic (AND/OR) -->
                 <template if:true={index}>
                     <div class="slds-col slds-size_2-of-12">
-                        <lightning-combobox variant="label-hidden" value={row.logic} options={logicOptions} data-index={index} onchange={handleLogicChange}></lightning-combobox>
+                        <lightning-combobox
+                            variant="label-hidden"
+                            value={row.logic}
+                            options={logicOptions}
+                            data-index={index}
+                            onchange={handleLogicChange}
+                        ></lightning-combobox>
                     </div>
                 </template>
                 <template if:false={index}>
                     <div class="slds-col slds-size_2-of-12">
-                         <span class="slds-text-color_weak slds-var-p-left_small">WHERE</span>
+                        <span class="slds-text-color_weak slds-var-p-left_small">WHERE</span>
                     </div>
                 </template>
 
                 <!-- Field -->
                 <div class="slds-col slds-size_3-of-12">
-                    <lightning-combobox variant="label-hidden" value={row.field} options={fieldOptions} placeholder="Field" data-index={index} onchange={handleFieldChange}></lightning-combobox>
+                    <lightning-combobox
+                        variant="label-hidden"
+                        value={row.field}
+                        options={fieldOptions}
+                        placeholder="Field"
+                        data-index={index}
+                        onchange={handleFieldChange}
+                    ></lightning-combobox>
                 </div>
 
                 <!-- Operator -->
                 <div class="slds-col slds-size_2-of-12">
-                    <lightning-combobox variant="label-hidden" value={row.operator} options={operatorOptions} placeholder="Op" data-index={index} onchange={handleOperatorChange}></lightning-combobox>
+                    <lightning-combobox
+                        variant="label-hidden"
+                        value={row.operator}
+                        options={operatorOptions}
+                        placeholder="Op"
+                        data-index={index}
+                        onchange={handleOperatorChange}
+                    ></lightning-combobox>
                 </div>
 
                 <!-- Value -->
                 <div class="slds-col slds-size_4-of-12">
                     <!-- Dynamic input type based on field? For now, text. -->
-                    <lightning-input variant="label-hidden" value={row.value} placeholder="Value (e.g. 'Closed Won')" data-index={index} onchange={handleValueChange}></lightning-input>
+                    <lightning-input
+                        variant="label-hidden"
+                        value={row.value}
+                        placeholder="Value (e.g. 'Closed Won')"
+                        data-index={index}
+                        onchange={handleValueChange}
+                    ></lightning-input>
                 </div>
 
                 <!-- Delete -->
                 <div class="slds-col slds-size_1-of-12">
-                    <lightning-button-icon icon-name="utility:delete" alternative-text="Remove condition" title="Remove condition" variant="bare" onclick={handleRemoveRow} data-index={index}></lightning-button-icon>
+                    <lightning-button-icon
+                        icon-name="utility:delete"
+                        alternative-text="Remove condition"
+                        title="Remove condition"
+                        variant="bare"
+                        onclick={handleRemoveRow}
+                        data-index={index}
+                    ></lightning-button-icon>
                 </div>
             </div>
         </template>
@@ -46,10 +79,14 @@
         <div class="slds-var-m-top_small">
             <lightning-button label="Add Condition" icon-name="utility:add" onclick={handleAddRow}></lightning-button>
         </div>
-        
+
         <!-- Preview/Manual Overlay -->
         <div class="slds-var-m-top_medium slds-var-p-top_small slds-border_top">
-             <lightning-textarea label="Generated SOQL Condition (Editable)" value={generatedSoql} onchange={handleManualSoqlChange}></lightning-textarea>
+            <lightning-textarea
+                label="Generated SOQL Condition (Editable)"
+                value={generatedSoql}
+                onchange={handleManualSoqlChange}
+            ></lightning-textarea>
         </div>
     </div>
 </template>

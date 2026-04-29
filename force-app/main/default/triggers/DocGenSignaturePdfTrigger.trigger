@@ -4,7 +4,7 @@
  * limitations on ContentVersion access and email sending.
  * Published by the guest user VF page after each signature action.
  */
-trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e (after insert) {
+trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e(after insert) {
     Set<Id> requestIds = new Set<Id>();
     for (DocGen_Signature_PDF__e evt : Trigger.New) {
         requestIds.add(evt.Request_Id__c);
@@ -12,20 +12,41 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e (after insert) {
 
     // Query requests with signer status counts
     /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-    Map<Id, DocGen_Signature_Request__c> requestMap = new Map<Id, DocGen_Signature_Request__c>([
-        SELECT Id, Template__c, Template_Ids__c, Status__c, Signing_Order__c,
-            (SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Role_Name__c,
-                    Secure_Token__c, Contact__c, Signature_Data__c, Decline_Reason__c, Sort_Order__c
-             FROM Signers__r ORDER BY Sort_Order__c ASC)
-        FROM DocGen_Signature_Request__c
-        WHERE Id IN :requestIds WITH SYSTEM_MODE
-    ]); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+    Map<Id, DocGen_Signature_Request__c> requestMap = new Map<Id, DocGen_Signature_Request__c>(
+        [
+            SELECT
+                Id,
+                Template__c,
+                Template_Ids__c,
+                Status__c,
+                Signing_Order__c,
+                (
+                    SELECT
+                        Id,
+                        Status__c,
+                        Signer_Name__c,
+                        Signer_Email__c,
+                        Role_Name__c,
+                        Secure_Token__c,
+                        Contact__c,
+                        Signature_Data__c,
+                        Decline_Reason__c,
+                        Sort_Order__c
+                    FROM Signers__r
+                    ORDER BY Sort_Order__c ASC
+                )
+            FROM DocGen_Signature_Request__c
+            WHERE Id IN :requestIds
+            WITH SYSTEM_MODE
+        ]
+    ); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
     for (DocGen_Signature_PDF__e evt : Trigger.New) {
         try {
             Id requestId = evt.Request_Id__c;
             DocGen_Signature_Request__c req = requestMap.get(requestId);
-            if (req == null) continue;
+            if (req == null)
+                continue;
 
             // Count remaining unsigned signers and detect declines
             Integer remaining = 0;
@@ -48,7 +69,11 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e (after insert) {
             // Handle decline notification
             if (declinedSigner != null && req.Status__c == 'Declined') {
                 try {
-                    DocGenSignatureEmailService.sendDeclineNotification(requestId, declinedSigner, declinedSigner.Decline_Reason__c);
+                    DocGenSignatureEmailService.sendDeclineNotification(
+                        requestId,
+                        declinedSigner,
+                        declinedSigner.Decline_Reason__c
+                    );
                 } catch (Exception decEx) {
                     System.debug(LoggingLevel.WARN, 'DocGen: Decline notification failed: ' + decEx.getMessage());
                 }
@@ -83,13 +108,23 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e (after insert) {
                 if (req.Signing_Order__c == 'Sequential' && nextPendingSigner != null) {
                     try {
                         String siteUrl = DocGenSignatureSenderController.getSiteBaseUrl();
-                        String sigUrl = siteUrl + DocGenSignatureSenderController.getSigningPagePath()
-                            + '?token=' + nextPendingSigner.Secure_Token__c;
+                        String sigUrl =
+                            siteUrl +
+                            DocGenSignatureSenderController.getSigningPagePath() +
+                            '?token=' +
+                            nextPendingSigner.Secure_Token__c;
 
                         String docTitle = 'Document';
                         if (req.Template__c != null) {
-                            List<DocGen_Template__c> t = [SELECT Name FROM DocGen_Template__c WHERE Id = :req.Template__c WITH SYSTEM_MODE LIMIT 1]; // NOPMD
-                            if (!t.isEmpty()) docTitle = t[0].Name;
+                            List<DocGen_Template__c> t = [
+                                SELECT Name
+                                FROM DocGen_Template__c
+                                WHERE Id = :req.Template__c
+                                WITH SYSTEM_MODE
+                                LIMIT 1
+                            ]; // NOPMD
+                            if (!t.isEmpty())
+                                docTitle = t[0].Name;
                         }
 
                         DocGenSignatureEmailService.sendSignatureRequestEmails(
@@ -105,7 +140,10 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e (after insert) {
                             docTitle
                         );
                     } catch (Exception seqEx) {
-                        System.debug(LoggingLevel.WARN, 'DocGen: Sequential signer email failed: ' + seqEx.getMessage());
+                        System.debug(
+                            LoggingLevel.WARN,
+                            'DocGen: Sequential signer email failed: ' + seqEx.getMessage()
+                        );
                     }
                 }
             }

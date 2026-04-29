@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>66.0</apiVersion>
-    <description>Screen Flow: generates a PDF summary for the current Account using the default DocGen template marked for Account. Launch as a Quick Action or App Page button on the Account record page. Requires at least one Account template with Default Template checked.</description>
+    <description
+    >Screen Flow: generates a PDF summary for the current Account using the default DocGen template marked for Account. Launch as a Quick Action or App Page button on the Account record page. Requires at least one Account template with Default Template checked.</description>
     <interviewLabel>DocGen Generate Account Summary {!$Flow.CurrentDateTime}</interviewLabel>
     <label>DocGen: Generate Account Summary</label>
     <processMetadataValues>
@@ -160,7 +161,8 @@
         <allowPause>false</allowPause>
         <fields>
             <name>Success_Message</name>
-            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(46, 125, 50);&quot;&gt;Account summary generated successfully.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;The document has been saved as a File on this Account. Find it in the Files related list.&lt;/p&gt;</fieldText>
+            <fieldText
+            >&lt;p&gt;&lt;strong style=&quot;color: rgb(46, 125, 50);&quot;&gt;Account summary generated successfully.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;The document has been saved as a File on this Account. Find it in the Files related list.&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
         </fields>
         <showFooter>true</showFooter>
@@ -176,7 +178,8 @@
         <allowPause>false</allowPause>
         <fields>
             <name>No_Template_Message</name>
-            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(183, 28, 28);&quot;&gt;No default Account template found.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Open DocGen, go to Templates, and check &lt;strong&gt;Default Template&lt;/strong&gt; on an Account template to enable this flow.&lt;/p&gt;</fieldText>
+            <fieldText
+            >&lt;p&gt;&lt;strong style=&quot;color: rgb(183, 28, 28);&quot;&gt;No default Account template found.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Open DocGen, go to Templates, and check &lt;strong&gt;Default Template&lt;/strong&gt; on an Account template to enable this flow.&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
         </fields>
         <showFooter>true</showFooter>
@@ -192,7 +195,8 @@
         <allowPause>false</allowPause>
         <fields>
             <name>Error_Message_Display</name>
-            <fieldText>&lt;p&gt;&lt;strong style=&quot;color: rgb(183, 28, 28);&quot;&gt;Document generation failed.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;{!genErrorMessage}&lt;/p&gt;</fieldText>
+            <fieldText
+            >&lt;p&gt;&lt;strong style=&quot;color: rgb(183, 28, 28);&quot;&gt;Document generation failed.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;{!genErrorMessage}&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
         </fields>
         <showFooter>true</showFooter>

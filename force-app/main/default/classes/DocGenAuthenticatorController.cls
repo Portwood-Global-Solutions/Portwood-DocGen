@@ -1,5 +1,4 @@
 public without sharing class DocGenAuthenticatorController {
-
     /**
      * Verifies a document by its SHA-256 hash.
      */
@@ -9,8 +8,15 @@ public without sharing class DocGenAuthenticatorController {
     public static VerificationResult verifyDocument(String fileHash) {
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Audit__c> audits = [
-            SELECT Id, Signed_Date__c, IP_Address__c, Signer_Name__c, Signer_Email__c,
-                   Consent_Captured__c, PIN_Verified_At__c, Document_Hash_SHA256__c
+            SELECT
+                Id,
+                Signed_Date__c,
+                IP_Address__c,
+                Signer_Name__c,
+                Signer_Email__c,
+                Consent_Captured__c,
+                PIN_Verified_At__c,
+                Document_Hash_SHA256__c
             FROM DocGen_Signature_Audit__c
             WHERE Document_Hash_SHA256__c = :fileHash
             WITH SYSTEM_MODE
@@ -46,9 +52,17 @@ public without sharing class DocGenAuthenticatorController {
     public static List<VerificationResult> verifyByRequestId(String requestId) {
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Audit__c> audits = [
-            SELECT Id, Signed_Date__c, IP_Address__c, Signer_Name__c, Signer_Email__c,
-                   Consent_Captured__c, PIN_Verified_At__c, Document_Hash_SHA256__c, Error_Message__c,
-                   Signer__r.Role_Name__c
+            SELECT
+                Id,
+                Signed_Date__c,
+                IP_Address__c,
+                Signer_Name__c,
+                Signer_Email__c,
+                Consent_Captured__c,
+                PIN_Verified_At__c,
+                Document_Hash_SHA256__c,
+                Error_Message__c,
+                Signer__r.Role_Name__c
             FROM DocGen_Signature_Audit__c
             WHERE Signature_Request__c = :requestId AND Signer_Name__c != 'SYSTEM'
             WITH SYSTEM_MODE
@@ -74,15 +88,25 @@ public without sharing class DocGenAuthenticatorController {
     }
 
     public class VerificationResult {
-        @AuraEnabled public Boolean isValid { get; set; }
-        @AuraEnabled public String message { get; set; }
-        @AuraEnabled public String signerName { get; set; }
-        @AuraEnabled public String signerEmail { get; set; }
-        @AuraEnabled public String roleName { get; set; }
-        @AuraEnabled public Datetime signedDate { get; set; }
-        @AuraEnabled public String ipAddress { get; set; }
-        @AuraEnabled public String documentHash { get; set; }
-        @AuraEnabled public Boolean consentCaptured { get; set; }
-        @AuraEnabled public Datetime pinVerifiedAt { get; set; }
+        @AuraEnabled
+        public Boolean isValid { get; set; }
+        @AuraEnabled
+        public String message { get; set; }
+        @AuraEnabled
+        public String signerName { get; set; }
+        @AuraEnabled
+        public String signerEmail { get; set; }
+        @AuraEnabled
+        public String roleName { get; set; }
+        @AuraEnabled
+        public Datetime signedDate { get; set; }
+        @AuraEnabled
+        public String ipAddress { get; set; }
+        @AuraEnabled
+        public String documentHash { get; set; }
+        @AuraEnabled
+        public Boolean consentCaptured { get; set; }
+        @AuraEnabled
+        public Datetime pinVerifiedAt { get; set; }
     }
 }

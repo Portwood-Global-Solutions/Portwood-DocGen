@@ -1,31 +1,62 @@
 <template>
-
     <!-- ==================== OBJECT SELECTOR ==================== -->
     <template if:true={showObjectSelector}>
-        <div class="slds-box slds-theme_default slds-var-p-around_medium" style="border-radius: 8px;">
+        <div class="slds-box slds-theme_default slds-var-p-around_medium" style="border-radius: 8px">
             <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-m-bottom_small">
                 <div>
-                    <h3 style="font-size: 1.0625rem; font-weight: 700; margin: 0;">What kind of record is this document for?</h3>
-                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">"Account" for a company overview, "Opportunity" for a proposal, or use a custom Apex class.</p>
+                    <h3 style="font-size: 1.0625rem; font-weight: 700; margin: 0">
+                        What kind of record is this document for?
+                    </h3>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
+                        "Account" for a company overview, "Opportunity" for a proposal, or use a custom Apex class.
+                    </p>
                 </div>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <lightning-input type="toggle" label="Apex Provider" checked={isApexProviderMode} onchange={handleToggleApexProvider} message-toggle-active="Apex" message-toggle-inactive="Object" variant="label-hidden"></lightning-input>
+                <div style="display: flex; gap: 0.5rem; align-items: center">
+                    <lightning-input
+                        type="toggle"
+                        label="Apex Provider"
+                        checked={isApexProviderMode}
+                        onchange={handleToggleApexProvider}
+                        message-toggle-active="Apex"
+                        message-toggle-inactive="Object"
+                        variant="label-hidden"
+                    ></lightning-input>
                     <template if:false={isApexProviderMode}>
-                        <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" onclick={handleOpenReportImport}></lightning-button>
+                        <lightning-button
+                            label="Import from Report"
+                            variant="neutral"
+                            icon-name="utility:upload"
+                            onclick={handleOpenReportImport}
+                        ></lightning-button>
                     </template>
                 </div>
             </div>
 
             <!-- Standard Object Picker -->
             <template if:false={isApexProviderMode}>
-                <div style="position: relative;">
-                    <lightning-input type="search" label="Search for an object" placeholder="Type to search..." value={objectSearchTerm} onchange={handleObjectSearch} onfocus={handleObjectFocus}></lightning-input>
+                <div style="position: relative">
+                    <lightning-input
+                        type="search"
+                        label="Search for an object"
+                        placeholder="Type to search..."
+                        value={objectSearchTerm}
+                        onchange={handleObjectSearch}
+                        onfocus={handleObjectFocus}
+                    ></lightning-input>
                     <template if:true={showObjectPicker}>
-                        <div class="slds-dropdown slds-dropdown_length-7 slds-dropdown_fluid" style="position: absolute; z-index: 100;">
+                        <div
+                            class="slds-dropdown slds-dropdown_length-7 slds-dropdown_fluid"
+                            style="position: absolute; z-index: 100"
+                        >
                             <ul class="slds-listbox slds-listbox_vertical">
                                 <template for:each={filteredObjectOptions} for:item="opt">
                                     <li key={opt.value} class="slds-listbox__item">
-                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-value={opt.value} data-label={opt.label} onclick={handleObjectSelect}>
+                                        <div
+                                            class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                            data-value={opt.value}
+                                            data-label={opt.label}
+                                            onclick={handleObjectSelect}
+                                        >
                                             <span class="slds-truncate">{opt.label}</span>
                                         </div>
                                     </li>
@@ -38,24 +69,48 @@
 
             <!-- Apex Data Provider Picker -->
             <template if:true={isApexProviderMode}>
-                <div style="position: relative;">
-                    <lightning-input type="search" label="Search for a Data Provider class" placeholder="Type to search Apex classes..." value={providerSearchTerm} onchange={handleProviderSearch}></lightning-input>
+                <div style="position: relative">
+                    <lightning-input
+                        type="search"
+                        label="Search for a Data Provider class"
+                        placeholder="Type to search Apex classes..."
+                        value={providerSearchTerm}
+                        onchange={handleProviderSearch}
+                    ></lightning-input>
                     <template if:true={showProviderPicker}>
-                        <div class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid" style="position: absolute; z-index: 100;">
+                        <div
+                            class="slds-dropdown slds-dropdown_length-5 slds-dropdown_fluid"
+                            style="position: absolute; z-index: 100"
+                        >
                             <ul class="slds-listbox slds-listbox_vertical">
                                 <template if:true={providerOptions.length}>
                                     <template for:each={providerOptions} for:item="cls">
                                         <li key={cls} class="slds-listbox__item">
-                                            <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-value={cls} onclick={handleProviderSelect}>
-                                                <span class="slds-truncate"><lightning-icon icon-name="utility:apex" size="x-small" class="slds-var-m-right_x-small"></lightning-icon>{cls}</span>
+                                            <div
+                                                class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                                data-value={cls}
+                                                onclick={handleProviderSelect}
+                                            >
+                                                <span class="slds-truncate"
+                                                    ><lightning-icon
+                                                        icon-name="utility:apex"
+                                                        size="x-small"
+                                                        class="slds-var-m-right_x-small"
+                                                    ></lightning-icon
+                                                    >{cls}</span
+                                                >
                                             </div>
                                         </li>
                                     </template>
                                 </template>
                                 <template if:false={providerOptions.length}>
                                     <li class="slds-listbox__item">
-                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small">
-                                            <span class="slds-text-color_weak">No classes implementing DocGenDataProvider found</span>
+                                        <div
+                                            class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                        >
+                                            <span class="slds-text-color_weak"
+                                                >No classes implementing DocGenDataProvider found</span
+                                            >
                                         </div>
                                     </li>
                                 </template>
@@ -63,11 +118,14 @@
                         </div>
                     </template>
                     <template if:true={isValidatingProvider}>
-                        <div class="slds-var-m-top_small slds-is-relative" style="height: 30px;">
+                        <div class="slds-var-m-top_small slds-is-relative" style="height: 30px">
                             <lightning-spinner alternative-text="Validating..." size="small"></lightning-spinner>
                         </div>
                     </template>
-                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Create a class implementing <code>DocGenDataProvider</code> to supply custom data to your templates.</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                        Create a class implementing <code>DocGenDataProvider</code> to supply custom data to your
+                        templates.
+                    </p>
                 </div>
             </template>
         </div>
@@ -75,24 +133,51 @@
 
     <!-- ==================== APEX PROVIDER CONNECTED ==================== -->
     <template if:true={isProviderConnected}>
-        <div class="slds-box slds-theme_default slds-var-p-around_medium" style="border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+        <div class="slds-box slds-theme_default slds-var-p-around_medium" style="border-radius: 8px">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem">
                 <div>
-                    <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">
-                        <lightning-icon icon-name="utility:apex" size="x-small" class="slds-var-m-right_x-small"></lightning-icon>
+                    <h3 style="font-size: 1rem; font-weight: 700; margin: 0">
+                        <lightning-icon
+                            icon-name="utility:apex"
+                            size="x-small"
+                            class="slds-var-m-right_x-small"
+                        ></lightning-icon>
                         {selectedProvider}
                     </h3>
-                    <p class="slds-text-body_small slds-text-color_weak">{providerFields.length} merge fields available</p>
+                    <p class="slds-text-body_small slds-text-color_weak">
+                        {providerFields.length} merge fields available
+                    </p>
                 </div>
-                <lightning-button label="Change Provider" variant="neutral" icon-name="utility:refresh" size="small" onclick={handleChangeRoot}></lightning-button>
+                <lightning-button
+                    label="Change Provider"
+                    variant="neutral"
+                    icon-name="utility:refresh"
+                    size="small"
+                    onclick={handleChangeRoot}
+                ></lightning-button>
             </div>
 
             <!-- Provider Merge Tags -->
-            <div style="border-top: 1px solid #e5e5e5; padding-top: 0.75rem;">
-                <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem;">Merge tags for your template <span style="font-weight: 400;">(click to copy)</span></p>
-                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            <div style="border-top: 1px solid #e5e5e5; padding-top: 0.75rem">
+                <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem">
+                    Merge tags for your template <span style="font-weight: 400">(click to copy)</span>
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px">
                     <template for:each={providerTags} for:item="tag">
-                        <code key={tag.code} style="font-size: 0.75rem; background: #f3f2f2; padding: 2px 8px; border-radius: 4px; color: #0176d3; cursor: pointer;" data-copy={tag.code} onclick={handleCopyTag}>{tag.code}</code>
+                        <code
+                            key={tag.code}
+                            style="
+                                font-size: 0.75rem;
+                                background: #f3f2f2;
+                                padding: 2px 8px;
+                                border-radius: 4px;
+                                color: #0176d3;
+                                cursor: pointer;
+                            "
+                            data-copy={tag.code}
+                            onclick={handleCopyTag}
+                            >{tag.code}</code
+                        >
                     </template>
                 </div>
             </div>
@@ -101,23 +186,55 @@
 
     <!-- ==================== TREE BUILDER ==================== -->
     <template if:true={hasNodes}>
-
         <!-- Relationship Map (always visible) -->
-        <div class="slds-box slds-var-m-bottom_small" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e5e5e5; padding: 0.75rem 1rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                <span style="font-size: 0.75rem; font-weight: 600; color: #706e6b; text-transform: uppercase; letter-spacing: 0.5px;">Your Document Structure</span>
-                <div style="display: flex; gap: 0.5rem;">
-                    <lightning-button label="Change Object" variant="neutral" icon-name="utility:refresh" size="small" onclick={handleChangeRoot}></lightning-button>
-                    <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" size="small" onclick={handleOpenReportImport}></lightning-button>
+        <div
+            class="slds-box slds-var-m-bottom_small"
+            style="background: #f8fafc; border-radius: 8px; border: 1px solid #e5e5e5; padding: 0.75rem 1rem"
+        >
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem">
+                <span
+                    style="
+                        font-size: 0.75rem;
+                        font-weight: 600;
+                        color: #706e6b;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    "
+                    >Your Document Structure</span
+                >
+                <div style="display: flex; gap: 0.5rem">
+                    <lightning-button
+                        label="Change Object"
+                        variant="neutral"
+                        icon-name="utility:refresh"
+                        size="small"
+                        onclick={handleChangeRoot}
+                    ></lightning-button>
+                    <lightning-button
+                        label="Import from Report"
+                        variant="neutral"
+                        icon-name="utility:upload"
+                        size="small"
+                        onclick={handleOpenReportImport}
+                    ></lightning-button>
                 </div>
             </div>
-            <div style="font-size: 0.8125rem; font-family: monospace;">
+            <div style="font-size: 0.8125rem; font-family: monospace">
                 <template for:each={relationshipTree} for:item="item">
                     <div key={item.id} style={item.indent} data-node-id={item.id} onclick={handleTreeNodeClick}>
-                        <span style="cursor: pointer; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;"
-                              class={item.treeItemClass}>
+                        <span
+                            style="
+                                cursor: pointer;
+                                padding: 2px 6px;
+                                border-radius: 4px;
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 4px;
+                            "
+                            class={item.treeItemClass}
+                        >
                             <template if:true={item.connector}>
-                                <span style="color: #b0adab;">{item.connector}</span>
+                                <span style="color: #b0adab">{item.connector}</span>
                             </template>
                             <span class={item.badgeClass}>{item.badgeLabel}</span>
                             <strong>{item.label}</strong>
@@ -128,60 +245,159 @@
         </div>
 
         <!-- Object Tabs -->
-        <div style="display: flex; border-bottom: 2px solid #e5e5e5; margin-bottom: 1rem; overflow-x: auto;">
+        <div style="display: flex; border-bottom: 2px solid #e5e5e5; margin-bottom: 1rem; overflow-x: auto">
             <template for:each={nodeTabs} for:item="tab">
-                <div key={tab.id} data-node-id={tab.id} onclick={handleTabClick}
-                     style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; margin-bottom: -2px;"
-                     class={tab.tabClass}>
+                <div
+                    key={tab.id}
+                    data-node-id={tab.id}
+                    onclick={handleTabClick}
+                    style="
+                        padding: 0.5rem 1rem;
+                        cursor: pointer;
+                        font-size: 0.875rem;
+                        font-weight: 600;
+                        white-space: nowrap;
+                        border-bottom: 3px solid transparent;
+                        margin-bottom: -2px;
+                    "
+                    class={tab.tabClass}
+                >
                     {tab.label}
                 </div>
             </template>
-            <div style="padding: 0.5rem 1rem; cursor: pointer; color: #0176d3; font-size: 0.875rem; font-weight: 600; white-space: nowrap;" onclick={handleAddNode}>
+            <div
+                style="
+                    padding: 0.5rem 1rem;
+                    cursor: pointer;
+                    color: #0176d3;
+                    font-size: 0.875rem;
+                    font-weight: 600;
+                    white-space: nowrap;
+                "
+                onclick={handleAddNode}
+            >
                 + Add
             </div>
         </div>
 
         <!-- Active Tab Content -->
         <template if:true={activeNode}>
-            <div class="slds-box slds-theme_default" style="border-radius: 8px;">
-
+            <div class="slds-box slds-theme_default" style="border-radius: 8px">
                 <!-- Tab Header -->
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem">
                     <div>
-                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">{activeNode.label}</h3>
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0">{activeNode.label}</h3>
                         <template if:true={activeNode.isRoot}>
-                            <a href="javascript:void(0)" style="font-size: 0.75rem; color: #706e6b; text-decoration: none;" onclick={handleChangeRoot}>Change root object</a>
+                            <a
+                                href="javascript:void(0)"
+                                style="font-size: 0.75rem; color: #706e6b; text-decoration: none"
+                                onclick={handleChangeRoot}
+                                >Change root object</a
+                            >
                         </template>
                         <template if:true={activeNode.isNotRoot}>
-                            <p class="slds-text-body_small slds-text-color_weak" style="margin: 2px 0 0 0;">These records are linked to the main record above</p>
+                            <p class="slds-text-body_small slds-text-color_weak" style="margin: 2px 0 0 0">
+                                These records are linked to the main record above
+                            </p>
                         </template>
                     </div>
                     <template if:true={activeNode.isNotRoot}>
-                        <lightning-button-icon icon-name="utility:delete" variant="bare" size="small" alternative-text="Remove" data-node-id={activeNode.id} onclick={handleRemoveNode}></lightning-button-icon>
+                        <lightning-button-icon
+                            icon-name="utility:delete"
+                            variant="bare"
+                            size="small"
+                            alternative-text="Remove"
+                            data-node-id={activeNode.id}
+                            onclick={handleRemoveNode}
+                        ></lightning-button-icon>
                     </template>
                 </div>
 
                 <!-- Per-Object Relationship Actions -->
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e5e5;">
-                    <lightning-button label="Add related records" variant="neutral" icon-name="utility:add" size="small" onclick={handleAddNode}></lightning-button>
-                    <lightning-button label="Include parent fields" variant="neutral" icon-name="utility:record_lookup" size="small" onclick={handleShowParentFieldPicker}></lightning-button>
+                <div
+                    style="
+                        display: flex;
+                        gap: 0.5rem;
+                        margin-bottom: 0.75rem;
+                        padding-bottom: 0.75rem;
+                        border-bottom: 1px solid #e5e5e5;
+                    "
+                >
+                    <lightning-button
+                        label="Add related records"
+                        variant="neutral"
+                        icon-name="utility:add"
+                        size="small"
+                        onclick={handleAddNode}
+                    ></lightning-button>
+                    <lightning-button
+                        label="Include parent fields"
+                        variant="neutral"
+                        icon-name="utility:record_lookup"
+                        size="small"
+                        onclick={handleShowParentFieldPicker}
+                    ></lightning-button>
                 </div>
 
                 <!-- Parent Field Picker (inline, shown when active) -->
                 <template if:true={showParentFieldPicker}>
-                    <div style="background: #f8fafc; border: 1px solid #e5e5e5; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <strong style="font-size: 0.8125rem;">Include fields from a related record</strong>
-                            <lightning-button-icon icon-name="utility:close" variant="bare" size="small" alternative-text="Close" onclick={handleCloseParentFieldPicker}></lightning-button-icon>
+                    <div
+                        style="
+                            background: #f8fafc;
+                            border: 1px solid #e5e5e5;
+                            border-radius: 8px;
+                            padding: 0.75rem;
+                            margin-bottom: 0.75rem;
+                        "
+                    >
+                        <div
+                            style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 0.5rem;
+                            "
+                        >
+                            <strong style="font-size: 0.8125rem">Include fields from a related record</strong>
+                            <lightning-button-icon
+                                icon-name="utility:close"
+                                variant="bare"
+                                size="small"
+                                alternative-text="Close"
+                                onclick={handleCloseParentFieldPicker}
+                            ></lightning-button-icon>
                         </div>
-                        <p class="slds-text-body_small slds-text-color_weak" style="margin-bottom: 0.5rem;">Pick a relationship (like Owner or Account), then select which fields to pull in. These appear as parent fields like Owner.Name in your template.</p>
+                        <p class="slds-text-body_small slds-text-color_weak" style="margin-bottom: 0.5rem">
+                            Pick a relationship (like Owner or Account), then select which fields to pull in. These
+                            appear as parent fields like Owner.Name in your template.
+                        </p>
 
                         <!-- Step 1: Pick relationship -->
                         <template if:false={parentPickerRelSelected}>
-                            <lightning-input type="search" variant="label-hidden" placeholder="Search relationships..." onchange={handleParentPickerSearch} style="margin-bottom: 0.5rem;"></lightning-input>
-                            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 4px;">
+                            <lightning-input
+                                type="search"
+                                variant="label-hidden"
+                                placeholder="Search relationships..."
+                                onchange={handleParentPickerSearch}
+                                style="margin-bottom: 0.5rem"
+                            ></lightning-input>
+                            <div
+                                style="
+                                    max-height: 200px;
+                                    overflow-y: auto;
+                                    border: 1px solid #e5e5e5;
+                                    border-radius: 4px;
+                                "
+                            >
                                 <template for:each={filteredParentPickerOptions} for:item="rel">
-                                    <div key={rel.value} class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" style="cursor: pointer; padding: 0.5rem;" data-value={rel.value} data-target={rel.targetObject} onclick={handleParentPickerRelSelect}>
+                                    <div
+                                        key={rel.value}
+                                        class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                        style="cursor: pointer; padding: 0.5rem"
+                                        data-value={rel.value}
+                                        data-target={rel.targetObject}
+                                        onclick={handleParentPickerRelSelect}
+                                    >
                                         <span class="slds-truncate">{rel.label}</span>
                                     </div>
                                 </template>
@@ -190,61 +406,154 @@
 
                         <!-- Step 2: Pick fields from that relationship -->
                         <template if:true={parentPickerRelSelected}>
-                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem">
                                 <span class="slds-badge slds-badge_lightest">{parentPickerRelName}</span>
-                                <lightning-button label="Change" variant="base" size="small" onclick={handleParentPickerBack}></lightning-button>
-                                <span class="slds-text-body_small slds-text-color_weak">{parentPickerSelectedFields.length} selected</span>
+                                <lightning-button
+                                    label="Change"
+                                    variant="base"
+                                    size="small"
+                                    onclick={handleParentPickerBack}
+                                ></lightning-button>
+                                <span class="slds-text-body_small slds-text-color_weak"
+                                    >{parentPickerSelectedFields.length} selected</span
+                                >
                             </div>
-                            <lightning-input type="search" variant="label-hidden" placeholder="Search fields..." onchange={handleParentPickerFieldSearch} style="margin-bottom: 0.5rem;"></lightning-input>
-                            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 4px; padding: 0.5rem;">
+                            <lightning-input
+                                type="search"
+                                variant="label-hidden"
+                                placeholder="Search fields..."
+                                onchange={handleParentPickerFieldSearch}
+                                style="margin-bottom: 0.5rem"
+                            ></lightning-input>
+                            <div
+                                style="
+                                    max-height: 200px;
+                                    overflow-y: auto;
+                                    border: 1px solid #e5e5e5;
+                                    border-radius: 4px;
+                                    padding: 0.5rem;
+                                "
+                            >
                                 <lightning-checkbox-group
                                     name="parentFields"
                                     label="Fields"
                                     variant="label-hidden"
                                     options={filteredParentPickerFieldOptions}
                                     value={parentPickerSelectedFields}
-                                    onchange={handleParentPickerFieldChange}>
+                                    onchange={handleParentPickerFieldChange}
+                                >
                                 </lightning-checkbox-group>
                             </div>
-                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                                <lightning-button label="Add Selected Fields" variant="brand" size="small" onclick={handleParentPickerApply}></lightning-button>
-                                <lightning-button label="Add Common Fields" variant="neutral" size="small" onclick={handleParentPickerAddCommon}></lightning-button>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
+                                <lightning-button
+                                    label="Add Selected Fields"
+                                    variant="brand"
+                                    size="small"
+                                    onclick={handleParentPickerApply}
+                                ></lightning-button>
+                                <lightning-button
+                                    label="Add Common Fields"
+                                    variant="neutral"
+                                    size="small"
+                                    onclick={handleParentPickerAddCommon}
+                                ></lightning-button>
                             </div>
                         </template>
                     </div>
                 </template>
 
                 <!-- Field Search + Select All + Show Selected -->
-                <lightning-input type="search" variant="label-hidden" placeholder="Search fields..." onchange={handleFieldSearch} style="margin-bottom: 0.5rem;"></lightning-input>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <span class="slds-text-body_small slds-text-color_weak">{activeNode.selectedFields.length} fields selected</span>
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    placeholder="Search fields..."
+                    onchange={handleFieldSearch}
+                    style="margin-bottom: 0.5rem"
+                ></lightning-input>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem">
+                    <span class="slds-text-body_small slds-text-color_weak"
+                        >{activeNode.selectedFields.length} fields selected</span
+                    >
                     <div>
-                        <lightning-button label={showSelectedLabel} variant="base" size="small" onclick={handleToggleShowSelected} class="slds-var-m-right_x-small"></lightning-button>
-                        <lightning-button label="Select All" variant="base" size="small" onclick={handleSelectAll}></lightning-button>
+                        <lightning-button
+                            label={showSelectedLabel}
+                            variant="base"
+                            size="small"
+                            onclick={handleToggleShowSelected}
+                            class="slds-var-m-right_x-small"
+                        ></lightning-button>
+                        <lightning-button
+                            label="Select All"
+                            variant="base"
+                            size="small"
+                            onclick={handleSelectAll}
+                        ></lightning-button>
                     </div>
                 </div>
 
                 <!-- Field Checkboxes -->
-                <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e5e5e5; border-radius: 4px; padding: 0.5rem; margin-bottom: 0.75rem;">
+                <div
+                    style="
+                        max-height: 250px;
+                        overflow-y: auto;
+                        border: 1px solid #e5e5e5;
+                        border-radius: 4px;
+                        padding: 0.5rem;
+                        margin-bottom: 0.75rem;
+                    "
+                >
                     <lightning-checkbox-group
                         name="fields"
                         label="Fields"
                         variant="label-hidden"
                         options={activeNode.filteredFields}
                         value={activeNode.selectedFields}
-                        onchange={handleFieldChange}>
+                        onchange={handleFieldChange}
+                    >
                     </lightning-checkbox-group>
                 </div>
 
                 <!-- Parent Fields (editable pills) -->
                 <template if:true={activeNode.parentGroups.length}>
-                    <div style="margin-bottom: 0.75rem;">
-                        <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem;">Parent Fields (from related records)</p>
+                    <div style="margin-bottom: 0.75rem">
+                        <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem">
+                            Parent Fields (from related records)
+                        </p>
                         <template for:each={activeNode.parentGroups} for:item="pg">
-                            <div key={pg.relationshipName} style="background: #eef4fb; border: 1px solid #d1e3f8; border-radius: 6px; padding: 0.375rem 0.75rem; margin-bottom: 0.25rem; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;">
-                                <span style="font-size: 0.6875rem; font-weight: 600; color: #0176d3; cursor: pointer; text-decoration: underline;" data-rel={pg.relationshipName} onclick={handleEditParentGroup}>{pg.relationshipName}:</span>
+                            <div
+                                key={pg.relationshipName}
+                                style="
+                                    background: #eef4fb;
+                                    border: 1px solid #d1e3f8;
+                                    border-radius: 6px;
+                                    padding: 0.375rem 0.75rem;
+                                    margin-bottom: 0.25rem;
+                                    display: flex;
+                                    flex-wrap: wrap;
+                                    align-items: center;
+                                    gap: 4px;
+                                "
+                            >
+                                <span
+                                    style="
+                                        font-size: 0.6875rem;
+                                        font-weight: 600;
+                                        color: #0176d3;
+                                        cursor: pointer;
+                                        text-decoration: underline;
+                                    "
+                                    data-rel={pg.relationshipName}
+                                    onclick={handleEditParentGroup}
+                                    >{pg.relationshipName}:</span
+                                >
                                 <template for:each={pg.fields} for:item="pf">
-                                    <lightning-pill key={pf} label={pf} data-rel={pg.relationshipName} data-field={pf} onremove={handleRemoveParentField}></lightning-pill>
+                                    <lightning-pill
+                                        key={pf}
+                                        label={pf}
+                                        data-rel={pg.relationshipName}
+                                        data-field={pf}
+                                        onremove={handleRemoveParentField}
+                                    ></lightning-pill>
                                 </template>
                             </div>
                         </template>
@@ -253,22 +562,69 @@
 
                 <!-- WHERE / ORDER BY / LIMIT (non-root only) -->
                 <template if:true={activeNode.isNotRoot}>
-                    <div style="border-top: 1px solid #e5e5e5; padding-top: 0.75rem;">
-                        <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem;">Filters</p>
-                        <lightning-input label="Tag name" variant="label-inline" field-level-help="Optional. Defaults to the relationship name. Use a unique alias when adding multiple loops against the same relationship with different filters (e.g. SubscriptionItems vs SetupItems)." placeholder="e.g. SubscriptionItems" value={activeNode.alias} onchange={handleAliasChange}></lightning-input>
-                        <lightning-input label="WHERE" variant="label-inline" placeholder="e.g. Product2.Family = 'Subscription'" value={activeNode.whereClause} onchange={handleWhereChange} style="margin-top: 4px;"></lightning-input>
-                        <lightning-input label="Sort by" variant="label-inline" placeholder="e.g. CreatedDate DESC" value={activeNode.orderByClause} onchange={handleOrderChange} style="margin-top: 4px;"></lightning-input>
-                        <lightning-input label="Limit" variant="label-inline" type="number" value={activeNode.limitClause} onchange={handleLimitChange} min="1" max="2000" style="margin-top: 4px;"></lightning-input>
+                    <div style="border-top: 1px solid #e5e5e5; padding-top: 0.75rem">
+                        <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem">
+                            Filters
+                        </p>
+                        <lightning-input
+                            label="Tag name"
+                            variant="label-inline"
+                            field-level-help="Optional. Defaults to the relationship name. Use a unique alias when adding multiple loops against the same relationship with different filters (e.g. SubscriptionItems vs SetupItems)."
+                            placeholder="e.g. SubscriptionItems"
+                            value={activeNode.alias}
+                            onchange={handleAliasChange}
+                        ></lightning-input>
+                        <lightning-input
+                            label="WHERE"
+                            variant="label-inline"
+                            placeholder="e.g. Product2.Family = 'Subscription'"
+                            value={activeNode.whereClause}
+                            onchange={handleWhereChange}
+                            style="margin-top: 4px"
+                        ></lightning-input>
+                        <lightning-input
+                            label="Sort by"
+                            variant="label-inline"
+                            placeholder="e.g. CreatedDate DESC"
+                            value={activeNode.orderByClause}
+                            onchange={handleOrderChange}
+                            style="margin-top: 4px"
+                        ></lightning-input>
+                        <lightning-input
+                            label="Limit"
+                            variant="label-inline"
+                            type="number"
+                            value={activeNode.limitClause}
+                            onchange={handleLimitChange}
+                            min="1"
+                            max="2000"
+                            style="margin-top: 4px"
+                        ></lightning-input>
                     </div>
                 </template>
 
                 <!-- Merge Tags Preview -->
                 <template if:true={activeNodeTags}>
-                    <div style="border-top: 1px solid #e5e5e5; padding-top: 0.75rem; margin-top: 0.75rem;">
-                        <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem;">Tags for your Word template <span style="font-weight: 400;">(click to copy)</span></p>
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    <div style="border-top: 1px solid #e5e5e5; padding-top: 0.75rem; margin-top: 0.75rem">
+                        <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem">
+                            Tags for your Word template <span style="font-weight: 400">(click to copy)</span>
+                        </p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px">
                             <template for:each={activeNodeTags} for:item="tag">
-                                <code key={tag.code} style="font-size: 0.75rem; background: #f3f2f2; padding: 2px 8px; border-radius: 4px; color: #0176d3; cursor: pointer;" data-copy={tag.code} onclick={handleCopyTag}>{tag.code}</code>
+                                <code
+                                    key={tag.code}
+                                    style="
+                                        font-size: 0.75rem;
+                                        background: #f3f2f2;
+                                        padding: 2px 8px;
+                                        border-radius: 4px;
+                                        color: #0176d3;
+                                        cursor: pointer;
+                                    "
+                                    data-copy={tag.code}
+                                    onclick={handleCopyTag}
+                                    >{tag.code}</code
+                                >
                             </template>
                         </div>
                     </div>
@@ -277,31 +633,58 @@
         </template>
 
         <!-- SOQL Preview -->
-        <div class="slds-box slds-theme_shade slds-var-m-top_small" style="border-radius: 6px;">
-            <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem;">How DocGen will fetch your data</p>
-            <pre style="font-size: 0.75rem; white-space: pre-wrap; color: #181818; margin: 0;">{soqlPreview}</pre>
+        <div class="slds-box slds-theme_shade slds-var-m-top_small" style="border-radius: 6px">
+            <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.25rem">
+                How DocGen will fetch your data
+            </p>
+            <pre style="font-size: 0.75rem; white-space: pre-wrap; color: #181818; margin: 0">{soqlPreview}</pre>
         </div>
     </template>
 
     <!-- ==================== ADD NODE MODAL ==================== -->
     <template if:true={showAddNodeModal}>
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-            <div class="slds-modal__container" style="max-width: 480px;">
+            <div class="slds-modal__container" style="max-width: 480px">
                 <header class="slds-modal__header">
-                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare" class="slds-button slds-button_icon slds-modal__close" onclick={handleCloseAddNode}></lightning-button-icon>
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        variant="bare"
+                        class="slds-button slds-button_icon slds-modal__close"
+                        onclick={handleCloseAddNode}
+                    ></lightning-button-icon>
                     <h2 class="slds-text-heading_medium">Add Related Records</h2>
-                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Choose a related list to add to your document.</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                        Choose a related list to add to your document.
+                    </p>
                 </header>
                 <div class="slds-modal__content slds-var-p-around_medium">
-                    <lightning-input type="search" placeholder="Search..." value={addNodeSearch} onchange={handleAddNodeSearch} class="slds-var-m-bottom_small"></lightning-input>
-                    <div class="slds-scrollable_y" style="max-height: 300px;">
+                    <lightning-input
+                        type="search"
+                        placeholder="Search..."
+                        value={addNodeSearch}
+                        onchange={handleAddNodeSearch}
+                        class="slds-var-m-bottom_small"
+                    ></lightning-input>
+                    <div class="slds-scrollable_y" style="max-height: 300px">
                         <template if:true={filteredAddOptions.length}>
                             <ul class="slds-listbox slds-listbox_vertical slds-has-dividers_bottom-space">
                                 <template for:each={filteredAddOptions} for:item="opt">
                                     <li key={opt.value} class="slds-listbox__item">
-                                        <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-value={opt.value} onclick={handleAddNodeSelect}>
-                                            <span class="slds-media__figure"><lightning-icon icon-name="standard:related_list" size="small"></lightning-icon></span>
-                                            <span class="slds-media__body"><span class="slds-truncate">{opt.label}</span></span>
+                                        <div
+                                            class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small"
+                                            data-value={opt.value}
+                                            onclick={handleAddNodeSelect}
+                                        >
+                                            <span class="slds-media__figure"
+                                                ><lightning-icon
+                                                    icon-name="standard:related_list"
+                                                    size="small"
+                                                ></lightning-icon
+                                            ></span>
+                                            <span class="slds-media__body"
+                                                ><span class="slds-truncate">{opt.label}</span></span
+                                            >
                                         </div>
                                     </li>
                                 </template>
@@ -319,23 +702,51 @@
         <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
             <div class="slds-modal__container">
                 <header class="slds-modal__header">
-                    <lightning-button-icon icon-name="utility:close" alternative-text="Close" variant="bare" class="slds-button slds-button_icon slds-modal__close" onclick={handleCloseReportModal}></lightning-button-icon>
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        variant="bare"
+                        class="slds-button slds-button_icon slds-modal__close"
+                        onclick={handleCloseReportModal}
+                    ></lightning-button-icon>
                     <h2 class="slds-text-heading_medium">Import from Report</h2>
-                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Pick a report and we'll set up your template automatically.</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                        Pick a report and we'll set up your template automatically.
+                    </p>
                 </header>
                 <div class="slds-modal__content slds-var-p-around_medium">
                     <template if:false={showImportPreview}>
-                        <lightning-input type="search" label="Search reports" placeholder="Type a report name..." value={reportSearchTerm} onchange={handleReportSearch}></lightning-input>
-                        <div class="slds-scrollable_y slds-var-m-top_small" style="max-height: 300px;">
+                        <lightning-input
+                            type="search"
+                            label="Search reports"
+                            placeholder="Type a report name..."
+                            value={reportSearchTerm}
+                            onchange={handleReportSearch}
+                        ></lightning-input>
+                        <div class="slds-scrollable_y slds-var-m-top_small" style="max-height: 300px">
                             <template if:true={reportSearchResults.length}>
                                 <ul class="slds-listbox slds-listbox_vertical slds-has-dividers_bottom-space">
                                     <template for:each={reportSearchResults} for:item="report">
                                         <li key={report.id} class="slds-listbox__item">
-                                            <div class={report.optionClass} data-id={report.id} data-name={report.name} onclick={handleReportSelect}>
-                                                <span class="slds-media__figure"><lightning-icon icon-name="standard:report" size="small"></lightning-icon></span>
+                                            <div
+                                                class={report.optionClass}
+                                                data-id={report.id}
+                                                data-name={report.name}
+                                                onclick={handleReportSelect}
+                                            >
+                                                <span class="slds-media__figure"
+                                                    ><lightning-icon
+                                                        icon-name="standard:report"
+                                                        size="small"
+                                                    ></lightning-icon
+                                                ></span>
                                                 <span class="slds-media__body">
                                                     <span class="slds-truncate"><strong>{report.name}</strong></span>
-                                                    <template if:true={report.folder}><span class="slds-text-body_small slds-text-color_weak"> — {report.folder}</span></template>
+                                                    <template if:true={report.folder}
+                                                        ><span class="slds-text-body_small slds-text-color_weak">
+                                                            — {report.folder}</span
+                                                        ></template
+                                                    >
                                                 </span>
                                             </div>
                                         </li>
@@ -345,22 +756,41 @@
                         </div>
                     </template>
                     <template if:true={showImportPreview}>
-                        <div class="slds-box slds-theme_shade" style="border-radius: 6px;">
+                        <div class="slds-box slds-theme_shade" style="border-radius: 6px">
                             <p><strong>Report:</strong> {importPreviewData.reportName}</p>
-                            <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">{importPreviewData.fieldCount} fields detected. Click "Apply" to set up your template.</p>
+                            <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
+                                {importPreviewData.fieldCount} fields detected. Click "Apply" to set up your template.
+                            </p>
                         </div>
                     </template>
                 </div>
                 <footer class="slds-modal__footer slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
-                    <template if:true={selectedReportName}><span class="slds-text-body_small"><strong>Selected:</strong> {selectedReportName}</span></template>
-                    <template if:false={selectedReportName}><span class="slds-text-body_small slds-text-color_weak">Select a report</span></template>
+                    <template if:true={selectedReportName}
+                        ><span class="slds-text-body_small"
+                            ><strong>Selected:</strong> {selectedReportName}</span
+                        ></template
+                    >
+                    <template if:false={selectedReportName}
+                        ><span class="slds-text-body_small slds-text-color_weak">Select a report</span></template
+                    >
                     <div>
                         <lightning-button label="Cancel" onclick={handleCloseReportModal}></lightning-button>
                         <template if:false={showImportPreview}>
-                            <lightning-button label="Next" variant="brand" disabled={isImportDisabled} onclick={handleImportReport} class="slds-var-m-left_x-small"></lightning-button>
+                            <lightning-button
+                                label="Next"
+                                variant="brand"
+                                disabled={isImportDisabled}
+                                onclick={handleImportReport}
+                                class="slds-var-m-left_x-small"
+                            ></lightning-button>
                         </template>
                         <template if:true={showImportPreview}>
-                            <lightning-button label="Apply to Template" variant="brand" onclick={handleConfirmImport} class="slds-var-m-left_x-small"></lightning-button>
+                            <lightning-button
+                                label="Apply to Template"
+                                variant="brand"
+                                onclick={handleConfirmImport}
+                                class="slds-var-m-left_x-small"
+                            ></lightning-button>
                         </template>
                     </div>
                 </footer>
@@ -368,5 +798,4 @@
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
-
 </template>

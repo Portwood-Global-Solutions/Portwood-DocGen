@@ -52,7 +52,7 @@ export default class DocGenSignatureSender extends LightningElement {
     @wire(getSignerRolePicklistValues)
     wiredRoles({ error, data }) {
         if (data) {
-            this.roleOptions = data.map(entry => ({
+            this.roleOptions = data.map((entry) => ({
                 label: entry.label,
                 value: entry.value
             }));
@@ -65,7 +65,7 @@ export default class DocGenSignatureSender extends LightningElement {
     @wire(getDocGenTemplates, { relatedRecordId: '$recordId' })
     wiredDocGenTemplates({ error, data }) {
         if (data) {
-            this.docGenTemplateOptions = data.map(t => ({
+            this.docGenTemplateOptions = data.map((t) => ({
                 label: t.Name,
                 value: t.Id
             }));
@@ -98,7 +98,7 @@ export default class DocGenSignatureSender extends LightningElement {
 
     get isGenerateDisabled() {
         if (this.selectedTemplates.length === 0 || this.signers.length === 0) return true;
-        return this.signers.some(s => !s.signerName || !s.signerEmail || !s.roleName);
+        return this.signers.some((s) => !s.signerName || !s.signerEmail || !s.roleName);
     }
 
     get isRemoveDisabled() {
@@ -148,8 +148,8 @@ export default class DocGenSignatureSender extends LightningElement {
 
     get availableTemplateOptions() {
         // Filter out already-selected templates
-        const selectedIds = new Set(this.selectedTemplates.map(t => t.templateId));
-        return this.docGenTemplateOptions.filter(t => !selectedIds.has(t.value));
+        const selectedIds = new Set(this.selectedTemplates.map((t) => t.templateId));
+        return this.docGenTemplateOptions.filter((t) => !selectedIds.has(t.value));
     }
 
     /**
@@ -196,7 +196,7 @@ export default class DocGenSignatureSender extends LightningElement {
         const templateId = event.detail.value;
         if (!templateId) return;
 
-        const opt = this.docGenTemplateOptions.find(t => t.value === templateId);
+        const opt = this.docGenTemplateOptions.find((t) => t.value === templateId);
         if (!opt) return;
 
         // Scan template for placements
@@ -209,7 +209,7 @@ export default class DocGenSignatureSender extends LightningElement {
 
         // Build placement summary string
         const counts = { Full: 0, Initials: 0, Date: 0, DatePick: 0 };
-        for (const p of (placements || [])) {
+        for (const p of placements || []) {
             counts[p.placementType] = (counts[p.placementType] || 0) + 1;
         }
         const parts = [];
@@ -285,7 +285,7 @@ export default class DocGenSignatureSender extends LightningElement {
                 if (s.roleName) existingByRole[s.roleName] = s;
             }
 
-            this.signers = uniqueRoles.map(roleName => {
+            this.signers = uniqueRoles.map((roleName) => {
                 if (existingByRole[roleName]) return existingByRole[roleName];
                 return {
                     id: ++signerIdCounter,
@@ -311,7 +311,15 @@ export default class DocGenSignatureSender extends LightningElement {
             for (let i = 0; i < this.selectedTemplates.length; i++) {
                 const tmpl = this.selectedTemplates[i];
                 if (this.selectedTemplates.length > 1) {
-                    htmlParts.push('<div style="background:#f8fafc;border:1px solid #e5e5e5;border-radius:6px;padding:12px 16px;margin:16px 0;text-align:center;"><strong>Document ' + (i + 1) + ' of ' + this.selectedTemplates.length + ': ' + tmpl.name + '</strong></div>');
+                    htmlParts.push(
+                        '<div style="background:#f8fafc;border:1px solid #e5e5e5;border-radius:6px;padding:12px 16px;margin:16px 0;text-align:center;"><strong>Document ' +
+                            (i + 1) +
+                            ' of ' +
+                            this.selectedTemplates.length +
+                            ': ' +
+                            tmpl.name +
+                            '</strong></div>'
+                    );
                 }
                 const html = await getDocumentPreviewHtml({
                     templateId: tmpl.templateId,
@@ -320,12 +328,19 @@ export default class DocGenSignatureSender extends LightningElement {
                 if (html) {
                     htmlParts.push(html);
                 } else {
-                    htmlParts.push('<p style="color:#706e6b;text-align:center;padding:2rem;">Preview unavailable for ' + tmpl.name + '</p>');
+                    htmlParts.push(
+                        '<p style="color:#706e6b;text-align:center;padding:2rem;">Preview unavailable for ' +
+                            tmpl.name +
+                            '</p>'
+                    );
                 }
             }
             this.previewHtml = htmlParts.join('');
         } catch (err) {
-            this.previewHtml = '<p style="color:#ea001e;text-align:center;padding:2rem;">Failed to generate preview: ' + (err.body ? err.body.message : err.message) + '</p>';
+            this.previewHtml =
+                '<p style="color:#ea001e;text-align:center;padding:2rem;">Failed to generate preview: ' +
+                (err.body ? err.body.message : err.message) +
+                '</p>';
         }
         this.previewLoading = false;
 
@@ -368,17 +383,13 @@ export default class DocGenSignatureSender extends LightningElement {
 
     handleRoleChange(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
-        this.signers = this.signers.map((s, i) =>
-            i === index ? { ...s, roleName: event.detail.value } : s
-        );
+        this.signers = this.signers.map((s, i) => (i === index ? { ...s, roleName: event.detail.value } : s));
     }
 
     handleRoleSuggestionClick(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
         const role = event.currentTarget.dataset.role;
-        this.signers = this.signers.map((s, i) =>
-            i === index ? { ...s, roleName: role } : s
-        );
+        this.signers = this.signers.map((s, i) => (i === index ? { ...s, roleName: role } : s));
     }
 
     async handleContactChange(event) {
@@ -390,29 +401,27 @@ export default class DocGenSignatureSender extends LightningElement {
             );
             return;
         }
-        this.signers = this.signers.map((s, i) =>
-            i === index ? { ...s, contactId } : s
-        );
+        this.signers = this.signers.map((s, i) => (i === index ? { ...s, contactId } : s));
         try {
             const info = await getContactInfo({ contactId });
             this.signers = this.signers.map((s, i) =>
-                i === index ? { ...s, signerName: info.name || s.signerName, signerEmail: info.email || s.signerEmail } : s
+                i === index
+                    ? { ...s, signerName: info.name || s.signerName, signerEmail: info.email || s.signerEmail }
+                    : s
             );
-        } catch (_err) { /* user can type manually */ }
+        } catch (_err) {
+            /* user can type manually */
+        }
     }
 
     handleNameChange(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
-        this.signers = this.signers.map((s, i) =>
-            i === index ? { ...s, signerName: event.target.value } : s
-        );
+        this.signers = this.signers.map((s, i) => (i === index ? { ...s, signerName: event.target.value } : s));
     }
 
     handleEmailChange(event) {
         const index = parseInt(event.currentTarget.dataset.index, 10);
-        this.signers = this.signers.map((s, i) =>
-            i === index ? { ...s, signerEmail: event.target.value } : s
-        );
+        this.signers = this.signers.map((s, i) => (i === index ? { ...s, signerEmail: event.target.value } : s));
     }
 
     // --- Generate ---
@@ -421,7 +430,7 @@ export default class DocGenSignatureSender extends LightningElement {
         this.isLoading = true;
         this.error = undefined;
         try {
-            const signersPayload = this.signers.map(s => ({
+            const signersPayload = this.signers.map((s) => ({
                 roleName: s.roleName,
                 contactId: s.contactId || null,
                 signerName: s.signerName,
@@ -438,7 +447,7 @@ export default class DocGenSignatureSender extends LightningElement {
                     signingOrder: this.signingOrder
                 });
             } else {
-                const templateIds = this.selectedTemplates.map(t => t.templateId);
+                const templateIds = this.selectedTemplates.map((t) => t.templateId);
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 this.signerResults = await createPacketSignerRequest({
                     templateIdsJson: JSON.stringify(templateIds),
@@ -448,7 +457,11 @@ export default class DocGenSignatureSender extends LightningElement {
                 });
             }
 
-            this.showToast('Success', 'Signature links generated for ' + this.signerResults.length + ' signer(s).', 'success');
+            this.showToast(
+                'Success',
+                'Signature links generated for ' + this.signerResults.length + ' signer(s).',
+                'success'
+            );
             if (this.showPreviousRequests) this.loadPreviousRequests();
         } catch (err) {
             this.error = 'Error generating links: ' + (err.body ? err.body.message : err.message);
@@ -469,20 +482,31 @@ export default class DocGenSignatureSender extends LightningElement {
     async loadPreviousRequests() {
         try {
             const data = await getPendingSignatureRequests({ relatedRecordId: this.recordId });
-            this.previousRequests = data.map(req => ({
+            this.previousRequests = data.map((req) => ({
                 ...req,
-                statusBadgeClass: req.status === 'Signed' ? 'slds-badge slds-theme_success' :
-                    req.status === 'In Progress' ? 'slds-badge slds-theme_warning' : 'slds-badge',
-                signers: (req.signers || []).map(s => ({
+                statusBadgeClass:
+                    req.status === 'Signed'
+                        ? 'slds-badge slds-theme_success'
+                        : req.status === 'In Progress'
+                          ? 'slds-badge slds-theme_warning'
+                          : 'slds-badge',
+                signers: (req.signers || []).map((s) => ({
                     ...s,
-                    statusIcon: s.status === 'Signed' ? 'utility:check' :
-                        s.status === 'Viewed' ? 'utility:preview' : 'utility:clock',
-                    statusVariant: s.status === 'Signed' ? 'success' :
-                        s.status === 'Viewed' ? 'warning' : 'bare'
+                    statusIcon:
+                        s.status === 'Signed'
+                            ? 'utility:check'
+                            : s.status === 'Viewed'
+                              ? 'utility:preview'
+                              : 'utility:clock',
+                    statusVariant: s.status === 'Signed' ? 'success' : s.status === 'Viewed' ? 'warning' : 'bare'
                 }))
             }));
         } catch (err) {
-            this.showToast('Error', 'Failed to load previous requests: ' + (err.body ? err.body.message : err.message), 'error');
+            this.showToast(
+                'Error',
+                'Failed to load previous requests: ' + (err.body ? err.body.message : err.message),
+                'error'
+            );
         }
     }
 
@@ -500,12 +524,16 @@ export default class DocGenSignatureSender extends LightningElement {
         const signerId = event.currentTarget.dataset.signerId;
         const signerName = event.currentTarget.dataset.signerName || 'this signer';
         if (!signerId) {
-            this.showToast('Error', 'Signer record is not available. Re-create the request to use In-Person Signing.', 'error');
+            this.showToast(
+                'Error',
+                'Signer record is not available. Re-create the request to use In-Person Signing.',
+                'error'
+            );
             return;
         }
         const confirmed = window.confirm(
             `Confirm you have verified the identity of ${signerName} in person.\n\n` +
-            `This bypasses email PIN verification. Your action will be recorded in the signature audit log.`
+                `This bypasses email PIN verification. Your action will be recorded in the signature audit log.`
         );
         if (!confirmed) return;
         try {
@@ -513,16 +541,20 @@ export default class DocGenSignatureSender extends LightningElement {
             if (url) {
                 window.open(url, '_blank', 'noopener');
             }
-            this.showToast('Verified', `${signerName} marked as verified. Signing page opened in a new tab.`, 'success');
+            this.showToast(
+                'Verified',
+                `${signerName} marked as verified. Signing page opened in a new tab.`,
+                'success'
+            );
         } catch (e) {
-            const msg = (e.body && e.body.message) ? e.body.message : e.message || 'Unknown error.';
+            const msg = e.body && e.body.message ? e.body.message : e.message || 'Unknown error.';
             this.showToast('Unable to mark verified', msg, 'error');
         }
     }
 
     handleCopyAllUrls() {
         const allText = this.signerResults
-            .map(r => `${r.signerName}${r.roleName ? ' (' + r.roleName + ')' : ''}: ${r.signerUrl}`)
+            .map((r) => `${r.signerName}${r.roleName ? ' (' + r.roleName + ')' : ''}: ${r.signerUrl}`)
             .join('\n');
         this._copyToClipboard(allText);
         this.showToast('Copied', 'All links copied to clipboard.', 'success');
@@ -539,7 +571,11 @@ export default class DocGenSignatureSender extends LightningElement {
             document.body.appendChild(ta);
             ta.focus();
             ta.select();
-            try { document.execCommand('copy'); } catch (_e) { /* fallback failed */ }
+            try {
+                document.execCommand('copy');
+            } catch (_e) {
+                /* fallback failed */
+            }
             document.body.removeChild(ta);
         }
     }

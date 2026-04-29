@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Signer_Email__c</fullName>
-    <description>The email address of the person who signed. Denormalized for compliance reporting and audit trails.</description>
+    <description
+    >The email address of the person who signed. Denormalized for compliance reporting and audit trails.</description>
     <label>Signer Email</label>
     <required>false</required>
     <type>Email</type>

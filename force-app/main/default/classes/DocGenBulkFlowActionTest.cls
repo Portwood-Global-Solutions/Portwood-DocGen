@@ -1,7 +1,6 @@
 // CxSAST: Test class — SOQL/DML findings are test data operations, not production code paths
 @IsTest
 private class DocGenBulkFlowActionTest {
-
     @TestSetup
     static void setup() {
         TestDataFactory.assignAdminPermissionSet();
@@ -27,7 +26,9 @@ private class DocGenBulkFlowActionTest {
             req.queryCondition = 'Name = \'Test Account 1\'';
 
             Test.startTest();
-            List<DocGenBulkFlowAction.Response> responses = DocGenBulkFlowAction.generateBulkDocuments(new List<DocGenBulkFlowAction.Request>{req});
+            List<DocGenBulkFlowAction.Response> responses = DocGenBulkFlowAction.generateBulkDocuments(
+                new List<DocGenBulkFlowAction.Request>{ req }
+            );
             Test.stopTest();
 
             System.assertEquals(1, responses.size(), 'Should have one response');
@@ -76,8 +77,7 @@ private class DocGenBulkFlowActionTest {
     @IsTest
     static void testBuildEffectiveCondition_idsAndCondition_combine() {
         Account a = [SELECT Id FROM Account WHERE Name = 'Test Account 1' LIMIT 1];
-        String result = DocGenBulkFlowAction.buildEffectiveCondition(
-            'Industry = \'Tech\'', new List<String>{ a.Id });
+        String result = DocGenBulkFlowAction.buildEffectiveCondition('Industry = \'Tech\'', new List<String>{ a.Id });
         // Expect the user condition to be parenthesized then AND-ed with Id IN
         System.assert(result.contains('Industry'), 'Should preserve user condition');
         System.assert(result.contains('AND Id IN ('), 'Should AND-combine, got: ' + result);
@@ -85,16 +85,14 @@ private class DocGenBulkFlowActionTest {
 
     @IsTest
     static void testBuildEffectiveCondition_userOnly() {
-        String result = DocGenBulkFlowAction.buildEffectiveCondition(
-            'Industry = \'Tech\'', null);
+        String result = DocGenBulkFlowAction.buildEffectiveCondition('Industry = \'Tech\'', null);
         System.assertEquals('Industry = \'Tech\'', result);
     }
 
     @IsTest
     static void testBuildEffectiveCondition_invalidIdRejected() {
         try {
-            DocGenBulkFlowAction.buildEffectiveCondition(null,
-                new List<String>{ 'not-an-id-haha' });
+            DocGenBulkFlowAction.buildEffectiveCondition(null, new List<String>{ 'not-an-id-haha' });
             System.assert(false, 'Should have thrown for invalid ID');
         } catch (DocGenException e) {
             System.assert(e.getMessage().contains('Invalid record ID'), 'Got: ' + e.getMessage());
@@ -104,8 +102,7 @@ private class DocGenBulkFlowActionTest {
     @IsTest
     static void testBuildEffectiveCondition_blanksSkipped() {
         Account a = [SELECT Id FROM Account WHERE Name = 'Test Account 1' LIMIT 1];
-        String result = DocGenBulkFlowAction.buildEffectiveCondition(null,
-            new List<String>{ '', null, a.Id, '   ' });
+        String result = DocGenBulkFlowAction.buildEffectiveCondition(null, new List<String>{ '', null, a.Id, '   ' });
         System.assertEquals('Id IN (\'' + a.Id + '\')', result, 'Blanks should be skipped silently');
     }
 
@@ -131,9 +128,16 @@ private class DocGenBulkFlowActionTest {
             );
             Test.stopTest();
 
-            System.assertEquals(true, responses[0].success, 'IDs-only path should succeed: ' + responses[0].errorMessage);
+            System.assertEquals(
+                true,
+                responses[0].success,
+                'IDs-only path should succeed: ' + responses[0].errorMessage
+            );
             DocGen_Job__c job = [SELECT Query_Condition__c FROM DocGen_Job__c WHERE Id = :responses[0].jobId];
-            System.assert(job.Query_Condition__c.startsWith('Id IN ('), 'Job should be scoped by Id IN, got: ' + job.Query_Condition__c);
+            System.assert(
+                job.Query_Condition__c.startsWith('Id IN ('),
+                'Job should be scoped by Id IN, got: ' + job.Query_Condition__c
+            );
             System.assert(job.Query_Condition__c.contains(accts[0].Id), 'Should target first Account');
             System.assert(job.Query_Condition__c.contains(accts[1].Id), 'Should target second Account');
         }

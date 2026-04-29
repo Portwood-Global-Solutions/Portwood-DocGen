@@ -4,27 +4,42 @@
  * combined PDF, and individual file options.
  */
 global with sharing class DocGenBulkFlowAction { // NOPMD AvoidGlobalModifier â€” global required for @InvocableMethod visibility in subscriber orgs
-
     global class Request {
         @InvocableVariable(label='Template ID' required=true description='The DocGen Template record ID')
         global Id templateId;
 
-        @InvocableVariable(label='WHERE Condition' description='Optional SOQL WHERE clause to filter records (e.g. Industry = \'Technology\')')
+        @InvocableVariable(
+            label='WHERE Condition'
+            description='Optional SOQL WHERE clause to filter records (e.g. Industry = \'Technology\')'
+        )
         global String queryCondition;
 
-        @InvocableVariable(label='Record IDs' required=false description='Optional collection of record IDs to generate documents for. When supplied, the bulk job runs against just these records (Id IN clause). Combine with WHERE Condition to filter the set further. Skips the need to save a Query Filter when the calling Flow has already determined which records to target.')
+        @InvocableVariable(
+            label='Record IDs'
+            required=false
+            description='Optional collection of record IDs to generate documents for. When supplied, the bulk job runs against just these records (Id IN clause). Combine with WHERE Condition to filter the set further. Skips the need to save a Query Filter when the calling Flow has already determined which records to target.'
+        )
         global List<String> recordIds;
 
         @InvocableVariable(label='Job Label' description='A friendly label for this job (shown in Job History)')
         global String jobLabel;
 
-        @InvocableVariable(label='Combined PDF Only' description='Recommended. Produce one merged PDF with all records. Uses minimal heap. Default: true')
+        @InvocableVariable(
+            label='Combined PDF Only'
+            description='Recommended. Produce one merged PDF with all records. Uses minimal heap. Default: true'
+        )
         global Boolean combinedPdfOnly;
 
-        @InvocableVariable(label='Also Keep Individual Files' description='Generate a separate PDF per record in addition to the combined PDF. Uses more heap.')
+        @InvocableVariable(
+            label='Also Keep Individual Files'
+            description='Generate a separate PDF per record in addition to the combined PDF. Uses more heap.'
+        )
         global Boolean keepIndividualFiles;
 
-        @InvocableVariable(label='Batch Size' description='Records per batch transaction. Use 1 for complex templates, 10-50 for simple ones. Default: 1')
+        @InvocableVariable(
+            label='Batch Size'
+            description='Records per batch transaction. Use 1 for complex templates, 10-50 for simple ones. Default: 1'
+        )
         global Integer batchSize;
     }
 
@@ -39,7 +54,10 @@ global with sharing class DocGenBulkFlowAction { // NOPMD AvoidGlobalModifier â€
         global Boolean success;
     }
 
-    @InvocableMethod(label='Generate Bulk Documents' description='Starts a batch job to generate documents for multiple records. Supports combined PDF, individual files, batch sizing, and WHERE filters.')
+    @InvocableMethod(
+        label='Generate Bulk Documents'
+        description='Starts a batch job to generate documents for multiple records. Supports combined PDF, individual files, batch sizing, and WHERE filters.'
+    )
     global static List<Response> generateBulkDocuments(List<Request> requests) {
         List<Response> responses = new List<Response>();
 
@@ -88,7 +106,9 @@ global with sharing class DocGenBulkFlowAction { // NOPMD AvoidGlobalModifier â€
         if (recordIds != null && !recordIds.isEmpty()) {
             List<String> quoted = new List<String>();
             for (String raw : recordIds) {
-                if (String.isBlank(raw)) { continue; }
+                if (String.isBlank(raw)) {
+                    continue;
+                }
                 String trimmed = raw.trim();
                 // 15 or 18 char alphanumeric â€” Salesforce ID format. Reject anything else.
                 if (!Pattern.matches('[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18}', trimmed)) {
@@ -105,7 +125,9 @@ global with sharing class DocGenBulkFlowAction { // NOPMD AvoidGlobalModifier â€
         if (hasUser && idClause != null) {
             return '(' + userCondition + ') AND ' + idClause;
         }
-        if (idClause != null) { return idClause; }
+        if (idClause != null) {
+            return idClause;
+        }
         return userCondition;
     }
 }

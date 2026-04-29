@@ -15,7 +15,6 @@
  * each fragment one at a time to assemble the DOCX ZIP in JavaScript.
  */
 public with sharing class DocGenGiantQueryBatch implements Database.Batchable<String>, Database.Stateful {
-
     private Id jobId;
     private Id templateId;
     private Id recordId;
@@ -38,7 +37,14 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
     // Detected from the inner loop body once up-front.
     private Boolean isHtmlSource;
 
-    public DocGenGiantQueryBatch(Id jobId, Id templateId, Id recordId, Map<String, Object> childNodeConfig, String innerXml, String outputFormat) {
+    public DocGenGiantQueryBatch(
+        Id jobId,
+        Id templateId,
+        Id recordId,
+        Map<String, Object> childNodeConfig,
+        String innerXml,
+        String outputFormat
+    ) {
         this.jobId = jobId;
         this.templateId = templateId;
         this.recordId = recordId;
@@ -68,12 +74,16 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         this.childFields = new List<String>();
         List<Object> flds = (List<Object>) childNodeConfig.get('fields');
         if (flds != null) {
-            for (Object f : flds) { this.childFields.add(String.valueOf(f)); }
+            for (Object f : flds) {
+                this.childFields.add(String.valueOf(f));
+            }
         }
         this.parentFields = new List<String>();
         List<Object> pFlds = (List<Object>) childNodeConfig.get('parentFields');
         if (pFlds != null) {
-            for (Object f : pFlds) { this.parentFields.add(String.valueOf(f)); }
+            for (Object f : pFlds) {
+                this.parentFields.add(String.valueOf(f));
+            }
         }
 
         // Read and sanitize ORDER BY clause from config
@@ -84,14 +94,20 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
 
         // Read and sanitize WHERE clause from config
         String rawWhere = (String) childNodeConfig.get('where');
-        if (rawWhere == null) { rawWhere = (String) childNodeConfig.get('whereClause'); }
+        if (rawWhere == null) {
+            rawWhere = (String) childNodeConfig.get('whereClause');
+        }
         if (String.isNotBlank(rawWhere)) {
             this.whereClause = sanitizeWhereClause(rawWhere);
         }
 
         // Read and sanitize LIMIT clause from config
         String rawLimit = childNodeConfig.get('limit') != null ? String.valueOf(childNodeConfig.get('limit')) : null;
-        if (rawLimit == null) { rawLimit = childNodeConfig.get('limitClause') != null ? String.valueOf(childNodeConfig.get('limitClause')) : null; }
+        if (rawLimit == null) {
+            rawLimit = childNodeConfig.get('limitClause') != null
+                ? String.valueOf(childNodeConfig.get('limitClause'))
+                : null;
+        }
         if (String.isNotBlank(rawLimit) && rawLimit.trim().isNumeric()) {
             this.limitClause = rawLimit.trim();
         }
@@ -104,11 +120,19 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             // Pre-query: fetch all child Ids in the desired sort order.
             // This lets execute() page through globally-sorted chunks instead of
             // cursor-based Id order. Costs one lightweight Id-only query (<50K rows).
-            String sortQuery = 'SELECT Id FROM ' + String.escapeSingleQuotes(childObjectName) +
-                ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
-            if (String.isNotBlank(whereClause)) { sortQuery += ' AND ' + whereClause; }
+            String sortQuery =
+                'SELECT Id FROM ' +
+                String.escapeSingleQuotes(childObjectName) +
+                ' WHERE ' +
+                String.escapeSingleQuotes(lookupField) +
+                ' = :recordId';
+            if (String.isNotBlank(whereClause)) {
+                sortQuery += ' AND ' + whereClause;
+            }
             sortQuery += ' ORDER BY ' + orderByClause;
-            if (String.isNotBlank(limitClause)) { sortQuery += ' LIMIT ' + limitClause; }
+            if (String.isNotBlank(limitClause)) {
+                sortQuery += ' LIMIT ' + limitClause;
+            }
 
             List<SObject> sortedRecords = Database.query(sortQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — object/field validated by Schema.getGlobalDescribe; orderBy sanitized by sanitizeOrderByClause(); runs with USER_MODE
 
@@ -135,9 +159,15 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             }
         } else {
             // Original cursor-based path (no sort requested)
-            String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjectName) +
-                ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
-            if (String.isNotBlank(whereClause)) { countQuery += ' AND ' + whereClause; }
+            String countQuery =
+                'SELECT COUNT() FROM ' +
+                String.escapeSingleQuotes(childObjectName) +
+                ' WHERE ' +
+                String.escapeSingleQuotes(lookupField) +
+                ' = :recordId';
+            if (String.isNotBlank(whereClause)) {
+                countQuery += ' AND ' + whereClause;
+            }
             Integer totalChildren = Database.countQuery(countQuery, AccessLevel.USER_MODE);
 
             Integer totalPages = (Integer) Math.ceil((Decimal) totalChildren / batchSize);
@@ -169,9 +199,13 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         for (String pageDescriptor : scope) {
             List<String> selectFields = new List<String>{ 'Id' };
             for (String f : childFields) {
-                if (f != 'Id') { selectFields.add(f); }
+                if (f != 'Id') {
+                    selectFields.add(f);
+                }
             }
-            for (String f : parentFields) { selectFields.add(f); }
+            for (String f : parentFields) {
+                selectFields.add(f);
+            }
 
             List<SObject> records;
 
@@ -180,26 +214,40 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 Integer chunkIndex = Integer.valueOf(pageDescriptor.substringAfter('sorted:'));
                 List<Id> idChunk = sortedIdChunks.get(chunkIndex);
 
-                String query = 'SELECT ' + String.join(selectFields, ', ') +
-                    ' FROM ' + String.escapeSingleQuotes(childObjectName) +
+                String query =
+                    'SELECT ' +
+                    String.join(selectFields, ', ') +
+                    ' FROM ' +
+                    String.escapeSingleQuotes(childObjectName) +
                     ' WHERE Id IN :idChunk';
 
                 List<SObject> unordered = Database.query(query, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — object/fields validated by Schema; Id chunk from pre-query; runs with USER_MODE
 
                 // Re-order to match the pre-sorted Id sequence
                 Map<Id, SObject> byId = new Map<Id, SObject>();
-                for (SObject rec : unordered) { byId.put(rec.Id, rec); }
+                for (SObject rec : unordered) {
+                    byId.put(rec.Id, rec);
+                }
                 records = new List<SObject>();
                 for (Id sortedId : idChunk) {
                     SObject rec = byId.get(sortedId);
-                    if (rec != null) { records.add(rec); }
+                    if (rec != null) {
+                        records.add(rec);
+                    }
                 }
             } else {
                 // Original cursor-based path
-                String query = 'SELECT ' + String.join(selectFields, ', ') +
-                    ' FROM ' + String.escapeSingleQuotes(childObjectName) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
-                if (String.isNotBlank(whereClause)) { query += ' AND ' + whereClause; }
+                String query =
+                    'SELECT ' +
+                    String.join(selectFields, ', ') +
+                    ' FROM ' +
+                    String.escapeSingleQuotes(childObjectName) +
+                    ' WHERE ' +
+                    String.escapeSingleQuotes(lookupField) +
+                    ' = :recordId';
+                if (String.isNotBlank(whereClause)) {
+                    query += ' AND ' + whereClause;
+                }
                 if (lastCursorId != null) {
                     query += ' AND Id > :lastCursorId';
                 }
@@ -211,14 +259,21 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 }
             }
 
-            if (records == null || records.isEmpty()) { continue; }
+            if (records == null || records.isEmpty()) {
+                continue;
+            }
 
             List<String> allFields = new List<String>();
             allFields.addAll(childFields);
             allFields.addAll(parentFields);
 
             // Render loop body
-            String renderedRows = DocGenService.renderLoopBodyForRecords(innerXml, relationshipName, records, allFields);
+            String renderedRows = DocGenService.renderLoopBodyForRecords(
+                innerXml,
+                relationshipName,
+                records,
+                allFields
+            );
 
             String seq = String.valueOf(fragmentSequence++).leftPad(5, '0');
             Blob fragmentData;
@@ -227,20 +282,20 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 // DOCX source: convert <w:tr>/<w:tc> XML rows → HTML <tr><td>.
                 // HTML source (v1.61+): rows are already HTML — use as-is.
                 // No DocGenHtmlRenderer (too heavy for batch execute heap).
-                fragmentData = Blob.valueOf(
-                    isHtmlSource ? renderedRows : xmlRowsToHtmlRows(renderedRows)
-                );
+                fragmentData = Blob.valueOf(isHtmlSource ? renderedRows : xmlRowsToHtmlRows(renderedRows));
             } else {
                 fragmentData = Blob.valueOf(renderedRows);
             }
             renderedRows = null;
 
-            fragmentCvs.add(new ContentVersion(
-                Title = 'docgen_giant_' + jobId + '_' + seq,
-                PathOnClient = 'docgen_giant_' + jobId + '_' + seq + '.html',
-                VersionData = fragmentData,
-                IsMajorVersion = false
-            ));
+            fragmentCvs.add(
+                new ContentVersion(
+                    Title = 'docgen_giant_' + jobId + '_' + seq,
+                    PathOnClient = 'docgen_giant_' + jobId + '_' + seq + '.html',
+                    VersionData = fragmentData,
+                    IsMajorVersion = false
+                )
+            );
         }
         // Bulk insert all fragments
         if (!fragmentCvs.isEmpty()) {
@@ -261,9 +316,13 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         Integer cursor = 0;
         while (cursor < xml.length()) {
             Integer trStart = xml.indexOf('<w:tr', cursor);
-            if (trStart == -1) { break; }
+            if (trStart == -1) {
+                break;
+            }
             Integer trEnd = xml.indexOf('</w:tr>', trStart);
-            if (trEnd == -1) { break; }
+            if (trEnd == -1) {
+                break;
+            }
             String trXml = xml.substring(trStart, trEnd + 7);
             cursor = trEnd + 7;
             String row = '<tr>';
@@ -271,9 +330,13 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             Integer colNum = 0;
             while (cellIdx < trXml.length()) {
                 Integer cellStart = findTag(trXml, '<w:tc', cellIdx);
-                if (cellStart == -1) { break; }
+                if (cellStart == -1) {
+                    break;
+                }
                 Integer cellEnd = trXml.indexOf('</w:tc>', cellStart);
-                if (cellEnd == -1) { break; }
+                if (cellEnd == -1) {
+                    break;
+                }
                 String cellXml = trXml.substring(cellStart, cellEnd);
                 cellIdx = cellEnd + 7;
                 colNum++;
@@ -283,10 +346,14 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 Integer txtIdx = 0;
                 while (txtIdx < cellXml.length()) {
                     Integer wtStart = findTag(cellXml, '<w:t', txtIdx);
-                    if (wtStart == -1) { break; }
+                    if (wtStart == -1) {
+                        break;
+                    }
                     Integer wtContentStart = cellXml.indexOf('>', wtStart) + 1;
                     Integer wtEnd = cellXml.indexOf('</w:t>', wtContentStart);
-                    if (wtEnd == -1) { break; }
+                    if (wtEnd == -1) {
+                        break;
+                    }
                     txt += cellXml.substring(wtContentStart, wtEnd);
                     txtIdx = wtEnd + 6;
                 }
@@ -315,9 +382,13 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         Integer searchFrom = fromIdx;
         while (searchFrom < xml.length()) {
             Integer candidate = xml.indexOf(tag, searchFrom);
-            if (candidate == -1) { return -1; }
+            if (candidate == -1) {
+                return -1;
+            }
             String nc = xml.substring(candidate + tagLen, Math.min(candidate + tagLen + 1, xml.length()));
-            if (nc == '>' || nc == ' ') { return candidate; }
+            if (nc == '>' || nc == ' ') {
+                return candidate;
+            }
             searchFrom = candidate + 1;
         }
         return -1;
@@ -335,9 +406,13 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         Integer cellIdx = 0;
         while (cellIdx < loopRowXml.length()) {
             Integer cellStart = findTag(loopRowXml, '<w:tc', cellIdx);
-            if (cellStart == -1) { break; }
+            if (cellStart == -1) {
+                break;
+            }
             Integer cellEnd = loopRowXml.indexOf('</w:tc>', cellStart);
-            if (cellEnd == -1) { break; }
+            if (cellEnd == -1) {
+                break;
+            }
             String cellXml = loopRowXml.substring(cellStart, cellEnd);
             cellIdx = cellEnd + 7;
             colNum++;
@@ -352,14 +427,21 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                     Integer valStart = valIdx + 7;
                     Integer valEnd = cellXml.indexOf('"', valStart);
                     String jcVal = cellXml.substring(valStart, valEnd);
-                    if (jcVal == 'center') { styles.add('text-align:center'); }
-                    else if (jcVal == 'right' || jcVal == 'end') { styles.add('text-align:right'); }
+                    if (jcVal == 'center') {
+                        styles.add('text-align:center');
+                    } else if (jcVal == 'right' || jcVal == 'end') {
+                        styles.add('text-align:right');
+                    }
                 }
             }
 
             // Bold / Italic
-            if (cellXml.contains('<w:b/>') || cellXml.contains('<w:b ')) { styles.add('font-weight:bold'); }
-            if (cellXml.contains('<w:i/>') || cellXml.contains('<w:i ')) { styles.add('font-style:italic'); }
+            if (cellXml.contains('<w:b/>') || cellXml.contains('<w:b ')) {
+                styles.add('font-weight:bold');
+            }
+            if (cellXml.contains('<w:i/>') || cellXml.contains('<w:i ')) {
+                styles.add('font-style:italic');
+            }
 
             // Font size from <w:sz>
             if (cellXml.contains('<w:sz ')) {
@@ -371,7 +453,9 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                     try {
                         Integer halfPts = Integer.valueOf(cellXml.substring(szStart, szEnd));
                         styles.add('font-size:' + (halfPts / 2) + 'pt');
-                    } catch (Exception e) { String noop = e.getMessage(); } // NOPMD EmptyCatchBlock — skip invalid font size
+                    } catch (Exception e) {
+                        String noop = e.getMessage();
+                    } // NOPMD EmptyCatchBlock — skip invalid font size
                 }
             }
 
@@ -392,10 +476,17 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             if ('PDF'.equalsIgnoreCase(outputFormat)) {
                 // Chain to assembler Queueable — pass child/lookup/where so aggregate
                 // resolution works for V1/V2/V3 query configs (not just V3 JSON).
-                System.enqueueJob(new DocGenGiantQueryAssembler(
-                    jobId, templateId, recordId, giantRelationshipName,
-                    childObjectName, lookupField, whereClause
-                ));
+                System.enqueueJob(
+                    new DocGenGiantQueryAssembler(
+                        jobId,
+                        templateId,
+                        recordId,
+                        giantRelationshipName,
+                        childObjectName,
+                        lookupField,
+                        whereClause
+                    )
+                );
             } else {
                 update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             }
@@ -414,14 +505,25 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
      * Mirrors DocGenDataRetriever.sanitizeClause() logic.
      */
     private static String sanitizeWhereClause(String clause) {
-        if (String.isBlank(clause)) { return null; }
+        if (String.isBlank(clause)) {
+            return null;
+        }
         if (clause.contains(';') || clause.contains('--') || clause.contains('/*')) {
             throw new DocGenException('Invalid WHERE clause in query config.');
         }
         String normalized = clause.replaceAll('\\s+', ' ').toUpperCase().trim();
         List<String> disallowed = new List<String>{
-            'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
-            'DROP ', 'ALTER ', 'CREATE ', 'GRANT ', 'REVOKE ', 'SELECT '
+            'INSERT ',
+            'UPDATE ',
+            'DELETE ',
+            'MERGE ',
+            'UNDELETE ',
+            'DROP ',
+            'ALTER ',
+            'CREATE ',
+            'GRANT ',
+            'REVOKE ',
+            'SELECT '
         };
         for (String keyword : disallowed) {
             if (normalized.contains(keyword)) {
@@ -432,7 +534,9 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
     }
 
     private static String sanitizeOrderByClause(String clause) {
-        if (String.isBlank(clause)) { return null; }
+        if (String.isBlank(clause)) {
+            return null;
+        }
         // Reject statement terminators and comments
         if (clause.contains(';') || clause.contains('--') || clause.contains('/*')) {
             throw new DocGenException('Invalid ORDER BY clause in query config.');
@@ -440,8 +544,17 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         String normalized = clause.replaceAll('\\s+', ' ').toUpperCase().trim();
         // Reject DML and structural keywords that don't belong in ORDER BY
         List<String> disallowed = new List<String>{
-            'INSERT ', 'UPDATE ', 'DELETE ', 'MERGE ', 'UNDELETE ',
-            'DROP ', 'ALTER ', 'CREATE ', 'GRANT ', 'REVOKE ', 'SELECT '
+            'INSERT ',
+            'UPDATE ',
+            'DELETE ',
+            'MERGE ',
+            'UNDELETE ',
+            'DROP ',
+            'ALTER ',
+            'CREATE ',
+            'GRANT ',
+            'REVOKE ',
+            'SELECT '
         };
         for (String keyword : disallowed) {
             if (normalized.contains(keyword)) {

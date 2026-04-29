@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Merge_Only__c</fullName>
     <defaultValue>false</defaultValue>
-    <description>When true, batch generates HTML only (no individual PDFs per record). A single merged PDF is produced at the end and the submitter is emailed a download link.</description>
+    <description
+    >When true, batch generates HTML only (no individual PDFs per record). A single merged PDF is produced at the end and the submitter is emailed a download link.</description>
     <label>Merge Only</label>
     <type>Checkbox</type>
 </CustomField>

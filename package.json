@@ -1,0 +1,29 @@
+{
+    "name": "portwood-docgen",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Build tooling for the Portwood DocGen managed package (Salesforce 2GP). Pins formatter versions and pre-commit hooks so every contributor produces identical output regardless of local install.",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Portwood-Global-Solutions/Portwood-DocGen.git"
+    },
+    "homepage": "https://portwoodglobalsolutions.com",
+    "license": "Apache-2.0",
+    "scripts": {
+        "format": "prettier --write \"force-app/**/*.{cls,trigger,page,component,cmp,html,js,xml}\" \"scripts/**/*.apex\" \"*.{json,md,yml,yaml}\"",
+        "format:check": "prettier --check \"force-app/**/*.{cls,trigger,page,component,cmp,html,js,xml}\" \"scripts/**/*.apex\" \"*.{json,md,yml,yaml}\"",
+        "prepare": "husky"
+    },
+    "devDependencies": {
+        "@prettier/plugin-xml": "3.4.2",
+        "husky": "9.1.7",
+        "lint-staged": "16.4.0",
+        "prettier": "3.8.3",
+        "prettier-plugin-apex": "2.2.6"
+    },
+    "lint-staged": {
+        "force-app/**/*.{cls,trigger,page,component,cmp,html,js,xml}": "prettier --write",
+        "scripts/**/*.apex": "prettier --write",
+        "*.{json,md,yml,yaml}": "prettier --write"
+    }
+}

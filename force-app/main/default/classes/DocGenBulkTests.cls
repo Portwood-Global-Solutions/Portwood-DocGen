@@ -1,6 +1,5 @@
 @IsTest
 private class DocGenBulkTests {
-
     @TestSetup
     static void setup() {
         TestDataFactory.createStandardTestData();
@@ -35,7 +34,14 @@ private class DocGenBulkTests {
             TestDataFactory.attachRealDocxToTestTemplate();
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'Test Job', false, 1, false);
+            Id jobId = DocGenBulkController.submitJob(
+                t.Id,
+                'Name = \'DocGen Test Account\'',
+                'Test Job',
+                false,
+                1,
+                false
+            );
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Status__c FROM DocGen_Job__c WHERE Id = :jobId];
@@ -147,10 +153,7 @@ private class DocGenBulkTests {
         System.runAs(u) {
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Status__c = 'Queued'
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Status__c = 'Queued');
             insert job;
 
             Test.startTest();
@@ -199,7 +202,11 @@ private class DocGenBulkTests {
             Database.executeBatch(batch, 1);
             Test.stopTest();
 
-            DocGen_Job__c updated = [SELECT Status__c, Error_Count__c, Success_Count__c FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Error_Count__c, Success_Count__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             System.assertNotEquals(null, updated.Status__c, 'Should have a status');
             System.assertNotEquals('Queued', updated.Status__c, 'Status should have progressed');
         }
@@ -225,7 +232,10 @@ private class DocGenBulkTests {
                 Test.stopTest();
             } catch (Exception e) {
                 caught = true;
-                System.assert(e.getMessage().contains('Invalid filter condition'), 'Expected sanitize error: ' + e.getMessage());
+                System.assert(
+                    e.getMessage().contains('Invalid filter condition'),
+                    'Expected sanitize error: ' + e.getMessage()
+                );
             }
             if (!caught) {
                 // If no exception, batch framework swallowed it — check job status
@@ -255,7 +265,10 @@ private class DocGenBulkTests {
                 Test.stopTest();
             } catch (Exception e) {
                 caught = true;
-                System.assert(e.getMessage().contains('Invalid filter condition'), 'Expected sanitize error: ' + e.getMessage());
+                System.assert(
+                    e.getMessage().contains('Invalid filter condition'),
+                    'Expected sanitize error: ' + e.getMessage()
+                );
             }
             if (!caught) {
                 DocGen_Job__c updated = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
@@ -285,7 +298,8 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Create a template with V3 query config
-            String v3Config = '{"v":3,"root":"Account","nodes":[' +
+            String v3Config =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],' +
                 '"parentNode":null,"lookupField":null,"relationshipName":null}' +
                 ']}';
@@ -322,8 +336,11 @@ private class DocGenBulkTests {
 
             // Verify job completed (cache may or may not have been created depending on
             // whether getRecordDataV3Bulk succeeds, but the batch should finish gracefully)
-            DocGen_Job__c updated = [SELECT Status__c, Total_Records__c, Data_Cache_CV__c
-                                     FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Total_Records__c, Data_Cache_CV__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             System.assertEquals(3, updated.Total_Records__c, 'Should have counted 3 records');
             System.assertNotEquals('Queued', updated.Status__c, 'Status should have progressed');
         }
@@ -364,13 +381,18 @@ private class DocGenBulkTests {
             Database.executeBatch(batch, 1);
             Test.stopTest();
 
-            DocGen_Job__c updated = [SELECT Status__c, Success_Count__c, Error_Count__c
-                                     FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Success_Count__c, Error_Count__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             // Verify batch ran — status should be Completed or Failed depending on
             // whether Blob.toPdf() works in test context. Either way, counts are set.
             System.assertNotEquals('Queued', updated.Status__c, 'Status should have progressed');
-            System.assert(updated.Success_Count__c + updated.Error_Count__c > 0,
-                'Should have processed at least 1 record');
+            System.assert(
+                updated.Success_Count__c + updated.Error_Count__c > 0,
+                'Should have processed at least 1 record'
+            );
         }
     }
 
@@ -412,8 +434,11 @@ private class DocGenBulkTests {
             Database.executeBatch(batch, 2);
             Test.stopTest();
 
-            DocGen_Job__c updated = [SELECT Status__c, Success_Count__c, Error_Count__c
-                                     FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Success_Count__c, Error_Count__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             // If records generated successfully, status will be 'Merging' (chained DocGenMergeJob)
             // If they failed, status will be 'Failed' or 'Completed with Errors'
             System.assertNotEquals('Queued', updated.Status__c, 'Status should have progressed');
@@ -455,8 +480,11 @@ private class DocGenBulkTests {
             Database.executeBatch(batch, 1);
             Test.stopTest();
 
-            DocGen_Job__c updated = [SELECT Status__c, Success_Count__c, Error_Count__c
-                                     FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Success_Count__c, Error_Count__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             System.assertNotEquals('Queued', updated.Status__c, 'Status should have progressed');
             // Verify mergeOnly flag was set on constructor
             System.assert(batch.mergeOnly, 'mergeOnly should be true');
@@ -473,10 +501,7 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Status__c = 'Queued'
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Status__c = 'Queued');
             insert job;
 
             Test.startTest();
@@ -493,10 +518,7 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Status__c = 'Queued'
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Status__c = 'Queued');
             insert job;
 
             Test.startTest();
@@ -566,8 +588,11 @@ private class DocGenBulkTests {
 
             // The batch finished without exception (notification failure is non-fatal)
             DocGen_Job__c updated = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
-            System.assertNotEquals('Queued', updated.Status__c,
-                'Job should have completed even without notification type');
+            System.assertNotEquals(
+                'Queued',
+                updated.Status__c,
+                'Job should have completed even without notification type'
+            );
         }
     }
 
@@ -580,7 +605,8 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Create a V3 config template to trigger buildDataCache
-            String v3Config = '{"v":3,"root":"Account","nodes":[' +
+            String v3Config =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],' +
                 '"parentNode":null,"lookupField":null,"relationshipName":null}' +
                 ']}';
@@ -614,12 +640,15 @@ private class DocGenBulkTests {
             DocGen_Job__c updated = [SELECT Data_Cache_CV__c FROM DocGen_Job__c WHERE Id = :job.Id];
             // If cache was created and then cleaned up, the CV should be deleted
             if (updated.Data_Cache_CV__c != null) {
-                List<ContentVersion> remaining = [SELECT Id FROM ContentVersion
-                    WHERE Id = :updated.Data_Cache_CV__c WITH SYSTEM_MODE];
+                List<ContentVersion> remaining = [
+                    SELECT Id
+                    FROM ContentVersion
+                    WHERE Id = :updated.Data_Cache_CV__c
+                    WITH SYSTEM_MODE
+                ];
                 // Cache cleanup deletes the ContentDocument; the CV query should find nothing
                 // (or the delete may have cascade-removed it)
-                System.assert(remaining.size() <= 1,
-                    'Cache CV should have been deleted or cleaned up');
+                System.assert(remaining.size() <= 1, 'Cache CV should have been deleted or cleaned up');
             }
         }
     }
@@ -656,8 +685,7 @@ private class DocGenBulkTests {
             Test.stopTest();
 
             DocGen_Job__c updated = [SELECT Data_Cache_CV__c FROM DocGen_Job__c WHERE Id = :job.Id];
-            System.assertEquals(null, updated.Data_Cache_CV__c,
-                'V1 config should not create a data cache');
+            System.assertEquals(null, updated.Data_Cache_CV__c, 'V1 config should not create a data cache');
         }
     }
 
@@ -708,14 +736,16 @@ private class DocGenBulkTests {
             // Create some jobs
             List<DocGen_Job__c> jobs = new List<DocGen_Job__c>();
             for (Integer i = 0; i < 5; i++) {
-                jobs.add(new DocGen_Job__c(
-                    Template__c = t.Id,
-                    Status__c = 'Completed',
-                    Label__c = 'Recent Job ' + i,
-                    Success_Count__c = i + 1,
-                    Error_Count__c = 0,
-                    Total_Records__c = i + 1
-                ));
+                jobs.add(
+                    new DocGen_Job__c(
+                        Template__c = t.Id,
+                        Status__c = 'Completed',
+                        Label__c = 'Recent Job ' + i,
+                        Success_Count__c = i + 1,
+                        Error_Count__c = 0,
+                        Total_Records__c = i + 1
+                    )
+                );
             }
             insert jobs;
 
@@ -725,11 +755,12 @@ private class DocGenBulkTests {
 
             System.assert(recentJobs.size() >= 5, 'Should return at least 5 recent jobs');
             // Verify ordering: most recent first
-            System.assert(recentJobs[0].CreatedDate >= recentJobs[recentJobs.size() - 1].CreatedDate,
-                'Jobs should be ordered by CreatedDate descending');
+            System.assert(
+                recentJobs[0].CreatedDate >= recentJobs[recentJobs.size() - 1].CreatedDate,
+                'Jobs should be ordered by CreatedDate descending'
+            );
             // Verify template relationship is populated
-            System.assertNotEquals(null, recentJobs[0].Template__r.Name,
-                'Template name should be populated');
+            System.assertNotEquals(null, recentJobs[0].Template__r.Name, 'Template name should be populated');
         }
     }
 
@@ -770,8 +801,7 @@ private class DocGenBulkTests {
             for (Map<String, String> pdf : pdfs) {
                 if (pdf.get('label') == 'Generated PDF.pdf') {
                     foundOurPdf = true;
-                    System.assertNotEquals(null, pdf.get('value'),
-                        'ContentVersion ID should be populated');
+                    System.assertNotEquals(null, pdf.get('value'), 'ContentVersion ID should be populated');
                 }
             }
             System.assert(foundOurPdf, 'Should find our generated PDF in results');
@@ -819,11 +849,21 @@ private class DocGenBulkTests {
             createValidDocxForTemplate(t.Id, buildSimpleDocXml());
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'Merge PDF Job', true, 1, false);
+            Id jobId = DocGenBulkController.submitJob(
+                t.Id,
+                'Name = \'DocGen Test Account\'',
+                'Merge PDF Job',
+                true,
+                1,
+                false
+            );
             Test.stopTest();
 
-            DocGen_Job__c job = [SELECT Id, Status__c, Label__c, Merge_Only__c
-                                 FROM DocGen_Job__c WHERE Id = :jobId];
+            DocGen_Job__c job = [
+                SELECT Id, Status__c, Label__c, Merge_Only__c
+                FROM DocGen_Job__c
+                WHERE Id = :jobId
+            ];
             System.assertNotEquals(null, job.Id, 'Job should be created');
             System.assertEquals('Merge PDF Job', job.Label__c, 'Label should be set');
             System.assertEquals(false, job.Merge_Only__c, 'Merge_Only should be false');
@@ -850,11 +890,21 @@ private class DocGenBulkTests {
             createValidDocxForTemplate(t.Id, buildSimpleDocXml());
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'MergeOnly Job', false, 1, true);
+            Id jobId = DocGenBulkController.submitJob(
+                t.Id,
+                'Name = \'DocGen Test Account\'',
+                'MergeOnly Job',
+                false,
+                1,
+                true
+            );
             Test.stopTest();
 
-            DocGen_Job__c job = [SELECT Id, Status__c, Merge_Only__c
-                                 FROM DocGen_Job__c WHERE Id = :jobId];
+            DocGen_Job__c job = [
+                SELECT Id, Status__c, Merge_Only__c
+                FROM DocGen_Job__c
+                WHERE Id = :jobId
+            ];
             System.assertNotEquals(null, job.Id, 'Job should be created');
             System.assertEquals(true, job.Merge_Only__c, 'Merge_Only should be true');
         }
@@ -911,11 +961,7 @@ private class DocGenBulkTests {
         System.runAs(u) {
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Query_Condition__c = null,
-                Status__c = 'Queued'
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Query_Condition__c = null, Status__c = 'Queued');
             insert job;
 
             Test.startTest();
@@ -944,10 +990,7 @@ private class DocGenBulkTests {
             );
             insert t;
 
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Status__c = 'Queued'
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Status__c = 'Queued');
             insert job;
 
             Test.startTest();
@@ -962,8 +1005,11 @@ private class DocGenBulkTests {
             // The exception may be caught by the batch framework or propagate
             if (!caught) {
                 DocGen_Job__c updated = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
-                System.assertNotEquals('Queued', updated.Status__c,
-                    'Job status should reflect the invalid object error');
+                System.assertNotEquals(
+                    'Queued',
+                    updated.Status__c,
+                    'Job status should reflect the invalid object error'
+                );
             }
         }
     }
@@ -1049,7 +1095,8 @@ private class DocGenBulkTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Create a V3 template so buildDataCache creates a cache CV
-            String v3Config = '{"v":3,"root":"Account","nodes":[' +
+            String v3Config =
+                '{"v":3,"root":"Account","nodes":[' +
                 '{"id":"n0","object":"Account","fields":["Name"],"parentFields":[],' +
                 '"parentNode":null,"lookupField":null,"relationshipName":null}' +
                 ']}';
@@ -1079,8 +1126,11 @@ private class DocGenBulkTests {
             Database.executeBatch(batch, 1);
             Test.stopTest();
 
-            DocGen_Job__c updated = [SELECT Status__c, Success_Count__c, Error_Count__c
-                                     FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Success_Count__c, Error_Count__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             System.assertNotEquals('Queued', updated.Status__c, 'Status should progress');
         }
     }
@@ -1123,8 +1173,11 @@ private class DocGenBulkTests {
 
             // Batch should complete without throwing even if notification type missing
             DocGen_Job__c updated = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
-            System.assertNotEquals('Queued', updated.Status__c,
-                'Batch should finish gracefully without notification type');
+            System.assertNotEquals(
+                'Queued',
+                updated.Status__c,
+                'Batch should finish gracefully without notification type'
+            );
         }
     }
 
@@ -1148,7 +1201,14 @@ private class DocGenBulkTests {
             createValidDocxForTemplate(t.Id, buildSimpleDocXml());
 
             Test.startTest();
-            Id jobId = DocGenBulkController.submitJob(t.Id, 'Name = \'DocGen Test Account\'', 'MergeOnly Job', false, 1, true);
+            Id jobId = DocGenBulkController.submitJob(
+                t.Id,
+                'Name = \'DocGen Test Account\'',
+                'MergeOnly Job',
+                false,
+                1,
+                true
+            );
             Test.stopTest();
 
             DocGen_Job__c job = [SELECT Id, Merge_Only__c, Status__c FROM DocGen_Job__c WHERE Id = :jobId];
@@ -1288,11 +1348,7 @@ private class DocGenBulkTests {
         System.runAs(u) {
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Status__c = 'Merging',
-                Success_Count__c = 0
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Status__c = 'Merging', Success_Count__c = 0);
             insert job;
 
             Test.startTest();
@@ -1301,8 +1357,7 @@ private class DocGenBulkTests {
             Test.stopTest();
 
             DocGen_Job__c updated = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
-            System.assertEquals('Completed', updated.Status__c,
-                'Should complete immediately when no snippets exist');
+            System.assertEquals('Completed', updated.Status__c, 'Should complete immediately when no snippets exist');
         }
     }
 
@@ -1316,11 +1371,7 @@ private class DocGenBulkTests {
         System.runAs(u) {
             DocGen_Template__c t = TestDataFactory.getTestTemplate();
 
-            DocGen_Job__c job = new DocGen_Job__c(
-                Template__c = t.Id,
-                Status__c = 'Merging',
-                Success_Count__c = 1
-            );
+            DocGen_Job__c job = new DocGen_Job__c(Template__c = t.Id, Status__c = 'Merging', Success_Count__c = 1);
             insert job;
 
             // Create a snippet with invalid HTML that might cause issues
@@ -1340,8 +1391,11 @@ private class DocGenBulkTests {
 
             // Whether it succeeded or hit error path, status should not be 'Merging'
             DocGen_Job__c updated = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
-            System.assertNotEquals('Merging', updated.Status__c,
-                'Status should have changed after merge job execution');
+            System.assertNotEquals(
+                'Merging',
+                updated.Status__c,
+                'Status should have changed after merge job execution'
+            );
         }
     }
 
@@ -1380,8 +1434,11 @@ private class DocGenBulkTests {
             Database.executeBatch(batch, 1);
             Test.stopTest();
 
-            DocGen_Job__c updated = [SELECT Status__c, Success_Count__c, Error_Count__c
-                                     FROM DocGen_Job__c WHERE Id = :job.Id];
+            DocGen_Job__c updated = [
+                SELECT Status__c, Success_Count__c, Error_Count__c
+                FROM DocGen_Job__c
+                WHERE Id = :job.Id
+            ];
             System.assertNotEquals('Queued', updated.Status__c, 'Status should have changed');
         }
     }

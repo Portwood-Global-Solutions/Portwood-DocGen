@@ -16,7 +16,9 @@ async function inflateRaw(compressed) {
     let total = 0;
     for (;;) {
         const { done, value } = await reader.read();
-        if (done) { break; }
+        if (done) {
+            break;
+        }
         chunks.push(value);
         total += value.length;
     }
@@ -34,13 +36,7 @@ function u16(bytes, offset) {
 }
 
 function u32(bytes, offset) {
-    return (
-        (bytes[offset] |
-            (bytes[offset + 1] << 8) |
-            (bytes[offset + 2] << 16) |
-            (bytes[offset + 3] << 24)) >>>
-        0
-    );
+    return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
 }
 
 function findEocd(bytes) {
@@ -48,12 +44,7 @@ function findEocd(bytes) {
     const maxCommentLen = 65535;
     const scanFrom = Math.max(0, bytes.length - minSize - maxCommentLen);
     for (let i = bytes.length - minSize; i >= scanFrom; i--) {
-        if (
-            bytes[i] === 0x50 &&
-            bytes[i + 1] === 0x4b &&
-            bytes[i + 2] === 0x05 &&
-            bytes[i + 3] === 0x06
-        ) {
+        if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x05 && bytes[i + 3] === 0x06) {
             return i;
         }
     }
@@ -82,7 +73,9 @@ export async function readZip(input) {
         const name = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + nameLen));
         cursor += 46 + nameLen + extraLen + commentLen;
 
-        if (name.endsWith('/')) { continue; }
+        if (name.endsWith('/')) {
+            continue;
+        }
 
         if (u32(bytes, localHeaderOffset) !== 0x04034b50) {
             throw new Error('Invalid local header at offset ' + localHeaderOffset);

@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Page_Size__c</fullName>
-    <description>PDF page size. Combined with Page_Orientation__c to drive canonical page dimensions in the renderer. Letter is the default; Legal and A4 supported. DOCX output is unaffected (Word honors source file dimensions).</description>
+    <description
+    >PDF page size. Combined with Page_Orientation__c to drive canonical page dimensions in the renderer. Letter is the default; Legal and A4 supported. DOCX output is unaffected (Word honors source file dimensions).</description>
     <label>Page Size</label>
     <required>false</required>
     <type>Picklist</type>

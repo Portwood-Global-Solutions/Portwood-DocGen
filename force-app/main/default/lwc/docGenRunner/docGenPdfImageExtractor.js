@@ -83,7 +83,7 @@ function indexAllImageObjects(bytes) {
 function pickPrimaryImage(index) {
     if (index.list.length === 0) return null;
     // Prefer a color image; fall back to first available
-    const color = index.list.find(c => c.isColor);
+    const color = index.list.find((c) => c.isColor);
     return color || index.list[0];
 }
 
@@ -93,23 +93,23 @@ const CRC_TABLE = (() => {
     const t = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
         let c = n;
-        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
         t[n] = c;
     }
     return t;
 })();
 
 function crc32(bytes) {
-    let c = 0xFFFFFFFF;
-    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
-    return (c ^ 0xFFFFFFFF) >>> 0;
+    let c = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
 }
 
 function writeUint32BE(arr, offset, val) {
-    arr[offset]     = (val >>> 24) & 0xFF;
-    arr[offset + 1] = (val >>> 16) & 0xFF;
-    arr[offset + 2] = (val >>> 8)  & 0xFF;
-    arr[offset + 3] = val & 0xFF;
+    arr[offset] = (val >>> 24) & 0xff;
+    arr[offset + 1] = (val >>> 16) & 0xff;
+    arr[offset + 2] = (val >>> 8) & 0xff;
+    arr[offset + 3] = val & 0xff;
 }
 
 function buildPngChunk(typeStr, data) {
@@ -175,32 +175,45 @@ function parseImageDictParams(dictText) {
 
 async function decodeFlatePixels(streamBytes, params) {
     let pixels;
-    try { pixels = await inflate(streamBytes); }
-    catch (e) { console.warn('[DocGen PDF→PNG] inflate failed:', e); return null; }
+    try {
+        pixels = await inflate(streamBytes);
+    } catch (e) {
+        console.warn('[DocGen PDF→PNG] inflate failed:', e);
+        return null;
+    }
     let bytesPerPixel;
     if (params.colorSpace === 'DeviceGray' || params.colorSpace === 'CalGray') bytesPerPixel = 1;
-    else if (params.colorSpace === 'DeviceRGB' || params.colorSpace === 'CalRGB' || params.colorSpace === 'sRGB') bytesPerPixel = 3;
-    else { console.warn('[DocGen PDF→PNG] unsupported color space:', params.colorSpace); return null; }
+    else if (params.colorSpace === 'DeviceRGB' || params.colorSpace === 'CalRGB' || params.colorSpace === 'sRGB')
+        bytesPerPixel = 3;
+    else {
+        console.warn('[DocGen PDF→PNG] unsupported color space:', params.colorSpace);
+        return null;
+    }
     if (params.hasPredictor) pixels = stripPdfPngPredictor(pixels, params.width, bytesPerPixel);
     return { pixels, bytesPerPixel };
 }
 
 function assemblePng(width, height, bitDepth, colorType, compressedIdat) {
-    const sig = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+    const sig = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     const ihdrData = new Uint8Array(13);
     writeUint32BE(ihdrData, 0, width);
     writeUint32BE(ihdrData, 4, height);
     ihdrData[8] = bitDepth;
     ihdrData[9] = colorType;
-    ihdrData[10] = 0; ihdrData[11] = 0; ihdrData[12] = 0;
+    ihdrData[10] = 0;
+    ihdrData[11] = 0;
+    ihdrData[12] = 0;
     const ihdr = buildPngChunk('IHDR', ihdrData);
     const idat = buildPngChunk('IDAT', compressedIdat);
     const iend = buildPngChunk('IEND', new Uint8Array(0));
     const png = new Uint8Array(sig.length + ihdr.length + idat.length + iend.length);
     let off = 0;
-    png.set(sig, off); off += sig.length;
-    png.set(ihdr, off); off += ihdr.length;
-    png.set(idat, off); off += idat.length;
+    png.set(sig, off);
+    off += sig.length;
+    png.set(ihdr, off);
+    off += ihdr.length;
+    png.set(idat, off);
+    off += idat.length;
     png.set(iend, off);
     return png;
 }
@@ -222,7 +235,8 @@ async function buildRgbaPngFromColorPlusSMask(colorEntry, smaskEntry) {
     const color = await decodeFlatePixels(colorEntry.streamBytes, cp);
     const alpha = await decodeFlatePixels(smaskEntry.streamBytes, sp);
     if (!color || !alpha || color.bytesPerPixel !== 3 || alpha.bytesPerPixel !== 1) return null;
-    const w = cp.width, h = cp.height;
+    const w = cp.width,
+        h = cp.height;
     const rowLen = w * 4;
     const filtered = new Uint8Array((rowLen + 1) * h);
     for (let y = 0; y < h; y++) {
@@ -231,7 +245,7 @@ async function buildRgbaPngFromColorPlusSMask(colorEntry, smaskEntry) {
             const sRgb = (y * w + x) * 3;
             const sA = y * w + x;
             const dst = y * (rowLen + 1) + 1 + x * 4;
-            filtered[dst]     = color.pixels[sRgb];
+            filtered[dst] = color.pixels[sRgb];
             filtered[dst + 1] = color.pixels[sRgb + 1];
             filtered[dst + 2] = color.pixels[sRgb + 2];
             filtered[dst + 3] = alpha.pixels[sA];
@@ -268,8 +282,12 @@ async function buildPngFromSingleEntry(entry) {
 export async function extractFirstImageFromPdfBase64(pdfBase64) {
     if (!pdfBase64) return null;
     let bytes;
-    try { bytes = base64ToBytes(pdfBase64); }
-    catch (e) { console.warn('[DocGen] PDF base64 decode failed', e); return null; }
+    try {
+        bytes = base64ToBytes(pdfBase64);
+    } catch (e) {
+        console.warn('[DocGen] PDF base64 decode failed', e);
+        return null;
+    }
 
     const index = indexAllImageObjects(bytes);
     const primary = pickPrimaryImage(index);

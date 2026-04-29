@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Page_Orientation__c</fullName>
-    <description>PDF page orientation snapshot for this version. Landscape routes through the Visualforce PDF page; Portrait uses Blob.toPdf directly.</description>
+    <description
+    >PDF page orientation snapshot for this version. Landscape routes through the Visualforce PDF page; Portrait uses Blob.toPdf directly.</description>
     <label>Page Orientation</label>
     <required>false</required>
     <type>Picklist</type>

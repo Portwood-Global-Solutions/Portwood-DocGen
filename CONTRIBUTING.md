@@ -14,22 +14,22 @@ Thanks for your interest in contributing! DocGen is a community-driven Salesforc
 
 1. **Fork and clone** this repo
 2. **Create a scratch org:**
-   ```bash
-   sf org create scratch --definition-file config/project-scratch-def.json --alias docgen-dev --set-default --duration-days 30
-   ```
+    ```bash
+    sf org create scratch --definition-file config/project-scratch-def.json --alias docgen-dev --set-default --duration-days 30
+    ```
 3. **Push source:**
-   ```bash
-   sf project deploy start --target-org docgen-dev
-   ```
+    ```bash
+    sf project deploy start --target-org docgen-dev
+    ```
 4. **Assign permission set:**
-   ```bash
-   sf org assign permset --name DocGen_Admin --target-org docgen-dev
-   ```
+    ```bash
+    sf org assign permset --name DocGen_Admin --target-org docgen-dev
+    ```
 5. **Enable the Release Update:** Setup > Release Updates > "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations" > Enable
 6. **Run E2E tests** to verify:
-   ```bash
-   sf apex run --target-org docgen-dev -f scripts/e2e-test.apex
-   ```
+    ```bash
+    sf apex run --target-org docgen-dev -f scripts/e2e-test.apex
+    ```
 
 You should see `PASS: 23  FAIL: 0  ALL TESTS PASSED`.
 
@@ -73,14 +73,14 @@ You should see `PASS: 23  FAIL: 0  ALL TESTS PASSED`.
 
 If you're new to the codebase, start here:
 
-| Class | What It Does |
-|-------|-------------|
-| `DocGenService` | Core merge engine — template parsing, tag replacement, image handling, PDF rendering |
-| `DocGenHtmlRenderer` | Converts DOCX XML to HTML for `Blob.toPdf()` |
-| `DocGenDataRetriever` | Multi-level SOQL with V1/V2/V3/V4 query config routing |
-| `DocGenController` | LWC controller — template CRUD, generation endpoints |
-| `BarcodeGenerator` | Pure Apex Code 128 + QR code generation |
-| `DocGenBatch` | Batch Apex for bulk document generation |
+| Class                 | What It Does                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `DocGenService`       | Core merge engine — template parsing, tag replacement, image handling, PDF rendering |
+| `DocGenHtmlRenderer`  | Converts DOCX XML to HTML for `Blob.toPdf()`                                         |
+| `DocGenDataRetriever` | Multi-level SOQL with V1/V2/V3/V4 query config routing                               |
+| `DocGenController`    | LWC controller — template CRUD, generation endpoints                                 |
+| `BarcodeGenerator`    | Pure Apex Code 128 + QR code generation                                              |
+| `DocGenBatch`         | Batch Apex for bulk document generation                                              |
 
 Client-side (LWC):
 | Component | What It Does |

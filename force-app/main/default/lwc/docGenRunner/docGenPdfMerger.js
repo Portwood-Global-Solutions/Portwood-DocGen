@@ -56,13 +56,16 @@ function extractDict(str, pos) {
     let depth = 0;
     let i = start;
     while (i < str.length - 1) {
-        if (str[i] === '<' && str[i + 1] === '<') { depth++; i += 2; }
-        else if (str[i] === '>' && str[i + 1] === '>') {
+        if (str[i] === '<' && str[i + 1] === '<') {
+            depth++;
+            i += 2;
+        } else if (str[i] === '>' && str[i + 1] === '>') {
             depth--;
             if (depth === 0) return str.substring(start, i + 2);
             i += 2;
+        } else {
+            i++;
         }
-        else { i++; }
     }
     return str.substring(start); // unterminated — return what we have
 }
@@ -175,7 +178,7 @@ function parsePdf(bytes) {
                     const dictStart = xrefOffset + objMatch.index + objMatch[0].length;
                     const streamIdx = str.indexOf('stream', dictStart);
                     const endIdx = str.indexOf('endobj', dictStart);
-                    const dictEnd = (streamIdx !== -1 && streamIdx < endIdx) ? streamIdx : endIdx;
+                    const dictEnd = streamIdx !== -1 && streamIdx < endIdx ? streamIdx : endIdx;
                     const dictText = str.substring(dictStart, dictEnd);
                     if (dictText.includes('/Encrypt')) {
                         throw new Error('Encrypted PDFs cannot be merged');
@@ -308,7 +311,7 @@ export function mergePdfs(pdfBytesArray) {
     }
 
     // 1. Parse all input PDFs
-    const parsed = pdfBytesArray.map(b => parsePdf(b));
+    const parsed = pdfBytesArray.map((b) => parsePdf(b));
 
     // 2. Resolve inherited /MediaBox BEFORE renumbering
     //    Pages can inherit /MediaBox from ancestor /Pages nodes.
@@ -344,7 +347,6 @@ export function mergePdfs(pdfBytesArray) {
                 streamBytes: obj.streamBytes,
                 isPage
             });
-
         }
 
         // Collect pages in tree order (not object scan order)
@@ -360,10 +362,7 @@ export function mergePdfs(pdfBytesArray) {
     // 5. Point all pages to the new /Pages parent
     for (const obj of allObjs) {
         if (obj.isPage) {
-            obj.dictText = obj.dictText.replace(
-                /\/Parent\s+\d+\s+0\s+R/,
-                '/Parent ' + newPagesNum + ' 0 R'
-            );
+            obj.dictText = obj.dictText.replace(/\/Parent\s+\d+\s+0\s+R/, '/Parent ' + newPagesNum + ' 0 R');
         }
     }
 
@@ -386,11 +385,10 @@ export function mergePdfs(pdfBytesArray) {
     }
 
     // New /Pages — flat tree with all pages as direct children
-    const kids = allPages.map(n => n + ' 0 R').join(' ');
+    const kids = allPages.map((n) => n + ' 0 R').join(' ');
     offsets.set(newPagesNum, off);
     const pagesBytes = latin1Encode(
-        newPagesNum + ' 0 obj\n<< /Type /Pages /Kids [' + kids +
-        '] /Count ' + allPages.length + ' >>\nendobj\n'
+        newPagesNum + ' 0 obj\n<< /Type /Pages /Kids [' + kids + '] /Count ' + allPages.length + ' >>\nendobj\n'
     );
     parts.push(pagesBytes);
     off += pagesBytes.length;
@@ -398,8 +396,7 @@ export function mergePdfs(pdfBytesArray) {
     // New /Catalog
     offsets.set(newCatalogNum, off);
     const catBytes = latin1Encode(
-        newCatalogNum + ' 0 obj\n<< /Type /Catalog /Pages ' +
-        newPagesNum + ' 0 R >>\nendobj\n'
+        newCatalogNum + ' 0 obj\n<< /Type /Catalog /Pages ' + newPagesNum + ' 0 R >>\nendobj\n'
     );
     parts.push(catBytes);
     off += catBytes.length;
@@ -415,9 +412,15 @@ export function mergePdfs(pdfBytesArray) {
     }
 
     // Trailer
-    xref += 'trailer\n<< /Size ' + nextNum +
-            ' /Root ' + newCatalogNum + ' 0 R >>\n' +
-            'startxref\n' + xrefStart + '\n%%EOF\n';
+    xref +=
+        'trailer\n<< /Size ' +
+        nextNum +
+        ' /Root ' +
+        newCatalogNum +
+        ' 0 R >>\n' +
+        'startxref\n' +
+        xrefStart +
+        '\n%%EOF\n';
 
     parts.push(latin1Encode(xref));
 

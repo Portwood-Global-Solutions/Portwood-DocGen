@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Signature_Email_Footer_Text__c</fullName>
-    <description>Custom footer text displayed at the bottom of signature request emails. Supports plain text. Example: "© 2026 Acme Corp. All rights reserved."</description>
+    <description
+    >Custom footer text displayed at the bottom of signature request emails. Supports plain text. Example: "© 2026 Acme Corp. All rights reserved."</description>
     <label>Signature Email Footer Text</label>
     <length>255</length>
     <required>false</required>

@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Giant_Query_Config__c</fullName>
-    <description>JSON configuration for Giant Query processing. Contains scout plan with child counts, relationship details, and batch parameters.</description>
+    <description
+    >JSON configuration for Giant Query processing. Contains scout plan with child counts, relationship details, and batch parameters.</description>
     <label>Giant Query Config</label>
     <length>32768</length>
     <type>LongTextArea</type>

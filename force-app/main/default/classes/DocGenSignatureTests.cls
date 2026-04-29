@@ -1,7 +1,6 @@
 // CxSAST: Test class — SOQL/DML findings are test data operations, not production code paths
 @isTest
 private class DocGenSignatureTests {
-
     @testSetup
     static void setup() {
         // Use shared TestDataFactory for full template + version + content setup
@@ -11,7 +10,8 @@ private class DocGenSignatureTests {
         Account acc = [SELECT Id FROM Account LIMIT 1];
 
         // Attach a real DOCX with signature tags to the test template
-        String sigDocXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        String sigDocXml =
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
             'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
             '<w:body>' +
@@ -49,9 +49,20 @@ private class DocGenSignatureTests {
     // =========================================================================
 
     private static DocGen_Signer__c getTestSigner() {
-        return [SELECT Id, Secure_Token__c, Status__c, Signature_Request__c,
-                       PIN_Hash__c, PIN_Expires_At__c, PIN_Attempts__c, PIN_Verified_At__c
-                FROM DocGen_Signer__c WHERE Secure_Token__c = 'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5' LIMIT 1];
+        return [
+            SELECT
+                Id,
+                Secure_Token__c,
+                Status__c,
+                Signature_Request__c,
+                PIN_Hash__c,
+                PIN_Expires_At__c,
+                PIN_Attempts__c,
+                PIN_Verified_At__c
+            FROM DocGen_Signer__c
+            WHERE Secure_Token__c = 'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+            LIMIT 1
+        ];
     }
 
     private static DocGen_Signature_Request__c getTestRequest() {
@@ -65,8 +76,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_validMultiSigner() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid, 'Token should be valid');
@@ -79,8 +91,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_blank() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('');
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -90,8 +101,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_badFormat() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('not-a-hex-token');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'not-a-hex-token'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -101,8 +113,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_notFound() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('0000000000000000000000000000000000000000000000000000000000000099');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            '0000000000000000000000000000000000000000000000000000000000000099'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -112,8 +125,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_legacyRequest() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid, 'Legacy token should be valid');
@@ -128,8 +142,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -166,7 +181,7 @@ private class DocGenSignatureTests {
         Test.stopTest();
 
         System.assertEquals(false, result.get('success'));
-        System.assert(((String)result.get('message')).contains('does not match'));
+        System.assert(((String) result.get('message')).contains('does not match'));
     }
 
     @isTest
@@ -183,9 +198,7 @@ private class DocGenSignatureTests {
         // First send a PIN
         DocGen_Signer__c signer = getTestSigner();
         String testPin = '123456';
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf(testPin))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(testPin)));
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(10);
         signer.PIN_Attempts__c = 0;
@@ -208,9 +221,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testVerifyPin_wrongPin() {
         DocGen_Signer__c signer = getTestSigner();
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf('123456'))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf('123456')));
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(10);
         signer.PIN_Attempts__c = 0;
@@ -231,9 +242,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testVerifyPin_expired() {
         DocGen_Signer__c signer = getTestSigner();
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf('123456'))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf('123456')));
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(-1); // expired
         signer.PIN_Attempts__c = 0;
@@ -247,7 +256,7 @@ private class DocGenSignatureTests {
         Test.stopTest();
 
         System.assertEquals(false, result.get('success'));
-        System.assert(((String)result.get('message')).contains('expired'));
+        System.assert(((String) result.get('message')).contains('expired'));
     }
 
     @isTest
@@ -264,7 +273,7 @@ private class DocGenSignatureTests {
         Test.stopTest();
 
         System.assertEquals(false, result.get('success'));
-        System.assert(((String)result.get('message')).contains('Too many'));
+        System.assert(((String) result.get('message')).contains('Too many'));
     }
 
     // =========================================================================
@@ -280,20 +289,23 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SaveSignatureResult result =
-            DocGenSignatureController.saveSignature(
-                'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
-                'John Smith',
-                true,
-                '192.168.1.1',
-                'Mozilla/5.0'
-            );
+        DocGenSignatureController.SaveSignatureResult result = DocGenSignatureController.saveSignature(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
+            'John Smith',
+            true,
+            '192.168.1.1',
+            'Mozilla/5.0'
+        );
         Test.stopTest();
 
         System.assertEquals(true, result.isComplete, 'Should be complete (only 1 signer)');
         System.assertEquals(0, result.remaining);
 
-        signer = [SELECT Status__c, Signature_Data__c, Consent_Captured__c, Signature_Request__c FROM DocGen_Signer__c WHERE Id = :signer.Id];
+        signer = [
+            SELECT Status__c, Signature_Data__c, Consent_Captured__c, Signature_Request__c
+            FROM DocGen_Signer__c
+            WHERE Id = :signer.Id
+        ];
         System.assertEquals('Signed', signer.Status__c);
         System.assertEquals('John Smith', signer.Signature_Data__c);
         System.assertEquals(true, signer.Consent_Captured__c);
@@ -413,9 +425,15 @@ private class DocGenSignatureTests {
     @isTest
     static void testSendSignatureEmails() {
         List<DocGenSignatureEmailService.SignerEmail> signers = new List<DocGenSignatureEmailService.SignerEmail>();
-        signers.add(new DocGenSignatureEmailService.SignerEmail(
-            'Test Signer', 'test@test.com', 'Buyer', 'https://example.com/sign?token=abc', null
-        ));
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail(
+                'Test Signer',
+                'test@test.com',
+                'Buyer',
+                'https://example.com/sign?token=abc',
+                null
+            )
+        );
 
         Test.startTest();
         DocGenSignatureEmailService.sendSignatureRequestEmails(signers, 'Test Document');
@@ -430,8 +448,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testVerifyDocument_notFound() {
         Test.startTest();
-        DocGenAuthenticatorController.VerificationResult res =
-            DocGenAuthenticatorController.verifyDocument('0000000000000000000000000000000000000000000000000000000000000000');
+        DocGenAuthenticatorController.VerificationResult res = DocGenAuthenticatorController.verifyDocument(
+            '0000000000000000000000000000000000000000000000000000000000000000'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -451,8 +470,9 @@ private class DocGenSignatureTests {
         insert audit;
 
         Test.startTest();
-        DocGenAuthenticatorController.VerificationResult res =
-            DocGenAuthenticatorController.verifyDocument('abc123hash');
+        DocGenAuthenticatorController.VerificationResult res = DocGenAuthenticatorController.verifyDocument(
+            'abc123hash'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -505,8 +525,13 @@ private class DocGenSignatureTests {
     static void testSaveSignatureSettings() {
         Test.startTest();
         DocGenSetupController.saveSignatureSettings(
-            '#FF0000', 'https://logo.png', 'Sign {DocumentTitle}',
-            'Please sign', 'Footer text', 'Test Corp', ''
+            '#FF0000',
+            'https://logo.png',
+            'Sign {DocumentTitle}',
+            'Please sign',
+            'Footer text',
+            'Test Corp',
+            ''
         );
         Test.stopTest();
 
@@ -529,7 +554,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testTemplateSignaturePdfQueueableConstructor() {
         DocGen_Signature_Request__c req = getTestRequest();
-        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(req.Id);
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            req.Id
+        );
         System.assertNotEquals(null, q);
     }
 
@@ -560,14 +587,13 @@ private class DocGenSignatureTests {
         update signer1;
 
         Test.startTest();
-        DocGenSignatureController.SaveSignatureResult result1 =
-            DocGenSignatureController.saveSignature(
-                'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
-                'Signer One Name',
-                true,
-                '1.1.1.1',
-                'Browser 1'
-            );
+        DocGenSignatureController.SaveSignatureResult result1 = DocGenSignatureController.saveSignature(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
+            'Signer One Name',
+            true,
+            '1.1.1.1',
+            'Browser 1'
+        );
         Test.stopTest();
 
         System.assertEquals(false, result1.isComplete, 'Should not be complete — signer 2 pending');
@@ -581,8 +607,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testFetchDocumentData() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+        );
         Test.stopTest();
         // Legacy request with fake Source_Document_Id — preview will be unavailable but shouldn't throw
         System.assertNotEquals(null, res);
@@ -631,8 +658,11 @@ private class DocGenSignatureTests {
         String signersJson = '[{"signerName":"Test Buyer","signerEmail":"buyer@test.com","roleName":"Buyer","contactId":""}]';
 
         Test.startTest();
-        List<DocGenSignatureSenderController.SignerResult> results =
-            DocGenSignatureSenderController.createMultiSignerRequest(cv.ContentDocumentId, acc.Id, signersJson);
+        List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createMultiSignerRequest(
+            cv.ContentDocumentId,
+            acc.Id,
+            signersJson
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
@@ -668,8 +698,12 @@ private class DocGenSignatureTests {
         DocGenSignatureSenderController.resendSignatureRequest(req.Id);
         Test.stopTest();
 
-        DocGen_Signer__c signer = [SELECT Status__c FROM DocGen_Signer__c
-            WHERE Signature_Request__c = :req.Id LIMIT 1];
+        DocGen_Signer__c signer = [
+            SELECT Status__c
+            FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :req.Id
+            LIMIT 1
+        ];
         System.assertEquals('Pending', signer.Status__c);
     }
 
@@ -767,7 +801,11 @@ private class DocGenSignatureTests {
 
     @isTest
     static void testSignerImageData_typedName() {
-        DocGenSignatureService.SignerImageData sid = new DocGenSignatureService.SignerImageData('Buyer', 'John', System.now());
+        DocGenSignatureService.SignerImageData sid = new DocGenSignatureService.SignerImageData(
+            'Buyer',
+            'John',
+            System.now()
+        );
         System.assertEquals('Buyer', sid.roleName);
         System.assertEquals('John', sid.typedName);
     }
@@ -792,9 +830,15 @@ private class DocGenSignatureTests {
     static void testSendSignatureEmails_withContact() {
         Contact con = [SELECT Id FROM Contact LIMIT 1];
         List<DocGenSignatureEmailService.SignerEmail> signers = new List<DocGenSignatureEmailService.SignerEmail>();
-        signers.add(new DocGenSignatureEmailService.SignerEmail(
-            'Contact Signer', 'contact@test.com', 'Buyer', 'https://example.com/sign', con.Id
-        ));
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail(
+                'Contact Signer',
+                'contact@test.com',
+                'Buyer',
+                'https://example.com/sign',
+                con.Id
+            )
+        );
 
         Test.startTest();
         DocGenSignatureEmailService.sendSignatureRequestEmails(signers, 'Test Document');
@@ -806,7 +850,10 @@ private class DocGenSignatureTests {
     static void testSendSignatureEmails_empty() {
         Test.startTest();
         DocGenSignatureEmailService.sendSignatureRequestEmails(null, 'Test');
-        DocGenSignatureEmailService.sendSignatureRequestEmails(new List<DocGenSignatureEmailService.SignerEmail>(), 'Test');
+        DocGenSignatureEmailService.sendSignatureRequestEmails(
+            new List<DocGenSignatureEmailService.SignerEmail>(),
+            'Test'
+        );
         Test.stopTest();
         System.assert(true, 'Null and empty list handled without exception');
     }
@@ -824,9 +871,15 @@ private class DocGenSignatureTests {
         upsert settings;
 
         List<DocGenSignatureEmailService.SignerEmail> signers = new List<DocGenSignatureEmailService.SignerEmail>();
-        signers.add(new DocGenSignatureEmailService.SignerEmail(
-            'Branded Signer', 'branded@test.com', 'Seller', 'https://example.com/sign', null
-        ));
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail(
+                'Branded Signer',
+                'branded@test.com',
+                'Seller',
+                'https://example.com/sign',
+                null
+            )
+        );
 
         Test.startTest();
         DocGenSignatureEmailService.sendSignatureRequestEmails(signers, 'Branded Doc');
@@ -846,8 +899,9 @@ private class DocGenSignatureTests {
 
         // The signer's parent request is cancelled
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -938,8 +992,9 @@ private class DocGenSignatureTests {
         input.token = 'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5';
 
         Test.startTest();
-        List<DocGenSignatureValidator.FlowOutput> results =
-            DocGenSignatureValidator.validateToken(new List<DocGenSignatureValidator.FlowInput>{ input });
+        List<DocGenSignatureValidator.FlowOutput> results = DocGenSignatureValidator.validateToken(
+            new List<DocGenSignatureValidator.FlowInput>{ input }
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
@@ -953,8 +1008,9 @@ private class DocGenSignatureTests {
         input.token = '0000000000000000000000000000000000000000000000000000000000000000';
 
         Test.startTest();
-        List<DocGenSignatureValidator.FlowOutput> results =
-            DocGenSignatureValidator.validateToken(new List<DocGenSignatureValidator.FlowInput>{ input });
+        List<DocGenSignatureValidator.FlowOutput> results = DocGenSignatureValidator.validateToken(
+            new List<DocGenSignatureValidator.FlowInput>{ input }
+        );
         Test.stopTest();
 
         System.assertEquals(false, results[0].isValid);
@@ -967,8 +1023,9 @@ private class DocGenSignatureTests {
         input.signatureData = 'Test Name';
 
         Test.startTest();
-        List<DocGenSignatureSubmitter.FlowOutput> results =
-            DocGenSignatureSubmitter.submitSignature(new List<DocGenSignatureSubmitter.FlowInput>{ input });
+        List<DocGenSignatureSubmitter.FlowOutput> results = DocGenSignatureSubmitter.submitSignature(
+            new List<DocGenSignatureSubmitter.FlowInput>{ input }
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
@@ -1025,8 +1082,9 @@ private class DocGenSignatureTests {
         insert audit;
 
         Test.startTest();
-        List<DocGenAuthenticatorController.VerificationResult> results =
-            DocGenAuthenticatorController.verifyByRequestId(req.Id);
+        List<DocGenAuthenticatorController.VerificationResult> results = DocGenAuthenticatorController.verifyByRequestId(
+            req.Id
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
@@ -1038,8 +1096,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testVerifyByRequestId_noAudits() {
         Test.startTest();
-        List<DocGenAuthenticatorController.VerificationResult> results =
-            DocGenAuthenticatorController.verifyByRequestId('001000000000000AAA');
+        List<DocGenAuthenticatorController.VerificationResult> results = DocGenAuthenticatorController.verifyByRequestId(
+            '001000000000000AAA'
+        );
         Test.stopTest();
         System.assertEquals(0, results.size());
     }
@@ -1109,8 +1168,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureService.TemplateSignaturePdfQueueable q =
-            new DocGenSignatureService.TemplateSignaturePdfQueueable(req.Id);
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            req.Id
+        );
         q.execute(null);
         Test.stopTest();
         System.assert(true, 'Template queueable executed without exception');
@@ -1141,7 +1201,10 @@ private class DocGenSignatureTests {
         // Need a real template — use test data factory if available
         List<DocGen_Template__c> templates = [SELECT Id FROM DocGen_Template__c LIMIT 1];
         if (templates.isEmpty()) {
-            DocGen_Template__c tmpl = new DocGen_Template__c(Name = 'Sig Test Template', Base_Object_API__c = 'Account');
+            DocGen_Template__c tmpl = new DocGen_Template__c(
+                Name = 'Sig Test Template',
+                Base_Object_API__c = 'Account'
+            );
             insert tmpl;
             templates.add(tmpl);
         }
@@ -1151,8 +1214,11 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         try {
-            List<DocGenSignatureSenderController.SignerResult> results =
-                DocGenSignatureSenderController.createTemplateSignerRequest(templates[0].Id, acc.Id, signersJson);
+            List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createTemplateSignerRequest(
+                templates[0].Id,
+                acc.Id,
+                signersJson
+            );
             System.assertEquals(1, results.size());
         } catch (Exception e) {
             // May fail if template has no content — that's OK for coverage
@@ -1172,8 +1238,7 @@ private class DocGenSignatureTests {
         update req;
 
         Test.startTest();
-        List<Map<String, Object>> results =
-            DocGenSignatureSenderController.getPendingSignatureRequests(acc.Id);
+        List<Map<String, Object>> results = DocGenSignatureSenderController.getPendingSignatureRequests(acc.Id);
         Test.stopTest();
 
         System.assert(results.size() >= 1);
@@ -1200,7 +1265,10 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         String url = DocGenSignatureSenderController.createSignatureRequest(
-            cv.ContentDocumentId, acc.Id, 'Legacy Signer', 'legacy@test.com'
+            cv.ContentDocumentId,
+            acc.Id,
+            'Legacy Signer',
+            'legacy@test.com'
         );
         Test.stopTest();
         System.assert(String.isNotBlank(url));
@@ -1214,8 +1282,9 @@ private class DocGenSignatureTests {
     static void testFetchDocumentData_multiSignerPath() {
         // Exercise fetchDocumentData via the multi-signer (DocGen_Signer__c) token path
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         // Signer has no template and fake Source_Document_Id — covers the legacy DOCX branch
@@ -1257,8 +1326,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, res);
@@ -1293,8 +1363,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, res);
@@ -1317,15 +1388,17 @@ private class DocGenSignatureTests {
             Signer_Name__c = 'Fetch Legacy Signer',
             Signer_Email__c = 'fetchlegacy@test.com',
             Source_Document_Id__c = cv.Id,
-            Related_Record_Id__c = [SELECT Id FROM Account LIMIT 1].Id,
+            Related_Record_Id__c = [SELECT Id FROM Account LIMIT 1]
+            .Id,
             Secure_Token__c = '1111111111111111111111111111111111111111111111111111111111111111',
             Status__c = 'Sent'
         );
         insert req;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('1111111111111111111111111111111111111111111111111111111111111111');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            '1111111111111111111111111111111111111111111111111111111111111111'
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, res);
@@ -1346,8 +1419,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('2222222222222222222222222222222222222222222222222222222222222222');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            '2222222222222222222222222222222222222222222222222222222222222222'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -1366,8 +1440,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('3333333333333333333333333333333333333333333333333333333333333333');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            '3333333333333333333333333333333333333333333333333333333333333333'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -1396,8 +1471,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('4444444444444444444444444444444444444444444444444444444444444444');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            '4444444444444444444444444444444444444444444444444444444444444444'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -1426,19 +1502,19 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SaveSignatureResult result =
-            DocGenSignatureController.saveSignature(
-                'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
-                'IP Test Signer',
-                true,
-                null,
-                null
-            );
+        DocGenSignatureController.SaveSignatureResult result = DocGenSignatureController.saveSignature(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
+            'IP Test Signer',
+            true,
+            null,
+            null
+        );
         Test.stopTest();
 
         // Verify audit was created with IP (will be 'Unknown' in test context)
         List<DocGen_Signature_Audit__c> audits = [
-            SELECT IP_Address__c, User_Agent__c FROM DocGen_Signature_Audit__c
+            SELECT IP_Address__c, User_Agent__c
+            FROM DocGen_Signature_Audit__c
             WHERE Signature_Request__c = :signer.Signature_Request__c
         ];
         System.assert(!audits.isEmpty());
@@ -1575,7 +1651,10 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         DocGenSignatureService.StampResult result = DocGenSignatureService.stampSignaturesInXml(
-            docXml, '<Rels/>', '<Types/>', signers
+            docXml,
+            '<Rels/>',
+            '<Types/>',
+            signers
         );
         Test.stopTest();
 
@@ -1599,7 +1678,8 @@ private class DocGenSignatureTests {
 
         List<DocGen_Signer__c> signerList = [
             SELECT Signer_Name__c, Signer_Email__c, Role_Name__c, PIN_Verified_At__c
-            FROM DocGen_Signer__c WHERE Id = :signer.Id
+            FROM DocGen_Signer__c
+            WHERE Id = :signer.Id
         ];
 
         Test.startTest();
@@ -1624,7 +1704,8 @@ private class DocGenSignatureTests {
         DocGen_Signature_Request__c req = getTestRequest();
         List<DocGen_Signer__c> signerList = [
             SELECT Signer_Name__c, Signer_Email__c, Role_Name__c, PIN_Verified_At__c
-            FROM DocGen_Signer__c WHERE Signature_Request__c = :req.Id
+            FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :req.Id
         ];
 
         Test.startTest();
@@ -1640,7 +1721,10 @@ private class DocGenSignatureTests {
     static void testStampResult_constructor() {
         Map<String, String> imgUrls = new Map<String, String>{ 'rId1' => '/sfc/test' };
         DocGenSignatureService.StampResult sr = new DocGenSignatureService.StampResult(
-            '<doc/>', '<rels/>', '<types/>', imgUrls
+            '<doc/>',
+            '<rels/>',
+            '<types/>',
+            imgUrls
         );
         System.assertEquals('<doc/>', sr.documentXml);
         System.assertEquals('<rels/>', sr.relsXml);
@@ -1734,11 +1818,17 @@ private class DocGenSignatureTests {
             ShareType = 'V'
         );
 
-        String signersJson = '[{"signerName":"Contact Buyer","signerEmail":"buyer@test.com","roleName":"Buyer","contactId":"' + con.Id + '"}]';
+        String signersJson =
+            '[{"signerName":"Contact Buyer","signerEmail":"buyer@test.com","roleName":"Buyer","contactId":"' +
+            con.Id +
+            '"}]';
 
         Test.startTest();
-        List<DocGenSignatureSenderController.SignerResult> results =
-            DocGenSignatureSenderController.createMultiSignerRequest(cv.ContentDocumentId, acc.Id, signersJson);
+        List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createMultiSignerRequest(
+            cv.ContentDocumentId,
+            acc.Id,
+            signersJson
+        );
         Test.stopTest();
 
         System.assertEquals(1, results.size());
@@ -1761,14 +1851,18 @@ private class DocGenSignatureTests {
             ShareType = 'V'
         );
 
-        String signersJson = '[' +
+        String signersJson =
+            '[' +
             '{"signerName":"Buyer One","signerEmail":"b1@test.com","roleName":"Buyer","contactId":""},' +
             '{"signerName":"Seller One","signerEmail":"s1@test.com","roleName":"Seller","contactId":""}' +
-        ']';
+            ']';
 
         Test.startTest();
-        List<DocGenSignatureSenderController.SignerResult> results =
-            DocGenSignatureSenderController.createMultiSignerRequest(cv.ContentDocumentId, acc.Id, signersJson);
+        List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createMultiSignerRequest(
+            cv.ContentDocumentId,
+            acc.Id,
+            signersJson
+        );
         Test.stopTest();
 
         System.assertEquals(2, results.size());
@@ -1780,10 +1874,7 @@ private class DocGenSignatureTests {
         DocGen_Template__c tmpl = new DocGen_Template__c(Name = 'Roles Template', Base_Object_API__c = 'Account');
         insert tmpl;
 
-        DocGen_Template_Version__c ver = new DocGen_Template_Version__c(
-            Template__c = tmpl.Id,
-            Is_Active__c = true
-        );
+        DocGen_Template_Version__c ver = new DocGen_Template_Version__c(Template__c = tmpl.Id, Is_Active__c = true);
         insert ver;
 
         Test.startTest();
@@ -1815,7 +1906,8 @@ private class DocGenSignatureTests {
         Test.startTest();
         try {
             DocGenSignatureSenderController.createMultiSignerRequest(
-                '069000000000000AAA', '001000000000000AAA',
+                '069000000000000AAA',
+                '001000000000000AAA',
                 '[{"signerName":"X","signerEmail":"x@x.com","roleName":"Buyer","contactId":""}]'
             );
             System.assert(false, 'Should have thrown');
@@ -1851,9 +1943,7 @@ private class DocGenSignatureTests {
     static void testVerifyPin_maxAttemptsLockout() {
         // Exhaust all PIN attempts to hit the lockout message in verifyPin
         DocGen_Signer__c signer = getTestSigner();
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf('123456'))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf('123456')));
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(10);
         signer.PIN_Attempts__c = 2; // One more attempt to trigger lockout
@@ -1868,7 +1958,7 @@ private class DocGenSignatureTests {
 
         System.assertEquals(false, result.get('success'));
         // After this attempt, attempts = 3, remaining = 0, so lockout message
-        System.assert(((String)result.get('message')).contains('locked'));
+        System.assert(((String) result.get('message')).contains('locked'));
     }
 
     // =========================================================================
@@ -1916,7 +2006,8 @@ private class DocGenSignatureTests {
             Signer_Name__c = 'Expired Legacy',
             Signer_Email__c = 'expired@test.com',
             Source_Document_Id__c = '068000000000001AAA',
-            Related_Record_Id__c = [SELECT Id FROM Account LIMIT 1].Id,
+            Related_Record_Id__c = [SELECT Id FROM Account LIMIT 1]
+            .Id,
             Secure_Token__c = 'aaaa222222222222222222222222222222222222222222222222222222222222',
             Status__c = 'Sent'
         );
@@ -1924,8 +2015,9 @@ private class DocGenSignatureTests {
         // We can't backdate CreatedDate, but we exercise the path anyway.
         // The token won't be expired, so it should succeed.
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('aaaa222222222222222222222222222222222222222222222222222222222222');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'aaaa222222222222222222222222222222222222222222222222222222222222'
+        );
         Test.stopTest();
         System.assertNotEquals(null, res);
     }
@@ -2136,8 +2228,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -2155,8 +2248,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -2188,8 +2282,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('aabb444444444444444444444444444444444444444444444444444444444444');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'aabb444444444444444444444444444444444444444444444444444444444444'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -2226,8 +2321,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('aabb555555555555555555555555555555555555555555555555555555555555');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'aabb555555555555555555555555555555555555555555555555555555555555'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -2255,8 +2351,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('aabb666666666666666666666666666666666666666666666666666666666666');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'aabb666666666666666666666666666666666666666666666666666666666666'
+        );
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -2267,9 +2364,7 @@ private class DocGenSignatureTests {
     static void testVerifyPin_wrongPin_remainingAttempts() {
         // Test the branch that shows "X attempts remaining" (not lockout)
         DocGen_Signer__c signer = getTestSigner();
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf('123456'))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf('123456')));
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(10);
         signer.PIN_Attempts__c = 0; // First wrong attempt: 2 remaining
@@ -2283,16 +2378,14 @@ private class DocGenSignatureTests {
         Test.stopTest();
 
         System.assertEquals(false, result.get('success'));
-        System.assert(((String)result.get('message')).contains('attempts remaining'));
+        System.assert(((String) result.get('message')).contains('attempts remaining'));
     }
 
     @isTest
     static void testVerifyPin_nullPinAttempts() {
         // Exercise the null PIN_Attempts__c coalesce to 0 branch
         DocGen_Signer__c signer = getTestSigner();
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf('123456'))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf('123456')));
         signer.PIN_Hash__c = pinHash;
         signer.PIN_Expires_At__c = System.now().addMinutes(10);
         signer.PIN_Attempts__c = null;
@@ -2353,14 +2446,13 @@ private class DocGenSignatureTests {
         );
         Test.stopTest();
         System.assertEquals(false, result.get('success'));
-        System.assert(((String)result.get('message')).contains('does not match'));
+        System.assert(((String) result.get('message')).contains('does not match'));
     }
 
     @isTest
     static void testFetchDocumentData_invalidToken() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('bad-format');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData('bad-format');
         Test.stopTest();
         System.assertEquals(false, res.isValid);
     }
@@ -2368,8 +2460,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testFetchDocumentData_notFoundToken() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('9999999999999999999999999999999999999999999999999999999999999999');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            '9999999999999999999999999999999999999999999999999999999999999999'
+        );
         Test.stopTest();
         System.assertEquals(false, res.isValid);
     }
@@ -2380,15 +2473,17 @@ private class DocGenSignatureTests {
         DocGen_Signature_Request__c req = new DocGen_Signature_Request__c(
             Signer_Name__c = 'No Source',
             Signer_Email__c = 'nosource@test.com',
-            Related_Record_Id__c = [SELECT Id FROM Account LIMIT 1].Id,
+            Related_Record_Id__c = [SELECT Id FROM Account LIMIT 1]
+            .Id,
             Secure_Token__c = 'aabb777777777777777777777777777777777777777777777777777777777777',
             Status__c = 'Sent'
         );
         insert req;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('aabb777777777777777777777777777777777777777777777777777777777777');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'aabb777777777777777777777777777777777777777777777777777777777777'
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, res);
@@ -2421,8 +2516,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('aabb999999999999999999999999999999999999999999999999999999999999');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'aabb999999999999999999999999999999999999999999999999999999999999'
+        );
         Test.stopTest();
 
         // Should fall through to live preview generation, then fallback HTML
@@ -2461,8 +2557,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.fetchDocumentData('ccaa222222222222222222222222222222222222222222222222222222222222');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData(
+            'ccaa222222222222222222222222222222222222222222222222222222222222'
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, res);
@@ -2571,7 +2668,10 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         DocGenSignatureService.StampResult result = DocGenSignatureService.stampSignaturesInXml(
-            docXml, '<Rels/>', '<Types/>', signers
+            docXml,
+            '<Rels/>',
+            '<Types/>',
+            signers
         );
         Test.stopTest();
 
@@ -2583,22 +2683,31 @@ private class DocGenSignatureTests {
         String docXml = '<w:body><w:p><w:r><w:t>{@Signature_Buyer}</w:t></w:r></w:p></w:body>';
         List<DocGenSignatureService.SignerImageData> signers = new List<DocGenSignatureService.SignerImageData>();
         // typedName is null — should not replace placeholder
-        signers.add(new DocGenSignatureService.SignerImageData('Buyer', (String)null, System.now()));
+        signers.add(new DocGenSignatureService.SignerImageData('Buyer', (String) null, System.now()));
 
         Test.startTest();
         DocGenSignatureService.StampResult result = DocGenSignatureService.stampSignaturesInXml(
-            docXml, '<Rels/>', '<Types/>', signers
+            docXml,
+            '<Rels/>',
+            '<Types/>',
+            signers
         );
         Test.stopTest();
 
         // With blank typedName, the if(String.isNotBlank(sd.typedName)) is false
-        System.assert(result.documentXml.contains('{@Signature_Buyer}'), 'Should NOT replace placeholder with null name');
+        System.assert(
+            result.documentXml.contains('{@Signature_Buyer}'),
+            'Should NOT replace placeholder with null name'
+        );
     }
 
     @isTest
     static void testSignerImageData_cvIdConstructor() {
         // Test the 2-param constructor (roleName, contentVersionId)
-        DocGenSignatureService.SignerImageData sid = new DocGenSignatureService.SignerImageData('Manager', '068000000000001AAA');
+        DocGenSignatureService.SignerImageData sid = new DocGenSignatureService.SignerImageData(
+            'Manager',
+            '068000000000001AAA'
+        );
         System.assertEquals('Manager', sid.roleName);
         System.assertEquals('068000000000001AAA', sid.contentVersionId);
         System.assertEquals(null, sid.typedName);
@@ -2620,7 +2729,8 @@ private class DocGenSignatureTests {
 
         List<DocGen_Signer__c> signerList = [
             SELECT Signer_Name__c, Signer_Email__c, Role_Name__c, PIN_Verified_At__c
-            FROM DocGen_Signer__c WHERE Id = :signer.Id
+            FROM DocGen_Signer__c
+            WHERE Id = :signer.Id
         ];
 
         Test.startTest();
@@ -2643,7 +2753,8 @@ private class DocGenSignatureTests {
         DocGen_Signature_Request__c req = getTestRequest();
         List<DocGen_Signer__c> signerList = [
             SELECT Signer_Name__c, Signer_Email__c, Role_Name__c, PIN_Verified_At__c
-            FROM DocGen_Signer__c WHERE Signature_Request__c = :req.Id
+            FROM DocGen_Signer__c
+            WHERE Signature_Request__c = :req.Id
         ];
 
         Test.startTest();
@@ -2770,8 +2881,11 @@ private class DocGenSignatureTests {
         DocGenSignatureSenderController.resendSignatureRequest(req.Id);
         Test.stopTest();
 
-        signer = [SELECT Status__c, PIN_Hash__c, PIN_Attempts__c, PIN_Verified_At__c
-                   FROM DocGen_Signer__c WHERE Id = :signer.Id];
+        signer = [
+            SELECT Status__c, PIN_Hash__c, PIN_Attempts__c, PIN_Verified_At__c
+            FROM DocGen_Signer__c
+            WHERE Id = :signer.Id
+        ];
         System.assertEquals('Pending', signer.Status__c);
         System.assertEquals(null, signer.PIN_Hash__c);
         System.assertEquals(0, signer.PIN_Attempts__c);
@@ -2820,7 +2934,8 @@ private class DocGenSignatureTests {
         Test.startTest();
         try {
             DocGenSignatureSenderController.createTemplateSignerRequest(
-                null, '001000000000000AAA',
+                null,
+                '001000000000000AAA',
                 '[{"signerName":"X","signerEmail":"x@x.com","roleName":"Buyer","contactId":""}]'
             );
             System.assert(false, 'Should have thrown');
@@ -2836,15 +2951,19 @@ private class DocGenSignatureTests {
         insert tmpl;
         Account acc = [SELECT Id FROM Account LIMIT 1];
 
-        String signersJson = '[' +
+        String signersJson =
+            '[' +
             '{"signerName":"Signer A","signerEmail":"a@test.com","roleName":"Buyer","contactId":""},' +
             '{"signerName":"Signer B","signerEmail":"b@test.com","roleName":"Seller","contactId":""}' +
-        ']';
+            ']';
 
         Test.startTest();
         try {
-            List<DocGenSignatureSenderController.SignerResult> results =
-                DocGenSignatureSenderController.createTemplateSignerRequest(tmpl.Id, acc.Id, signersJson);
+            List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createTemplateSignerRequest(
+                tmpl.Id,
+                acc.Id,
+                signersJson
+            );
             System.assertEquals(2, results.size());
         } catch (Exception e) {
             // May fail if mergeTemplateForSignature fails — OK for coverage
@@ -2859,12 +2978,18 @@ private class DocGenSignatureTests {
         Account acc = [SELECT Id FROM Account LIMIT 1];
         Contact con = [SELECT Id FROM Contact LIMIT 1];
 
-        String signersJson = '[{"signerName":"Con Signer","signerEmail":"con@test.com","roleName":"Buyer","contactId":"' + con.Id + '"}]';
+        String signersJson =
+            '[{"signerName":"Con Signer","signerEmail":"con@test.com","roleName":"Buyer","contactId":"' +
+            con.Id +
+            '"}]';
 
         Test.startTest();
         try {
-            List<DocGenSignatureSenderController.SignerResult> results =
-                DocGenSignatureSenderController.createTemplateSignerRequest(tmpl.Id, acc.Id, signersJson);
+            List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createTemplateSignerRequest(
+                tmpl.Id,
+                acc.Id,
+                signersJson
+            );
             System.assertEquals(1, results.size());
         } catch (Exception e) {
             // OK for coverage
@@ -2883,8 +3008,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testGetPendingSignatureRequests_noResults() {
         Test.startTest();
-        List<Map<String, Object>> results =
-            DocGenSignatureSenderController.getPendingSignatureRequests('001000000000000AAA');
+        List<Map<String, Object>> results = DocGenSignatureSenderController.getPendingSignatureRequests(
+            '001000000000000AAA'
+        );
         Test.stopTest();
         System.assertEquals(0, results.size());
     }
@@ -3011,8 +3137,9 @@ private class DocGenSignatureTests {
     static void testSignaturePdfQueueable_execute_notFound() {
         // Non-existent request ID — exercises the early return
         Test.startTest();
-        DocGenSignatureService.SignaturePdfQueueable q =
-            new DocGenSignatureService.SignaturePdfQueueable('a1A000000000000AAA');
+        DocGenSignatureService.SignaturePdfQueueable q = new DocGenSignatureService.SignaturePdfQueueable(
+            'a1A000000000000AAA'
+        );
         q.execute(null);
         Test.stopTest();
         System.assert(true, 'Queueable handled non-existent request without exception');
@@ -3040,8 +3167,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureService.TemplateSignaturePdfQueueable q =
-            new DocGenSignatureService.TemplateSignaturePdfQueueable(req.Id);
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            req.Id
+        );
         q.execute(null);
         Test.stopTest();
         System.assert(true, 'Template queueable handled missing template without exception');
@@ -3050,8 +3178,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testTemplateSignaturePdfQueueable_execute_notFound() {
         Test.startTest();
-        DocGenSignatureService.TemplateSignaturePdfQueueable q =
-            new DocGenSignatureService.TemplateSignaturePdfQueueable('a1A000000000000AAA');
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            'a1A000000000000AAA'
+        );
         q.execute(null);
         Test.stopTest();
         System.assert(true, 'Template queueable handled non-existent request without exception');
@@ -3081,8 +3210,9 @@ private class DocGenSignatureTests {
         insert signer;
 
         Test.startTest();
-        DocGenSignatureService.TemplateSignaturePdfQueueable q =
-            new DocGenSignatureService.TemplateSignaturePdfQueueable(req.Id);
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            req.Id
+        );
         q.execute(null);
         Test.stopTest();
         System.assert(true, 'Template queueable handled null related record without exception');
@@ -3122,8 +3252,9 @@ private class DocGenSignatureTests {
         insert audit;
 
         Test.startTest();
-        DocGenSignatureService.TemplateSignaturePdfQueueable q =
-            new DocGenSignatureService.TemplateSignaturePdfQueueable(req.Id);
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            req.Id
+        );
         q.execute(null);
         Test.stopTest();
         System.assert(true, 'Template queueable with audit records executed without exception');
@@ -3192,7 +3323,10 @@ private class DocGenSignatureTests {
 
     @isTest
     static void testSignerImageData_constructorWithCvId2() {
-        DocGenSignatureService.SignerImageData sid = new DocGenSignatureService.SignerImageData('Buyer', '068000000000001AAA');
+        DocGenSignatureService.SignerImageData sid = new DocGenSignatureService.SignerImageData(
+            'Buyer',
+            '068000000000001AAA'
+        );
         System.assertEquals('Buyer', sid.roleName);
         System.assertEquals('068000000000001AAA', sid.contentVersionId);
     }
@@ -3281,11 +3415,14 @@ private class DocGenSignatureTests {
     static void testExtractDocxParts_validDocxWithImages() {
         Compression.ZipWriter zw = new Compression.ZipWriter();
         zw.addEntry('word/document.xml', Blob.valueOf('<w:document><w:body/></w:document>'));
-        zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>' +
-            '</Relationships>'
-        ));
+        zw.addEntry(
+            'word/_rels/document.xml.rels',
+            Blob.valueOf(
+                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/>' +
+                    '</Relationships>'
+            )
+        );
         zw.addEntry('word/media/image1.png', Blob.valueOf('PNG_FAKE'));
 
         Test.startTest();
@@ -3300,13 +3437,19 @@ private class DocGenSignatureTests {
     @isTest
     static void testConvertStampedDocxToHtml_validDocxContent() {
         Compression.ZipWriter zw = new Compression.ZipWriter();
-        zw.addEntry('word/document.xml', Blob.valueOf(
-            '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
-            '<w:body><w:p><w:r><w:t>Hello World</w:t></w:r></w:p></w:body></w:document>'
-        ));
-        zw.addEntry('word/_rels/document.xml.rels', Blob.valueOf(
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-        ));
+        zw.addEntry(
+            'word/document.xml',
+            Blob.valueOf(
+                '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                '<w:body><w:p><w:r><w:t>Hello World</w:t></w:r></w:p></w:body></w:document>'
+            )
+        );
+        zw.addEntry(
+            'word/_rels/document.xml.rels',
+            Blob.valueOf(
+                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+            )
+        );
 
         Test.startTest();
         String html = DocGenSignatureController.convertStampedDocxToHtml(zw.getArchive());
@@ -3346,14 +3489,13 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         // Token is valid, PIN verified, consent given — this should succeed
-        DocGenSignatureController.SaveSignatureResult result =
-            DocGenSignatureController.saveSignature(
-                'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
-                'New Signer Name',
-                true,
-                '10.0.0.1',
-                'TestBrowser/1.0'
-            );
+        DocGenSignatureController.SaveSignatureResult result = DocGenSignatureController.saveSignature(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
+            'New Signer Name',
+            true,
+            '10.0.0.1',
+            'TestBrowser/1.0'
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, result, 'Result should not be null');
@@ -3372,8 +3514,9 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res =
-            DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken(
+            'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5'
+        );
         Test.stopTest();
 
         System.assertEquals(false, res.isValid, 'Should be invalid when parent request is Signed');
@@ -3471,7 +3614,11 @@ private class DocGenSignatureTests {
         plc.Signed_At__c = System.now();
         update plc;
 
-        DocGen_Signature_Placement__c result = [SELECT Status__c, Signed_Value__c FROM DocGen_Signature_Placement__c WHERE Id = :plc.Id];
+        DocGen_Signature_Placement__c result = [
+            SELECT Status__c, Signed_Value__c
+            FROM DocGen_Signature_Placement__c
+            WHERE Id = :plc.Id
+        ];
         System.assertEquals('Signed', result.Status__c);
         System.assertEquals('Test Name', result.Signed_Value__c);
     }
@@ -3480,8 +3627,9 @@ private class DocGenSignatureTests {
     static void testParseSignaturePlacements_v3Syntax() {
         String text = 'Hello {@Signature_Buyer:1:Initials} world {@Signature_Buyer:2:Full} end {@Signature_Seller:1:Date}';
         Test.startTest();
-        List<DocGenSignatureSenderController.PlacementInfo> placements =
-            DocGenSignatureSenderController.parseSignaturePlacements(text);
+        List<DocGenSignatureSenderController.PlacementInfo> placements = DocGenSignatureSenderController.parseSignaturePlacements(
+            text
+        );
         Test.stopTest();
 
         System.assertEquals(3, placements.size(), 'Should find 3 placements');
@@ -3503,8 +3651,9 @@ private class DocGenSignatureTests {
     static void testParseSignaturePlacements_v2Compat() {
         String text = 'Sign here: {@Signature_Buyer} and here: {@Signature_Seller}';
         Test.startTest();
-        List<DocGenSignatureSenderController.PlacementInfo> placements =
-            DocGenSignatureSenderController.parseSignaturePlacements(text);
+        List<DocGenSignatureSenderController.PlacementInfo> placements = DocGenSignatureSenderController.parseSignaturePlacements(
+            text
+        );
         Test.stopTest();
 
         System.assertEquals(2, placements.size(), 'Should find 2 placements');
@@ -3517,8 +3666,9 @@ private class DocGenSignatureTests {
     static void testParseSignaturePlacements_genericFallback() {
         String text = 'Sign here: {@Signature}';
         Test.startTest();
-        List<DocGenSignatureSenderController.PlacementInfo> placements =
-            DocGenSignatureSenderController.parseSignaturePlacements(text);
+        List<DocGenSignatureSenderController.PlacementInfo> placements = DocGenSignatureSenderController.parseSignaturePlacements(
+            text
+        );
         Test.stopTest();
 
         System.assertEquals(1, placements.size());
@@ -3529,8 +3679,9 @@ private class DocGenSignatureTests {
     static void testParseSignaturePlacements_multiWordRole() {
         String text = '{@Signature_Loan_Officer:1:Full}';
         Test.startTest();
-        List<DocGenSignatureSenderController.PlacementInfo> placements =
-            DocGenSignatureSenderController.parseSignaturePlacements(text);
+        List<DocGenSignatureSenderController.PlacementInfo> placements = DocGenSignatureSenderController.parseSignaturePlacements(
+            text
+        );
         Test.stopTest();
 
         System.assertEquals(1, placements.size());
@@ -3559,39 +3710,66 @@ private class DocGenSignatureTests {
 
         // Test stamping with placements
         List<DocGen_Signature_Placement__c> placements = new List<DocGen_Signature_Placement__c>();
-        placements.add(new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Placement_Type__c = 'Full', Status__c = 'Signed',
-            Signed_Value__c = 'Alice Johnson', Signed_At__c = System.now(),
-            Tag_Text__c = '{@Signature_Signer:1:Full}'
-        ));
-        placements.add(new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Placement_Type__c = 'Initials', Status__c = 'Signed',
-            Signed_Value__c = 'A.J.', Signed_At__c = System.now(),
-            Tag_Text__c = '{@Signature_Signer:2:Initials}'
-        ));
-        placements.add(new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Placement_Type__c = 'Date', Status__c = 'Signed',
-            Signed_At__c = System.now(),
-            Tag_Text__c = '{@Signature_Signer:3:Date}'
-        ));
+        placements.add(
+            new DocGen_Signature_Placement__c(
+                Signer__c = signer.Id,
+                Signature_Request__c = req.Id,
+                Placement_Type__c = 'Full',
+                Status__c = 'Signed',
+                Signed_Value__c = 'Alice Johnson',
+                Signed_At__c = System.now(),
+                Tag_Text__c = '{@Signature_Signer:1:Full}'
+            )
+        );
+        placements.add(
+            new DocGen_Signature_Placement__c(
+                Signer__c = signer.Id,
+                Signature_Request__c = req.Id,
+                Placement_Type__c = 'Initials',
+                Status__c = 'Signed',
+                Signed_Value__c = 'A.J.',
+                Signed_At__c = System.now(),
+                Tag_Text__c = '{@Signature_Signer:2:Initials}'
+            )
+        );
+        placements.add(
+            new DocGen_Signature_Placement__c(
+                Signer__c = signer.Id,
+                Signature_Request__c = req.Id,
+                Placement_Type__c = 'Date',
+                Status__c = 'Signed',
+                Signed_At__c = System.now(),
+                Tag_Text__c = '{@Signature_Signer:3:Date}'
+            )
+        );
         insert placements;
 
         String xml = '<w:t>{@Signature_Signer:1:Full}</w:t><w:t>{@Signature_Signer:2:Initials}</w:t><w:t>{@Signature_Signer:3:Date}</w:t>';
 
         Test.startTest();
         DocGenSignatureService.StampResult result = DocGenSignatureService.stampSignaturesInXml(
-            xml, '<rels/>', '<types/>', new List<DocGenSignatureService.SignerImageData>(), placements
+            xml,
+            '<rels/>',
+            '<types/>',
+            new List<DocGenSignatureService.SignerImageData>(),
+            placements
         );
         Test.stopTest();
 
-        System.assert(!result.documentXml.contains('{@Signature_Signer:1:Full}'), 'Full placeholder should be replaced');
+        System.assert(
+            !result.documentXml.contains('{@Signature_Signer:1:Full}'),
+            'Full placeholder should be replaced'
+        );
         System.assert(result.documentXml.contains('Alice Johnson'), 'Should contain typed name');
-        System.assert(!result.documentXml.contains('{@Signature_Signer:2:Initials}'), 'Initials placeholder should be replaced');
+        System.assert(
+            !result.documentXml.contains('{@Signature_Signer:2:Initials}'),
+            'Initials placeholder should be replaced'
+        );
         System.assert(result.documentXml.contains('A.J.'), 'Should contain initials');
-        System.assert(!result.documentXml.contains('{@Signature_Signer:3:Date}'), 'Date placeholder should be replaced');
+        System.assert(
+            !result.documentXml.contains('{@Signature_Signer:3:Date}'),
+            'Date placeholder should be replaced'
+        );
     }
 
     // =========================================================================
@@ -3605,19 +3783,29 @@ private class DocGenSignatureTests {
 
         // Create placements
         List<DocGen_Signature_Placement__c> plcs = new List<DocGen_Signature_Placement__c>();
-        plcs.add(new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 1,
-            Placement_Type__c = 'Full', Status__c = 'Pending',
-            Tag_Text__c = '{@Signature_Signer:1:Full}',
-            Section_Context__c = 'Section 1'
-        ));
-        plcs.add(new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 2,
-            Placement_Type__c = 'Initials', Status__c = 'Pending',
-            Tag_Text__c = '{@Signature_Signer:2:Initials}'
-        ));
+        plcs.add(
+            new DocGen_Signature_Placement__c(
+                Signer__c = signer.Id,
+                Signature_Request__c = req.Id,
+                Document_Index__c = 0,
+                Sequence_Order__c = 1,
+                Placement_Type__c = 'Full',
+                Status__c = 'Pending',
+                Tag_Text__c = '{@Signature_Signer:1:Full}',
+                Section_Context__c = 'Section 1'
+            )
+        );
+        plcs.add(
+            new DocGen_Signature_Placement__c(
+                Signer__c = signer.Id,
+                Signature_Request__c = req.Id,
+                Document_Index__c = 0,
+                Sequence_Order__c = 2,
+                Placement_Type__c = 'Initials',
+                Status__c = 'Pending',
+                Tag_Text__c = '{@Signature_Signer:2:Initials}'
+            )
+        );
         insert plcs;
 
         String signerToken = [SELECT Secure_Token__c FROM DocGen_Signer__c WHERE Id = :signer.Id].Secure_Token__c;
@@ -3654,9 +3842,12 @@ private class DocGenSignatureTests {
         update signer;
 
         DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 1,
-            Placement_Type__c = 'Full', Status__c = 'Pending',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Document_Index__c = 0,
+            Sequence_Order__c = 1,
+            Placement_Type__c = 'Full',
+            Status__c = 'Pending',
             Tag_Text__c = '{@Signature_Signer:1:Full}'
         );
         insert plc;
@@ -3664,7 +3855,11 @@ private class DocGenSignatureTests {
         String signerToken = [SELECT Secure_Token__c FROM DocGen_Signer__c WHERE Id = :signer.Id].Secure_Token__c;
 
         Test.startTest();
-        List<Map<String, Object>> result = DocGenSignatureController.signPlacement(signerToken, plc.Id, 'Alice Johnson');
+        List<Map<String, Object>> result = DocGenSignatureController.signPlacement(
+            signerToken,
+            plc.Id,
+            'Alice Johnson'
+        );
         Test.stopTest();
 
         System.assertEquals(1, result.size());
@@ -3680,9 +3875,12 @@ private class DocGenSignatureTests {
         update signer;
 
         DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 1,
-            Placement_Type__c = 'Date', Status__c = 'Pending',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Document_Index__c = 0,
+            Sequence_Order__c = 1,
+            Placement_Type__c = 'Date',
+            Status__c = 'Pending',
             Tag_Text__c = '{@Signature_Signer:1:Date}'
         );
         insert plc;
@@ -3704,9 +3902,12 @@ private class DocGenSignatureTests {
         // PIN NOT verified
 
         DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 1,
-            Placement_Type__c = 'Full', Status__c = 'Pending',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Document_Index__c = 0,
+            Sequence_Order__c = 1,
+            Placement_Type__c = 'Full',
+            Status__c = 'Pending',
             Tag_Text__c = '{@Signature_Signer:1:Full}'
         );
         insert plc;
@@ -3730,9 +3931,12 @@ private class DocGenSignatureTests {
         update signer;
 
         DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 1,
-            Placement_Type__c = 'Full', Status__c = 'Signed',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Document_Index__c = 0,
+            Sequence_Order__c = 1,
+            Placement_Type__c = 'Full',
+            Status__c = 'Signed',
             Signed_Value__c = 'Already Done',
             Tag_Text__c = '{@Signature_Signer:1:Full}'
         );
@@ -3810,7 +4014,12 @@ private class DocGenSignatureTests {
         String signerToken = [SELECT Secure_Token__c FROM DocGen_Signer__c WHERE Id = :signer.Id].Secure_Token__c;
 
         Test.startTest();
-        Map<String, Object> result = DocGenSignatureController.declineSignature(signerToken, 'Not agreed with terms', '203.0.113.7', 'TestAgent/1.0');
+        Map<String, Object> result = DocGenSignatureController.declineSignature(
+            signerToken,
+            'Not agreed with terms',
+            '203.0.113.7',
+            'TestAgent/1.0'
+        );
         Test.stopTest();
 
         System.assertEquals(true, result.get('success'));
@@ -3820,8 +4029,13 @@ private class DocGenSignatureTests {
 
         // Verify the supplied IP + UA actually landed on the audit row.
         // resolveClientIp() should have accepted '203.0.113.7' as valid IPv4.
-        DocGen_Signature_Audit__c au = [SELECT IP_Address__c, User_Agent__c FROM DocGen_Signature_Audit__c
-                                        WHERE Signer__c = :signer.Id ORDER BY CreatedDate DESC LIMIT 1];
+        DocGen_Signature_Audit__c au = [
+            SELECT IP_Address__c, User_Agent__c
+            FROM DocGen_Signature_Audit__c
+            WHERE Signer__c = :signer.Id
+            ORDER BY CreatedDate DESC
+            LIMIT 1
+        ];
         System.assertEquals('203.0.113.7', au.IP_Address__c, 'Client-supplied IP should win over header inspection');
         System.assertEquals('TestAgent/1.0', au.User_Agent__c, 'Client-supplied User-Agent should be persisted');
     }
@@ -3834,8 +4048,8 @@ private class DocGenSignatureTests {
         System.assertEquals('Unknown', DocGenSignatureController.resolveClientIp(''));
         System.assertEquals('Unknown', DocGenSignatureController.resolveClientIp(null));
         // Valid IPv4 + IPv6 should round-trip cleanly.
-        System.assertEquals('192.0.2.42',           DocGenSignatureController.resolveClientIp('  192.0.2.42  '));
-        System.assertEquals('2001:db8::1',          DocGenSignatureController.resolveClientIp('2001:db8::1'));
+        System.assertEquals('192.0.2.42', DocGenSignatureController.resolveClientIp('  192.0.2.42  '));
+        System.assertEquals('2001:db8::1', DocGenSignatureController.resolveClientIp('2001:db8::1'));
     }
 
     @isTest
@@ -3906,20 +4120,40 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         // Exercise all email paths including the new overload with requestId
-        try { DocGenSignatureEmailService.sendSignerCompletedNotification(req.Id, signer); } catch (Exception e) { /* expected in test */ }
-        try { DocGenSignatureEmailService.sendAllSignedNotification(req.Id); } catch (Exception e) { /* expected in test */ }
-        try { DocGenSignatureEmailService.sendDeclineNotification(req.Id, signer, 'Test reason'); } catch (Exception e) { /* expected in test */ }
+        try {
+            DocGenSignatureEmailService.sendSignerCompletedNotification(req.Id, signer);
+        } catch (Exception e) {
+            /* expected in test */
+        }
+        try {
+            DocGenSignatureEmailService.sendAllSignedNotification(req.Id);
+        } catch (Exception e) {
+            /* expected in test */
+        }
+        try {
+            DocGenSignatureEmailService.sendDeclineNotification(req.Id, signer, 'Test reason');
+        } catch (Exception e) {
+            /* expected in test */
+        }
 
         // Exercise the sendSignatureRequestEmails with requestId overload (covers updateEmailStatus)
         try {
             List<DocGenSignatureEmailService.SignerEmail> testSigners = new List<DocGenSignatureEmailService.SignerEmail>();
-            testSigners.add(new DocGenSignatureEmailService.SignerEmail('Test', 'test@test.com', 'Buyer', 'https://test.com', null));
+            testSigners.add(
+                new DocGenSignatureEmailService.SignerEmail('Test', 'test@test.com', 'Buyer', 'https://test.com', null)
+            );
             DocGenSignatureEmailService.sendSignatureRequestEmails(testSigners, 'Test Doc', req.Id);
-        } catch (Exception e) { /* expected — no OWA in test */ }
+        } catch (Exception e) {
+            /* expected — no OWA in test */
+        }
         Test.stopTest();
 
         // Verify Email_Status__c was updated on the request
-        DocGen_Signature_Request__c updated = [SELECT Email_Status__c FROM DocGen_Signature_Request__c WHERE Id = :req.Id];
+        DocGen_Signature_Request__c updated = [
+            SELECT Email_Status__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :req.Id
+        ];
         // Status will show either "Sent" or "not sent — no OWA" depending on test org config
         // Either way, the field should not be null (proves updateEmailStatus was called)
     }
@@ -3936,12 +4170,18 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         List<DocGenSignatureEmailService.SignerEmail> signers = new List<DocGenSignatureEmailService.SignerEmail>();
-        signers.add(new DocGenSignatureEmailService.SignerEmail('Test', 'test@test.com', 'Buyer', 'https://test.com', null));
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail('Test', 'test@test.com', 'Buyer', 'https://test.com', null)
+        );
         DocGenSignatureEmailService.sendSignatureRequestEmails(signers, 'Test Doc', req.Id);
         Test.stopTest();
 
         // No OWA configured → method records the reason and returns without calling sendEmail.
-        DocGen_Signature_Request__c updated = [SELECT Email_Status__c FROM DocGen_Signature_Request__c WHERE Id = :req.Id];
+        DocGen_Signature_Request__c updated = [
+            SELECT Email_Status__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :req.Id
+        ];
         System.assertNotEquals(null, updated.Email_Status__c, 'Email status should be set');
         System.assert(
             updated.Email_Status__c.contains('no Org-Wide Email Address'),
@@ -3968,12 +4208,36 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         List<DocGenSignatureEmailService.SignerEmail> signers = new List<DocGenSignatureEmailService.SignerEmail>();
-        signers.add(new DocGenSignatureEmailService.SignerEmail('Test Signer', 'test@example.com', 'Buyer', 'https://test.com/sign', null));
-        signers.add(new DocGenSignatureEmailService.SignerEmail('Test Signer 2', 'test2@example.com', 'Seller', 'https://test.com/sign2', null));
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail(
+                'Test Signer',
+                'test@example.com',
+                'Buyer',
+                'https://test.com/sign',
+                null
+            )
+        );
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail(
+                'Test Signer 2',
+                'test2@example.com',
+                'Seller',
+                'https://test.com/sign2',
+                null
+            )
+        );
         // Contact path variant for coverage of setTargetObjectId branch
-        Contact c = new Contact(FirstName='Test', LastName='Contact', Email='tc@example.com');
+        Contact c = new Contact(FirstName = 'Test', LastName = 'Contact', Email = 'tc@example.com');
         insert c;
-        signers.add(new DocGenSignatureEmailService.SignerEmail('Test Contact', 'tc@example.com', 'Witness', 'https://test.com/sign3', c.Id));
+        signers.add(
+            new DocGenSignatureEmailService.SignerEmail(
+                'Test Contact',
+                'tc@example.com',
+                'Witness',
+                'https://test.com/sign3',
+                c.Id
+            )
+        );
         try {
             DocGenSignatureEmailService.sendSignatureRequestEmails(signers, 'Test Agreement', req.Id);
         } catch (Exception e) {
@@ -3982,7 +4246,11 @@ private class DocGenSignatureTests {
         }
         Test.stopTest();
 
-        DocGen_Signature_Request__c updated = [SELECT Email_Status__c FROM DocGen_Signature_Request__c WHERE Id = :req.Id];
+        DocGen_Signature_Request__c updated = [
+            SELECT Email_Status__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :req.Id
+        ];
         System.assertNotEquals(null, updated.Email_Status__c, 'Email status should be set');
         System.assert(Limits.getEmailInvocations() >= beforeSends, 'Email path exercised');
     }
@@ -4003,9 +4271,7 @@ private class DocGenSignatureTests {
         // Full integration test requires template + version setup which is in e2e-06
         Boolean threw = false;
         try {
-            DocGenSignatureSenderController.createTemplateSignerRequestWithOrder(
-                null, null, '[]', 'Sequential'
-            );
+            DocGenSignatureSenderController.createTemplateSignerRequestWithOrder(null, null, '[]', 'Sequential');
         } catch (Exception e) {
             threw = true;
         }
@@ -4022,7 +4288,10 @@ private class DocGenSignatureTests {
         Boolean threw = false;
         try {
             DocGenSignatureSenderController.createPacketSignerRequest(
-                '["bogusId000000000A"]', 'bogusRecordId', '[]', 'Parallel'
+                '["bogusId000000000A"]',
+                'bogusRecordId',
+                '[]',
+                'Parallel'
             );
         } catch (Exception e) {
             threw = true;
@@ -4034,9 +4303,7 @@ private class DocGenSignatureTests {
     static void testCreatePacketSignerRequest_emptyTemplates() {
         Boolean threw = false;
         try {
-            DocGenSignatureSenderController.createPacketSignerRequest(
-                '[]', 'bogusId', '[]', 'Parallel'
-            );
+            DocGenSignatureSenderController.createPacketSignerRequest('[]', 'bogusId', '[]', 'Parallel');
         } catch (Exception e) {
             threw = true;
         }
@@ -4049,9 +4316,12 @@ private class DocGenSignatureTests {
         DocGen_Signature_Request__c req = getTestRequest();
 
         DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Placement_Type__c = 'DatePick', Status__c = 'Signed',
-            Signed_Value__c = '2026-05-15', Signed_At__c = System.now(),
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Placement_Type__c = 'DatePick',
+            Status__c = 'Signed',
+            Signed_Value__c = '2026-05-15',
+            Signed_At__c = System.now(),
             Tag_Text__c = '{@Signature_Signer:1:DatePick}'
         );
         insert plc;
@@ -4059,7 +4329,10 @@ private class DocGenSignatureTests {
         String xml = '<w:t>{@Signature_Signer:1:DatePick}</w:t>';
         Test.startTest();
         DocGenSignatureService.StampResult result = DocGenSignatureService.stampSignaturesInXml(
-            xml, '<rels/>', '<types/>', new List<DocGenSignatureService.SignerImageData>(),
+            xml,
+            '<rels/>',
+            '<types/>',
+            new List<DocGenSignatureService.SignerImageData>(),
             new List<DocGen_Signature_Placement__c>{ plc }
         );
         Test.stopTest();
@@ -4099,7 +4372,11 @@ private class DocGenSignatureTests {
         upsert s;
 
         DocGen_Signer__c signer = getTestSigner();
-        DocGen_Signature_Request__c req = [SELECT Id, Status__c FROM DocGen_Signature_Request__c WHERE Id = :signer.Signature_Request__c];
+        DocGen_Signature_Request__c req = [
+            SELECT Id, Status__c
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :signer.Signature_Request__c
+        ];
         req.Status__c = 'Sent';
         update req;
 
@@ -4144,7 +4421,10 @@ private class DocGenSignatureTests {
     static void testDeclineSignature_expiredToken() {
         // Create a signer, then try to decline with bad token
         Map<String, Object> result = DocGenSignatureController.declineSignature(
-            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'reason', null, null
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            'reason',
+            null,
+            null
         );
         System.assertEquals(false, result.get('success'));
     }
@@ -4211,8 +4491,9 @@ private class DocGenSignatureTests {
     @isTest
     static void testExtractTemplatePlainText_noTemplate() {
         Test.startTest();
-        List<DocGenSignatureSenderController.PlacementInfo> result =
-            DocGenSignatureSenderController.getTemplateSignaturePlacements(null);
+        List<DocGenSignatureSenderController.PlacementInfo> result = DocGenSignatureSenderController.getTemplateSignaturePlacements(
+            null
+        );
         Test.stopTest();
         System.assert(result.isEmpty());
     }
@@ -4302,21 +4583,26 @@ private class DocGenSignatureTests {
         signerRaw.PIN_Verified_At__c = System.now();
         update signerRaw;
         // Re-query with all fields needed by buildVerificationBlockHtml
-        DocGen_Signer__c signer = [SELECT Id, Signer_Name__c, Signer_Email__c, Role_Name__c, PIN_Verified_At__c FROM DocGen_Signer__c WHERE Id = :signerRaw.Id];
+        DocGen_Signer__c signer = [
+            SELECT Id, Signer_Name__c, Signer_Email__c, Role_Name__c, PIN_Verified_At__c
+            FROM DocGen_Signer__c
+            WHERE Id = :signerRaw.Id
+        ];
 
         // Create audit with IP
         DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c(
-            Signature_Request__c = req.Id, Signer__c = signer.Id,
-            Signer_Name__c = 'Test', Signer_Email__c = 'test@test.com',
-            IP_Address__c = '192.168.1.1', Consent_Captured__c = true,
+            Signature_Request__c = req.Id,
+            Signer__c = signer.Id,
+            Signer_Name__c = 'Test',
+            Signer_Email__c = 'test@test.com',
+            IP_Address__c = '192.168.1.1',
+            Consent_Captured__c = true,
             Signed_Date__c = System.now()
         );
         insert audit;
 
         Test.startTest();
-        String html = DocGenSignatureService.buildVerificationBlockHtml(
-            req.Id, new List<DocGen_Signer__c>{ signer }
-        );
+        String html = DocGenSignatureService.buildVerificationBlockHtml(req.Id, new List<DocGen_Signer__c>{ signer });
         Test.stopTest();
 
         System.assert(html.contains('ELECTRONIC SIGNATURE CERTIFICATE'), 'Should have certificate header');
@@ -4329,8 +4615,10 @@ private class DocGenSignatureTests {
         DocGen_Signature_Request__c req = getTestRequest();
 
         DocGen_Signature_Placement__c plc = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Placement_Type__c = 'Date', Status__c = 'Signed',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Placement_Type__c = 'Date',
+            Status__c = 'Signed',
             Signed_At__c = System.now(),
             Tag_Text__c = '{@Signature_Signer:1:Date}'
         );
@@ -4339,7 +4627,10 @@ private class DocGenSignatureTests {
         String xml = '<w:t>{@Signature_Signer:1:Date}</w:t>';
         Test.startTest();
         DocGenSignatureService.StampResult result = DocGenSignatureService.stampSignaturesInXml(
-            xml, '<rels/>', '<types/>', new List<DocGenSignatureService.SignerImageData>(),
+            xml,
+            '<rels/>',
+            '<types/>',
+            new List<DocGenSignatureService.SignerImageData>(),
             new List<DocGen_Signature_Placement__c>{ plc }
         );
         Test.stopTest();
@@ -4406,16 +4697,19 @@ private class DocGenSignatureTests {
         Integer signersBefore = [SELECT COUNT() FROM DocGen_Signer__c];
         Integer requestsBefore = [SELECT COUNT() FROM DocGen_Signature_Request__c];
 
-        String signersJson = '[' +
+        String signersJson =
+            '[' +
             '{"roleName":"Buyer","signerName":"Alice Buyer","signerEmail":"alice@test.com","contactId":null},' +
             '{"roleName":"Seller","signerName":"Bob Seller","signerEmail":"bob@test.com","contactId":null}' +
-        ']';
+            ']';
 
         Test.startTest();
-        List<DocGenSignatureSenderController.SignerResult> results =
-            DocGenSignatureSenderController.createTemplateSignerRequestWithOrder(
-                tpl.Id, acc.Id, signersJson, 'Sequential'
-            );
+        List<DocGenSignatureSenderController.SignerResult> results = DocGenSignatureSenderController.createTemplateSignerRequestWithOrder(
+            tpl.Id,
+            acc.Id,
+            signersJson,
+            'Sequential'
+        );
         Test.stopTest();
 
         // Returned SignerResult list shape
@@ -4426,20 +4720,27 @@ private class DocGenSignatureTests {
         System.assert(results[0].signerUrl.contains('DocGenSignature'), 'Signing URL routes to VF signing page');
 
         // Request record was persisted with signing order
-        System.assertEquals(requestsBefore + 1, [SELECT COUNT() FROM DocGen_Signature_Request__c],
-            'Exactly one new signature request created');
+        System.assertEquals(
+            requestsBefore + 1,
+            [SELECT COUNT() FROM DocGen_Signature_Request__c],
+            'Exactly one new signature request created'
+        );
         DocGen_Signature_Request__c newReq = [
             SELECT Id, Status__c, Signing_Order__c, Template__c, Related_Record_Id__c
             FROM DocGen_Signature_Request__c
             WHERE Template__c = :tpl.Id AND Related_Record_Id__c = :acc.Id
-            ORDER BY CreatedDate DESC LIMIT 1
+            ORDER BY CreatedDate DESC
+            LIMIT 1
         ];
         System.assertEquals('Sent', newReq.Status__c, 'New request is Sent');
         System.assertEquals('Sequential', newReq.Signing_Order__c, 'Signing order persisted');
 
         // Signer records persisted with expected roles + tokens
-        System.assertEquals(signersBefore + 2, [SELECT COUNT() FROM DocGen_Signer__c],
-            'Exactly two new signers created');
+        System.assertEquals(
+            signersBefore + 2,
+            [SELECT COUNT() FROM DocGen_Signer__c],
+            'Exactly two new signers created'
+        );
         List<DocGen_Signer__c> newSigners = [
             SELECT Role_Name__c, Signer_Email__c, Status__c, Sort_Order__c, Secure_Token__c
             FROM DocGen_Signer__c
@@ -4464,15 +4765,21 @@ private class DocGenSignatureTests {
         DocGen_Signer__c signer = getTestSigner();
 
         DocGen_Signature_Placement__c plc1 = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 1,
-            Placement_Type__c = 'Full', Status__c = 'Pending',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Document_Index__c = 0,
+            Sequence_Order__c = 1,
+            Placement_Type__c = 'Full',
+            Status__c = 'Pending',
             Tag_Text__c = '{@Signature_Buyer:1:Full}'
         );
         DocGen_Signature_Placement__c plc2 = new DocGen_Signature_Placement__c(
-            Signer__c = signer.Id, Signature_Request__c = req.Id,
-            Document_Index__c = 0, Sequence_Order__c = 2,
-            Placement_Type__c = 'Initials', Status__c = 'Pending',
+            Signer__c = signer.Id,
+            Signature_Request__c = req.Id,
+            Document_Index__c = 0,
+            Sequence_Order__c = 2,
+            Placement_Type__c = 'Initials',
+            Status__c = 'Pending',
             Tag_Text__c = '{@Signature_Buyer:2:Initials}'
         );
         insert new List<DocGen_Signature_Placement__c>{ plc1, plc2 };
@@ -4497,12 +4804,15 @@ private class DocGenSignatureTests {
         ];
 
         // Stamp both placements into a merged XML document
-        String xml = '<w:body>' +
+        String xml =
+            '<w:body>' +
             '<w:p><w:r><w:t>{@Signature_Buyer:1:Full}</w:t></w:r></w:p>' +
             '<w:p><w:r><w:t>{@Signature_Buyer:2:Initials}</w:t></w:r></w:p>' +
             '</w:body>';
         DocGenSignatureService.StampResult stamped = DocGenSignatureService.stampSignaturesInXml(
-            xml, '<Rels/>', '<Types/>',
+            xml,
+            '<Rels/>',
+            '<Types/>',
             new List<DocGenSignatureService.SignerImageData>(),
             signed
         );
@@ -4518,16 +4828,17 @@ private class DocGenSignatureTests {
         System.assertEquals('JD', signed[1].Signed_Value__c, 'Initials value persisted');
 
         // Stamped XML — tags gone, values present
-        System.assert(!stamped.documentXml.contains('{@Signature_Buyer:1:Full}'),
-            'Full tag replaced');
-        System.assert(!stamped.documentXml.contains('{@Signature_Buyer:2:Initials}'),
-            'Initials tag replaced');
-        System.assert(stamped.documentXml.contains('Jane Doe'),
-            'Full signature value rendered: ' + stamped.documentXml);
-        System.assert(stamped.documentXml.contains('Electronically signed by'),
-            'Full placement renders signing attribution');
-        System.assert(stamped.documentXml.contains('JD'),
-            'Initials value rendered');
+        System.assert(!stamped.documentXml.contains('{@Signature_Buyer:1:Full}'), 'Full tag replaced');
+        System.assert(!stamped.documentXml.contains('{@Signature_Buyer:2:Initials}'), 'Initials tag replaced');
+        System.assert(
+            stamped.documentXml.contains('Jane Doe'),
+            'Full signature value rendered: ' + stamped.documentXml
+        );
+        System.assert(
+            stamped.documentXml.contains('Electronically signed by'),
+            'Full placement renders signing attribution'
+        );
+        System.assert(stamped.documentXml.contains('JD'), 'Initials value rendered');
     }
 
     @isTest
@@ -4540,7 +4851,8 @@ private class DocGenSignatureTests {
 
         // Simulate the template-save pipeline: pre-decompose document.xml into the
         // docgen_tmpl_xml_<versionId>_<path> ContentVersion that getTemplateSignaturePlacements reads.
-        String sigDocXml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String sigDocXml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body>' +
             '<w:p><w:r><w:t>Buyer Signature: {@Signature_Buyer}</w:t></w:r></w:p>' +
@@ -4554,21 +4866,27 @@ private class DocGenSignatureTests {
         insert xmlCv;
 
         Test.startTest();
-        List<DocGenSignatureSenderController.PlacementInfo> placements =
-            DocGenSignatureSenderController.getTemplateSignaturePlacements(tpl.Id);
+        List<DocGenSignatureSenderController.PlacementInfo> placements = DocGenSignatureSenderController.getTemplateSignaturePlacements(
+            tpl.Id
+        );
         Test.stopTest();
 
         System.assertNotEquals(null, placements, 'Method must not return null');
-        System.assertEquals(2, placements.size(),
-            'Template should yield two placements: one bare v2 tag and one v3 tag');
+        System.assertEquals(
+            2,
+            placements.size(),
+            'Template should yield two placements: one bare v2 tag and one v3 tag'
+        );
 
         // Results are sorted by sequence — both have sequence=1, so order follows first-found.
         // Find each placement by role to avoid relying on traversal order.
         DocGenSignatureSenderController.PlacementInfo buyer;
         DocGenSignatureSenderController.PlacementInfo seller;
         for (DocGenSignatureSenderController.PlacementInfo p : placements) {
-            if (p.role == 'Buyer') buyer = p;
-            if (p.role == 'Seller') seller = p;
+            if (p.role == 'Buyer')
+                buyer = p;
+            if (p.role == 'Seller')
+                seller = p;
         }
         System.assertNotEquals(null, buyer, 'Buyer placement parsed');
         System.assertEquals(1, buyer.sequence, 'Bare v2 tag defaults sequence=1');
@@ -4734,15 +5052,16 @@ private class DocGenSignatureTests {
 
     @isTest
     static void testExtractTableStyleBorderMap_happyPath() {
-        String styles = '<w:styles>'
-            + '<w:style w:type="table" w:styleId="TableGrid">'
-            + '<w:tblPr><w:tblBorders>'
-            + '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
-            + '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>'
-            + '</w:tblBorders></w:tblPr>'
-            + '</w:style>'
-            + '<w:style w:type="table" w:styleId="PlainTable"></w:style>'
-            + '</w:styles>';
+        String styles =
+            '<w:styles>' +
+            '<w:style w:type="table" w:styleId="TableGrid">' +
+            '<w:tblPr><w:tblBorders>' +
+            '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '</w:tblBorders></w:tblPr>' +
+            '</w:style>' +
+            '<w:style w:type="table" w:styleId="PlainTable"></w:style>' +
+            '</w:styles>';
         Map<String, String> out = DocGenHtmlRenderer.extractTableStyleBorderMap(styles);
         System.assert(out.containsKey('TableGrid'), 'TableGrid with tblBorders should be extracted');
         System.assert(!out.containsKey('PlainTable'), 'Style without tblBorders should be skipped');
@@ -4757,17 +5076,18 @@ private class DocGenSignatureTests {
 
     @isTest
     static void testExtractStyleTextAttributeMap_happyPath() {
-        String styles = '<w:styles>'
-            + '<w:style w:type="paragraph" w:styleId="Heading1">'
-            + '<w:rPr>'
-            + '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>'
-            + '<w:b/>'
-            + '<w:color w:val="2E74B5"/>'
-            + '<w:sz w:val="32"/>'
-            + '</w:rPr>'
-            + '</w:style>'
-            + '<w:style w:type="paragraph" w:styleId="PlainStyle"></w:style>'
-            + '</w:styles>';
+        String styles =
+            '<w:styles>' +
+            '<w:style w:type="paragraph" w:styleId="Heading1">' +
+            '<w:rPr>' +
+            '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>' +
+            '<w:b/>' +
+            '<w:color w:val="2E74B5"/>' +
+            '<w:sz w:val="32"/>' +
+            '</w:rPr>' +
+            '</w:style>' +
+            '<w:style w:type="paragraph" w:styleId="PlainStyle"></w:style>' +
+            '</w:styles>';
         Map<String, Map<String, String>> out = DocGenHtmlRenderer.extractStyleTextAttributeMap(styles);
         System.assert(out.containsKey('Heading1'), 'Heading1 attributes should be extracted');
         Map<String, String> heading = out.get('Heading1');
@@ -4787,14 +5107,17 @@ private class DocGenSignatureTests {
         };
 
         // Render a paragraph using CustomHeading style. Color from the map should appear in HTML.
-        String xml = '<w:body><w:p><w:pPr><w:pStyle w:val="CustomHeading"/></w:pPr>'
-            + '<w:r><w:t>Colored Text</w:t></w:r></w:p></w:body>';
+        String xml =
+            '<w:body><w:p><w:pPr><w:pStyle w:val="CustomHeading"/></w:pPr>' +
+            '<w:r><w:t>Colored Text</w:t></w:r></w:p></w:body>';
         Test.startTest();
         String html = DocGenHtmlRenderer.convertToHtml(xml, new Map<String, String>());
         Test.stopTest();
 
-        System.assert(html.contains('color:#FF0000'),
-            'Color from styleTextAttrsMap should render when stylesXml is null. Got: ' + html);
+        System.assert(
+            html.contains('color:#FF0000'),
+            'Color from styleTextAttrsMap should render when stylesXml is null. Got: ' + html
+        );
 
         // Cleanup statics so other tests aren't affected
         DocGenHtmlRenderer.styleTextAttrsMap = null;
@@ -4822,8 +5145,10 @@ private class DocGenSignatureTests {
         ];
         System.assertEquals(1, audits.size(), 'Exactly one in-person bypass audit row should exist');
         System.assertEquals(true, audits[0].Consent_Captured__c);
-        System.assert(audits[0].User_Agent__c.contains('in-person signing'),
-            'Audit user-agent should record in-person bypass: ' + audits[0].User_Agent__c);
+        System.assert(
+            audits[0].User_Agent__c.contains('in-person signing'),
+            'Audit user-agent should record in-person bypass: ' + audits[0].User_Agent__c
+        );
     }
 
     @isTest

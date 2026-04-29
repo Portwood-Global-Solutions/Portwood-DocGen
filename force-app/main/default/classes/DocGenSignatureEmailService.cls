@@ -1,5 +1,4 @@
 public with sharing class DocGenSignatureEmailService {
-
     /**
      * Data wrapper for each signer email to send.
      */
@@ -28,19 +27,22 @@ public with sharing class DocGenSignatureEmailService {
     }
 
     public static void sendSignatureRequestEmails(List<SignerEmail> signers, String documentTitle, Id requestId) {
-        if (signers == null || signers.isEmpty()) return;
+        if (signers == null || signers.isEmpty())
+            return;
 
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         String senderName = UserInfo.getName();
         String senderEmail = UserInfo.getUserEmail();
         String brandColor = String.isNotBlank(settings.Signature_Email_Brand_Color__c)
-            ? settings.Signature_Email_Brand_Color__c : '#0176D3';
+            ? settings.Signature_Email_Brand_Color__c
+            : '#0176D3';
         String logoUrl = settings.Signature_Email_Logo_Url__c;
         String companyName = settings.Company_Name__c;
         String footerText = settings.Signature_Email_Footer_Text__c;
         String messageTemplate = settings.Signature_Email_Message__c;
         String subjectTemplate = String.isNotBlank(settings.Signature_Email_Subject__c)
-            ? settings.Signature_Email_Subject__c : 'Action Required: Please Sign {DocumentTitle}';
+            ? settings.Signature_Email_Subject__c
+            : 'Action Required: Please Sign {DocumentTitle}';
         String owaId = settings.Signature_OWA_Id__c;
 
         // OWA is required for signature emails — guest users cannot send without one,
@@ -56,7 +58,16 @@ public with sharing class DocGenSignatureEmailService {
 
         for (SignerEmail signer : signers) {
             String subject = mergeFields(subjectTemplate, signer.signerName, documentTitle, senderName);
-            String htmlBody = buildEmailHtml(signer, documentTitle, senderName, brandColor, logoUrl, companyName, footerText, messageTemplate);
+            String htmlBody = buildEmailHtml(
+                signer,
+                documentTitle,
+                senderName,
+                brandColor,
+                logoUrl,
+                companyName,
+                footerText,
+                messageTemplate
+            );
 
             Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
             email.setSubject(subject);
@@ -95,13 +106,19 @@ public with sharing class DocGenSignatureEmailService {
                     for (Messaging.SendEmailError err : results[i].getErrors()) {
                         String errDetail = err.getMessage() + ' (code: ' + err.getStatusCode() + ')';
                         statusParts.add(signers[i].signerEmail + ': FAILED — ' + errDetail);
-                        System.debug(LoggingLevel.ERROR, 'DocGen: Signature email failed for ' + signers[i].signerEmail + ': ' + errDetail);
+                        System.debug(
+                            LoggingLevel.ERROR,
+                            'DocGen: Signature email failed for ' + signers[i].signerEmail + ': ' + errDetail
+                        );
                     }
                 }
             }
             String statusMsg = String.join(statusParts, '\n');
             if (anyFailed) {
-                statusMsg = 'EMAIL DELIVERY ERRORS\n' + statusMsg + '\n\nCheck: (1) Org-Wide Email Address is set to "All Profiles" (2) Email Deliverability is "All Email" (3) Daily email limit not exceeded';
+                statusMsg =
+                    'EMAIL DELIVERY ERRORS\n' +
+                    statusMsg +
+                    '\n\nCheck: (1) Org-Wide Email Address is set to "All Profiles" (2) Email Deliverability is "All Email" (3) Daily email limit not exceeded';
             }
             updateEmailStatus(requestId, statusMsg);
         }
@@ -111,7 +128,8 @@ public with sharing class DocGenSignatureEmailService {
      * Replaces merge field tokens in a string.
      */
     private static String mergeFields(String template, String signerName, String documentTitle, String senderName) {
-        if (String.isBlank(template)) return template;
+        if (String.isBlank(template))
+            return template;
         return template
             .replace('{SignerName}', signerName != null ? signerName : '')
             .replace('{DocumentTitle}', documentTitle != null ? documentTitle : 'Document')
@@ -122,8 +140,14 @@ public with sharing class DocGenSignatureEmailService {
      * Builds the branded HTML email body.
      */
     private static String buildEmailHtml(
-        SignerEmail signer, String documentTitle, String senderName,
-        String brandColor, String logoUrl, String companyName, String footerText, String messageTemplate
+        SignerEmail signer,
+        String documentTitle,
+        String senderName,
+        String brandColor,
+        String logoUrl,
+        String companyName,
+        String footerText,
+        String messageTemplate
     ) {
         String safeSignerName = escapeHtml(signer.signerName != null ? signer.signerName : 'there');
         String safeDocTitle = escapeHtml(documentTitle != null ? documentTitle : 'Document');
@@ -150,7 +174,12 @@ public with sharing class DocGenSignatureEmailService {
         // Header bar with brand color
         html += '<tr><td style="background-color:' + safeBrandColor + ';padding:24px 32px;text-align:center;">';
         if (String.isNotBlank(logoUrl)) {
-            html += '<img src="' + escapeHtml(logoUrl) + '" alt="' + safeCompanyName + '" style="max-height:48px;max-width:200px;display:inline-block;" />';
+            html +=
+                '<img src="' +
+                escapeHtml(logoUrl) +
+                '" alt="' +
+                safeCompanyName +
+                '" style="max-height:48px;max-width:200px;display:inline-block;" />';
         } else if (String.isNotBlank(safeCompanyName)) {
             html += '<span style="color:#ffffff;font-size:20px;font-weight:bold;">' + safeCompanyName + '</span>';
         }
@@ -174,18 +203,27 @@ public with sharing class DocGenSignatureEmailService {
 
         // Document info box
         html += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">';
-        html += '<tr><td style="background-color:#f8f9fa;border-left:4px solid ' + safeBrandColor + ';padding:16px 20px;border-radius:0 4px 4px 0;">';
+        html +=
+            '<tr><td style="background-color:#f8f9fa;border-left:4px solid ' +
+            safeBrandColor +
+            ';padding:16px 20px;border-radius:0 4px 4px 0;">';
         html += '<p style="font-size:14px;color:#706e6b;margin:0 0 4px 0;">Document</p>';
         html += '<p style="font-size:16px;color:#181818;font-weight:bold;margin:0;">' + safeDocTitle + '</p>';
         if (String.isNotBlank(safeRoleName)) {
-            html += '<p style="font-size:13px;color:#706e6b;margin:8px 0 0 0;">Your role: <strong>' + safeRoleName + '</strong></p>';
+            html +=
+                '<p style="font-size:13px;color:#706e6b;margin:8px 0 0 0;">Your role: <strong>' +
+                safeRoleName +
+                '</strong></p>';
         }
         html += '</td></tr></table>';
 
         // CTA button
         html += '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px auto;">';
         html += '<tr><td align="center" style="border-radius:6px;background-color:' + safeBrandColor + ';">';
-        html += '<a href="' + safeSignatureUrl + '" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;border-radius:6px;">Review &amp; Sign Document</a>';
+        html +=
+            '<a href="' +
+            safeSignatureUrl +
+            '" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;border-radius:6px;">Review &amp; Sign Document</a>';
         html += '</td></tr></table>';
 
         // Security note
@@ -195,14 +233,24 @@ public with sharing class DocGenSignatureEmailService {
         // Fallback URL
         html += '<p style="font-size:12px;color:#999999;margin:0;word-break:break-all;">';
         html += 'If the button above doesn\'t work, copy and paste this URL into your browser:<br/>';
-        html += '<a href="' + safeSignatureUrl + '" style="color:' + safeBrandColor + ';">' + safeSignatureUrl + '</a></p>';
+        html +=
+            '<a href="' +
+            safeSignatureUrl +
+            '" style="color:' +
+            safeBrandColor +
+            ';">' +
+            safeSignatureUrl +
+            '</a></p>';
 
         html += '</td></tr>';
 
         // Footer
         html += '<tr><td style="background-color:#f8f9fa;padding:20px 32px;border-top:1px solid #e5e5e5;text-align:center;">';
         if (String.isNotBlank(footerText)) {
-            html += '<p style="font-size:12px;color:#999999;margin:0;line-height:1.4;">' + escapeHtml(footerText) + '</p>';
+            html +=
+                '<p style="font-size:12px;color:#999999;margin:0;line-height:1.4;">' +
+                escapeHtml(footerText) +
+                '</p>';
         } else {
             html += '<p style="font-size:12px;color:#999999;margin:0;">Powered by DocGen &mdash; Open-Source Document Generation for Salesforce</p>';
         }
@@ -226,7 +274,11 @@ public with sharing class DocGenSignatureEmailService {
         sendSenderNotification(
             requestId,
             'Signature Update: ' + signer.Signer_Name__c + ' has signed',
-            '<p>' + escapeHtml(signer.Signer_Name__c) + ' (' + escapeHtml(signer.Role_Name__c) + ') has completed their signature.</p>'
+            '<p>' +
+                escapeHtml(signer.Signer_Name__c) +
+                ' (' +
+                escapeHtml(signer.Role_Name__c) +
+                ') has completed their signature.</p>'
         );
     }
 
@@ -263,16 +315,22 @@ public with sharing class DocGenSignatureEmailService {
         try {
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             DocGen_Signature_Request__c req = [
-                SELECT CreatedById FROM DocGen_Signature_Request__c WHERE Id = :requestId WITH SYSTEM_MODE LIMIT 1
+                SELECT CreatedById
+                FROM DocGen_Signature_Request__c
+                WHERE Id = :requestId
+                WITH SYSTEM_MODE
+                LIMIT 1
             ]; // NOPMD
 
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             User sender = [SELECT Email FROM User WHERE Id = :req.CreatedById WITH SYSTEM_MODE LIMIT 1]; // NOPMD
-            if (String.isBlank(sender.Email)) return;
+            if (String.isBlank(sender.Email))
+                return;
 
             DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
             String brandColor = String.isNotBlank(settings.Signature_Email_Brand_Color__c)
-                ? settings.Signature_Email_Brand_Color__c : '#0176D3';
+                ? settings.Signature_Email_Brand_Color__c
+                : '#0176D3';
             String companyName = settings.Company_Name__c;
 
             String html = '<!DOCTYPE html><html><head><meta charset="utf-8"/></head>';
@@ -282,11 +340,17 @@ public with sharing class DocGenSignatureEmailService {
             html += '<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">';
             html += '<tr><td style="background:' + escapeHtml(brandColor) + ';padding:16px 32px;text-align:center;">';
             if (String.isNotBlank(companyName)) {
-                html += '<span style="color:#fff;font-size:18px;font-weight:bold;">' + escapeHtml(companyName) + '</span>';
+                html +=
+                    '<span style="color:#fff;font-size:18px;font-weight:bold;">' +
+                    escapeHtml(companyName) +
+                    '</span>';
             }
             html += '</td></tr>';
             html += '<tr><td style="padding:24px 32px;">' + bodyHtml;
-            html += '<p style="font-size:13px;color:#706e6b;margin-top:16px;">Request ID: ' + escapeHtml(String.valueOf(requestId)) + '</p>';
+            html +=
+                '<p style="font-size:13px;color:#706e6b;margin-top:16px;">Request ID: ' +
+                escapeHtml(String.valueOf(requestId)) +
+                '</p>';
             html += '</td></tr></table></td></tr></table></body></html>';
 
             Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
@@ -311,7 +375,8 @@ public with sharing class DocGenSignatureEmailService {
      * Helps admins diagnose email delivery issues without checking debug logs.
      */
     private static void updateEmailStatus(Id requestId, String status) {
-        if (requestId == null || String.isBlank(status)) return;
+        if (requestId == null || String.isBlank(status))
+            return;
         try {
             DocGen_Signature_Request__c req = new DocGen_Signature_Request__c(Id = requestId);
             req.Email_Status__c = status.left(1000);
@@ -323,7 +388,8 @@ public with sharing class DocGenSignatureEmailService {
     }
 
     private static String escapeHtml(String input) {
-        if (input == null) return '';
+        if (input == null)
+            return '';
         return input.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;');
     }
 }

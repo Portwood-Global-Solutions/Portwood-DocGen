@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Company_Name__c</fullName>
-    <description>Company or organization name displayed in signature request emails and branding. Used as fallback when logo URL is not configured.</description>
+    <description
+    >Company or organization name displayed in signature request emails and branding. Used as fallback when logo URL is not configured.</description>
     <label>Company Name</label>
     <length>255</length>
     <required>false</required>

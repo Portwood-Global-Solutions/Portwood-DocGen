@@ -7,7 +7,6 @@
  *   Blob bmp = BarcodeGenerator.generate('ABC-12345', 'code128');
  */
 public class BarcodeGenerator {
-
     // Code 128B encoding table — each entry is 11 modules (bars + spaces)
     // Index = character ASCII value - 32 (space = 0, ! = 1, ... z = 90)
     private static final List<String> CODE128B = new List<String>{
@@ -106,7 +105,7 @@ public class BarcodeGenerator {
         '10101111000', // 92: |
         '10100011110', // 93: }
         '10001011110', // 94: ~
-        '10111101000'  // 95: DEL
+        '10111101000' // 95: DEL
     };
 
     private static final String START_B = '11010010000';
@@ -122,53 +121,69 @@ public class BarcodeGenerator {
      */
     // Total data codewords per version, Level M (versions 1-14)
     private static final List<Integer> QR_DATA_CAPACITY = new List<Integer>{
-        0, 16, 28, 44, 64, 86, 108, 124, 154, 182, 216, 254, 290, 334, 365
+        0,
+        16,
+        28,
+        44,
+        64,
+        86,
+        108,
+        124,
+        154,
+        182,
+        216,
+        254,
+        290,
+        334,
+        365
     };
 
     // EC block structure per version, ECL M: {ecPerBlock, grp1Count, grp1DataCW [, grp2Count, grp2DataCW]}
     // Derived from ISO 18004 Table 9 / qrcode-generator RS_BLOCK_TABLE.
     private static final List<List<Integer>> QR_EC_BLOCKS = new List<List<Integer>>{
-        new List<Integer>(),                // v0 unused
-        new List<Integer>{10, 1, 16},       // v1: 1×16, total=26
-        new List<Integer>{16, 1, 28},       // v2: 1×28, total=44
-        new List<Integer>{26, 1, 44},       // v3: 1×44, total=70
-        new List<Integer>{18, 2, 32},       // v4: 2×32, total=100
-        new List<Integer>{24, 2, 43},       // v5: 2×43, total=134
-        new List<Integer>{16, 4, 27},       // v6: 4×27, total=172
-        new List<Integer>{18, 4, 31},       // v7: 4×31, total=196
-        new List<Integer>{22, 2, 38, 2, 39},// v8: 2×38 + 2×39, total=242
-        new List<Integer>{22, 3, 36, 2, 37},// v9: 3×36 + 2×37, total=292
-        new List<Integer>{26, 4, 43, 1, 44},// v10: 4×43 + 1×44, total=346
-        new List<Integer>{30, 1, 50, 4, 51},// v11: 1×50 + 4×51, total=404
-        new List<Integer>{22, 6, 36, 2, 37},// v12: 6×36 + 2×37, total=466
-        new List<Integer>{22, 8, 37, 1, 38},// v13: 8×37 + 1×38, total=532
-        new List<Integer>{24, 4, 40, 5, 41} // v14: 4×40 + 5×41, total=581
+        new List<Integer>(), // v0 unused
+        new List<Integer>{ 10, 1, 16 }, // v1: 1×16, total=26
+        new List<Integer>{ 16, 1, 28 }, // v2: 1×28, total=44
+        new List<Integer>{ 26, 1, 44 }, // v3: 1×44, total=70
+        new List<Integer>{ 18, 2, 32 }, // v4: 2×32, total=100
+        new List<Integer>{ 24, 2, 43 }, // v5: 2×43, total=134
+        new List<Integer>{ 16, 4, 27 }, // v6: 4×27, total=172
+        new List<Integer>{ 18, 4, 31 }, // v7: 4×31, total=196
+        new List<Integer>{ 22, 2, 38, 2, 39 }, // v8: 2×38 + 2×39, total=242
+        new List<Integer>{ 22, 3, 36, 2, 37 }, // v9: 3×36 + 2×37, total=292
+        new List<Integer>{ 26, 4, 43, 1, 44 }, // v10: 4×43 + 1×44, total=346
+        new List<Integer>{ 30, 1, 50, 4, 51 }, // v11: 1×50 + 4×51, total=404
+        new List<Integer>{ 22, 6, 36, 2, 37 }, // v12: 6×36 + 2×37, total=466
+        new List<Integer>{ 22, 8, 37, 1, 38 }, // v13: 8×37 + 1×38, total=532
+        new List<Integer>{ 24, 4, 40, 5, 41 } // v14: 4×40 + 5×41, total=581
     };
 
     // Alignment pattern center positions per version (0 = none)
     private static final List<List<Integer>> QR_ALIGN_POS = new List<List<Integer>>{
-        new List<Integer>(),              // v0 (unused)
-        new List<Integer>(),              // v1: none
-        new List<Integer>{6,18},          // v2
-        new List<Integer>{6,22},          // v3
-        new List<Integer>{6,26},          // v4
-        new List<Integer>{6,30},          // v5
-        new List<Integer>{6,34},          // v6
-        new List<Integer>{6,22,38},       // v7
-        new List<Integer>{6,24,42},       // v8
-        new List<Integer>{6,26,46},       // v9
-        new List<Integer>{6,28,50},       // v10
-        new List<Integer>{6,30,54},       // v11
-        new List<Integer>{6,32,58},       // v12
-        new List<Integer>{6,34,62},       // v13
-        new List<Integer>{6,26,46,66}     // v14
+        new List<Integer>(), // v0 (unused)
+        new List<Integer>(), // v1: none
+        new List<Integer>{ 6, 18 }, // v2
+        new List<Integer>{ 6, 22 }, // v3
+        new List<Integer>{ 6, 26 }, // v4
+        new List<Integer>{ 6, 30 }, // v5
+        new List<Integer>{ 6, 34 }, // v6
+        new List<Integer>{ 6, 22, 38 }, // v7
+        new List<Integer>{ 6, 24, 42 }, // v8
+        new List<Integer>{ 6, 26, 46 }, // v9
+        new List<Integer>{ 6, 28, 50 }, // v10
+        new List<Integer>{ 6, 30, 54 }, // v11
+        new List<Integer>{ 6, 32, 58 }, // v12
+        new List<Integer>{ 6, 34, 62 }, // v13
+        new List<Integer>{ 6, 26, 46, 66 } // v14
     };
 
     // Reed-Solomon error correction over GF(256)
     private static final Integer QR_GF_POLY = 285; // x^8 + x^4 + x^3 + x^2 + 1
 
     public static String getPattern(String value, String barcodeType) {
-        if (String.isBlank(value)) { return null; }
+        if (String.isBlank(value)) {
+            return null;
+        }
         if (barcodeType == 'qr') {
             return buildQrPattern(value);
         }
@@ -185,7 +200,9 @@ public class BarcodeGenerator {
      * @return BMP image blob, or null if encoding fails or type is unsupported
      */
     public static Blob generate(String value, String barcodeType) {
-        if (String.isBlank(value)) { return null; }
+        if (String.isBlank(value)) {
+            return null;
+        }
         if (barcodeType == null || barcodeType == 'code128') {
             return generateCode128(value);
         }
@@ -201,7 +218,9 @@ public class BarcodeGenerator {
         List<Integer> dataBytes = new List<Integer>();
         for (Integer i = 0; i < value.length(); i++) {
             Integer c = value.charAt(i);
-            if (c > 255) { c = 63; } // '?' for non-ASCII
+            if (c > 255) {
+                c = 63;
+            } // '?' for non-ASCII
             dataBytes.add(c);
         }
 
@@ -217,7 +236,9 @@ public class BarcodeGenerator {
                 break;
             }
         }
-        if (version == 0) { return null; } // Data too long
+        if (version == 0) {
+            return null;
+        } // Data too long
 
         Integer size = 4 * version + 17;
         Integer totalDataCW = QR_DATA_CAPACITY[version];
@@ -284,18 +305,24 @@ public class BarcodeGenerator {
         // Interleave data codewords: round-robin across blocks
         Integer maxDataLen = 0;
         for (List<Integer> db : dataBlocks) {
-            if (db.size() > maxDataLen) { maxDataLen = db.size(); }
+            if (db.size() > maxDataLen) {
+                maxDataLen = db.size();
+            }
         }
         List<Integer> finalBits = new List<Integer>();
         for (Integer i = 0; i < maxDataLen; i++) {
             for (List<Integer> db : dataBlocks) {
-                if (i < db.size()) { addBits(finalBits, db[i], 8); }
+                if (i < db.size()) {
+                    addBits(finalBits, db[i], 8);
+                }
             }
         }
         // Interleave EC codewords
         for (Integer i = 0; i < ecPerBlock; i++) {
             for (List<Integer> eb : ecBlocks) {
-                if (i < eb.size()) { addBits(finalBits, eb[i], 8); }
+                if (i < eb.size()) {
+                    addBits(finalBits, eb[i], 8);
+                }
             }
         }
 
@@ -321,21 +348,31 @@ public class BarcodeGenerator {
         // Place timing patterns
         for (Integer i = 8; i < size - 8; i++) {
             Integer val = Math.mod(i, 2) == 0 ? 1 : 0;
-            matrix[6][i] = val; reserved[6][i] = true;
-            matrix[i][6] = val; reserved[i][6] = true;
+            matrix[6][i] = val;
+            reserved[6][i] = true;
+            matrix[i][6] = val;
+            reserved[i][6] = true;
         }
 
         // Reserve format info areas
         for (Integer i = 0; i < 8; i++) {
             // First copy: row 8 cols 0-7, col 8 rows 0-7
-                        if (!reserved[8][i]) { reserved[8][i] = true; }
-                        if (!reserved[i][8]) { reserved[i][8] = true; }
+            if (!reserved[8][i]) {
+                reserved[8][i] = true;
+            }
+            if (!reserved[i][8]) {
+                reserved[i][8] = true;
+            }
             // Second copy vertical: col 8, rows size-1 to size-7 (bits 0-6)
             if (i < 7) {
-                                if (!reserved[size - 1 - i][8]) { reserved[size - 1 - i][8] = true; }
+                if (!reserved[size - 1 - i][8]) {
+                    reserved[size - 1 - i][8] = true;
+                }
             }
             // Second copy horizontal: row 8, cols size-1 to size-8 (bits 7-14)
-                        if (!reserved[8][size - 1 - i]) { reserved[8][size - 1 - i] = true; }
+            if (!reserved[8][size - 1 - i]) {
+                reserved[8][size - 1 - i] = true;
+            }
         }
         reserved[8][8] = true;
         // Dark module
@@ -355,13 +392,22 @@ public class BarcodeGenerator {
         // Place data bits (bottom-right, going up, zigzag)
         Integer bitIdx = 0;
         for (Integer right = size - 1; right >= 1; right -= 2) {
-            if (right == 6) { right = 5; } // Skip timing column
+            if (right == 6) {
+                right = 5;
+            } // Skip timing column
             for (Integer vert = 0; vert < size; vert++) {
                 for (Integer j = 0; j < 2; j++) {
                     Integer col = right - j;
                     Boolean upward = Math.mod((size - 1 - right) / 2, 2) == 0;
                     Integer row = upward ? size - 1 - vert : vert;
-                    if (col >= 0 && col < size && row >= 0 && row < size && !reserved[row][col] && bitIdx < finalBits.size()) {
+                    if (
+                        col >= 0 &&
+                        col < size &&
+                        row >= 0 &&
+                        row < size &&
+                        !reserved[row][col] &&
+                        bitIdx < finalBits.size()
+                    ) {
                         matrix[row][col] = finalBits[bitIdx++];
                     }
                 }
@@ -379,25 +425,36 @@ public class BarcodeGenerator {
 
         // Write format information (ECL M = 00, mask 0 = 000 → format bits with BCH)
         // Pre-computed: ECL M (00) + mask 0 (000) → 15-bit format = 101010000010010
-        List<Integer> formatBits = new List<Integer>{ 1,0,1,0,1,0,0,0,0,0,1,0,0,1,0 };
+        List<Integer> formatBits = new List<Integer>{ 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0 };
         // Horizontal: bits 0-7 along row 8, bits 8-14 along column 8
         for (Integer i = 0; i < 15; i++) {
             Integer fb = formatBits[i];
             // Around top-left finder
-            if (i < 6) { matrix[8][i] = fb; }
-            else if (i == 6) { matrix[8][7] = fb; }
-            else if (i == 7) { matrix[8][8] = fb; }
-            else if (i == 8) { matrix[7][8] = fb; }
-            else { matrix[14 - i][8] = fb; }
+            if (i < 6) {
+                matrix[8][i] = fb;
+            } else if (i == 6) {
+                matrix[8][7] = fb;
+            } else if (i == 7) {
+                matrix[8][8] = fb;
+            } else if (i == 8) {
+                matrix[7][8] = fb;
+            } else {
+                matrix[14 - i][8] = fb;
+            }
             // Around other finders: bits 0-6 vertical, bits 7-14 horizontal
-            if (i < 7) { matrix[size - 1 - i][8] = fb; }
-            else { matrix[8][size - 15 + i] = fb; }
+            if (i < 7) {
+                matrix[size - 1 - i][8] = fb;
+            } else {
+                matrix[8][size - 15 + i] = fb;
+            }
         }
 
         // Serialize to string (rows separated by newlines)
         String result = '';
         for (Integer r = 0; r < size; r++) {
-                        if (r > 0) { result += '\n'; }
+            if (r > 0) {
+                result += '\n';
+            }
             for (Integer c = 0; c < size; c++) {
                 result += String.valueOf(matrix[r][c]);
             }
@@ -405,22 +462,30 @@ public class BarcodeGenerator {
         return result;
     }
 
-    private static void placeFinderPattern(List<List<Integer>> matrix, List<List<Boolean>> reserved, Integer row, Integer col, Integer size) {
+    private static void placeFinderPattern(
+        List<List<Integer>> matrix,
+        List<List<Boolean>> reserved,
+        Integer row,
+        Integer col,
+        Integer size
+    ) {
         // 7x7 finder pattern
         List<List<Integer>> pattern = new List<List<Integer>>{
-            new List<Integer>{1,1,1,1,1,1,1},
-            new List<Integer>{1,0,0,0,0,0,1},
-            new List<Integer>{1,0,1,1,1,0,1},
-            new List<Integer>{1,0,1,1,1,0,1},
-            new List<Integer>{1,0,1,1,1,0,1},
-            new List<Integer>{1,0,0,0,0,0,1},
-            new List<Integer>{1,1,1,1,1,1,1}
+            new List<Integer>{ 1, 1, 1, 1, 1, 1, 1 },
+            new List<Integer>{ 1, 0, 0, 0, 0, 0, 1 },
+            new List<Integer>{ 1, 0, 1, 1, 1, 0, 1 },
+            new List<Integer>{ 1, 0, 1, 1, 1, 0, 1 },
+            new List<Integer>{ 1, 0, 1, 1, 1, 0, 1 },
+            new List<Integer>{ 1, 0, 0, 0, 0, 0, 1 },
+            new List<Integer>{ 1, 1, 1, 1, 1, 1, 1 }
         };
         for (Integer r = -1; r <= 7; r++) {
             for (Integer c = -1; c <= 7; c++) {
                 Integer mr = row + r;
                 Integer mc = col + c;
-                if (mr < 0 || mr >= size || mc < 0 || mc >= size) { continue; }
+                if (mr < 0 || mr >= size || mc < 0 || mc >= size) {
+                    continue;
+                }
                 if (r >= 0 && r < 7 && c >= 0 && c < 7) {
                     matrix[mr][mc] = pattern[r][c];
                 } else {
@@ -431,12 +496,19 @@ public class BarcodeGenerator {
         }
     }
 
-    private static void placeAlignmentPattern(List<List<Integer>> matrix, List<List<Boolean>> reserved, Integer centerRow, Integer centerCol) {
+    private static void placeAlignmentPattern(
+        List<List<Integer>> matrix,
+        List<List<Boolean>> reserved,
+        Integer centerRow,
+        Integer centerCol
+    ) {
         for (Integer r = -2; r <= 2; r++) {
             for (Integer c = -2; c <= 2; c++) {
                 Integer mr = centerRow + r;
                 Integer mc = centerCol + c;
-                if (reserved[mr][mc]) { return; } // Overlaps finder — skip entirely
+                if (reserved[mr][mc]) {
+                    return;
+                } // Overlaps finder — skip entirely
             }
         }
         for (Integer r = -2; r <= 2; r++) {
@@ -462,20 +534,27 @@ public class BarcodeGenerator {
         // Build log/antilog tables for GF(256)
         List<Integer> gfExp = new List<Integer>();
         List<Integer> gfLog = new List<Integer>();
-        for (Integer i = 0; i < 256; i++) { gfExp.add(0); gfLog.add(0); }
+        for (Integer i = 0; i < 256; i++) {
+            gfExp.add(0);
+            gfLog.add(0);
+        }
         Integer x = 1;
         for (Integer i = 0; i < 255; i++) {
             gfExp[i] = x;
             gfLog[x] = i;
             x *= 2;
-            if (x >= 256) { x = Math.mod(x, 256) ^ (QR_GF_POLY - 256); }
+            if (x >= 256) {
+                x = Math.mod(x, 256) ^ (QR_GF_POLY - 256);
+            }
         }
 
         // Build generator polynomial
         List<Integer> gen = new List<Integer>{ 1 };
         for (Integer i = 0; i < ecCount; i++) {
             List<Integer> newGen = new List<Integer>();
-            for (Integer j = 0; j <= gen.size(); j++) { newGen.add(0); }
+            for (Integer j = 0; j <= gen.size(); j++) {
+                newGen.add(0);
+            }
             for (Integer j = 0; j < gen.size(); j++) {
                 newGen[j] = newGen[j] ^ gfMultiply(gen[j], gfExp[i], gfExp, gfLog);
                 newGen[j + 1] = newGen[j + 1] ^ gen[j];
@@ -493,8 +572,12 @@ public class BarcodeGenerator {
 
         // Polynomial division
         List<Integer> result = new List<Integer>();
-        for (Integer d : data) { result.add(d); }
-        for (Integer i = 0; i < ecCount; i++) { result.add(0); }
+        for (Integer d : data) {
+            result.add(d);
+        }
+        for (Integer i = 0; i < ecCount; i++) {
+            result.add(0);
+        }
 
         for (Integer i = 0; i < data.size(); i++) {
             Integer coef = result[i];
@@ -514,7 +597,9 @@ public class BarcodeGenerator {
     }
 
     private static Integer gfMultiply(Integer a, Integer b, List<Integer> gfExp, List<Integer> gfLog) {
-        if (a == 0 || b == 0) { return 0; }
+        if (a == 0 || b == 0) {
+            return 0;
+        }
         return gfExp[Math.mod(gfLog[a] + gfLog[b], 255)];
     }
 
@@ -525,7 +610,9 @@ public class BarcodeGenerator {
 
         for (Integer i = 0; i < value.length(); i++) {
             Integer charVal = value.charAt(i) - 32;
-            if (charVal < 0 || charVal >= CODE128B.size()) { charVal = 0; }
+            if (charVal < 0 || charVal >= CODE128B.size()) {
+                charVal = 0;
+            }
             pattern += CODE128B[charVal];
             checksum += charVal * (i + 1);
         }
@@ -571,7 +658,8 @@ public class BarcodeGenerator {
         List<Integer> bmpBytes = new List<Integer>();
 
         // --- File Header (14 bytes) ---
-        bmpBytes.add(66); bmpBytes.add(77); // 'BM'
+        bmpBytes.add(66);
+        bmpBytes.add(77); // 'BM'
         addLE32(bmpBytes, fileSize);
         addLE16(bmpBytes, 0); // Reserved
         addLE16(bmpBytes, 0); // Reserved
@@ -592,22 +680,34 @@ public class BarcodeGenerator {
 
         // --- Color Table (8 bytes: 2 entries x 4 bytes) ---
         // Color 0 = white (background)
-        bmpBytes.add(255); bmpBytes.add(255); bmpBytes.add(255); bmpBytes.add(0);
+        bmpBytes.add(255);
+        bmpBytes.add(255);
+        bmpBytes.add(255);
+        bmpBytes.add(0);
         // Color 1 = black (bars)
-        bmpBytes.add(0); bmpBytes.add(0); bmpBytes.add(0); bmpBytes.add(0);
+        bmpBytes.add(0);
+        bmpBytes.add(0);
+        bmpBytes.add(0);
+        bmpBytes.add(0);
 
         // --- Pixel Data (bottom-up, 1-bit per pixel) ---
         // Build one row
         List<Integer> rowBits = new List<Integer>();
         // Quiet zone (white)
-        for (Integer i = 0; i < quietZone; i++) { rowBits.add(0); }
+        for (Integer i = 0; i < quietZone; i++) {
+            rowBits.add(0);
+        }
         // Barcode modules
         for (Integer i = 0; i < pattern.length(); i++) {
             Integer bit = pattern.charAt(i) == 49 ? 1 : 0; // '1' = black
-            for (Integer w = 0; w < moduleWidth; w++) { rowBits.add(bit); }
+            for (Integer w = 0; w < moduleWidth; w++) {
+                rowBits.add(bit);
+            }
         }
         // Quiet zone (white)
-        for (Integer i = 0; i < quietZone; i++) { rowBits.add(0); }
+        for (Integer i = 0; i < quietZone; i++) {
+            rowBits.add(0);
+        }
 
         // Pack bits into bytes
         List<Integer> bitWeights = new List<Integer>{ 128, 64, 32, 16, 8, 4, 2, 1 };

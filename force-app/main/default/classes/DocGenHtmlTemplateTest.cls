@@ -1,6 +1,5 @@
 @IsTest
 private class DocGenHtmlTemplateTest {
-
     @TestSetup
     static void setup() {
         insert new Account(Name = 'HTMLTpl Test Co', Industry = 'Technology');
@@ -55,14 +54,26 @@ private class DocGenHtmlTemplateTest {
         // Headers WITH counter tokens emit @page content CSS (Flying Saucer only
         // resolves counter(page)/counter(pages) inside @page rules).
         System.assert(rendered.contains('@top-center'), '@top-center margin box expected for header with counters');
-        System.assert(rendered.contains('@bottom-center'), '@bottom-center margin box expected for footer with counters');
+        System.assert(
+            rendered.contains('@bottom-center'),
+            '@bottom-center margin box expected for footer with counters'
+        );
         System.assert(rendered.contains('counter(page)'), 'counter(page) call expected for {PageNumber}');
         System.assert(rendered.contains('counter(pages)'), 'counter(pages) call expected for {TotalPages}');
         // Header text should survive into the CSS content string (with merged {Name} resolved).
-        System.assert(rendered.contains('Hdr HTMLTpl Test Co'), 'Header text with {Name} resolved should appear in CSS: ' + rendered);
+        System.assert(
+            rendered.contains('Hdr HTMLTpl Test Co'),
+            'Header text with {Name} resolved should appear in CSS: ' + rendered
+        );
         // When all headers/footers contain counter tokens, the running-element scaffolding is skipped.
-        System.assert(!rendered.contains('running(dgheader)'), 'Running header CSS should NOT be present when header uses counters');
-        System.assert(!rendered.contains('running(dgfooter)'), 'Running footer CSS should NOT be present when footer uses counters');
+        System.assert(
+            !rendered.contains('running(dgheader)'),
+            'Running header CSS should NOT be present when header uses counters'
+        );
+        System.assert(
+            !rendered.contains('running(dgfooter)'),
+            'Running footer CSS should NOT be present when footer uses counters'
+        );
     }
 
     @IsTest
@@ -79,15 +90,19 @@ private class DocGenHtmlTemplateTest {
         Test.stopTest();
 
         String rendered = DocGenService.lastRenderedHtml;
-        System.assert(rendered.contains('running(dgheader)'), 'Running header expected for rich header with no counters');
+        System.assert(
+            rendered.contains('running(dgheader)'),
+            'Running header expected for rich header with no counters'
+        );
         System.assert(rendered.contains('element(dgheader)'), '@top-center should reference the running element');
     }
 
     @IsTest
     static void preservesSourceStyleBlock() {
         Account acct = [SELECT Id FROM Account LIMIT 1];
-        String body = '<html><head><style>.mystyle{color:red}</style></head>' +
-                      '<body><p class="mystyle">{Name}</p></body></html>';
+        String body =
+            '<html><head><style>.mystyle{color:red}</style></head>' +
+            '<body><p class="mystyle">{Name}</p></body></html>';
         Id tmplId = createHtmlTemplate(null, null, body);
 
         Test.startTest();
@@ -101,8 +116,7 @@ private class DocGenHtmlTemplateTest {
     @IsTest
     static void worksWithoutHeaderOrFooter() {
         Account acct = [SELECT Id FROM Account LIMIT 1];
-        Id tmplId = createHtmlTemplate(null, null,
-            '<html><body><p>{Name}</p></body></html>');
+        Id tmplId = createHtmlTemplate(null, null, '<html><body><p>{Name}</p></body></html>');
 
         Test.startTest();
         Map<String, Object> r = DocGenService.generatePdfBlob(tmplId, acct.Id);
@@ -130,8 +144,7 @@ private class DocGenHtmlTemplateTest {
     @IsTest
     static void renderPreviewHtmlReturnsRenderedDoc() {
         Account acct = [SELECT Id FROM Account LIMIT 1];
-        Id tmplId = createHtmlTemplate('<div>Hdr</div>', '<div>Ftr</div>',
-            '<html><body><h1>{Name}</h1></body></html>');
+        Id tmplId = createHtmlTemplate('<div>Hdr</div>', '<div>Ftr</div>', '<html><body><h1>{Name}</h1></body></html>');
 
         Test.startTest();
         String preview = DocGenService.renderPreviewHtml(tmplId, acct.Id);
@@ -146,8 +159,10 @@ private class DocGenHtmlTemplateTest {
         Account acct = [SELECT Id FROM Account LIMIT 1];
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'ZipHtml ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
-            Base_Object_API__c = 'Account', Query_Config__c = 'Name'
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
+            Base_Object_API__c = 'Account',
+            Query_Config__c = 'Name'
         );
         insert tmpl;
 
@@ -160,14 +175,18 @@ private class DocGenHtmlTemplateTest {
         zw.addEntry('images/image1.png', png);
 
         ContentVersion zipCv = new ContentVersion(
-            Title = tmpl.Name + '.zip', PathOnClient = 'export.zip',
-            VersionData = zw.getArchive(), FirstPublishLocationId = tmpl.Id
+            Title = tmpl.Name + '.zip',
+            PathOnClient = 'export.zip',
+            VersionData = zw.getArchive(),
+            FirstPublishLocationId = tmpl.Id
         );
         insert zipCv;
         zipCv = [SELECT Id FROM ContentVersion WHERE Id = :zipCv.Id];
 
         DocGen_Template_Version__c ver = new DocGen_Template_Version__c(
-            Template__c = tmpl.Id, Content_Version_Id__c = zipCv.Id, Is_Active__c = true
+            Template__c = tmpl.Id,
+            Content_Version_Id__c = zipCv.Id,
+            Is_Active__c = true
         );
         insert ver;
 
@@ -176,7 +195,9 @@ private class DocGenHtmlTemplateTest {
         Test.stopTest();
 
         DocGen_Template_Version__c after = [
-            SELECT Content_Version_Id__c FROM DocGen_Template_Version__c WHERE Id = :ver.Id
+            SELECT Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Id = :ver.Id
         ];
         System.assertNotEquals(zipCv.Id, after.Content_Version_Id__c, 'Version should repoint off the zip');
         ContentVersion newCv = [SELECT Title, VersionData FROM ContentVersion WHERE Id = :after.Content_Version_Id__c];
@@ -185,7 +206,9 @@ private class DocGenHtmlTemplateTest {
         System.assert(rewritten.contains('/sfc/servlet.shepherd/version/download/'), 'src should be rewritten');
         System.assert(!rewritten.contains('images/image1.png'), 'Original src should be gone');
         List<ContentVersion> imgs = [
-            SELECT Id FROM ContentVersion WHERE Title LIKE :('docgen_html_img_' + ver.Id + '_%')
+            SELECT Id
+            FROM ContentVersion
+            WHERE Title LIKE :('docgen_html_img_' + ver.Id + '_%')
         ];
         System.assertEquals(1, imgs.size(), 'One image CV expected');
     }
@@ -195,8 +218,10 @@ private class DocGenHtmlTemplateTest {
         Account acct = [SELECT Id FROM Account LIMIT 1];
         Id tmplId = createHtmlTemplate(null, null, '<html><body>{Name}</body></html>');
         DocGen_Template_Version__c ver = [
-            SELECT Id, Content_Version_Id__c FROM DocGen_Template_Version__c
-            WHERE Template__c = :tmplId AND Is_Active__c = true LIMIT 1
+            SELECT Id, Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :tmplId AND Is_Active__c = TRUE
+            LIMIT 1
         ];
         Id originalCvId = (Id) ver.Content_Version_Id__c;
 
@@ -205,7 +230,9 @@ private class DocGenHtmlTemplateTest {
         Test.stopTest();
 
         DocGen_Template_Version__c after = [
-            SELECT Content_Version_Id__c FROM DocGen_Template_Version__c WHERE Id = :ver.Id
+            SELECT Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Id = :ver.Id
         ];
         System.assertEquals(originalCvId, after.Content_Version_Id__c, 'Plain-html upload should stay unchanged');
     }
@@ -214,8 +241,10 @@ private class DocGenHtmlTemplateTest {
     static void saveHtmlTemplateImageInsertsCvAndReturnsUrl() {
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'Img ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
-            Base_Object_API__c = 'Account', Query_Config__c = 'Name'
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
+            Base_Object_API__c = 'Account',
+            Query_Config__c = 'Name'
         );
         insert tmpl;
 
@@ -238,8 +267,10 @@ private class DocGenHtmlTemplateTest {
     static void saveHtmlTemplateBodyStoresHtmlCv() {
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'Body ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
-            Base_Object_API__c = 'Account', Query_Config__c = 'Name'
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
+            Base_Object_API__c = 'Account',
+            Query_Config__c = 'Name'
         );
         insert tmpl;
 
@@ -260,8 +291,10 @@ private class DocGenHtmlTemplateTest {
     static void saveHtmlTemplateImageRejectsNonHtmlTemplate() {
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'Word ' + Datetime.now().getTime(),
-            Type__c = 'Word', Output_Format__c = 'PDF',
-            Base_Object_API__c = 'Account', Query_Config__c = 'Name'
+            Type__c = 'Word',
+            Output_Format__c = 'PDF',
+            Base_Object_API__c = 'Account',
+            Query_Config__c = 'Name'
         );
         insert tmpl;
 
@@ -286,7 +319,8 @@ private class DocGenHtmlTemplateTest {
 
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'LoopTr ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
             Base_Object_API__c = 'Account',
             Query_Config__c = 'Name, (SELECT LastName FROM Contacts)'
         );
@@ -300,14 +334,18 @@ private class DocGenHtmlTemplateTest {
             '</table></body></html>';
 
         ContentVersion cv = new ContentVersion(
-            Title = tmpl.Name, PathOnClient = 'body.html',
-            VersionData = Blob.valueOf(body), FirstPublishLocationId = tmpl.Id
+            Title = tmpl.Name,
+            PathOnClient = 'body.html',
+            VersionData = Blob.valueOf(body),
+            FirstPublishLocationId = tmpl.Id
         );
         insert cv;
         cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
 
         insert new DocGen_Template_Version__c(
-            Template__c = tmpl.Id, Content_Version_Id__c = cv.Id, Is_Active__c = true
+            Template__c = tmpl.Id,
+            Content_Version_Id__c = cv.Id,
+            Is_Active__c = true
         );
 
         Test.startTest();
@@ -316,7 +354,10 @@ private class DocGenHtmlTemplateTest {
 
         String rendered = DocGenService.lastRenderedHtml;
         Integer trCount = rendered.countMatches('<tr>') + rendered.countMatches('<tr ');
-        System.assert(trCount >= 4, 'Expected at least 4 <tr> (header + 3 contacts), got ' + trCount + ' in: ' + rendered);
+        System.assert(
+            trCount >= 4,
+            'Expected at least 4 <tr> (header + 3 contacts), got ' + trCount + ' in: ' + rendered
+        );
         System.assert(rendered.contains('Alpha'), 'Alpha should appear');
         System.assert(rendered.contains('Beta'), 'Beta should appear');
         System.assert(rendered.contains('Gamma'), 'Gamma should appear');
@@ -332,26 +373,28 @@ private class DocGenHtmlTemplateTest {
 
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'LoopLi ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
             Base_Object_API__c = 'Account',
             Query_Config__c = 'Name, (SELECT LastName FROM Contacts)'
         );
         insert tmpl;
 
-        String body =
-            '<html><body><ul>' +
-            '<li>{#Contacts}Contact: {LastName}{/Contacts}</li>' +
-            '</ul></body></html>';
+        String body = '<html><body><ul>' + '<li>{#Contacts}Contact: {LastName}{/Contacts}</li>' + '</ul></body></html>';
 
         ContentVersion cv = new ContentVersion(
-            Title = tmpl.Name, PathOnClient = 'body.html',
-            VersionData = Blob.valueOf(body), FirstPublishLocationId = tmpl.Id
+            Title = tmpl.Name,
+            PathOnClient = 'body.html',
+            VersionData = Blob.valueOf(body),
+            FirstPublishLocationId = tmpl.Id
         );
         insert cv;
         cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
 
         insert new DocGen_Template_Version__c(
-            Template__c = tmpl.Id, Content_Version_Id__c = cv.Id, Is_Active__c = true
+            Template__c = tmpl.Id,
+            Content_Version_Id__c = cv.Id,
+            Is_Active__c = true
         );
 
         Test.startTest();
@@ -374,7 +417,8 @@ private class DocGenHtmlTemplateTest {
 
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'LoopWrap ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
             Base_Object_API__c = 'Account',
             Query_Config__c = 'Name, (SELECT LastName FROM Contacts)'
         );
@@ -386,21 +430,28 @@ private class DocGenHtmlTemplateTest {
             '</table></body></html>';
 
         ContentVersion cv = new ContentVersion(
-            Title = tmpl.Name, PathOnClient = 'body.html',
-            VersionData = Blob.valueOf(body), FirstPublishLocationId = tmpl.Id
+            Title = tmpl.Name,
+            PathOnClient = 'body.html',
+            VersionData = Blob.valueOf(body),
+            FirstPublishLocationId = tmpl.Id
         );
         insert cv;
         cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
 
         insert new DocGen_Template_Version__c(
-            Template__c = tmpl.Id, Content_Version_Id__c = cv.Id, Is_Active__c = true
+            Template__c = tmpl.Id,
+            Content_Version_Id__c = cv.Id,
+            Is_Active__c = true
         );
 
         Test.startTest();
         DocGenService.generatePdfBlob(tmpl.Id, acct.Id);
         Test.stopTest();
 
-        System.assert(DocGenService.lastRenderedHtml.contains('OnlyOne'), 'Loop-wraps-row form should still emit contact');
+        System.assert(
+            DocGenService.lastRenderedHtml.contains('OnlyOne'),
+            'Loop-wraps-row form should still emit contact'
+        );
     }
 
     @IsTest
@@ -414,27 +465,35 @@ private class DocGenHtmlTemplateTest {
 
         DocGen_Template__c tmpl = new DocGen_Template__c(
             Name = 'GiantHtml ' + Datetime.now().getTime(),
-            Type__c = 'HTML', Output_Format__c = 'PDF',
+            Type__c = 'HTML',
+            Output_Format__c = 'PDF',
             Base_Object_API__c = 'Account',
-            Query_Config__c = JSON.serialize(new Map<String, Object>{
-                'v' => 3,
-                'root' => 'Account',
-                'nodes' => new List<Object>{
-                    new Map<String, Object>{
-                        'id' => 'n0', 'object' => 'Account',
-                        'fields' => new List<String>{'Name'},
-                        'parentFields' => new List<String>(),
-                        'parentNode' => null, 'lookupField' => null, 'relationshipName' => null
-                    },
-                    new Map<String, Object>{
-                        'id' => 'n1', 'object' => 'Contact',
-                        'fields' => new List<String>{'LastName'},
-                        'parentFields' => new List<String>(),
-                        'parentNode' => 'n0', 'lookupField' => 'AccountId',
-                        'relationshipName' => 'Contacts'
+            Query_Config__c = JSON.serialize(
+                new Map<String, Object>{
+                    'v' => 3,
+                    'root' => 'Account',
+                    'nodes' => new List<Object>{
+                        new Map<String, Object>{
+                            'id' => 'n0',
+                            'object' => 'Account',
+                            'fields' => new List<String>{ 'Name' },
+                            'parentFields' => new List<String>(),
+                            'parentNode' => null,
+                            'lookupField' => null,
+                            'relationshipName' => null
+                        },
+                        new Map<String, Object>{
+                            'id' => 'n1',
+                            'object' => 'Contact',
+                            'fields' => new List<String>{ 'LastName' },
+                            'parentFields' => new List<String>(),
+                            'parentNode' => 'n0',
+                            'lookupField' => 'AccountId',
+                            'relationshipName' => 'Contacts'
+                        }
                     }
                 }
-            }),
+            ),
             Header_Html__c = '<div>Page {PageNumber} of {TotalPages}</div>'
         );
         insert tmpl;
@@ -446,27 +505,36 @@ private class DocGenHtmlTemplateTest {
             '<tr>{#Contacts}<td>{LastName}</td>{/Contacts}</tr>' +
             '</table></body></html>';
         ContentVersion cv = new ContentVersion(
-            Title = tmpl.Name, PathOnClient = 'body.html',
-            VersionData = Blob.valueOf(body), FirstPublishLocationId = tmpl.Id
+            Title = tmpl.Name,
+            PathOnClient = 'body.html',
+            VersionData = Blob.valueOf(body),
+            FirstPublishLocationId = tmpl.Id
         );
         insert cv;
         cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
 
         insert new DocGen_Template_Version__c(
-            Template__c = tmpl.Id, Content_Version_Id__c = cv.Id, Is_Active__c = true
+            Template__c = tmpl.Id,
+            Content_Version_Id__c = cv.Id,
+            Is_Active__c = true
         );
 
         // Build the child-node-config JSON the UI would pass to launchGiantQueryPdfBatch
-        String childNodeConfigJson = JSON.serialize(new Map<String, Object>{
-            'relationshipName' => 'Contacts',
-            'object' => 'Contact',
-            'lookupField' => 'AccountId',
-            'fields' => new List<String>{'LastName'}
-        });
+        String childNodeConfigJson = JSON.serialize(
+            new Map<String, Object>{
+                'relationshipName' => 'Contacts',
+                'object' => 'Contact',
+                'lookupField' => 'AccountId',
+                'fields' => new List<String>{ 'LastName' }
+            }
+        );
 
         Test.startTest();
         Map<String, Object> r = DocGenController.launchGiantQueryPdfBatch(
-            tmpl.Id, acct.Id, 'Contacts', childNodeConfigJson
+            tmpl.Id,
+            acct.Id,
+            'Contacts',
+            childNodeConfigJson
         );
         Test.stopTest();
 
@@ -477,8 +545,10 @@ private class DocGenHtmlTemplateTest {
         // After Test.stopTest, batch + queueable have run synchronously.
         // Verify fragment CVs were produced (batch ran) and a final PDF exists.
         List<ContentVersion> finalPdf = [
-            SELECT Id, VersionData FROM ContentVersion
-            WHERE Title = :('docgen_giant_' + jobId + '_final') LIMIT 1
+            SELECT Id, VersionData
+            FROM ContentVersion
+            WHERE Title = :('docgen_giant_' + jobId + '_final')
+            LIMIT 1
         ];
         System.assertEquals(1, finalPdf.size(), 'Final giant-query PDF CV should exist');
         System.assert(finalPdf[0].VersionData.size() > 100, 'Final PDF should be non-trivial');
@@ -498,7 +568,10 @@ private class DocGenHtmlTemplateTest {
         Map<String, String> parts = DocGenService.extractLoopBody(html, 'Rel');
         System.assertNotEquals(null, parts, 'Should find the loop body');
         String innerXml = parts.get('innerXml');
-        System.assert(innerXml.contains('<tr>') || innerXml.contains('<tr '), 'Container should be the <tr>: ' + innerXml);
+        System.assert(
+            innerXml.contains('<tr>') || innerXml.contains('<tr '),
+            'Container should be the <tr>: ' + innerXml
+        );
         System.assert(innerXml.contains('<td>{Field}</td>'), 'Cell content should be preserved');
         System.assert(parts.get('beforeLoop').contains('<th>Header</th>'), 'Header row goes in beforeLoop');
         System.assert(parts.get('afterLoop').startsWith('</table>'), 'afterLoop starts at </table>');
@@ -509,14 +582,16 @@ private class DocGenHtmlTemplateTest {
         String html = '<html><body><ul><li>{#Rel}Item {Name}{/Rel}</li></ul></body></html>';
         Map<String, String> parts = DocGenService.extractLoopBody(html, 'Rel');
         System.assertNotEquals(null, parts);
-        System.assert(parts.get('innerXml').contains('<li>'), 'Container should include <li>: ' + parts.get('innerXml'));
+        System.assert(
+            parts.get('innerXml').contains('<li>'),
+            'Container should include <li>: ' + parts.get('innerXml')
+        );
     }
 
     @IsTest
     static void generateDocumentRoutesHtmlToPdf() {
         Account acct = [SELECT Id FROM Account LIMIT 1];
-        Id tmplId = createHtmlTemplate(null, null,
-            '<html><body><p>{Name}</p></body></html>');
+        Id tmplId = createHtmlTemplate(null, null, '<html><body><p>{Name}</p></body></html>');
 
         Test.startTest();
         Id cdId = DocGenService.generateDocument(tmplId, acct.Id);

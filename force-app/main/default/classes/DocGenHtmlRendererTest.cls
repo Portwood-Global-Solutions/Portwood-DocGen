@@ -1,11 +1,11 @@
 @IsTest
 private class DocGenHtmlRendererTest {
-
     @IsTest
     static void testBasicParagraph() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:t>Hello World</w:t></w:r></w:p>' +
@@ -23,7 +23,8 @@ private class DocGenHtmlRendererTest {
     static void testBoldItalicUnderline() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:b/><w:i/><w:u w:val="single"/></w:rPr><w:t>Styled</w:t></w:r></w:p>' +
@@ -42,7 +43,8 @@ private class DocGenHtmlRendererTest {
     static void testParagraphAlignment() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Centered</w:t></w:r></w:p>' +
@@ -58,7 +60,8 @@ private class DocGenHtmlRendererTest {
     static void testFontSizeAndColor() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:sz w:val="28"/><w:color w:val="FF0000"/></w:rPr><w:t>Big Red</w:t></w:r></w:p>' +
@@ -75,7 +78,8 @@ private class DocGenHtmlRendererTest {
     static void testTable() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl>' +
@@ -101,7 +105,8 @@ private class DocGenHtmlRendererTest {
     static void testTableCellShading() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -120,7 +125,8 @@ private class DocGenHtmlRendererTest {
     static void testLineBreak() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:t>Before</w:t></w:r><w:r><w:br/></w:r><w:r><w:t>After</w:t></w:r></w:p>' +
@@ -139,11 +145,10 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             String fakeBase64 = EncodingUtil.base64Encode(Blob.valueOf('fake image data'));
-            Map<String, String> images = new Map<String, String>{
-                'rIdImg1' => fakeBase64
-            };
+            Map<String, String> images = new Map<String, String>{ 'rIdImg1' => fakeBase64 };
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -186,7 +191,8 @@ private class DocGenHtmlRendererTest {
     static void testNoImagesOverload() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body><w:p><w:r><w:t>Test</w:t></w:r></w:p></w:body></w:document>';
 
@@ -199,7 +205,8 @@ private class DocGenHtmlRendererTest {
     static void testMultipleRuns() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p>' +
@@ -220,7 +227,8 @@ private class DocGenHtmlRendererTest {
     static void testSpacingAndIndent() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:spacing w:before="120" w:after="240"/><w:ind w:left="720"/></w:pPr>' +
@@ -244,7 +252,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Exercises the images == null guard in convertToHtml
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body><w:p><w:r><w:t>Text</w:t></w:r></w:p></w:body></w:document>';
 
@@ -258,7 +267,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers right/end and both/distribute alignment branches
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>Right</w:t></w:r></w:p>' +
@@ -278,7 +288,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers w:ind w:right and w:firstLine branches
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:ind w:left="360" w:right="360" w:firstLine="720"/></w:pPr>' +
@@ -296,7 +307,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers w:strike branch
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:strike/></w:rPr><w:t>Struck</w:t></w:r></w:p>' +
@@ -313,7 +325,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers w:rFonts (hAnsi fallback) and w:highlight branches
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:rFonts w:hAnsi="Times New Roman"/><w:highlight w:val="yellow"/></w:rPr><w:t>Highlighted</w:t></w:r></w:p>' +
@@ -330,7 +343,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers the color == 'auto' skip branch
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:color w:val="auto"/></w:rPr><w:t>Auto</w:t></w:r></w:p>' +
@@ -347,7 +361,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers tblW with type=pct branch
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/></w:tblPr>' +
@@ -365,7 +380,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers tcW with pct type and dxa type branches
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single"/></w:tblBorders></w:tblPr>' +
@@ -388,7 +404,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers w:vAlign branch
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -410,7 +427,8 @@ private class DocGenHtmlRendererTest {
             String jpegBase64 = '/9j/4AAQSkZJRgABAQEASABIAAD';
             Map<String, String> images = new Map<String, String>{ 'rIdImg1' => jpegBase64 };
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -435,7 +453,8 @@ private class DocGenHtmlRendererTest {
             // Covers relId == null return '' branch
             Map<String, String> images = new Map<String, String>();
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -460,7 +479,8 @@ private class DocGenHtmlRendererTest {
             // Covers base64 == null return '' branch (relId exists but not in images map)
             Map<String, String> images = new Map<String, String>();
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -486,7 +506,8 @@ private class DocGenHtmlRendererTest {
             String fakeBase64 = EncodingUtil.base64Encode(Blob.valueOf('fake image'));
             Map<String, String> images = new Map<String, String>{ 'rIdImg2' => fakeBase64 };
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -509,7 +530,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers blank content branch in processParagraph
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:jc w:val="center"/></w:pPr></w:p>' +
@@ -525,7 +547,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers <w:p/> self-closing paragraph handling
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p/>' +
@@ -541,7 +564,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers self-closing <w:t/> skip in extractTextContent
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:t/><w:t>After</w:t></w:r></w:p>' +
@@ -557,7 +581,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers extractBodyContent when no w:body tag exists
-            String xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            String xml =
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:p><w:r><w:t>NoBody</w:t></w:r></w:p></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -570,7 +595,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers extractBodyContent when no </w:body> close tag
-            String xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            String xml =
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body><w:p><w:r><w:t>Open</w:t></w:r></w:p></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -586,7 +612,8 @@ private class DocGenHtmlRendererTest {
             String fakeBase64 = EncodingUtil.base64Encode(Blob.valueOf('fake'));
             Map<String, String> images = new Map<String, String>{ 'rIdStandalone' => fakeBase64 };
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:drawing>' +
@@ -609,7 +636,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers sectPr stripping from body content
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:t>Before</w:t></w:r></w:p>' +
@@ -627,7 +655,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers <w:r ...> with attributes (runStart2 branch)
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r w:rsidR="00112233"><w:t>WithAttr</w:t></w:r></w:p>' +
@@ -643,7 +672,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers <w:p ...> with attributes
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p w:rsidR="00112233"><w:r><w:t>ParaAttr</w:t></w:r></w:p>' +
@@ -659,7 +689,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers self-closing element in extractElement
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>Left</w:t></w:r></w:p>' +
@@ -675,7 +706,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers w:rFonts w:ascii path (primary path)
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:rFonts w:ascii="Courier New"/></w:rPr><w:t>Mono</w:t></w:r></w:p>' +
@@ -691,7 +723,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Covers fill == 'auto' skip branch in cell shading
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -716,10 +749,13 @@ private class DocGenHtmlRendererTest {
         System.runAs(u) {
             // Build XML with a barcode marker in the text content
             String barcodeMarker = '##BARCODE:code128::ABC-123##';
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
-                '<w:p><w:r><w:t>' + barcodeMarker + '</w:t></w:r></w:p>' +
+                '<w:p><w:r><w:t>' +
+                barcodeMarker +
+                '</w:t></w:r></w:p>' +
                 '</w:body></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -736,10 +772,13 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             String barcodeMarker = '##BARCODE:code128:300x80:TEST##';
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
-                '<w:p><w:r><w:t>' + barcodeMarker + '</w:t></w:r></w:p>' +
+                '<w:p><w:r><w:t>' +
+                barcodeMarker +
+                '</w:t></w:r></w:p>' +
                 '</w:body></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -758,10 +797,13 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             String barcodeMarker = '##BARCODE:qr::Hello##';
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
-                '<w:p><w:r><w:t>' + barcodeMarker + '</w:t></w:r></w:p>' +
+                '<w:p><w:r><w:t>' +
+                barcodeMarker +
+                '</w:t></w:r></w:p>' +
                 '</w:body></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -778,10 +820,13 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             String barcodeMarker = '##BARCODE:qr:200:TestQR##';
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
-                '<w:p><w:r><w:t>' + barcodeMarker + '</w:t></w:r></w:p>' +
+                '<w:p><w:r><w:t>' +
+                barcodeMarker +
+                '</w:t></w:r></w:p>' +
                 '</w:body></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -796,10 +841,13 @@ private class DocGenHtmlRendererTest {
         System.runAs(u) {
             // Text before and after barcode marker
             String barcodeMarker = 'Before##BARCODE:code128::VAL##After';
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
-                '<w:p><w:r><w:t>' + barcodeMarker + '</w:t></w:r></w:p>' +
+                '<w:p><w:r><w:t>' +
+                barcodeMarker +
+                '</w:t></w:r></w:p>' +
                 '</w:body></w:document>';
 
             String html = DocGenHtmlRenderer.convertToHtml(xml);
@@ -818,7 +866,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // w:numPr with odd numId = bullet list
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>' +
@@ -848,7 +897,8 @@ private class DocGenHtmlRendererTest {
                 '<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>' +
                 '</w:numbering>';
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr>' +
@@ -873,7 +923,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // ListParagraph style without numPr
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr>' +
@@ -892,7 +943,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // numId 0 means "no list" in OOXML
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="0"/></w:numPr></w:pPr>' +
@@ -914,7 +966,8 @@ private class DocGenHtmlRendererTest {
     static void testTabStop() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:tab/></w:r><w:r><w:t>After tab</w:t></w:r></w:p>' +
@@ -932,7 +985,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Tab run that also contains text with run properties
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:b/></w:rPr><w:tab/><w:t>TabText</w:t></w:r></w:p>' +
@@ -953,7 +1007,8 @@ private class DocGenHtmlRendererTest {
     static void testSubscript() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:vertAlign w:val="subscript"/></w:rPr><w:t>2</w:t></w:r></w:p>' +
@@ -970,7 +1025,8 @@ private class DocGenHtmlRendererTest {
     static void testSuperscript() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t>TM</w:t></w:r></w:p>' +
@@ -991,7 +1047,8 @@ private class DocGenHtmlRendererTest {
     static void testCellBorders() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1025,7 +1082,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // w:start and w:end instead of w:left and w:right
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1054,7 +1112,8 @@ private class DocGenHtmlRendererTest {
     static void testCellPadding() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1082,7 +1141,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // w:start and w:end instead of w:left and w:right
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1112,7 +1172,8 @@ private class DocGenHtmlRendererTest {
     static void testCellGridSpan() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1138,7 +1199,8 @@ private class DocGenHtmlRendererTest {
     static void testFontFaceCssInjection() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:t>Custom Font</w:t></w:r></w:p>' +
@@ -1161,7 +1223,8 @@ private class DocGenHtmlRendererTest {
     static void testFontFaceCssNull() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:t>No Custom Font</w:t></w:r></w:p>' +
@@ -1187,7 +1250,8 @@ private class DocGenHtmlRendererTest {
                 'rIdSfc1' => '/sfc/servlet.shepherd/version/download/068000000000001'
             };
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -1216,7 +1280,8 @@ private class DocGenHtmlRendererTest {
     static void testHeadingStyles() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>' +
@@ -1235,7 +1300,8 @@ private class DocGenHtmlRendererTest {
     static void testTitleStyle() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Doc Title</w:t></w:r></w:p>' +
@@ -1257,7 +1323,8 @@ private class DocGenHtmlRendererTest {
     static void testAllCaps() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:caps/></w:rPr><w:t>lowercase text</w:t></w:r></w:p>' +
@@ -1273,7 +1340,8 @@ private class DocGenHtmlRendererTest {
     static void testSmallCaps() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:smallCaps/></w:rPr><w:t>small caps</w:t></w:r></w:p>' +
@@ -1294,7 +1362,8 @@ private class DocGenHtmlRendererTest {
     static void testPageBreakInParagraph() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>After Break</w:t></w:r></w:p>' +
@@ -1311,7 +1380,8 @@ private class DocGenHtmlRendererTest {
     static void testPageBreakInRun() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:br w:type="page"/></w:r><w:r><w:t>Next Page</w:t></w:r></w:p>' +
@@ -1331,7 +1401,8 @@ private class DocGenHtmlRendererTest {
     static void testHyperlink() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:hyperlink r:id="rId5" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
@@ -1355,7 +1426,8 @@ private class DocGenHtmlRendererTest {
     static void testHorizontalRule() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:color="000000"/></w:pBdr></w:pPr></w:p>' +
@@ -1375,7 +1447,8 @@ private class DocGenHtmlRendererTest {
     static void testLetterSpacing() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:spacing w:val="40"/></w:rPr><w:t>Spaced</w:t></w:r></w:p>' +
@@ -1395,7 +1468,8 @@ private class DocGenHtmlRendererTest {
     static void testTableHeaderRow() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1420,7 +1494,8 @@ private class DocGenHtmlRendererTest {
     static void testHyperlinkExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:hyperlink r:id="rId5" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
@@ -1440,7 +1515,8 @@ private class DocGenHtmlRendererTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             // Hyperlink with no inner runs — should render empty
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:hyperlink></w:hyperlink></w:p>' +
@@ -1459,7 +1535,8 @@ private class DocGenHtmlRendererTest {
     static void testConvertToHtmlWithFontFaceCss() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body><w:p><w:r><w:t>FontTest</w:t></w:r></w:p></w:body></w:document>';
 
@@ -1479,7 +1556,8 @@ private class DocGenHtmlRendererTest {
     static void testPageBreakInRunExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' +
@@ -1498,7 +1576,8 @@ private class DocGenHtmlRendererTest {
     static void testColumnBreakInRun() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:br w:type="column"/></w:r></w:p>' +
@@ -1517,7 +1596,8 @@ private class DocGenHtmlRendererTest {
     static void testPageBreakBeforeParagraph() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>After break</w:t></w:r></w:p>' +
@@ -1537,7 +1617,8 @@ private class DocGenHtmlRendererTest {
     static void testHorizontalRuleExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:color="000000"/></w:pBdr></w:pPr></w:p>' +
@@ -1556,7 +1637,8 @@ private class DocGenHtmlRendererTest {
     static void testHeadingStylesExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>H1</w:t></w:r></w:p>' +
@@ -1579,7 +1661,8 @@ private class DocGenHtmlRendererTest {
     static void testParagraphShading() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:shd w:val="clear" w:fill="FFFF00"/></w:pPr>' +
@@ -1599,7 +1682,8 @@ private class DocGenHtmlRendererTest {
     static void testParagraphBorders() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pBdr>' +
@@ -1626,7 +1710,8 @@ private class DocGenHtmlRendererTest {
     static void testKeepWithNextAndKeepLines() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:keepNext/><w:keepLines/></w:pPr>' +
@@ -1647,7 +1732,8 @@ private class DocGenHtmlRendererTest {
     static void testLineSpacingExact() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:spacing w:line="360" w:lineRule="exact"/></w:pPr>' +
@@ -1663,7 +1749,8 @@ private class DocGenHtmlRendererTest {
     static void testLineSpacingAuto() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:spacing w:line="360" w:lineRule="auto"/></w:pPr>' +
@@ -1683,7 +1770,8 @@ private class DocGenHtmlRendererTest {
     static void testHangingIndent() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:ind w:hanging="360"/></w:pPr>' +
@@ -1704,7 +1792,8 @@ private class DocGenHtmlRendererTest {
     static void testAllCapsExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:caps/></w:rPr><w:t>hello</w:t></w:r></w:p>' +
@@ -1719,7 +1808,8 @@ private class DocGenHtmlRendererTest {
     static void testSmallCapsExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:smallCaps/></w:rPr><w:t>test</w:t></w:r></w:p>' +
@@ -1738,7 +1828,8 @@ private class DocGenHtmlRendererTest {
     static void testRunShading() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:shd w:val="clear" w:fill="00FF00"/></w:rPr><w:t>Shaded</w:t></w:r></w:p>' +
@@ -1757,7 +1848,8 @@ private class DocGenHtmlRendererTest {
     static void testLetterSpacingExtended() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:rPr><w:spacing w:val="40"/></w:rPr><w:t>Spaced</w:t></w:r></w:p>' +
@@ -1776,7 +1868,8 @@ private class DocGenHtmlRendererTest {
     static void testTableAlignmentCenter() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr><w:jc w:val="center"/></w:tblPr>' +
@@ -1794,7 +1887,8 @@ private class DocGenHtmlRendererTest {
     static void testTableAlignmentRight() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr><w:jc w:val="right"/></w:tblPr>' +
@@ -1815,7 +1909,8 @@ private class DocGenHtmlRendererTest {
     static void testCellColspan() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:tbl><w:tblPr></w:tblPr>' +
@@ -1841,7 +1936,8 @@ private class DocGenHtmlRendererTest {
                 'rIdUrl' => '/sfc/servlet.shepherd/version/download/068000000000001'
             };
 
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:r><w:drawing>' +
@@ -1868,7 +1964,8 @@ private class DocGenHtmlRendererTest {
     static void testListNumberStyle() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pStyle w:val="ListNumber"/></w:pPr>' +
@@ -1889,7 +1986,8 @@ private class DocGenHtmlRendererTest {
     static void testBorderNilRendersNoBorder() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+            String xml =
+                '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
                 '<w:p><w:pPr><w:pBdr>' +
@@ -1912,7 +2010,8 @@ private class DocGenHtmlRendererTest {
 
     @IsTest
     static void testRtlParagraphTextReversed() {
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:pPr><w:bidi/></w:pPr>' +
             '<w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E9\u05DC\u05D5\u05DD</w:t></w:r></w:p>' +
@@ -1924,7 +2023,8 @@ private class DocGenHtmlRendererTest {
 
     @IsTest
     static void testRtlRunEnglishNotReversed() {
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:pPr><w:bidi/></w:pPr>' +
             '<w:r><w:rPr><w:rtl/></w:rPr><w:t>James Smith</w:t></w:r></w:p>' +
@@ -1935,7 +2035,8 @@ private class DocGenHtmlRendererTest {
 
     @IsTest
     static void testRtlTableBidiVisualReversesCells() {
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:tbl><w:tblPr><w:bidiVisual/><w:tblBorders>' +
             '<w:top w:val="single" w:sz="4" w:color="000000"/></w:tblBorders></w:tblPr>' +
@@ -1950,7 +2051,8 @@ private class DocGenHtmlRendererTest {
 
     @IsTest
     static void testRtlRunOrderReversed() {
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:pPr><w:bidi/></w:pPr>' +
             '<w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E8\u05D0\u05E9\u05D5\u05DF</w:t></w:r>' +
@@ -1965,7 +2067,8 @@ private class DocGenHtmlRendererTest {
     @IsTest
     static void testRtlDefaultStyleInherited() {
         DocGenHtmlRenderer.stylesXml = TestDataFactory.buildRtlStylesXml();
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:r><w:rPr><w:rtl/></w:rPr><w:t>\u05E9\u05DC\u05D5\u05DD</w:t></w:r></w:p>' +
             '</w:body></w:document>';
@@ -1977,7 +2080,8 @@ private class DocGenHtmlRendererTest {
 
     @IsTest
     static void testRtlComplexScriptFont() {
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:r><w:rPr><w:rtl/><w:rFonts w:cs="David"/></w:rPr>' +
             '<w:t>\u05E9\u05DC\u05D5\u05DD</w:t></w:r></w:p></w:body></w:document>';
@@ -1987,7 +2091,8 @@ private class DocGenHtmlRendererTest {
 
     @IsTest
     static void testRtlIndentStartEndFallback() {
-        String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+        String xml =
+            '<?xml version="1.0" encoding="UTF-8"?>' +
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
             '<w:body><w:p><w:pPr><w:bidi/><w:ind w:start="720" w:end="360"/></w:pPr>' +
             '<w:r><w:t>Test</w:t></w:r></w:p></w:body></w:document>';
@@ -2013,13 +2118,17 @@ private class DocGenHtmlRendererTest {
     // (Flying Saucer's true page-bleed mechanism) instead of inline divs.
     @IsTest
     static void testVmlPictWatermarkRendering() {
-        String headerXml = '<w:hdr><w:p><w:r><w:pict>' +
+        String headerXml =
+            '<w:hdr><w:p><w:r><w:pict>' +
             '<v:shape id="PowerPlusWaterMarkObject" style="position:absolute;width:468pt;height:240pt" type="#_x0000_t75">' +
             '<v:imagedata r:id="rIdImg1" o:title=""/>' +
             '</v:shape>' +
             '</w:pict></w:r></w:p></w:hdr>';
-        String docXml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
-            '<!-- DOCGEN_HEADER_START -->' + headerXml + '<!-- DOCGEN_HEADER_END -->' +
+        String docXml =
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+            '<!-- DOCGEN_HEADER_START -->' +
+            headerXml +
+            '<!-- DOCGEN_HEADER_END -->' +
             '<w:p><w:r><w:t>Body</w:t></w:r></w:p></w:body></w:document>';
         Map<String, String> images = new Map<String, String>{
             'rIdImg1' => '/sfc/servlet.shepherd/version/download/068000000000000'
@@ -2035,19 +2144,26 @@ private class DocGenHtmlRendererTest {
     static void testWatermarkOverrideBeatsVmlWatermark() {
         DocGenHtmlRenderer.overrideWatermarkCvId = '068000000000999';
         try {
-            String headerXml = '<w:hdr><w:p><w:r><w:pict>' +
+            String headerXml =
+                '<w:hdr><w:p><w:r><w:pict>' +
                 '<v:shape id="PowerPlusWaterMarkObject" style="width:400pt;height:300pt" type="#_x0000_t75">' +
                 '<v:imagedata r:id="rIdImg1"/>' +
                 '</v:shape>' +
                 '</w:pict></w:r></w:p></w:hdr>';
-            String docXml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
-                '<!-- DOCGEN_HEADER_START -->' + headerXml + '<!-- DOCGEN_HEADER_END -->' +
+            String docXml =
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+                '<!-- DOCGEN_HEADER_START -->' +
+                headerXml +
+                '<!-- DOCGEN_HEADER_END -->' +
                 '<w:p><w:r><w:t>Body</w:t></w:r></w:p></w:body></w:document>';
             Map<String, String> images = new Map<String, String>{
                 'rIdImg1' => '/sfc/servlet.shepherd/version/download/068000000000111'
             };
             String html = DocGenHtmlRenderer.convertToHtml(docXml, images, null);
-            System.assert(html.contains('068000000000999'), 'Admin override CV must win over the Word VML watermark CV');
+            System.assert(
+                html.contains('068000000000999'),
+                'Admin override CV must win over the Word VML watermark CV'
+            );
             System.assert(!html.contains('068000000000111'), 'VML watermark CV should be skipped when override is set');
         } finally {
             DocGenHtmlRenderer.overrideWatermarkCvId = null;

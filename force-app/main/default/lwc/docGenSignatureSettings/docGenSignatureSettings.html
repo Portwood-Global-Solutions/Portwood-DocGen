@@ -1,21 +1,15 @@
 <template>
     <lightning-card title="Signature Settings" icon-name="standard:signature_request">
         <div slot="actions">
-            <lightning-button
-                variant="brand"
-                label={saveLabel}
-                onclick={handleSave}
-                disabled={isSaving}>
+            <lightning-button variant="brand" label={saveLabel} onclick={handleSave} disabled={isSaving}>
             </lightning-button>
         </div>
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
-
             <template if:false={isLoaded}>
                 <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
             </template>
 
             <template if:true={isLoaded}>
-
                 <!-- ===== SETUP STATUS CHECKLIST ===== -->
                 <div class="slds-section slds-is-open">
                     <h3 class="slds-section__title slds-theme_shade slds-p-around_x-small">
@@ -27,38 +21,90 @@
                         </template>
                         <template if:true={setupChecksLoaded}>
                             <template if:true={allChecksPassed}>
-                                <div class="slds-box slds-theme_success slds-m-bottom_small" style="background:#e6f9e6;border:1px solid #2e844a;border-radius:6px;padding:12px 16px;">
-                                    <lightning-icon icon-name="utility:success" size="x-small" variant="success" class="slds-m-right_x-small"></lightning-icon>
+                                <div
+                                    class="slds-box slds-theme_success slds-m-bottom_small"
+                                    style="
+                                        background: #e6f9e6;
+                                        border: 1px solid #2e844a;
+                                        border-radius: 6px;
+                                        padding: 12px 16px;
+                                    "
+                                >
+                                    <lightning-icon
+                                        icon-name="utility:success"
+                                        size="x-small"
+                                        variant="success"
+                                        class="slds-m-right_x-small"
+                                    ></lightning-icon>
                                     <strong>Signatures are ready to use.</strong> All setup checks passed.
                                 </div>
                             </template>
                             <template if:false={allChecksPassed}>
-                                <div class="slds-box slds-m-bottom_small" style="background:#fef3cd;border:1px solid #e0a800;border-radius:6px;padding:12px 16px;">
-                                    <lightning-icon icon-name="utility:warning" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                <div
+                                    class="slds-box slds-m-bottom_small"
+                                    style="
+                                        background: #fef3cd;
+                                        border: 1px solid #e0a800;
+                                        border-radius: 6px;
+                                        padding: 12px 16px;
+                                    "
+                                >
+                                    <lightning-icon
+                                        icon-name="utility:warning"
+                                        size="x-small"
+                                        class="slds-m-right_x-small"
+                                    ></lightning-icon>
                                     <strong>Setup incomplete.</strong> Resolve the items below to enable signatures.
                                 </div>
                             </template>
-                            <ul class="slds-list_dotted" style="list-style:none;padding:0;margin:0;">
+                            <ul class="slds-list_dotted" style="list-style: none; padding: 0; margin: 0">
                                 <template for:each={setupChecks} for:item="check">
-                                    <li key={check.name} class="slds-p-vertical_xx-small" style="display:flex;align-items:flex-start;gap:8px;">
+                                    <li
+                                        key={check.name}
+                                        class="slds-p-vertical_xx-small"
+                                        style="display: flex; align-items: flex-start; gap: 8px"
+                                    >
                                         <template if:true={check.passed}>
-                                            <lightning-icon icon-name="utility:success" size="xx-small" variant="success" style="flex-shrink:0;margin-top:2px;"></lightning-icon>
+                                            <lightning-icon
+                                                icon-name="utility:success"
+                                                size="xx-small"
+                                                variant="success"
+                                                style="flex-shrink: 0; margin-top: 2px"
+                                            ></lightning-icon>
                                         </template>
                                         <template if:false={check.passed}>
-                                            <lightning-icon icon-name="utility:error" size="xx-small" variant="error" style="flex-shrink:0;margin-top:2px;"></lightning-icon>
+                                            <lightning-icon
+                                                icon-name="utility:error"
+                                                size="xx-small"
+                                                variant="error"
+                                                style="flex-shrink: 0; margin-top: 2px"
+                                            ></lightning-icon>
                                         </template>
-                                        <div style="flex:1;">
+                                        <div style="flex: 1">
                                             <strong>{check.name}</strong>
-                                            <span class="slds-text-body_small slds-text-color_weak"> &mdash; {check.message}</span>
+                                            <span class="slds-text-body_small slds-text-color_weak">
+                                                &mdash; {check.message}</span
+                                            >
                                             <template if:true={check.fixUrl}>
-                                                <a href={check.fixUrl} target="_blank" class="slds-m-left_xx-small" style="font-size:12px;">Go to Setup</a>
+                                                <a
+                                                    href={check.fixUrl}
+                                                    target="_blank"
+                                                    class="slds-m-left_xx-small"
+                                                    style="font-size: 12px"
+                                                    >Go to Setup</a
+                                                >
                                             </template>
                                         </div>
                                     </li>
                                 </template>
                             </ul>
                             <div class="slds-m-top_small">
-                                <lightning-button label="Re-check Setup" variant="neutral" icon-name="utility:refresh" onclick={handleRefreshChecks}></lightning-button>
+                                <lightning-button
+                                    label="Re-check Setup"
+                                    variant="neutral"
+                                    icon-name="utility:refresh"
+                                    onclick={handleRefreshChecks}
+                                ></lightning-button>
                             </div>
                         </template>
                     </div>
@@ -75,7 +121,8 @@
                             value={siteUrl}
                             placeholder="https://yourorg.my.salesforce-sites.com/DocGenSignatures"
                             onchange={handleSiteUrlChange}
-                            field-level-help="The public Salesforce Site URL where signers access the signing page. Copy from Setup > Sites > your site's URL.">
+                            field-level-help="The public Salesforce Site URL where signers access the signing page. Copy from Setup > Sites > your site's URL."
+                        >
                         </lightning-input>
                         <lightning-combobox
                             label="Send Emails From"
@@ -83,7 +130,8 @@
                             options={owaOptions}
                             onchange={handleOwaChange}
                             field-level-help="Required: Select an Org-Wide Email Address for PIN verification emails. Guest users cannot send email without one. Create in Setup > Organization-Wide Email Addresses."
-                            class="slds-m-top_small">
+                            class="slds-m-top_small"
+                        >
                         </lightning-combobox>
                     </div>
                 </div>
@@ -100,7 +148,8 @@
                                     label="Company Name"
                                     value={companyName}
                                     placeholder="Your Company"
-                                    onchange={handleCompanyNameChange}>
+                                    onchange={handleCompanyNameChange}
+                                >
                                 </lightning-input>
                             </div>
                             <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
@@ -109,7 +158,8 @@
                                     type="color"
                                     value={brandColor}
                                     onchange={handleBrandColorChange}
-                                    field-level-help="Primary color for email header, buttons, and the signing page.">
+                                    field-level-help="Primary color for email header, buttons, and the signing page."
+                                >
                                 </lightning-input>
                             </div>
                             <div class="slds-col slds-size_1-of-1 slds-p-bottom_small">
@@ -118,7 +168,8 @@
                                     value={logoUrl}
                                     placeholder="https://example.com/logo.png"
                                     onchange={handleLogoUrlChange}
-                                    field-level-help="URL to your company logo. Use an external URL or a Salesforce Static Resource path (/resource/YourResourceName). Displayed in emails and the signing page.">
+                                    field-level-help="URL to your company logo. Use an external URL or a Salesforce Static Resource path (/resource/YourResourceName). Displayed in emails and the signing page."
+                                >
                                 </lightning-input>
                             </div>
                             <div class="slds-col slds-size_1-of-1 slds-p-bottom_small">
@@ -127,7 +178,8 @@
                                     value={emailSubject}
                                     placeholder="Action Required: Please Sign {DocumentTitle}"
                                     onchange={handleEmailSubjectChange}
-                                    field-level-help="Merge fields: {SignerName}, {DocumentTitle}, {SenderName}">
+                                    field-level-help="Merge fields: {SignerName}, {DocumentTitle}, {SenderName}"
+                                >
                                 </lightning-input>
                             </div>
                             <div class="slds-col slds-size_1-of-1 slds-p-bottom_small">
@@ -136,7 +188,8 @@
                                     value={emailMessage}
                                     placeholder="Custom message to include in the signature request email."
                                     onchange={handleEmailMessageChange}
-                                    field-level-help="Merge fields: {SignerName}, {DocumentTitle}, {SenderName}">
+                                    field-level-help="Merge fields: {SignerName}, {DocumentTitle}, {SenderName}"
+                                >
                                 </lightning-textarea>
                             </div>
                             <div class="slds-col slds-size_1-of-1 slds-p-bottom_small">
@@ -144,7 +197,8 @@
                                     label="Email Footer Text"
                                     value={footerText}
                                     placeholder="Powered by DocGen"
-                                    onchange={handleFooterTextChange}>
+                                    onchange={handleFooterTextChange}
+                                >
                                 </lightning-input>
                             </div>
                         </div>
@@ -163,7 +217,8 @@
                             checked={reminderEnabled}
                             onchange={handleReminderEnabledChange}
                             message-toggle-active="Reminders will be sent automatically"
-                            message-toggle-inactive="Reminders are off">
+                            message-toggle-inactive="Reminders are off"
+                        >
                         </lightning-input>
                         <template if:true={reminderEnabled}>
                             <lightning-input
@@ -174,7 +229,8 @@
                                 max="168"
                                 onchange={handleReminderHoursChange}
                                 field-level-help="Signers who haven't responded within this many hours will receive a reminder email. Each signer gets at most one reminder."
-                                class="slds-m-top_small">
+                                class="slds-m-top_small"
+                            >
                             </lightning-input>
                         </template>
                     </div>
@@ -189,35 +245,31 @@
                         <div class="email-preview">
                             <div class="preview-header" style={headerStyle}>
                                 <template if:true={logoUrl}>
-                                    <img src={logoUrl} alt="Logo" style="max-height:36px;" />
+                                    <img src={logoUrl} alt="Logo" style="max-height: 36px" />
                                 </template>
                                 <template if:false={logoUrl}>
-                                    <span style="color:#fff;font-weight:bold;">{companyNameDisplay}</span>
+                                    <span style="color: #fff; font-weight: bold">{companyNameDisplay}</span>
                                 </template>
                             </div>
                             <div class="preview-body">
                                 <p>Hi Signer,</p>
                                 <p class="preview-msg">{emailMessageDisplay}</p>
                                 <div class="preview-doc-box" style={docBoxStyle}>
-                                    <small>Document</small><br/>
+                                    <small>Document</small><br />
                                     <strong>Sample Agreement</strong>
                                 </div>
-                                <div style="text-align:center;margin:1rem 0;">
+                                <div style="text-align: center; margin: 1rem 0">
                                     <span class="preview-btn" style={btnStyle}>Review &amp; Sign Document</span>
                                 </div>
                             </div>
-                            <div class="preview-footer">
-                                {footerTextDisplay}
-                            </div>
+                            <div class="preview-footer">{footerTextDisplay}</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Save feedback -->
                 <template if:true={saveMessage}>
-                    <div class={saveMessageClass}>
-                        {saveMessage}
-                    </div>
+                    <div class={saveMessageClass}>{saveMessage}</div>
                 </template>
             </template>
         </div>

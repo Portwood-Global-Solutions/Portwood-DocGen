@@ -1,5 +1,4 @@
 public with sharing class DocGenTemplateManager {
-
     /**
      * Retrieves the ContentVersion Blob for the latest file attached to the DocGen Template.
      * @param templateId The ID of the DocGen_Template__c record.
@@ -7,17 +6,18 @@ public with sharing class DocGenTemplateManager {
      */
     public static String getTemplateFileContent(Id templateId) {
         if (templateId == null) {
-             throw new DocGenException('Template ID is required.');
+            throw new DocGenException('Template ID is required.');
         }
 
         // 1. Check for Active Version first
         /* code-analyzer-suppress ApexFlsViolation */
-        List<DocGen_Template_Version__c> activeVersions = [SELECT Content_Version_Id__c
+        List<DocGen_Template_Version__c> activeVersions = [
+            SELECT Content_Version_Id__c
             FROM DocGen_Template_Version__c
-            WHERE Template__c = :templateId
-            AND Is_Active__c = true
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
             WITH SYSTEM_MODE
-            LIMIT 1];
+            LIMIT 1
+        ];
 
         Id targetCvId = null;
 
@@ -37,12 +37,11 @@ public with sharing class DocGenTemplateManager {
             ];
 
             if (!links.isEmpty()) {
-                 // Get latest ContentVersion for this document
+                // Get latest ContentVersion for this document
                 List<ContentVersion> cvs = [
                     SELECT Id
                     FROM ContentVersion
-                    WHERE ContentDocumentId = :links[0].ContentDocumentId
-                    AND IsLatest = true
+                    WHERE ContentDocumentId = :links[0].ContentDocumentId AND IsLatest = TRUE
                     WITH USER_MODE
                     LIMIT 1
                 ];

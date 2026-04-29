@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Signing_Order__c</fullName>
     <externalId>false</externalId>
@@ -10,7 +10,8 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value><fullName>Parallel</fullName><default>true</default><label>Parallel (all at once)</label></value>
-            <value><fullName>Sequential</fullName><default>false</default><label>Sequential (one at a time)</label></value>
+            <value><fullName>Sequential</fullName><default>false</default><label
+                >Sequential (one at a time)</label></value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
