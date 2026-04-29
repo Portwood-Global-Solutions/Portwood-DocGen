@@ -12,12 +12,22 @@
     </targets>
     <targetConfigs>
         <targetConfig targets="lightning__RecordPage">
+            <property name="showDownloadOption" type="Boolean" label="Show Download Option" default="true" />
+            <property name="showSaveToRecordOption" type="Boolean" label="Show Save to Record Option" default="true" />
+            <property name="showDocumentPacketOption" type="Boolean" label="Show Document Packet Mode" default="true" />
+            <property name="showCombinePdfsOption" type="Boolean" label="Show Combine PDFs Mode" default="true" />
+            <property name="showCombineWithExistingPdfsOption" type="Boolean" label="Show Combine with Existing PDFs Option" default="true" />
             <supportedFormFactors>
                 <supportedFormFactor type="Large" />
                 <supportedFormFactor type="Small" />
             </supportedFormFactors>
         </targetConfig>
         <targetConfig targets="lightning__AppPage">
+            <property name="showDownloadOption" type="Boolean" label="Show Download Option" default="true" />
+            <property name="showSaveToRecordOption" type="Boolean" label="Show Save to Record Option" default="true" />
+            <property name="showDocumentPacketOption" type="Boolean" label="Show Document Packet Mode" default="true" />
+            <property name="showCombinePdfsOption" type="Boolean" label="Show Combine PDFs Mode" default="true" />
+            <property name="showCombineWithExistingPdfsOption" type="Boolean" label="Show Combine with Existing PDFs Option" default="true" />
             <supportedFormFactors>
                 <supportedFormFactor type="Large" />
                 <supportedFormFactor type="Small" />
@@ -26,6 +36,11 @@
         <targetConfig targets="lightning__FlowScreen">
             <property name="recordId" type="String" label="Record ID" />
             <property name="objectApiName" type="String" label="Object API Name" />
+            <property name="showDownloadOption" type="Boolean" label="Show Download Option" default="true" />
+            <property name="showSaveToRecordOption" type="Boolean" label="Show Save to Record Option" default="true" />
+            <property name="showDocumentPacketOption" type="Boolean" label="Show Document Packet Mode" default="true" />
+            <property name="showCombinePdfsOption" type="Boolean" label="Show Combine PDFs Mode" default="true" />
+            <property name="showCombineWithExistingPdfsOption" type="Boolean" label="Show Combine with Existing PDFs Option" default="true" />
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

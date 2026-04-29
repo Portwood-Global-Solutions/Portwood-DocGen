@@ -2,7 +2,11 @@
     <div class="runner-widget">
         <div class="widget-header">
             <div class="header-title">
-                <lightning-icon icon-name="standard:document" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                <lightning-icon
+                    icon-name="standard:document"
+                    size="small"
+                    class="slds-var-m-right_x-small"
+                ></lightning-icon>
                 <h2>DocGen</h2>
             </div>
             <p class="header-subtitle">Create or combine documents for this record.</p>
@@ -10,37 +14,34 @@
 
         <div class="widget-body">
             <template lwc:if={error}>
-                <div class="error-alert">
-                    <strong>Error:</strong> {error}
-                </div>
+                <div class="error-alert"><strong>Error:</strong> {error}</div>
             </template>
 
             <template lwc:if={isLoading}>
-                 <div class="loading-state">
-                     <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-                     <template lwc:if={loadingMessage}>
-                         <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_small">{loadingMessage}</p>
-                     </template>
-                     <template lwc:if={showProgressBar}>
-                         <div class="progress-bar-container slds-var-m-top_small">
-                             <div class="progress-bar-track">
-                                 <div class="progress-bar-fill" style={progressBarStyle}></div>
-                             </div>
-                             <p class="progress-bar-label">{progressPercent}%</p>
-                         </div>
-                     </template>
-                 </div>
+                <div class="loading-state">
+                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                    <template lwc:if={loadingMessage}>
+                        <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_small">{loadingMessage}</p>
+                    </template>
+                    <template lwc:if={showProgressBar}>
+                        <div class="progress-bar-container slds-var-m-top_small">
+                            <lightning-progress-bar value={progressPercent} size="medium"></lightning-progress-bar>
+                            <p class="progress-bar-label">{progressPercent}%</p>
+                        </div>
+                    </template>
+                </div>
             </template>
 
             <template lwc:else>
                 <!-- Custom Mode Selector (Segmented Control) -->
-                <div class="custom-segmented-control slds-var-m-bottom_medium">
+                <div lwc:if={showModeSelector} class="custom-segmented-control slds-var-m-bottom_medium">
                     <template for:each={modernModeOptions} for:item="opt">
-                        <button 
-                            key={opt.value} 
-                            class={opt.class} 
-                            data-value={opt.value} 
-                            onclick={handleModeChangeInternal}>
+                        <button
+                            key={opt.value}
+                            class={opt.class}
+                            data-value={opt.value}
+                            onclick={handleModeChangeInternal}
+                        >
                             {opt.label}
                         </button>
                     </template>
@@ -50,7 +51,7 @@
                 <template lwc:if={isGenerateMode}>
                     <!-- 1.47 — Empty state -->
                     <template lwc:if={showEmptyState}>
-                        <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="text-align: center;">
+                        <div class="slds-box slds-theme_shade slds-var-m-bottom_medium" style="text-align: center">
                             <p class="slds-text-body_regular slds-text-color_weak">{emptyStateMessage}</p>
                         </div>
                     </template>
@@ -75,7 +76,9 @@
                             <select class="custom-select" onchange={handleTemplateChangeInternal}>
                                 <option value="">Choose a template...</option>
                                 <template for:each={templateOptions} for:item="tmpl">
-                                    <option key={tmpl.value} value={tmpl.value} selected={tmpl.selected}>{tmpl.label}</option>
+                                    <option key={tmpl.value} value={tmpl.value} selected={tmpl.selected}>
+                                        {tmpl.label}
+                                    </option>
                                 </template>
                             </select>
                         </div>
@@ -97,15 +100,16 @@
                     </template>
 
                     <!-- Custom Output Selector -->
-                    <div class="slds-form-element slds-var-m-bottom_medium">
+                    <div lwc:if={showOutputDestinationSelector} class="slds-form-element slds-var-m-bottom_medium">
                         <label class="slds-form-element__label">Output Destination</label>
                         <div class="custom-mini-pills">
                             <template for:each={modernOutputOptions} for:item="out">
-                                <button 
-                                    key={out.value} 
-                                    class={out.class} 
-                                    data-value={out.value} 
-                                    onclick={handleOutputModeChangeInternal}>
+                                <button
+                                    key={out.value}
+                                    class={out.class}
+                                    data-value={out.value}
+                                    onclick={handleOutputModeChangeInternal}
+                                >
                                     {out.label}
                                 </button>
                             </template>
@@ -120,7 +124,8 @@
                                 label="Combine with existing PDFs on this record"
                                 checked={mergeEnabled}
                                 onchange={handleMergeToggle}
-                                class="custom-checkbox">
+                                class="custom-checkbox"
+                            >
                             </lightning-input>
                         </div>
 
@@ -131,7 +136,11 @@
                                     <div class="checkbox-list">
                                         <template for:each={recordPdfOptions} for:item="pdf">
                                             <div key={pdf.value} class="checkbox-item">
-                                                <input type="checkbox" value={pdf.value} onchange={handlePdfSelectionInternal} />
+                                                <input
+                                                    type="checkbox"
+                                                    value={pdf.value}
+                                                    onchange={handlePdfSelectionInternal}
+                                                />
                                                 <span>{pdf.label}</span>
                                             </div>
                                         </template>
@@ -160,29 +169,32 @@
                             options={pdfTemplateOptions}
                             value={packetTemplateIds}
                             onchange={handlePacketTemplateSelection}
-                            variant="label-hidden">
+                            variant="label-hidden"
+                        >
                         </lightning-dual-listbox>
                     </div>
 
-                    <div class="slds-var-m-bottom_medium">
+                    <div lwc:if={canUseCombineWithExistingPdfs} class="slds-var-m-bottom_medium">
                         <lightning-input
                             type="checkbox"
                             label="Include other PDFs from this record"
                             checked={packetIncludeExisting}
                             onchange={handlePacketIncludeToggle}
-                            class="custom-checkbox">
+                            class="custom-checkbox"
+                        >
                         </lightning-input>
                     </div>
 
-                    <div class="slds-form-element slds-var-m-bottom_medium">
+                    <div lwc:if={showOutputDestinationSelector} class="slds-form-element slds-var-m-bottom_medium">
                         <label class="slds-form-element__label">Output Destination</label>
                         <div class="custom-mini-pills">
                             <template for:each={modernOutputOptions} for:item="out">
-                                <button 
-                                    key={out.value} 
-                                    class={out.class} 
-                                    data-value={out.value} 
-                                    onclick={handleOutputModeChangeInternal}>
+                                <button
+                                    key={out.value}
+                                    class={out.class}
+                                    data-value={out.value}
+                                    onclick={handleOutputModeChangeInternal}
+                                >
                                     {out.label}
                                 </button>
                             </template>
@@ -206,7 +218,8 @@
                                 options={recordPdfOptions}
                                 value={mergeOnlyCvIds}
                                 onchange={handleMergeOnlySelection}
-                                variant="label-hidden">
+                                variant="label-hidden"
+                            >
                             </lightning-dual-listbox>
                         </template>
                         <template lwc:else>
@@ -214,15 +227,16 @@
                         </template>
                     </div>
 
-                    <div class="slds-form-element slds-var-m-bottom_medium">
+                    <div lwc:if={showOutputDestinationSelector} class="slds-form-element slds-var-m-bottom_medium">
                         <label class="slds-form-element__label">Output Destination</label>
                         <div class="custom-mini-pills">
                             <template for:each={modernOutputOptions} for:item="out">
-                                <button 
-                                    key={out.value} 
-                                    class={out.class} 
-                                    data-value={out.value} 
-                                    onclick={handleOutputModeChangeInternal}>
+                                <button
+                                    key={out.value}
+                                    class={out.class}
+                                    data-value={out.value}
+                                    onclick={handleOutputModeChangeInternal}
+                                >
                                     {out.label}
                                 </button>
                             </template>
@@ -249,14 +263,17 @@
                     </div>
 
                     <template lwc:if={selectedChildRel}>
-                        <div class="slds-grid slds-grid_vertical-align-end slds-gutters_x-small slds-var-m-bottom_medium">
+                        <div
+                            class="slds-grid slds-grid_vertical-align-end slds-gutters_x-small slds-var-m-bottom_medium"
+                        >
                             <div class="slds-col slds-grow">
                                 <lightning-input
                                     label="Filter Records"
                                     placeholder="e.g. StageName = 'Closed Won'"
                                     value={childFilterClause}
                                     onchange={handleChildFilterChangeInternal}
-                                    variant="label-hidden">
+                                    variant="label-hidden"
+                                >
                                 </lightning-input>
                             </div>
                             <div class="slds-col">
@@ -266,14 +283,19 @@
                     </template>
 
                     <template lwc:if={childPdfsLoaded}>
-                        <div class="merge-box" style="max-height: 250px; overflow-y: auto;">
+                        <div class="merge-box" style="max-height: 250px; overflow-y: auto">
                             <template lwc:if={hasChildRecordGroups}>
                                 <template for:each={childRecordGroupsWithState} for:item="group">
                                     <div key={group.childRecordId} class="slds-var-m-bottom_small">
                                         <p class="slds-text-title_bold">{group.childRecordName}</p>
                                         <template for:each={group.pdfs} for:item="pdf">
                                             <div key={pdf.value} class="checkbox-item slds-var-m-left_small">
-                                                <input type="checkbox" checked={pdf.checked} data-cvid={pdf.value} onchange={handleChildPdfCheckbox} />
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pdf.checked}
+                                                    data-cvid={pdf.value}
+                                                    onchange={handleChildPdfCheckbox}
+                                                />
                                                 <span>{pdf.label}</span>
                                             </div>
                                         </template>
@@ -285,27 +307,31 @@
                             </template>
                         </div>
 
-                        <div class="slds-form-element slds-var-m-bottom_medium">
+                        <div lwc:if={showOutputDestinationSelector} class="slds-form-element slds-var-m-bottom_medium">
                             <label class="slds-form-element__label">Output Destination</label>
                             <div class="custom-mini-pills">
                                 <template for:each={modernOutputOptions} for:item="out">
-                                    <button 
-                                        key={out.value} 
-                                        class={out.class} 
-                                        data-value={out.value} 
-                                        onclick={handleOutputModeChangeInternal}>
+                                    <button
+                                        key={out.value}
+                                        class={out.class}
+                                        data-value={out.value}
+                                        onclick={handleOutputModeChangeInternal}
+                                    >
                                         {out.label}
                                     </button>
                                 </template>
                             </div>
                         </div>
 
-                        <button class="cool-brand-btn" onclick={mergeChildrenDocument} disabled={isMergeChildrenDisabled}>
+                        <button
+                            class="cool-brand-btn"
+                            onclick={mergeChildrenDocument}
+                            disabled={isMergeChildrenDisabled}
+                        >
                             {mergeChildrenButtonLabel}
                         </button>
                     </template>
                 </template>
-
             </template>
         </div>
     </div>

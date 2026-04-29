@@ -37,6 +37,11 @@ import LOCK_OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Lock
 export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @api recordId;
     @api objectApiName;
+    @api showDownloadOption;
+    @api showSaveToRecordOption;
+    @api showDocumentPacketOption;
+    @api showCombinePdfsOption;
+    @api showCombineWithExistingPdfsOption;
 
     @track templateOptions = [];
     @track selectedTemplateId = '';
@@ -76,38 +81,81 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     _templateData = [];
 
     // --- Modern SaaS Mode Getters ---
-    
+
+    _isEnabled(value) {
+        return value !== false && value !== 'false';
+    }
+
+    get canDownload() { return this._isEnabled(this.showDownloadOption); }
+    get canSaveToRecord() { return this._isEnabled(this.showSaveToRecordOption); }
+    get canUseDocumentPacket() { return this._isEnabled(this.showDocumentPacketOption); }
+    get canUseCombinePdfs() { return this._isEnabled(this.showCombinePdfsOption); }
+    get canUseCombineWithExistingPdfs() { return this._isEnabled(this.showCombineWithExistingPdfsOption); }
+
     get modernModeOptions() {
-        return [
-            { label: 'Create Document', value: 'generate', icon: '📄', class: this.appMode === 'generate' ? 'seg-btn active' : 'seg-btn' },
-            { label: 'Document Packet', value: 'packet', icon: '📚', class: this.appMode === 'packet' ? 'seg-btn active' : 'seg-btn' },
-            { label: 'Combine PDFs', value: 'mergeOnly', icon: '🔗', class: this.appMode === 'mergeOnly' ? 'seg-btn active' : 'seg-btn' }
+        const options = [
+            { label: 'Create Document', value: 'generate', icon: '📄', class: this.appMode === 'generate' ? 'seg-btn active' : 'seg-btn' }
         ];
+        if (this.canUseDocumentPacket) {
+            options.push({ label: 'Document Packet', value: 'packet', icon: '📚', class: this.appMode === 'packet' ? 'seg-btn active' : 'seg-btn' });
+        }
+        if (this.canUseCombinePdfs) {
+            options.push({ label: 'Combine PDFs', value: 'mergeOnly', icon: '🔗', class: this.appMode === 'mergeOnly' ? 'seg-btn active' : 'seg-btn' });
+        }
+        return options;
+    }
+
+    get showModeSelector() {
+        return this.modernModeOptions.length > 1;
     }
 
     get _isMobile() {
         return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     }
 
-    get modernOutputOptions() {
-        // Mobile can only save to record — no browser download capability
+    get allowedOutputModes() {
         if (this._isMobile) {
-            if (this.outputMode !== 'save') { this.outputMode = 'save'; }
-            return [
-                { label: 'Save to Record', value: 'save', icon: '☁️', class: 'pill-btn active' }
-            ];
+            return this.canSaveToRecord ? ['save'] : [];
         }
-        const isPdfOutput = this.templateOutputFormat === 'PDF';
+        const isPdfOutput = this.appMode !== 'generate' || this.templateOutputFormat === 'PDF';
         if (!isPdfOutput || this.isGiantQueryMode) {
-            return [
-                { label: 'Download', value: 'download', icon: '⬇️', class: 'pill-btn active' }
-            ];
+            return this.canDownload ? ['download'] : [];
         }
-        const isSave = this.outputMode === 'save';
-        return [
-            { label: 'Download', value: 'download', icon: '⬇️', class: !isSave ? 'pill-btn active' : 'pill-btn' },
-            { label: 'Save to Record', value: 'save', icon: '☁️', class: isSave ? 'pill-btn active' : 'pill-btn' }
-        ];
+        const modes = [];
+        if (this.canDownload) { modes.push('download'); }
+        if (this.canSaveToRecord) { modes.push('save'); }
+        return modes;
+    }
+
+    get modernOutputOptions() {
+        const allowedModes = this.allowedOutputModes;
+        const resolvedMode = allowedModes.includes(this.outputMode) ? this.outputMode : allowedModes[0];
+        const options = [];
+        if (allowedModes.includes('download')) {
+            options.push({ label: 'Download', value: 'download', icon: '⬇️', class: resolvedMode === 'download' ? 'pill-btn active' : 'pill-btn' });
+        }
+        if (allowedModes.includes('save')) {
+            options.push({ label: 'Save to Record', value: 'save', icon: '☁️', class: resolvedMode === 'save' ? 'pill-btn active' : 'pill-btn' });
+        }
+        return options;
+    }
+
+    get showOutputDestinationSelector() {
+        return this.modernOutputOptions.length > 0;
+    }
+
+    get resolvedOutputMode() {
+        const allowedModes = this.allowedOutputModes;
+        if (allowedModes.includes(this.outputMode)) {
+            return this.outputMode;
+        }
+        if (allowedModes.includes('download')) {
+            return 'download';
+        }
+        if (allowedModes.includes('save')) {
+            return 'save';
+        }
+        return 'download';
     }
 
     get isGenerateMode() { return this.appMode === 'generate'; }
@@ -120,14 +168,14 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         return t ? t[OUT_FMT_FIELD.fieldApiName] : null;
     }
 
-    get showMergeOption() { return this.templateOutputFormat === 'PDF'; }
+    get showMergeOption() { return this.templateOutputFormat === 'PDF' && this.canUseCombineWithExistingPdfs; }
     get progressBarStyle() { return `width: ${this.progressPercent}%`; }
     get hasRecordPdfs() { return this.recordPdfOptions.length > 0; }
 
-    get isGenerateDisabled() { return !this.selectedTemplateId || this.isLoading; }
-    get isPacketDisabled() { return this.packetTemplateIds.length < 1 || this.isLoading; }
-    get isMergeOnlyDisabled() { return this.mergeOnlyCvIds.length < 2 || this.isLoading; }
-    get isMergeChildrenDisabled() { return this.selectedChildPdfCvIds.length < 1 || this.isLoading; }
+    get isGenerateDisabled() { return !this.selectedTemplateId || this.isLoading || this.modernOutputOptions.length === 0; }
+    get isPacketDisabled() { return this.packetTemplateIds.length < 1 || this.isLoading || this.modernOutputOptions.length === 0; }
+    get isMergeOnlyDisabled() { return this.mergeOnlyCvIds.length < 2 || this.isLoading || this.modernOutputOptions.length === 0; }
+    get isMergeChildrenDisabled() { return this.selectedChildPdfCvIds.length < 1 || this.isLoading || this.modernOutputOptions.length === 0; }
 
     get generateButtonLabel() {
         if (this.mergeEnabled && this.selectedPdfCvIds.length > 0) {
@@ -175,6 +223,11 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             ? data.filter(t => (t[CATEGORY_FIELD.fieldApiName] || '__UNCATEGORIZED__') === this.selectedCategory)
             : data;
         const defaultTemplate = filtered.find(t => t[IS_DEFAULT_FIELD.fieldApiName]);
+        const stillSelected = filtered.some(t => t.Id === this.selectedTemplateId);
+        const selectedTemplateId = stillSelected
+            ? this.selectedTemplateId
+            : (defaultTemplate ? defaultTemplate.Id : (filtered[0] ? filtered[0].Id : ''));
+        this.selectedTemplateId = selectedTemplateId;
         this.templateOptions = filtered.map(t => {
             const isDefault = !!t[IS_DEFAULT_FIELD.fieldApiName];
             const catVal = t[CATEGORY_FIELD.fieldApiName];
@@ -182,16 +235,9 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             return {
                 label: `${isDefault ? '★ ' : ''}${cat}${t.Name}`,
                 value: t.Id,
-                selected: defaultTemplate ? t.Id === defaultTemplate.Id : false
+                selected: t.Id === selectedTemplateId
             };
         });
-        // If the previously-selected template is no longer in the filtered list,
-        // fall back to the new default (or first option, or empty).
-        const stillSelected = this.templateOptions.some(o => o.value === this.selectedTemplateId);
-        if (!stillSelected) {
-            this.selectedTemplateId = defaultTemplate ? defaultTemplate.Id
-                : (this.templateOptions[0] ? this.templateOptions[0].value : '');
-        }
         // Reset override when template list changes — the new selection may be a different type
         this.outputFormatOverride = '';
     }
@@ -368,7 +414,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 parentRecordId: this.recordId,
                 childObject: rel.childObjectApiName,
                 lookupField: rel.lookupField,
-                filterClause: this.childFilterClause 
+                filterClause: this.childFilterClause
             });
             this.childRecordGroups = data;
             this.childPdfsLoaded = true;
@@ -474,7 +520,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const isExcel = templateType === 'Excel';
             // Use effectiveOutputFormat so a runtime PDF/Word override re-routes the path.
             const isPDF = this.effectiveOutputFormat === 'PDF' && !isPPT && !isExcel;
-            const saveToRecord = this.outputMode === 'save';
+            const saveToRecord = this.resolvedOutputMode === 'save';
             const shouldMerge = isPDF && this.mergeEnabled && this.selectedPdfCvIds.length > 0;
             const hasOverride = !!this.outputFormatOverride;
 
@@ -613,7 +659,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (result.isGiantQuery) {
                 this.showToast('Success', 'Large dataset detected \u2014 generating asynchronously. Check Job History for progress.', 'success');
             } else if (result.base64) {
-                const saveToRecord = this.outputMode === 'save';
+                const saveToRecord = this.resolvedOutputMode === 'save';
                 const docTitle = result.title || 'Document';
                 if (saveToRecord) {
                     // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
@@ -679,7 +725,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             } else {
                 finalBase64 = this._uint8ArrayToBase64(mergePdfs(pdfBytesArray));
             }
-            const saveToRecord = this.outputMode === 'save';
+            const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 await saveGeneratedDocument({ recordId: this.recordId, fileName: 'Document Packet', base64Data: finalBase64, extension: 'pdf' });
@@ -709,7 +755,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (pdfBytesArray.length < 2) { throw new Error('Need at least 2 PDFs to merge.'); }
             const mergedBytes = mergePdfs(pdfBytesArray);
             const mergedBase64 = this._uint8ArrayToBase64(mergedBytes);
-            const saveToRecord = this.outputMode === 'save';
+            const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 await saveGeneratedDocument({ recordId: this.recordId, fileName: 'Merged Document', base64Data: mergedBase64, extension: 'pdf' });
@@ -741,7 +787,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (pdfBytesArray.length === 1) { finalBytes = pdfBytesArray[0]; }
             else { finalBytes = mergePdfs(pdfBytesArray); }
             const finalBase64 = this._uint8ArrayToBase64(finalBytes);
-            const saveToRecord = this.outputMode === 'save';
+            const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 await saveGeneratedDocument({ recordId: this.recordId, fileName: 'Merged Child PDFs', base64Data: finalBase64, extension: 'pdf' });
@@ -941,7 +987,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const fileBase64 = this._uint8ArrayToBase64(fileBytes);
 
             // 8. Download or save
-            const saveToRecord = this.outputMode === 'save';
+            const saveToRecord = this.resolvedOutputMode === 'save';
             if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 await saveGeneratedDocument({ recordId: this.recordId, fileName: docTitle, base64Data: fileBase64, extension: 'docx' });
