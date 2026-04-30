@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.76.0 — Domain migration hotfix
+
+Promoted package: `04tal000006rCu1AAE` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCu1AAE)
+
+**Single-purpose hotfix.** Fixes the in-app Community link that v1.75.0 customers see in the DocGen Command Hub sidebar. After v1.75.0 was promoted, the company website moved from `portwoodglobalsolutions.com` to `portwood.dev` and the Community page route changed from `/DocGenCommunity` to `/community`. The LWC source was updated on `main` but not folded into a package version, so v1.75.0 subscribers were clicking a path that no longer existed on the new domain (404).
+
+Customers running v1.75.0 should upgrade to v1.76.0 to restore the in-app Community link. No other code changes vs 1.75.0 — security hardening, IDOR fixes, admin gates, etc. all already shipped in v1.75.0 and remain.
+
 ## v1.75.0 — AppExchange security review hardening
 
 Promoted package: `04tal000006rCZ3AAM` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCZ3AAM)

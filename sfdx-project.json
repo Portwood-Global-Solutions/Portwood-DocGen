@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.76.0 — Domain migration hotfix (in-app Community link → portwood.dev/community)",
-      "versionNumber": "1.76.0.NEXT",
-      "ancestorId": "04tal000006rCZ3AAM",
+      "versionName": "1.77.0 — TBD",
+      "versionNumber": "1.77.0.NEXT",
+      "ancestorId": "04tal000006rCu1AAE",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -115,6 +115,7 @@
     "Portwood DocGen Managed@1.73.0-2": "04tal000006r9ZZAAY",
     "Portwood DocGen Managed@1.73.0-3": "04tal000006rAYrAAM",
     "Portwood DocGen Managed@1.74.0-1": "04tal000006rBTJAA2",
-    "Portwood DocGen Managed@1.75.0-1": "04tal000006rCZ3AAM"
+    "Portwood DocGen Managed@1.75.0-1": "04tal000006rCZ3AAM",
+    "Portwood DocGen Managed@1.76.0-1": "04tal000006rCu1AAE"
   }
 }
