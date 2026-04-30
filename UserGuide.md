@@ -838,6 +838,31 @@ Two special merge tags resolve to the current date/time without needing a formul
 
 Case-insensitive for the keyword itself (`{today}` works). Works in sync, giant-query, bulk, and signature-stamped documents. All format suffixes from §6.2 apply.
 
+### 6.11a Running user tags (Prepared by:)
+
+`{RunningUser.X}` resolves against the **executing user's** record (whoever clicks Generate, runs the Flow, or owns the bulk job). No configuration — works on every template, every record, every output format.
+
+```
+Prepared by: {RunningUser.Name}
+Email:       {RunningUser.Email}
+Title:       {RunningUser.Title} · {RunningUser.Department}
+Phone:       {RunningUser.Phone}
+```
+
+**Allowlist** — these are the only User fields exposed (other field names resolve to empty by design, so signed templates can't be edited to leak arbitrary User columns):
+
+| Group     | Fields                                                              |
+| --------- | ------------------------------------------------------------------- |
+| Identity  | `Id`, `Name`, `FirstName`, `LastName`, `Email`, `Username`, `Alias` |
+| Title/org | `Title`, `Department`, `CompanyName`, `EmployeeNumber`              |
+| Contact   | `Phone`, `MobilePhone`, `Extension`, `Fax`                          |
+| Address   | `Street`, `City`, `State`, `PostalCode`, `Country`                  |
+| Locale    | `TimeZoneSidKey`, `LocaleSidKey`, `LanguageLocaleKey`               |
+
+Case-insensitive for the namespace (`{runninguser.name}` works). Format suffixes from §6.2 apply: `{RunningUser.Phone}`, `{RunningUser.Name:!}` (no formatter needed for strings — most useful for date-typed extensions).
+
+Works in sync generation, bulk runs, giant-query PDFs (headers/footers/title blocks), Flow-triggered docs, and HTML templates. The User row is queried **once per transaction** and cached, so a 60K-row PDF with `{RunningUser.Name}` in the header costs one extra SOQL total.
+
 ### 6.12 Checkmarks & symbols (PDF-safe)
 
 Salesforce's PDF engine (Flying Saucer) only ships with four fonts (Helvetica, Times, Courier, Arial Unicode MS) and **cannot load Wingdings, Symbol, or any custom font**. Most "decorative" Word symbols (Wingdings checkboxes, custom dingbats) silently render as a blank box.

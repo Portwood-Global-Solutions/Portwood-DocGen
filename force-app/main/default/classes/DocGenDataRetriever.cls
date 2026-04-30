@@ -470,8 +470,8 @@ public with sharing class DocGenDataRetriever {
         Map<Id, Map<String, Object>> targetMap = new Map<Id, Map<String, Object>>();
         try {
             // CxSAST: SOQL injection mitigated by Schema allowlist validation on object, fields, ORDER BY + keyword blocklist + USER_MODE
-            for (SObject targetRec : Database.query(targetQuery, AccessLevel.USER_MODE)) {
-                // NOPMD ApexSOQLInjection — dynamic elements allowlist-validated; USER_MODE enforced
+            List<SObject> targetRecs = Database.query(targetQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — dynamic elements allowlist-validated; USER_MODE enforced
+            for (SObject targetRec : targetRecs) {
                 targetMap.put(targetRec.Id, mapSObject(targetRec));
             }
         } catch (Exception e) {
@@ -1134,8 +1134,8 @@ public with sharing class DocGenDataRetriever {
 
         Map<Id, Map<String, Object>> targetMap = new Map<Id, Map<String, Object>>();
         try {
-            for (SObject rec : Database.query(tQuery, AccessLevel.USER_MODE)) {
-                // NOPMD ApexSOQLInjection — dynamic elements allowlist-validated; USER_MODE enforced
+            List<SObject> targetRecs = Database.query(tQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — dynamic elements allowlist-validated; USER_MODE enforced
+            for (SObject rec : targetRecs) {
                 targetMap.put(rec.Id, mapSObject(rec));
             }
         } catch (Exception e) {
