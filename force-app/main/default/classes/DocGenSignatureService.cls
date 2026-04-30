@@ -63,6 +63,29 @@ public without sharing class DocGenSignatureService {
     }
 
     /**
+     * Inserts the verification block immediately before the LAST </body> tag in
+     * an HTML document. Critical for packet PDFs — renderPacketSignaturePdf
+     * concatenates one full <html>...</html> per template, so the document has
+     * a </body> per template. Using String.replace would inject the block after
+     * EVERY template (the v1.77 packet bug Dustin reported). If no </body> is
+     * found, appends to the end as a safe fallback.
+     */
+    @TestVisible
+    private static String injectVerifyBlockBeforeLastBody(String fullHtml, String verifyBlock) {
+        if (String.isBlank(fullHtml)) {
+            return verifyBlock == null ? '' : verifyBlock;
+        }
+        if (String.isBlank(verifyBlock)) {
+            return fullHtml;
+        }
+        Integer lastBodyIdx = fullHtml.lastIndexOf('</body>');
+        if (lastBodyIdx >= 0) {
+            return fullHtml.substring(0, lastBodyIdx) + verifyBlock + fullHtml.substring(lastBodyIdx);
+        }
+        return fullHtml + verifyBlock;
+    }
+
+    /**
      * Builds the HTML verification block appended to the end of the signed PDF.
      * Includes signer details, timestamps, and a verification URL.
      */
@@ -876,7 +899,7 @@ public without sharing class DocGenSignatureService {
                 ORDER BY Sort_Order__c ASC
             ];
             String verifyBlock = buildVerificationBlockHtml(reqId, fullSigners);
-            html = html.replace('</body>', verifyBlock + '</body>');
+            html = injectVerifyBlockBeforeLastBody(html, verifyBlock);
 
             return Blob.toPdf(html);
         }
@@ -1008,7 +1031,10 @@ public without sharing class DocGenSignatureService {
                 ORDER BY Sort_Order__c ASC
             ]; // NOPMD
             String verifyBlock = buildVerificationBlockHtml(reqId, fullSigners);
-            fullHtml = fullHtml.replace('</body>', verifyBlock + '</body>');
+            // injectVerifyBlockBeforeLastBody handles the multi-</body> case —
+            // packet HTML has one </body> per template, so String.replace would
+            // drop the verification block after every template (the v1.77 bug).
+            fullHtml = injectVerifyBlockBeforeLastBody(fullHtml, verifyBlock);
 
             return Blob.toPdf(fullHtml);
         }
