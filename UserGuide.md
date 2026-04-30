@@ -1062,9 +1062,11 @@ See [§6.8](#68-signatures).
 
 ### 9.3 Packets (multi-template signing)
 
-Send multiple templates in one session. The signer sees all documents and signs them all before completion. One email, one signing session, multiple PDFs generated and attached to the source record.
+Send multiple templates in one session. The signer sees all documents and signs them all before completion. One email, one signing session, **one combined signed PDF** with a **single verification certificate at the very end** of the packet.
 
 Useful for contract bundles (MSA + SOW + NDA), onboarding packets, etc.
+
+> **v1.78 fix:** earlier versions inserted the verification block after every template (`String.replace` matched all `</body>` tags). v1.78 inserts the certificate exactly once, before the final `</body>`, so the packet ends with one consolidated audit page. Upgrade if your testers reported "verification doc after every template."
 
 ### 9.4 Sequential vs parallel
 

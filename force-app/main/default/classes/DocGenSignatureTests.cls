@@ -5393,4 +5393,81 @@ private class DocGenSignatureTests {
             'Original download must be disabled for the preview link'
         );
     }
+
+    // =========================================================================
+    // Verification block placement — packet path (v1.78 fix for Dustin Bystrom)
+    // =========================================================================
+
+    @IsTest
+    static void verifyBlockSinglePacketHtmlInjectsOnceBeforeLastBody() {
+        // Simulate a 3-template packet HTML — three full <html>...</html> docs
+        // concatenated. Pre-fix, String.replace dropped the verifyBlock after
+        // EVERY </body> (3 times). Post-fix, it lands once before the last.
+        String packetHtml =
+            '<html><body>doc1</body></html>' +
+            '<html><body>doc2</body></html>' +
+            '<html><body>doc3</body></html>';
+        String verifyBlock = '<div class="verify">CERT</div>';
+
+        Test.startTest();
+        String result = DocGenSignatureService.injectVerifyBlockBeforeLastBody(packetHtml, verifyBlock);
+        Test.stopTest();
+
+        Integer occurrences = result.countMatches('CERT');
+        System.assertEquals(1, occurrences, 'Verification block must appear exactly once across packet HTML');
+
+        // Must land before the LAST </body>, after doc3's content
+        Integer certIdx = result.indexOf('CERT');
+        Integer doc3Idx = result.indexOf('doc3');
+        Integer lastBodyIdx = result.lastIndexOf('</body>');
+        System.assert(certIdx > doc3Idx, 'Verification block must follow doc3 content');
+        System.assert(certIdx < lastBodyIdx, 'Verification block must precede the final </body>');
+    }
+
+    @IsTest
+    static void verifyBlockSingleHtmlStillInjectsOnce() {
+        // Single-template path — one </body>, one injection. Regression guard.
+        String html = '<html><body>only doc</body></html>';
+        String verifyBlock = '<div class="verify">CERT</div>';
+
+        Test.startTest();
+        String result = DocGenSignatureService.injectVerifyBlockBeforeLastBody(html, verifyBlock);
+        Test.stopTest();
+
+        System.assertEquals(1, result.countMatches('CERT'));
+        System.assert(
+            result.contains('only doc<div class="verify">CERT</div></body>'),
+            'Single-template injection should land before </body>'
+        );
+    }
+
+    @IsTest
+    static void verifyBlockNoBodyTagAppendsAtEndAsFallback() {
+        // Defensive fallback — if HTML ever ships without a </body>, append.
+        String html = '<div>raw fragment</div>';
+        String verifyBlock = '<p>CERT</p>';
+
+        String result = DocGenSignatureService.injectVerifyBlockBeforeLastBody(html, verifyBlock);
+
+        System.assertEquals('<div>raw fragment</div><p>CERT</p>', result);
+    }
+
+    @IsTest
+    static void verifyBlockBlankInputsHandledSafely() {
+        System.assertEquals(
+            '<p>CERT</p>',
+            DocGenSignatureService.injectVerifyBlockBeforeLastBody(null, '<p>CERT</p>'),
+            'Null html should return verifyBlock'
+        );
+        System.assertEquals(
+            '<html></html>',
+            DocGenSignatureService.injectVerifyBlockBeforeLastBody('<html></html>', null),
+            'Null verifyBlock should return html unchanged'
+        );
+        System.assertEquals(
+            '',
+            DocGenSignatureService.injectVerifyBlockBeforeLastBody(null, null),
+            'Both null should return empty string'
+        );
+    }
 }
