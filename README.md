@@ -352,12 +352,12 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 DocGen is 100% free, open source, and community-driven. Published through [Portwood Global Solutions](https://portwoodglobalsolutions.com).
 
-| Channel                                                                              | What It's For                                      |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity)             | Real-time help, feature requests, template sharing |
-| [GitHub Issues](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues) | Bug reports and tracked feature requests           |
-| [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)                         | What's shipped and what's coming next              |
-| [Website](https://portwoodglobalsolutions.com)                                       | Install links, feature overview                    |
+| Channel                                                                     | What It's For                                      |
+| --------------------------------------------------------------------------- | -------------------------------------------------- |
+| [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity)    | Real-time help, feature requests, template sharing |
+| [GitHub Issues](https://github.com/Portwood-Global-Solutions/DocGen/issues) | Bug reports and tracked feature requests           |
+| [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)                | What's shipped and what's coming next              |
+| [Website](https://portwoodglobalsolutions.com)                              | Install links, feature overview                    |
 
 Need dedicated support? Contact us at [hello@portwoodglobalsolutions.com](mailto:hello@portwoodglobalsolutions.com).
 
