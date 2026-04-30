@@ -1,5 +1,66 @@
 # Changelog
 
+## v1.75.0 — AppExchange security review hardening
+
+Promoted package: `04tal000006rCZ3AAM` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCZ3AAM)
+
+Comprehensive line-by-line audit of every guest + AuraEnabled surface in preparation for AppExchange Security Review. Customer impact: tighter authorization on every Apex endpoint, public preview links now expire after 48 hours, every signature-page CV fetch is bound to the signing token's request context, and a handful of XSS / SQLi / CSS-injection defense-in-depth fixes.
+
+### Critical security fixes
+
+- **`DocGenSignatureController.getImageBase64`** — IDOR closed. A valid signing token previously granted access to any ContentVersion in the org by Id. Now the requested CV must be one of: the signer's request source document, a version-scoped template image (`docgen_tmpl_img_<versionId>_*`), or an HTML-template image (`docgen_html_img_<templateId>_*`). Anything else returns "Image not authorized for this signing session".
+- **`DocGenSignatureController.getOrCreatePublicLink`** — public ContentDistribution preview links now expire after 48 hours (matching the signing token lifetime) and disable original/PDF download. Previously these links never expired.
+- **`DocGenSignatureController.convertSignatureRequestToPdf`** — cross-template image collision closed. The `docgen_tmpl_img_*` lookup is now scoped to the request's active template version (was unscoped with a `LIMIT 50`), so an `rId1` from template A can't shadow `rId1` from template B in the wrong PDF.
+- **`DocGenController` — six IDOR fixes**: `getContentVersionBase64`, `deleteContentVersionDocument`, `getContentVersionSize`, `saveWatermarkImage`, `clearWatermarkImage`, `saveHtmlTemplateImage`, `saveHtmlTemplateBody` now USER*MODE-first with SYSTEM_MODE fallback gated to `docgen*\*` managed files. A logged-in user can no longer read or delete arbitrary CVs by Id.
+- **`DocGenAuthenticatorController`** — strict input validation. `verifyDocument` requires a 64-char hex SHA-256 digest; `verifyByRequestId` requires a 15- or 18-char alphanumeric Salesforce Id. Malformed inputs return early without ever reaching SOQL. Dead `Error_Message__c` column removed from the audit query.
+- **`DocGenSetupController`** — admin gate added to `getOrgWideEmailAddresses` and `validateSignatureSetup`. Previously any logged-in user could enumerate all Org-Wide Email Addresses; now requires `DocGen_Admin_Access` permission or admin profile.
+- **`DocGenSignaturePdfTrigger`** — SOQL bulkified out of the trigger loop (single template-name lookup before the per-event loop, was per-event). Sequential next-signer email now writes `Email_Status__c` (was missing the `requestId` arg).
+- **`DocGenGiantQueryAssembler` / `DocGenGiantQueryBatch`** — `lookupField` validated against child object schema before SOQL build (was only `escapeSingleQuotes`'d). V3 scout fallback `whereCls` routed through canonical sanitizer.
+- **LWC `docGenSignatureSender.handleShowPreview`** — XSS closed. Template name and error message now escaped before `innerHTML` assignment.
+
+### Defense-in-depth hardening
+
+- **`DocGenSignatureEmailService`** — `escapeHtml()` now escapes apostrophe; brand color hex regex with safe `#1589EE` fallback so admin-supplied CSS can't break out of `style=""`.
+- **`DocGenHtmlRenderer`** — new `sanitizeCssToken` / `sanitizeCssUrlToken` helpers applied to every CSS-attribute concatenation site (color, themeColor, highlight, shdFill, pFill, cell shading, watermark URL). Browser preview path is the trust boundary; PDF rendering is server-side via Flying Saucer.
+- **`DocGenService`** — NPE guard in `mergeTemplateForGiantQueryPdf`; `Security.stripInaccessible` on `extractAndSaveHtmlTemplateAssets` ContentVersion DML.
+- **`DocGenDataRetriever`** — V3 scout `lookupField` allowlist-validated (was only escape-quoted). NOPMD placement corrected on two `Database.countQuery` calls so PMD's ApexSOQLInjection check resolves clean.
+
+### Quality gates
+
+- **0 High Code Analyzer violations** across the workspace (was 4 pre-fix). 41 Moderate findings remain — all documented false positives in `code-analyzer.yml` (intentional event bubbling in `docGenTreeNode`; `pmd:ProtectSensitiveData` mis-flagging `Signer_*` and `Signature_*` fields as auth tokens).
+- **1139 / 1139 Apex tests pass**, 75% org-wide coverage.
+- **188 / 188 E2E assertions pass** across all 9 release-validation scripts.
+- **23 new security-focused tests** added across 4 test classes (3 new: `DocGenAuthenticatorControllerTest`, `DocGenSetupControllerTest`, `DocGenDataRetrieverSecurityTest`; 1 expanded: `DocGenSignatureTests`).
+
+### CI improvement
+
+GitHub Actions `format-check.yml` workflow expanded to run on every push and every PR (was main-only). Catches Prettier failures at PR review time rather than at release-prep, surfacing prettier-plugin-apex parser bugs before they accumulate. The pre-existing `verifyPin` parser bug (CxSAST comment wedged between `@AuraEnabled` and `@RemoteAction`) was caught and fixed during this release as a concrete example.
+
+### Architectural deferrals (documented; not fixed this release)
+
+These are flagged in `security-audit/00-SUMMARY.md` and require deliberate architectural decisions, not silent agent fixes:
+
+1. Two-path signature creation consolidation in `DocGenSignatureSenderController` (LWC vs Flow methods duplicate ~80% of logic).
+2. Flow action throw-vs-catch unification across `DocGenFlowAction` / `DocGenBulkFlowAction` / `DocGenGiantQueryFlowAction`.
+3. Giant Query system-vs-user context decision (async runs as Automated Process; document or impersonate).
+4. `Test.isRunningTest()` bypass refactor in `DocGenSignatureController.captureClientIp` / `convertSignatureRequestToPdf` and `DocGenService.renderPdf`.
+5. `Database.update(..., false, AccessLevel.SYSTEM_MODE)` allOrNothing=false review for state-correctness paths (signer status transitions especially).
+
+None block AppExchange re-review — they're tech-debt sweeps for a future minor.
+
+### Per-file findings
+
+Eight detailed audit reports under `security-audit/`:
+
+- `00-SUMMARY.md` — overview + deferral list
+- `01-DocGenSignatureController.md`
+- `02-DocGenService.md`
+- `03-DocGenDataRetriever.md`
+- `04-DocGenHtmlRenderer.md`
+- `05-DocGenGiantQuery.md`
+- `06-LWC.md` — full LWC → Apex call inventory
+- `07-RemainingServiceClasses.md` — Batch / MergeJob / TemplateManager / DataProvider / BarcodeGenerator
+
 ## v1.74.0 — Async template decompose, 10 MB upload guard, 2-step Save to Record, Flow doc title fix
 
 Promoted package: `04tal000006rBTJAA2` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2)
