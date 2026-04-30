@@ -5812,15 +5812,15 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         insert htmlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
         Id htmlCvId = htmlDec.getRecords()[0].Id;
 
+        // Package-internal custom object update — CRUD gated by DocGen_Admin permset on the
+        // controller side. Direct update preserves the field write; stripInaccessible would
+        // strip Content_Version_Id__c when run by a profile that doesn't have explicit FLS,
+        // silently no-op'ing the repoint and leaving the version pointing at the zip.
         DocGen_Template_Version__c upd = new DocGen_Template_Version__c(
             Id = versionId,
             Content_Version_Id__c = htmlCvId
         );
-        SObjectAccessDecision updDec = Security.stripInaccessible(
-            AccessType.UPDATABLE,
-            new List<DocGen_Template_Version__c>{ upd }
-        );
-        update updDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+        update upd; // NOPMD ApexCRUDViolation — package-internal custom object; CRUD via DocGen permsets
     }
 
     // =====================================================================
