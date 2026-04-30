@@ -37,11 +37,11 @@ You should see `PASS: 23  FAIL: 0  ALL TESTS PASSED`.
 
 ### Reporting Bugs
 
-[Open a bug report](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues/new?template=bug_report.md). Include your package version, Salesforce edition, and steps to reproduce. Screenshots and error messages help a lot.
+[Open a bug report](https://github.com/Portwood-Global-Solutions/DocGen/issues/new?template=bug_report.md). Include your package version, Salesforce edition, and steps to reproduce. Screenshots and error messages help a lot.
 
 ### Suggesting Features
 
-[Open a feature request](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues/new?template=feature_request.md) or start a [Discussion](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/discussions) to talk through the idea first.
+[Open a feature request](https://github.com/Portwood-Global-Solutions/DocGen/issues/new?template=feature_request.md) or start a [Discussion](https://github.com/Portwood-Global-Solutions/DocGen/discussions) to talk through the idea first.
 
 ### Submitting Code
 
@@ -95,7 +95,7 @@ Client-side (LWC):
 
 - **Issues:** Bug reports, feature requests, and questions
 - **Discussions:** General conversation, ideas, show-and-tell, template sharing
-- **Community Hub:** [portwoodglobalsolutions.com/DocGenCommunity](https://portwoodglobalsolutions.com/DocGenCommunity) — forum with real-time help
+- **Community Hub:** [portwood.dev/community](https://portwood.dev/community) — forum with real-time help
 
 ## License
 

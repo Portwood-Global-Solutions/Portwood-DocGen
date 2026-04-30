@@ -24,11 +24,11 @@ We are committed to providing a friendly, safe, and welcoming environment for ev
 
 ## Scope
 
-This Code of Conduct applies to all project spaces — GitHub Issues, Discussions, Pull Requests, the Community Hub at portwoodglobalsolutions.com, and any other forums where you represent this project.
+This Code of Conduct applies to all project spaces — GitHub Issues, Discussions, Pull Requests, the Community Hub at portwood.dev, and any other forums where you represent this project.
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to **dave@portwoodglobalsolutions.com**. All complaints will be reviewed promptly and fairly. Maintainers who do not follow the Code of Conduct may be removed from the project.
+Instances of unacceptable behavior may be reported to **dave@portwood.dev**. All complaints will be reviewed promptly and fairly. Maintainers who do not follow the Code of Conduct may be removed from the project.
 
 ## Attribution
 

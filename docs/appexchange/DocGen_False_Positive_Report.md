@@ -18,19 +18,19 @@
 
 ## Scan Metadata (v1.42.0)
 
-| Field                 | Value                                   |
-|-----------------------|-----------------------------------------|
-| Scanner               | Checkmarx CxSAST (Force.com Source Scanner) |
-| CxEngine              | 9.7                                     |
-| Service Version       | v3.2                                    |
-| Preset                | PortalSecurity                          |
-| Job Type              | ZIP_UPLOAD                              |
-| Scan Id               | `a0OKX000001JEaR2AW`                    |
-| Scan Start            | 2026-04-10 12:55:31 UTC                 |
-| Scan End              | 2026-04-10 18:33:51 UTC                 |
-| Security Issues       | 349                                     |
-| Quality Issues        | 0                                       |
-| Report                | `docs/code-analysis/checkmarx_v1.42.0_report.html` |
+| Field           | Value                                              |
+| --------------- | -------------------------------------------------- |
+| Scanner         | Checkmarx CxSAST (Force.com Source Scanner)        |
+| CxEngine        | 9.7                                                |
+| Service Version | v3.2                                               |
+| Preset          | PortalSecurity                                     |
+| Job Type        | ZIP_UPLOAD                                         |
+| Scan Id         | `a0OKX000001JEaR2AW`                               |
+| Scan Start      | 2026-04-10 12:55:31 UTC                            |
+| Scan End        | 2026-04-10 18:33:51 UTC                            |
+| Security Issues | 349                                                |
+| Quality Issues  | 0                                                  |
+| Report          | `docs/code-analysis/checkmarx_v1.42.0_report.html` |
 
 **Prior scan (v1.41.0) for delta comparison:** Scan Id `a0OKX000001JEZY2A4`, 2026-04-10 03:11:25 → 08:49:45 UTC, 335 Security Issues, `report_phxcxmanwp001_34576.html`.
 
@@ -38,18 +38,18 @@
 
 ## Results Summary — v1.42.0
 
-| # | Query                                    | Severity | v1.41.0 | v1.42.0 | Δ | Disposition              |
-|---|------------------------------------------|----------|--------:|--------:|--:|--------------------------|
-| 1 | SOQL SOSL Injection                      | Critical |       6 |       6 | 0 | False positive — mitigated |
-| 2 | Apex CRUD Create Violation (FLS_Create)  | Serious  |      86 |      94 | +8 | False positive — mitigated |
-| 3 | Apex CRUD Update Violation (FLS_Update)  | Serious  |      69 |      73 | +4 | False positive — mitigated |
-| 4 | Sharing                                  | Serious  |       5 |       5 | 0 | False positive — mitigated |
-| 5 | Apex CRUD ContentDistribution            | High     |       2 |       3 | +1 | False positive — mitigated |
-| 6 | Apex CRUD Violation                      | High     |       5 |       6 | +1 | False positive — mitigated |
-| 7 | Apex SOQL SOSL User Mode Missing         | Medium   |     128 |     128 | 0 | False positive — mitigated |
-| 8 | Apex CSRF in Aura/LWC                    | Medium   |      29 |      29 | 0 | False positive — framework-handled |
-| 9 | Apex Crypto Secrets                      | Medium   |       5 |       5 | 0 | False positive — CSPRNG, no hardcoded material |
-|   | **Total**                                |          | **335** | **349** | **+14** | |
+| #   | Query                                   | Severity | v1.41.0 | v1.42.0 |       Δ | Disposition                                    |
+| --- | --------------------------------------- | -------- | ------: | ------: | ------: | ---------------------------------------------- |
+| 1   | SOQL SOSL Injection                     | Critical |       6 |       6 |       0 | False positive — mitigated                     |
+| 2   | Apex CRUD Create Violation (FLS_Create) | Serious  |      86 |      94 |      +8 | False positive — mitigated                     |
+| 3   | Apex CRUD Update Violation (FLS_Update) | Serious  |      69 |      73 |      +4 | False positive — mitigated                     |
+| 4   | Sharing                                 | Serious  |       5 |       5 |       0 | False positive — mitigated                     |
+| 5   | Apex CRUD ContentDistribution           | High     |       2 |       3 |      +1 | False positive — mitigated                     |
+| 6   | Apex CRUD Violation                     | High     |       5 |       6 |      +1 | False positive — mitigated                     |
+| 7   | Apex SOQL SOSL User Mode Missing        | Medium   |     128 |     128 |       0 | False positive — mitigated                     |
+| 8   | Apex CSRF in Aura/LWC                   | Medium   |      29 |      29 |       0 | False positive — framework-handled             |
+| 9   | Apex Crypto Secrets                     | Medium   |       5 |       5 |       0 | False positive — CSPRNG, no hardcoded material |
+|     | **Total**                               |          | **335** | **349** | **+14** |                                                |
 
 **349 findings total. Zero represent exploitable vulnerabilities.** Every finding falls into one of the same nine structural categories documented in the v1.41.0 scan disposition — no new finding types were introduced in v1.42.0. Each category is addressed below with the platform rationale, the in-code mitigation, and (where applicable) references to the Salesforce Secure Coding Guide showing why the scanner's generic recommendation cannot be applied literally.
 
@@ -57,7 +57,7 @@
 
 All 14 new findings trace directly to the v1.42.0 code delta:
 
-- **`DocGenSignatureFlowAction.cls`** *(new)* — `@InvocableMethod`, `with sharing`. Validates inputs then delegates to `DocGenSignatureSenderController.createTemplateSignerRequestWithOrder` (the same method the LWC sender uses). The class itself contains no DML, but SFGE/PMD flag the downstream call chain.
+- **`DocGenSignatureFlowAction.cls`** _(new)_ — `@InvocableMethod`, `with sharing`. Validates inputs then delegates to `DocGenSignatureSenderController.createTemplateSignerRequestWithOrder` (the same method the LWC sender uses). The class itself contains no DML, but SFGE/PMD flag the downstream call chain.
 - **`createSignersAndNotify` overload** — new overload accepting the `sendEmails` flag. Identical DML behavior to the existing method, but a separate scanner path.
 
 **None of the new findings represent new code patterns, new trust boundaries, or new attack surface.** They are additional instances of the same patterns documented in the v1.41.0 scan disposition (sections 1–8 below).
@@ -90,14 +90,14 @@ Every dynamic SOQL call in DocGen passes through the same three-layer defense:
 
 ### Finding-by-finding disposition
 
-| # | File                         | Line     | Sink                     | Mitigation                                                                                                   |
-|---|------------------------------|----------|--------------------------|---------------------------------------------------------------------------------------------------------------|
-| 1 | `DocGenBulkController.cls`   | 27 → 31  | `Database.countQuery()`  | `objectName` Schema-validated; `condition` passed through `sanitizeCondition()`; `USER_MODE`.                 |
-| 2 | `DocGenController.cls`       | 836 → 840| `Database.query()`       | `objectName` Schema-validated; `orderByClause` + `whereClause` sanitized; `USER_MODE`.                         |
-| 3 | `DocGenController.cls`       | 1659 → 1664 | `Database.query()`    | `childObject` Schema-validated; `displayField` validated against the field map; `USER_MODE`; hardcoded `LIMIT 200`. |
-| 4 | `DocGenService.cls`          | 3359     | `Pattern.matcher()`      | **Not a database call** — the scanner matched a regex over template XML. No SOQL involved.                    |
-| 5 | `DocGenDataRetriever.cls`    | 322 → 327| `Database.query()`       | V2 query-config fields are admin-authored; each field name passes through `validateField()`; `USER_MODE`.     |
-| 6 | `DocGenDataRetriever.cls`    | 399 → 407| `Database.query()`       | Junction target fields pass through `validateField()`; `targetObject` Schema-validated; clauses sanitized; `USER_MODE`. |
+| #   | File                       | Line        | Sink                    | Mitigation                                                                                                              |
+| --- | -------------------------- | ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 1   | `DocGenBulkController.cls` | 27 → 31     | `Database.countQuery()` | `objectName` Schema-validated; `condition` passed through `sanitizeCondition()`; `USER_MODE`.                           |
+| 2   | `DocGenController.cls`     | 836 → 840   | `Database.query()`      | `objectName` Schema-validated; `orderByClause` + `whereClause` sanitized; `USER_MODE`.                                  |
+| 3   | `DocGenController.cls`     | 1659 → 1664 | `Database.query()`      | `childObject` Schema-validated; `displayField` validated against the field map; `USER_MODE`; hardcoded `LIMIT 200`.     |
+| 4   | `DocGenService.cls`        | 3359        | `Pattern.matcher()`     | **Not a database call** — the scanner matched a regex over template XML. No SOQL involved.                              |
+| 5   | `DocGenDataRetriever.cls`  | 322 → 327   | `Database.query()`      | V2 query-config fields are admin-authored; each field name passes through `validateField()`; `USER_MODE`.               |
+| 6   | `DocGenDataRetriever.cls`  | 399 → 407   | `Database.query()`      | Junction target fields pass through `validateField()`; `targetObject` Schema-validated; clauses sanitized; `USER_MODE`. |
 
 Each finding has a `// CxSAST: ...` suppression comment in source documenting the above.
 
@@ -139,16 +139,16 @@ If a user has the permission set, all package fields are accessible by construct
 
 ### Distribution by class (create + update combined)
 
-| Class                              | Findings | Notes                                                                                                           |
-|------------------------------------|----------|-----------------------------------------------------------------------------------------------------------------|
-| `DocGenController`                 | ~40      | Admin-path entry point. `with sharing`. Gated by `DocGen Admin` / `DocGen User` permission sets.                 |
-| `DocGenBulkController`             | ~20      | Admin-path bulk generation. `with sharing`. Permission-set gated.                                                |
-| `DocGenSignatureSenderController`  | ~35      | Admin-path signature request creation. `with sharing`. Permission-set gated.                                     |
-| `DocGenSignatureController`        | ~30      | Guest-path signing. `without sharing` + `SYSTEM_MODE` by design (see §4). Token-gated on every method.          |
-| `DocGenSignatureService`           | ~10      | Shared signature helpers. `without sharing`. Reached only from token-validated paths.                            |
-| `DocGenSignatureSubmitter`         | ~10      | Writes signer record updates and audit records. Token-gated.                                                     |
-| `DocGenSignatureFinalizer`         | ~5       | Async finalization after the last signer completes. Platform-event triggered.                                    |
-| `DocGenSetupController`            | ~5       | First-run setup wizard. Admin-path. Permission-set gated.                                                         |
+| Class                             | Findings | Notes                                                                                                  |
+| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `DocGenController`                | ~40      | Admin-path entry point. `with sharing`. Gated by `DocGen Admin` / `DocGen User` permission sets.       |
+| `DocGenBulkController`            | ~20      | Admin-path bulk generation. `with sharing`. Permission-set gated.                                      |
+| `DocGenSignatureSenderController` | ~35      | Admin-path signature request creation. `with sharing`. Permission-set gated.                           |
+| `DocGenSignatureController`       | ~30      | Guest-path signing. `without sharing` + `SYSTEM_MODE` by design (see §4). Token-gated on every method. |
+| `DocGenSignatureService`          | ~10      | Shared signature helpers. `without sharing`. Reached only from token-validated paths.                  |
+| `DocGenSignatureSubmitter`        | ~10      | Writes signer record updates and audit records. Token-gated.                                           |
+| `DocGenSignatureFinalizer`        | ~5       | Async finalization after the last signer completes. Platform-event triggered.                          |
+| `DocGenSetupController`           | ~5       | First-run setup wizard. Admin-path. Permission-set gated.                                              |
 
 ---
 
@@ -160,13 +160,13 @@ Classes declared `without sharing`. The scanner recommends that every Apex class
 
 ### Classes flagged
 
-| Class                              | Sharing              | Reason                                                                                                 |
-|------------------------------------|----------------------|--------------------------------------------------------------------------------------------------------|
-| `DocGenSignatureController`        | `without sharing`    | Guest-facing signing entry point. Token + PIN gated.                                                   |
-| `DocGenSignatureValidator`         | `without sharing`    | Validates tokens; must locate signer records the guest user does not own.                              |
-| `DocGenSignatureSubmitter`         | `without sharing`    | Writes signer updates + audit records inside the token-validated path.                                 |
-| `DocGenSignatureFinalizer`         | `without sharing`    | Async PDF finalization in platform-event context.                                                      |
-| `DocGenSignatureService`           | `without sharing`    | Shared helpers for token-gated signature paths.                                                        |
+| Class                       | Sharing           | Reason                                                                    |
+| --------------------------- | ----------------- | ------------------------------------------------------------------------- |
+| `DocGenSignatureController` | `without sharing` | Guest-facing signing entry point. Token + PIN gated.                      |
+| `DocGenSignatureValidator`  | `without sharing` | Validates tokens; must locate signer records the guest user does not own. |
+| `DocGenSignatureSubmitter`  | `without sharing` | Writes signer updates + audit records inside the token-validated path.    |
+| `DocGenSignatureFinalizer`  | `without sharing` | Async PDF finalization in platform-event context.                         |
+| `DocGenSignatureService`    | `without sharing` | Shared helpers for token-gated signature paths.                           |
 
 ### Why `without sharing` is correct here
 
@@ -215,11 +215,11 @@ DocGen applies this split across every query in the codebase. The 128 findings a
 
 Access to the `SYSTEM_MODE` queries is controlled by:
 
-| Permission Set              | Target objects                                      | Entry-point scope                                              |
-|-----------------------------|-----------------------------------------------------|----------------------------------------------------------------|
-| `DocGen Admin`              | All DocGen objects                                  | Command Hub, template CRUD, bulk jobs, signatures, settings.    |
-| `DocGen User`               | Templates (read), Jobs (read own), signers (write for own requests) | Record-page generation via `docGenRunner`.                     |
-| `DocGen Guest Signature`    | Signer records (read via token), signature audit (insert) | `DocGenSignature.page` only, token + PIN gated on every call.   |
+| Permission Set           | Target objects                                                      | Entry-point scope                                             |
+| ------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `DocGen Admin`           | All DocGen objects                                                  | Command Hub, template CRUD, bulk jobs, signatures, settings.  |
+| `DocGen User`            | Templates (read), Jobs (read own), signers (write for own requests) | Record-page generation via `docGenRunner`.                    |
+| `DocGen Guest Signature` | Signer records (read via token), signature audit (insert)           | `DocGenSignature.page` only, token + PIN gated on every call. |
 
 A user without any DocGen permission set cannot reach a single line of the flagged code — no tab, no component, no `@AuraEnabled` endpoint is reachable.
 
@@ -233,10 +233,10 @@ DML (`insert`) on `ContentDistribution` records without `isCreateable()` / `isUp
 
 ### Findings
 
-| # | File                                   | Line | Method                          |
-|---|----------------------------------------|------|---------------------------------|
-| 1 | `DocGenSignatureController.cls`        | 463  | `getOrCreatePublicLink`         |
-| 2 | `DocGenSignatureSenderController.cls`  | 127  | `createTemplateSignerRequest`   |
+| #   | File                                  | Line | Method                        |
+| --- | ------------------------------------- | ---- | ----------------------------- |
+| 1   | `DocGenSignatureController.cls`       | 463  | `getOrCreatePublicLink`       |
+| 2   | `DocGenSignatureSenderController.cls` | 127  | `createTemplateSignerRequest` |
 
 ### Why these are false positives
 
@@ -301,12 +301,12 @@ The scanner flags calls to `Crypto.generateAesKey(...)` and `Crypto.generateDige
 
 None of these calls contain hardcoded material. They **generate** random cryptographic material at runtime using Salesforce's built-in CSPRNG:
 
-| Usage                                     | API                                         | Purpose                                                |
-|-------------------------------------------|---------------------------------------------|--------------------------------------------------------|
-| Signing token (per signer, per request)   | `Crypto.generateAesKey(256)` → SHA-256 hash | 64-char hex token stored on `DocGen_Signer__c`.       |
-| PIN generation                            | `Crypto.getRandomInteger()`                 | 6-digit email verification code.                       |
-| PIN storage                               | `Crypto.generateDigest('SHA-256', ...)`     | SHA-256 hash — plaintext PIN is never persisted.       |
-| Document integrity                        | `Crypto.generateDigest('SHA-256', ...)`     | SHA-256 hash of the finalized PDF for verification.    |
+| Usage                                   | API                                         | Purpose                                             |
+| --------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
+| Signing token (per signer, per request) | `Crypto.generateAesKey(256)` → SHA-256 hash | 64-char hex token stored on `DocGen_Signer__c`.     |
+| PIN generation                          | `Crypto.getRandomInteger()`                 | 6-digit email verification code.                    |
+| PIN storage                             | `Crypto.generateDigest('SHA-256', ...)`     | SHA-256 hash — plaintext PIN is never persisted.    |
+| Document integrity                      | `Crypto.generateDigest('SHA-256', ...)`     | SHA-256 hash of the finalized PDF for verification. |
 
 There are **no hardcoded keys, passwords, IVs, salts, or tokens** anywhere in the codebase. Every cryptographic value is generated fresh at runtime, and PIN plaintext is hashed on the same line it is produced and never written to the database.
 
@@ -314,15 +314,15 @@ There are **no hardcoded keys, passwords, IVs, salts, or tokens** anywhere in th
 
 ## 9. Proof of Compliance — What We Cannot Change, and Why
 
-| Scanner Expectation                                          | Platform Reality                                                                                                              | DocGen Mitigation                                                                                 |
-|-------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| Use SOQL bind variables everywhere                          | Bind variables not supported for object names, field names, or ORDER BY.                                                      | Schema validation + keyword sanitization + `USER_MODE`.                                            |
-| Use `stripInaccessible()` on all DML                        | Strips namespaced fields in managed 2GP build context, corrupting package data.                                               | Permission-set gating + unreachable-code guarantee.                                                |
-| Use `WITH USER_MODE` on all SOQL                            | Fails compile on namespaced package fields referenced with unqualified names in source.                                       | `USER_MODE` on standard objects, `SYSTEM_MODE` on package objects, permission-set boundary.         |
-| Use `with sharing` on every class                           | Guest-site signing flow requires locating records the guest user does not own.                                                | `without sharing` only on signature classes, each entry method re-validates token + PIN.           |
-| Add manual CSRF tokens to all mutating endpoints            | Aura/LWC framework adds them automatically; package code cannot intercept the request.                                        | Framework-handled; no custom REST endpoints exist.                                                  |
-| Remove calls to `Crypto.generateAesKey` / `generateDigest`  | These are the only sanctioned Salesforce primitives for secure random material and hashing.                                   | Runtime-only material; nothing hardcoded.                                                          |
-| Add inline `isCreateable()` / `isUpdateable()` checks       | Redundant — package-internal objects are reachable only with the permission set, which grants access to the field by design.  | Permission-set gating is the CRUD/FLS boundary.                                                     |
+| Scanner Expectation                                        | Platform Reality                                                                                                             | DocGen Mitigation                                                                           |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Use SOQL bind variables everywhere                         | Bind variables not supported for object names, field names, or ORDER BY.                                                     | Schema validation + keyword sanitization + `USER_MODE`.                                     |
+| Use `stripInaccessible()` on all DML                       | Strips namespaced fields in managed 2GP build context, corrupting package data.                                              | Permission-set gating + unreachable-code guarantee.                                         |
+| Use `WITH USER_MODE` on all SOQL                           | Fails compile on namespaced package fields referenced with unqualified names in source.                                      | `USER_MODE` on standard objects, `SYSTEM_MODE` on package objects, permission-set boundary. |
+| Use `with sharing` on every class                          | Guest-site signing flow requires locating records the guest user does not own.                                               | `without sharing` only on signature classes, each entry method re-validates token + PIN.    |
+| Add manual CSRF tokens to all mutating endpoints           | Aura/LWC framework adds them automatically; package code cannot intercept the request.                                       | Framework-handled; no custom REST endpoints exist.                                          |
+| Remove calls to `Crypto.generateAesKey` / `generateDigest` | These are the only sanctioned Salesforce primitives for secure random material and hashing.                                  | Runtime-only material; nothing hardcoded.                                                   |
+| Add inline `isCreateable()` / `isUpdateable()` checks      | Redundant — package-internal objects are reachable only with the permission set, which grants access to the field by design. | Permission-set gating is the CRUD/FLS boundary.                                             |
 
 ---
 
@@ -347,10 +347,10 @@ The following defensive controls are **not** required by Checkmarx but are shipp
 ## 11. Contact
 
 - **Publisher:** Portwood Global Solutions
-- **Security contact:** dave@portwoodglobalsolutions.com
+- **Security contact:** dave@portwood.dev
 - **Disclosure policy:** `SECURITY.md` in the source repository
 - **Release validation checklist:** `CLAUDE.md` — "Release Validation Checklist"
 
 ---
 
-*Portwood Global Solutions — https://portwoodglobalsolutions.com*
+_Portwood Global Solutions — https://portwood.dev_

@@ -2,26 +2,26 @@
 
 Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, 100% free forever. All features, all users, no paid tiers. PowerPoint and Excel coming soon.
 
-[Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwood.dev/changelog)
+[Join the Community Channel](https://portwood.dev/community) | [Website](https://portwood.dev) | [Roadmap](https://portwood.dev/changelog)
 
-[![Version](https://img.shields.io/badge/version-1.74.0-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.75.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
 [![Apex Tests](https://img.shields.io/badge/Apex_Tests-1107%2F1107_passing-brightgreen)](#code-quality)
 [![Coverage](https://img.shields.io/badge/Coverage-75%25-brightgreen)](#code-quality)
 [![Security](https://img.shields.io/badge/Code_Analyzer-0_Critical%2C_0_High-brightgreen)](#security)
-[![Website](https://img.shields.io/badge/website-portwoodglobalsolutions.com-blue)](https://portwoodglobalsolutions.com)
+[![Website](https://img.shields.io/badge/website-portwood.dev-blue)](https://portwood.dev)
 
 ---
 
 ## Install
 
 ```bash
-sf package install --package 04tal000006rBTJAA2 --wait 10 --target-org <your-org>
+sf package install --package 04tal000006rCZ3AAM --wait 10 --target-org <your-org>
 ```
 
-[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2)
+[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCZ3AAM) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCZ3AAM)
 
 **Then:** Assign **DocGen Admin** permission set | Enable **Blob.toPdf() Release Update** | Open the **DocGen** app
 
@@ -34,7 +34,7 @@ sf package install --package 04tal000006rBTJAA2 --wait 10 --target-org <your-org
 3. **Add tags and upload** — type `{Name}` where you want data. Upload the file (or a Google Docs "Download → Web Page" zip for HTML templates).
 4. **Generate** — from any record page, in bulk, or from a Flow.
 
-Download example templates from [portwoodglobalsolutions.com](https://portwoodglobalsolutions.com).
+Download example templates from [portwood.dev](https://portwood.dev).
 
 ---
 
@@ -350,16 +350,16 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ## Community
 
-DocGen is 100% free, open source, and community-driven. Published through [Portwood Global Solutions](https://portwoodglobalsolutions.com).
+DocGen is 100% free, open source, and community-driven. Published through [Portwood Global Solutions](https://portwood.dev).
 
-| Channel                                                                              | What It's For                                      |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity)             | Real-time help, feature requests, template sharing |
-| [GitHub Issues](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues) | Bug reports and tracked feature requests           |
-| [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)                         | What's shipped and what's coming next              |
-| [Website](https://portwoodglobalsolutions.com)                                       | Install links, feature overview                    |
+| Channel                                                                     | What It's For                                      |
+| --------------------------------------------------------------------------- | -------------------------------------------------- |
+| [Community Channel](https://portwood.dev/community)                         | Real-time help, feature requests, template sharing |
+| [GitHub Issues](https://github.com/Portwood-Global-Solutions/DocGen/issues) | Bug reports and tracked feature requests           |
+| [Roadmap](https://portwood.dev/changelog)                                   | What's shipped and what's coming next              |
+| [Website](https://portwood.dev)                                             | Install links, feature overview                    |
 
-Need dedicated support? Contact us at [hello@portwoodglobalsolutions.com](mailto:hello@portwoodglobalsolutions.com).
+Need dedicated support? Contact us at [hello@portwood.dev](mailto:hello@portwood.dev).
 
 ## Contributing
 
@@ -415,7 +415,8 @@ Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
 | Version | Channel                                 | Package ID           |
 | ------- | --------------------------------------- | -------------------- |
-| v1.74.0 | **Latest (Released)**                   | `04tal000006rBTJAA2` |
+| v1.75.0 | **Latest (Released)**                   | `04tal000006rCZ3AAM` |
+| v1.74.0 | Previous                                | `04tal000006rBTJAA2` |
 | v1.73.0 | Previous                                | `04tal000006rAYrAAM` |
 | v1.72.0 | Previous                                | `04tal000006r0xiAAA` |
 | v1.71.0 | Previous                                | `04tal000006r0jBAAQ` |
@@ -457,4 +458,4 @@ Apache License, Version 2.0. See [LICENSE](LICENSE).
 
 ---
 
-Built by [Portwood Global Solutions](https://portwoodglobalsolutions.com)
+Built by [Portwood Global Solutions](https://portwood.dev)

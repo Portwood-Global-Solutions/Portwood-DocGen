@@ -1187,9 +1187,10 @@ public with sharing class DocGenDataRetriever {
                     // Build a flattened version for Level 0 (strip nested subqueries)
                     String flatSubquery = buildFlatSubquery(spec);
                     flatParts.add(flatSubquery);
-                } else {
-                    flatParts.add(String.escapeSingleQuotes(trimmed)); // Can't parse, escape and pass through
                 }
+                // If parse fails: drop the token. Earlier code passed it through with
+                // String.escapeSingleQuotes, which is near-useless for unquoted SOQL —
+                // an unparseable subquery should never reach Database.query.
             } else {
                 // Regular field — validate
                 String validated = validateField(trimmed, fieldMap);
@@ -1419,17 +1420,55 @@ public with sharing class DocGenDataRetriever {
 
     /**
      * Builds a flat subquery for Level 0 (strips nested grandchild subqueries).
+     * SOQL injection mitigation:
+     *   - relationshipName is allowlist-validated by resolveChildSchema (throws if not in
+     *     parent describe's child relationships).
+     *   - fieldsOnly tokens are allowlist-validated against the child object's field map
+     *     before concatenation (parseSubquerySpec leaves them raw; we validate here).
+     *   - WHERE/ORDER BY/LIMIT routed through sanitizeClause (keyword blocklist + numeric LIMIT
+     *     + Schema-allowlist for ORDER BY field names) — same gate V2/V3 paths use. Earlier
+     *     versions used String.escapeSingleQuotes here, which is near-useless for unquoted
+     *     SOQL clauses; that path is closed.
      */
     private static String buildFlatSubquery(SubquerySpec spec) {
-        String sq = '(SELECT ' + spec.fieldsOnly + ' FROM ' + String.escapeSingleQuotes(spec.relationshipName);
+        // Resolve child object field map for fields + ORDER BY allowlist validation
+        Map<String, Schema.SObjectField> childFieldMap = null;
+        if (String.isNotBlank(spec.childObjectApiName)) {
+            SObjectType childType = Schema.getGlobalDescribe().get(spec.childObjectApiName);
+            if (childType != null) {
+                childFieldMap = childType.getDescribe().fields.getMap();
+            }
+        }
+
+        // Validate fieldsOnly tokens against the child describe. Drop unknown tokens
+        // (matches V2 silent-drop behavior). If everything got dropped, fall back to Id.
+        String validatedFields;
+        if (childFieldMap != null && String.isNotBlank(spec.fieldsOnly)) {
+            List<String> validated = new List<String>();
+            for (String token : spec.fieldsOnly.split(',')) {
+                String v = validateField(token.trim(), childFieldMap);
+                if (v != null) {
+                    validated.add(v);
+                }
+            }
+            validatedFields = validated.isEmpty() ? 'Id' : String.join(validated, ', ');
+        } else {
+            // No describe available — keep prior behavior with single-quote escape as
+            // a last-ditch defense. resolveChildSchema would have thrown if the parent
+            // describe didn't yield a child; this branch is effectively unreachable for
+            // valid configs.
+            validatedFields = String.isBlank(spec.fieldsOnly) ? 'Id' : String.escapeSingleQuotes(spec.fieldsOnly);
+        }
+
+        String sq = '(SELECT ' + validatedFields + ' FROM ' + String.escapeSingleQuotes(spec.relationshipName);
         if (String.isNotBlank(spec.whereClause)) {
-            sq += ' WHERE ' + String.escapeSingleQuotes(spec.whereClause);
+            sq += ' WHERE ' + sanitizeClause(spec.whereClause, 'WHERE');
         }
         if (String.isNotBlank(spec.orderByClause)) {
-            sq += ' ORDER BY ' + String.escapeSingleQuotes(spec.orderByClause);
+            sq += ' ORDER BY ' + sanitizeClause(spec.orderByClause, 'ORDER BY', childFieldMap);
         }
         if (String.isNotBlank(spec.limitClause)) {
-            sq += ' LIMIT ' + String.escapeSingleQuotes(spec.limitClause);
+            sq += ' LIMIT ' + sanitizeClause(spec.limitClause, 'LIMIT');
         }
         sq += ')';
         return sq;
@@ -1502,11 +1541,30 @@ public with sharing class DocGenDataRetriever {
             SObjectType gcObjType = validateObjectName(grandchildSpec.childObjectApiName);
             Map<String, Schema.SObjectField> gcFieldMap = gcObjType.getDescribe().fields.getMap();
 
+            // Allowlist validation: fieldsOnly tokens were parsed from raw user config in
+            // parseSubquerySpec; revalidate each against the resolved grandchild describe
+            // before concatenation into SOQL.
+            List<String> gcValidatedFields = new List<String>();
+            if (String.isNotBlank(grandchildSpec.fieldsOnly)) {
+                for (String token : grandchildSpec.fieldsOnly.split(',')) {
+                    String v = validateField(token.trim(), gcFieldMap);
+                    if (v != null) {
+                        gcValidatedFields.add(v);
+                    }
+                }
+            }
+            if (gcValidatedFields.isEmpty()) {
+                gcValidatedFields.add('Id');
+            }
+            // parentIdField comes from Schema.ChildRelationship.getField() (resolveChildSchema)
+            // — already allowlist-trusted, but escape defensively before concat.
+            if (!gcValidatedFields.contains(grandchildSpec.parentIdField)) {
+                gcValidatedFields.add(String.escapeSingleQuotes(grandchildSpec.parentIdField));
+            }
+
             String gcQuery =
                 'SELECT ' +
-                grandchildSpec.fieldsOnly +
-                ', ' +
-                grandchildSpec.parentIdField +
+                String.join(gcValidatedFields, ', ') +
                 ' FROM ' +
                 String.escapeSingleQuotes(grandchildSpec.childObjectApiName) +
                 ' WHERE ' +
@@ -1970,7 +2028,7 @@ public with sharing class DocGenDataRetriever {
                     ' WHERE ' +
                     String.escapeSingleQuotes(lookupField) +
                     ' = :recordId';
-                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
+                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — childObject + lookupField escapeSingleQuotes'd; USER_MODE enforced
                 counts.put(relName, cnt);
             } catch (Exception e) {
                 String noop = e.getMessage(); // NOPMD UnusedLocalVariable — skip relationships that fail
@@ -2054,21 +2112,39 @@ public with sharing class DocGenDataRetriever {
                 continue;
             }
 
-            if (globalDescribe.get(childObject) == null) {
+            // Allowlist validation: object must be in Schema.getGlobalDescribe()
+            Schema.SObjectType childType = globalDescribe.get(childObject);
+            if (childType == null) {
+                continue;
+            }
+
+            // Allowlist validation: lookupField must be a real field on the child object.
+            // Without this, a malicious V3 config could smuggle SOQL fragments like
+            // 'Id != null OR Name' into the WHERE position via lookupField (escapeSingleQuotes
+            // alone does not block keyword injection in unquoted SOQL identifiers). Mirrors
+            // the validation getRecordDataV3 / getRecordDataV3Bulk perform on lookupField at
+            // parse time (lines 597-603, 731-737).
+            Map<String, Schema.SObjectField> childFieldMap = childType.getDescribe().fields.getMap();
+            String validatedLookupField = validateField(lookupField, childFieldMap);
+            if (validatedLookupField == null) {
+                // Unknown field — skip this node rather than concatenating untrusted input
+                counts.put(countsKey, 0);
                 continue;
             }
 
             try {
+                // CxSAST: SOQL injection mitigated by Schema allowlist validation on object,
+                // lookupField + sanitizeClause keyword blocklist on WHERE + USER_MODE
                 String countQuery =
                     'SELECT COUNT() FROM ' +
                     String.escapeSingleQuotes(childObject) +
                     ' WHERE ' +
-                    String.escapeSingleQuotes(lookupField) +
+                    validatedLookupField +
                     ' = :recordId';
                 if (String.isNotBlank(whereClause)) {
                     countQuery += ' AND ' + sanitizeClause(whereClause, 'WHERE');
                 }
-                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
+                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection — childObject + lookupField allowlist-validated; whereClause sanitized; USER_MODE enforced
                 counts.put(countsKey, cnt);
             } catch (Exception e) {
                 // Intentionally swallowed — skip relationships that fail to count

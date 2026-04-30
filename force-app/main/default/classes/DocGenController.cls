@@ -382,25 +382,130 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     }
 
     /**
+     * SECURITY (v1.75): IDOR-hardened ContentVersion access guard.
+     *
+     * AuraEnabled endpoints that take a ContentVersion Id from the client must
+     * not blindly trust the Id — without a binding check, any authenticated
+     * user could request any CV in the org (e.g. the CEO's private file) by
+     * fabricating an Id. The pattern here:
+     *
+     *   1. Run the supplied query in USER_MODE. If the row comes back, the
+     *      caller has standard sharing access — they were going to be allowed
+     *      to read the file via Files anyway. Return it.
+     *   2. Otherwise, fall back to a SYSTEM_MODE query restricted to the
+     *      managed-file Title prefix `docgen_%`. This covers the legitimate
+     *      managed-file case (template body images, watermarks, html assets,
+     *      etc.) which guest/internal users may not have a direct
+     *      ContentDocumentLink to but must still be able to fetch by Id when
+     *      the LWC composes a DOCX/PDF. Title prefix is the defense-in-depth
+     *      narrowing.
+     *   3. If neither path returns a row, throw — caller has no access AND
+     *      this isn't a managed file.
+     *
+     * @param contentVersionId The CV Id under inspection
+     * @param fields Comma-separated SELECT list (e.g. 'Id, VersionData' or 'Id, ContentSize')
+     * @return The single CV row, or throws AuraHandledException if access denied / not found.
+     */
+    private static SObject fetchAuthorizedContentVersion(Id contentVersionId, String fields) {
+        // Defensive whitelisting — the `fields` parameter is private and only
+        // ever called from this class with hardcoded strings, but we still
+        // restrict to a known set so any future callers can't smuggle in
+        // arbitrary SOQL fragments.
+        String safeFields = fields;
+        if (
+            safeFields != 'Id, VersionData' &&
+            safeFields != 'Id, ContentSize' &&
+            safeFields != 'Id, ContentDocumentId'
+        ) {
+            throw DocGenService.ahe('Invalid field selection.');
+        }
+
+        // Step 1: USER_MODE — does the caller have sharing-based access?
+        List<SObject> userScope;
+        if (safeFields == 'Id, VersionData') {
+            userScope = [
+                SELECT Id, VersionData
+                FROM ContentVersion
+                WHERE Id = :contentVersionId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } else if (safeFields == 'Id, ContentSize') {
+            userScope = [
+                SELECT Id, ContentSize
+                FROM ContentVersion
+                WHERE Id = :contentVersionId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } else {
+            userScope = [
+                SELECT Id, ContentDocumentId
+                FROM ContentVersion
+                WHERE Id = :contentVersionId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        }
+        if (!userScope.isEmpty()) {
+            return userScope[0];
+        }
+
+        // Step 2: SYSTEM_MODE fallback — only managed `docgen_%` files, i.e.
+        // assets the package itself created (template images, watermarks,
+        // HTML body/images). Anything else is denied.
+        List<SObject> sysScope;
+        /* code-analyzer-suppress ApexFlsViolation */
+        if (safeFields == 'Id, VersionData') {
+            sysScope = [
+                SELECT Id, VersionData
+                FROM ContentVersion
+                WHERE Id = :contentVersionId AND Title LIKE 'docgen_%'
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
+        } else if (safeFields == 'Id, ContentSize') {
+            sysScope = [
+                SELECT Id, ContentSize
+                FROM ContentVersion
+                WHERE Id = :contentVersionId AND Title LIKE 'docgen_%'
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
+        } else {
+            sysScope = [
+                SELECT Id, ContentDocumentId
+                FROM ContentVersion
+                WHERE Id = :contentVersionId AND Title LIKE 'docgen_%'
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
+        }
+        if (!sysScope.isEmpty()) {
+            return sysScope[0];
+        }
+
+        throw DocGenService.ahe('Access denied or content not found.');
+    }
+
+    /**
      * Returns a single ContentVersion's binary data as base64.
      * Called by the client in a loop — each call is its own transaction with fresh heap.
      * This enables client-side DOCX assembly with unlimited images.
+     *
+     * SECURITY (v1.75): caller must either have sharing access to the CV OR
+     * the CV must be a managed `docgen_%` file. See fetchAuthorizedContentVersion.
+     *
      * @param contentVersionId The ContentVersion record ID to retrieve
-     * @return Base64-encoded binary data, or null if not found
+     * @return Base64-encoded binary data
      */
     @AuraEnabled
     public static String getContentVersionBase64(Id contentVersionId) {
-        List<ContentVersion> cvs = [
-            SELECT VersionData
-            FROM ContentVersion
-            WHERE Id = :contentVersionId
-            WITH USER_MODE
-            LIMIT 1
-        ];
-        if (cvs.isEmpty()) {
-            return null;
+        if (contentVersionId == null) {
+            throw DocGenService.ahe('Content Version Id is required.');
         }
-        return EncodingUtil.base64Encode(cvs[0].VersionData);
+        ContentVersion cv = (ContentVersion) fetchAuthorizedContentVersion(contentVersionId, 'Id, VersionData');
+        return EncodingUtil.base64Encode(cv.VersionData);
     }
 
     /**
@@ -440,6 +545,27 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         if (String.isBlank(base64Data)) {
             throw new DocGenException('Image data is required.');
         }
+        // SECURITY (v1.75): verify the caller actually has access to this template
+        // version. Without this, any authenticated user could attach a watermark
+        // (and a ContentVersion) to any other admin's template version by Id.
+        // USER_MODE on a custom object the caller can't see throws QueryException —
+        // catch and convert to AuraHandledException so the LWC error handler reports
+        // a clean denial.
+        List<DocGen_Template_Version__c> ownerCheck;
+        try {
+            ownerCheck = [
+                SELECT Id, Template__c
+                FROM DocGen_Template_Version__c
+                WHERE Id = :versionId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } catch (QueryException qe) {
+            throw DocGenService.ahe('Template version not found or access denied.');
+        }
+        if (ownerCheck.isEmpty()) {
+            throw DocGenService.ahe('Template version not found or access denied.');
+        }
         Blob imgBlob = EncodingUtil.base64Decode(base64Data);
         ContentVersion cv = new ContentVersion(
             Title = 'docgen_watermark_' + versionId,
@@ -464,6 +590,24 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     public static void clearWatermarkImage(Id versionId) {
         if (versionId == null) {
             return;
+        }
+        // SECURITY (v1.75): verify the caller has access to this template version
+        // before mutating it. Without this any authenticated user could clear
+        // any version's watermark by Id.
+        List<DocGen_Template_Version__c> ownerCheck;
+        try {
+            ownerCheck = [
+                SELECT Id
+                FROM DocGen_Template_Version__c
+                WHERE Id = :versionId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } catch (QueryException qe) {
+            throw DocGenService.ahe('Template version not found or access denied.');
+        }
+        if (ownerCheck.isEmpty()) {
+            throw DocGenService.ahe('Template version not found or access denied.');
         }
         DocGen_Template_Version__c v = new DocGen_Template_Version__c(Id = versionId, Watermark_Image_CV_Id__c = null);
         update v; // NOPMD ApexCRUDViolation — package-internal field
@@ -1960,16 +2104,23 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             throw new DocGenException('File content is required.');
         }
 
-        /* code-analyzer-suppress ApexFlsViolation */
-        List<DocGen_Template__c> tpls = [
-            SELECT Type__c
-            FROM DocGen_Template__c
-            WHERE Id = :templateId
-            WITH SYSTEM_MODE
-            LIMIT 1
-        ];
+        // SECURITY (v1.75): USER_MODE access check — caller must have read on
+        // this template before we attach a CV to it. Type__c is then read from
+        // the same row (no second query needed).
+        List<DocGen_Template__c> tpls;
+        try {
+            tpls = [
+                SELECT Id, Type__c
+                FROM DocGen_Template__c
+                WHERE Id = :templateId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } catch (QueryException qe) {
+            throw DocGenService.ahe('Template not found or access denied.');
+        }
         if (tpls.isEmpty()) {
-            throw new DocGenException('Template not found.');
+            throw DocGenService.ahe('Template not found or access denied.');
         }
         if (tpls[0].Type__c != 'HTML') {
             throw new DocGenException('saveHtmlTemplateImage is for HTML-type templates only.');
@@ -2015,16 +2166,22 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             throw new DocGenException('HTML content is required.');
         }
 
-        /* code-analyzer-suppress ApexFlsViolation */
-        List<DocGen_Template__c> tpls = [
-            SELECT Type__c
-            FROM DocGen_Template__c
-            WHERE Id = :templateId
-            WITH SYSTEM_MODE
-            LIMIT 1
-        ];
+        // SECURITY (v1.75): USER_MODE access check — caller must have read on
+        // this template before we attach a body CV to it.
+        List<DocGen_Template__c> tpls;
+        try {
+            tpls = [
+                SELECT Id, Type__c
+                FROM DocGen_Template__c
+                WHERE Id = :templateId
+                WITH USER_MODE
+                LIMIT 1
+            ];
+        } catch (QueryException qe) {
+            throw DocGenService.ahe('Template not found or access denied.');
+        }
         if (tpls.isEmpty()) {
-            throw new DocGenException('Template not found.');
+            throw DocGenService.ahe('Template not found or access denied.');
         }
         if (tpls[0].Type__c != 'HTML') {
             throw new DocGenException('saveHtmlTemplateBody is for HTML-type templates only.');
@@ -2082,46 +2239,43 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
      * Returns the byte size of a ContentVersion. Used by the LWC upload guard
      * to reject PDF templates above the 10 MB ceiling that the async-decompose
      * Queueable can survive in 12 MB heap.
+     *
+     * SECURITY (v1.75): IDOR-hardened — caller must either have sharing access
+     * to the CV OR the CV must be a managed `docgen_%` file. Otherwise throws.
+     * Previously this method was a probe leak (anyone could test for the
+     * existence/size of arbitrary CVs by Id).
      */
     @AuraEnabled
     public static Long getContentVersionSize(Id contentVersionId) {
         if (contentVersionId == null) {
             return 0;
         }
-        /* code-analyzer-suppress ApexFlsViolation */
-        List<ContentVersion> cvs = [
-            SELECT ContentSize
-            FROM ContentVersion
-            WHERE Id = :contentVersionId
-            WITH SYSTEM_MODE
-            LIMIT 1
-        ];
-        return cvs.isEmpty() ? 0 : (Long) cvs[0].ContentSize;
+        ContentVersion cv = (ContentVersion) fetchAuthorizedContentVersion(contentVersionId, 'Id, ContentSize');
+        return (Long) cv.ContentSize;
     }
 
     /**
      * Deletes a ContentVersion's parent ContentDocument (which removes the CV).
      * Used by the LWC to undo a just-uploaded file when our PDF size guard
      * rejects it — keeps the org clean instead of leaving an orphan CV behind.
+     *
+     * SECURITY (v1.75): IDOR-hardened — destructive endpoint. Caller must have
+     * sharing access to the CV OR it must be a managed `docgen_%` file (e.g. a
+     * just-uploaded template body the LWC needs to roll back). Otherwise throws.
+     * Previously any logged-in user could delete any CV in the org by Id.
      */
     @AuraEnabled
     public static void deleteContentVersionDocument(Id contentVersionId) {
         if (contentVersionId == null) {
             return;
         }
-        /* code-analyzer-suppress ApexFlsViolation */
-        List<ContentVersion> cvs = [
-            SELECT ContentDocumentId
-            FROM ContentVersion
-            WHERE Id = :contentVersionId
-            WITH SYSTEM_MODE
-            LIMIT 1
-        ];
-        if (cvs.isEmpty() || cvs[0].ContentDocumentId == null) {
+        ContentVersion cv = (ContentVersion) fetchAuthorizedContentVersion(contentVersionId, 'Id, ContentDocumentId');
+        if (cv.ContentDocumentId == null) {
             return;
         }
+        Id cdId = (Id) cv.ContentDocumentId;
         /* code-analyzer-suppress ApexFlsViolation */
-        delete [SELECT Id FROM ContentDocument WHERE Id = :cvs[0].ContentDocumentId WITH SYSTEM_MODE];
+        delete [SELECT Id FROM ContentDocument WHERE Id = :cdId WITH SYSTEM_MODE];
     }
 
     /**

@@ -2,9 +2,9 @@ name: Format Check
 
 on:
     pull_request:
-        branches: [main]
     push:
-        branches: [main]
+        branches-ignore:
+            - 'gh-pages'
 
 jobs:
     prettier:

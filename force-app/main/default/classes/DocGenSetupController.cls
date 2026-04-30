@@ -10,7 +10,10 @@ public with sharing class DocGenSetupController {
     }
 
     /**
-     * Returns the org-level DocGen settings custom setting.
+     * @deprecated Use getSettingsFresh() instead. In managed packages this returns
+     * the SObject with namespaced field names which break LWC property access.
+     * Retained because docGenSetupWizard still wires this method; do not remove
+     * (zero subscriber impact rule).
      * @return The DocGen_Settings__c org defaults record
      */
     @AuraEnabled(cacheable=true)
@@ -69,13 +72,15 @@ public with sharing class DocGenSetupController {
      */
     @AuraEnabled(cacheable=true)
     public static List<Map<String, String>> getOrgWideEmailAddresses() {
+        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') && !isCurrentUserAdmin()) {
+            throw DocGenService.ahe('Insufficient privileges to view Org-Wide Email Addresses.');
+        }
         List<Map<String, String>> results = new List<Map<String, String>>();
         results.add(new Map<String, String>{ 'label' => '-- Running User (default) --', 'value' => '' });
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         /* code-analyzer-suppress ApexCrudViolation */
         for (OrgWideEmailAddress owa : [
-            // NOPMD ApexCRUDViolation - read-only system table; admin-only AuraEnabled
-            SELECT Id, Address, DisplayName
+            SELECT Id, Address, DisplayName // NOPMD ApexCRUDViolation - read-only system table; admin-only AuraEnabled
             FROM OrgWideEmailAddress
             ORDER BY DisplayName
         ]) {
@@ -93,6 +98,9 @@ public with sharing class DocGenSetupController {
      */
     @AuraEnabled
     public static List<Map<String, Object>> validateSignatureSetup() {
+        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') && !isCurrentUserAdmin()) {
+            throw DocGenService.ahe('Insufficient privileges to validate signature setup.');
+        }
         List<Map<String, Object>> checks = new List<Map<String, Object>>();
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
 
@@ -227,6 +235,28 @@ public with sharing class DocGenSetupController {
         );
 
         return checks;
+    }
+
+    /**
+     * Returns true if the running user has the System Administrator-equivalent
+     * "Modify All Data" permission. Used as a fallback to DocGen_Admin_Access
+     * so org admins are never locked out of read-only setup endpoints.
+     * UserInfo.isAdministrator() is not available in this API version.
+     */
+    private static Boolean isCurrentUserAdmin() {
+        try {
+            /* code-analyzer-suppress ApexFlsViolation */
+            List<User> rows = [
+                SELECT Profile.PermissionsModifyAllData
+                FROM User
+                WHERE Id = :UserInfo.getUserId()
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ]; // NOPMD ApexCRUDViolation - read-only User self-lookup
+            return !rows.isEmpty() && rows[0].Profile != null && rows[0].Profile.PermissionsModifyAllData == true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static Map<String, Object> buildCheck(String name, Boolean passed, String message, String fixUrl) {

@@ -1532,10 +1532,16 @@ private class DocGenControllerTests {
             Id fakeId = '068000000000000AAA'; // NOPMD AvoidHardcodingId — intentional fake ID for negative test
 
             Test.startTest();
-            String b64 = DocGenController.getContentVersionBase64(fakeId);
+            Boolean threw = false;
+            try {
+                DocGenController.getContentVersionBase64(fakeId);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
             Test.stopTest();
 
-            System.assertEquals(null, b64, 'Should return null for non-existent ContentVersion');
+            // v1.75 security hardening: missing/inaccessible CV throws instead of returning null
+            System.assert(threw, 'Should throw AuraHandledException for non-existent ContentVersion');
         }
     }
 
@@ -5104,5 +5110,357 @@ private class DocGenControllerTests {
         );
         Test.stopTest();
         System.assertNotEquals(null, result, 'force.com hosted URL should be accepted in test stub mode');
+    }
+
+    // =========================================================================
+    // v1.75 — Security hardening tests (IDOR fixes)
+    //
+    // Each AuraEnabled endpoint that takes a record Id from the client must
+    // verify the caller can actually see that record before reading or
+    // mutating it. These tests pair an "authorized" path (caller owns/has
+    // access — operation succeeds) with an "unauthorized" path (caller is a
+    // standard user with no sharing access AND no DocGen permission set —
+    // operation throws AuraHandledException).
+    // =========================================================================
+
+    /**
+     * Builds a Standard-User-profile user with NO DocGen permission sets so
+     * runAs() blocks them from seeing managed records. Reused across the
+     * deny-path tests below.
+     */
+    private static User buildLowPrivUser() {
+        Profile p = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1];
+        User u = new User(
+            Alias = 'dgsec',
+            Email = 'docgensec@example.com',
+            EmailEncodingKey = 'UTF-8',
+            LastName = 'SecTest',
+            LanguageLocaleKey = 'en_US',
+            LocaleSidKey = 'en_US',
+            ProfileId = p.Id,
+            TimeZoneSidKey = 'America/Los_Angeles',
+            UserName = 'docgensec_' + System.currentTimeMillis() + '@example.com'
+        );
+        insert u;
+        return u;
+    }
+
+    // -----------------------------------------------------------------------
+    // getContentVersionBase64 — IDOR fix
+    // -----------------------------------------------------------------------
+
+    @IsTest
+    static void testGetContentVersionBase64_authorizedAccessAllowed() {
+        // Admin user with sharing access — should succeed.
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            ContentVersion cv = new ContentVersion(
+                Title = 'docgen_tmpl_img_secAuthorized',
+                PathOnClient = 'a.png',
+                VersionData = Blob.valueOf('Authorized bytes')
+            );
+            insert cv;
+            cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
+
+            Test.startTest();
+            String b64 = DocGenController.getContentVersionBase64(cv.Id);
+            Test.stopTest();
+
+            System.assertNotEquals(null, b64, 'Authorized caller should retrieve bytes');
+            System.assertEquals(
+                'Authorized bytes',
+                EncodingUtil.base64Decode(b64).toString(),
+                'Round-trip bytes should match'
+            );
+        }
+    }
+
+    @IsTest
+    static void testGetContentVersionBase64_unauthorizedAccessDenied() {
+        // CV owned by admin, NOT shared with low-priv user, NOT a docgen_ file.
+        // Low-priv user requesting it by Id must hit the SYSTEM_MODE fallback,
+        // miss the docgen_ filter, and get an AuraHandledException.
+        ContentVersion cv = new ContentVersion(
+            Title = 'CEO Private Notes',
+            PathOnClient = 'private.txt',
+            VersionData = Blob.valueOf('TOP SECRET')
+        );
+        insert cv;
+        cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
+        Id targetId = cv.Id;
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.getContentVersionBase64(targetId);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Low-priv user must NOT retrieve a non-managed CV by Id');
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // getContentVersionSize — probe leak fix
+    // -----------------------------------------------------------------------
+
+    @IsTest
+    static void testGetContentVersionSize_authorizedAccessAllowed() {
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            ContentVersion cv = new ContentVersion(
+                Title = 'docgen_size_check',
+                PathOnClient = 'a.bin',
+                VersionData = Blob.valueOf('1234567890')
+            );
+            insert cv;
+            cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
+
+            Test.startTest();
+            Long size = DocGenController.getContentVersionSize(cv.Id);
+            Test.stopTest();
+
+            System.assert(size > 0, 'Authorized caller should get a real size value');
+        }
+    }
+
+    @IsTest
+    static void testGetContentVersionSize_unauthorizedAccessDenied() {
+        ContentVersion cv = new ContentVersion(
+            Title = 'Confidential Doc',
+            PathOnClient = 'conf.bin',
+            VersionData = Blob.valueOf('SECRET')
+        );
+        insert cv;
+        cv = [SELECT Id FROM ContentVersion WHERE Id = :cv.Id];
+        Id targetId = cv.Id;
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.getContentVersionSize(targetId);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Probe leak must be blocked for non-managed CVs');
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // deleteContentVersionDocument — destructive IDOR fix
+    // -----------------------------------------------------------------------
+
+    @IsTest
+    static void testDeleteContentVersionDocument_authorizedAccessAllowed() {
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            ContentVersion cv = new ContentVersion(
+                Title = 'docgen_delete_check',
+                PathOnClient = 'a.bin',
+                VersionData = Blob.valueOf('to be deleted')
+            );
+            insert cv;
+            cv = [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id];
+            Id cdId = cv.ContentDocumentId;
+
+            Test.startTest();
+            DocGenController.deleteContentVersionDocument(cv.Id);
+            Test.stopTest();
+
+            List<ContentDocument> remaining = [SELECT Id FROM ContentDocument WHERE Id = :cdId];
+            System.assertEquals(0, remaining.size(), 'Authorized delete should remove the document');
+        }
+    }
+
+    @IsTest
+    static void testDeleteContentVersionDocument_unauthorizedAccessDenied() {
+        // CV not shared with low-priv user, not a docgen_ file → must throw
+        ContentVersion cv = new ContentVersion(
+            Title = 'Other Users File',
+            PathOnClient = 'other.bin',
+            VersionData = Blob.valueOf('hands off')
+        );
+        insert cv;
+        cv = [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id];
+        Id targetId = cv.Id;
+        Id cdId = cv.ContentDocumentId;
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.deleteContentVersionDocument(targetId);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Low-priv user must not be able to delete arbitrary CVs');
+        }
+        // Confirm the document is still there
+        List<ContentDocument> remaining = [SELECT Id FROM ContentDocument WHERE Id = :cdId];
+        System.assertEquals(1, remaining.size(), 'Document must still exist after blocked delete');
+    }
+
+    // -----------------------------------------------------------------------
+    // saveWatermarkImage / clearWatermarkImage — version-binding fix
+    // -----------------------------------------------------------------------
+
+    @IsTest
+    static void testSaveWatermarkImage_authorizedAccessAllowed() {
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            DocGen_Template_Version__c ver = TestDataFactory.getTestTemplateVersion();
+            String pngB64 = EncodingUtil.base64Encode(Blob.valueOf('PNG'));
+
+            Test.startTest();
+            Id cvId = DocGenController.saveWatermarkImage(ver.Id, 'wm.png', pngB64);
+            Test.stopTest();
+
+            System.assertNotEquals(null, cvId, 'Authorized admin should create watermark CV');
+        }
+    }
+
+    @IsTest
+    static void testSaveWatermarkImage_unauthorizedAccessDenied() {
+        DocGen_Template_Version__c ver = TestDataFactory.getTestTemplateVersion();
+        Id targetId = ver.Id;
+        String pngB64 = EncodingUtil.base64Encode(Blob.valueOf('PNG'));
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.saveWatermarkImage(targetId, 'wm.png', pngB64);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Standard user without DocGen access must be denied');
+        }
+    }
+
+    @IsTest
+    static void testClearWatermarkImage_authorizedAccessAllowed() {
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            DocGen_Template_Version__c ver = TestDataFactory.getTestTemplateVersion();
+
+            Test.startTest();
+            DocGenController.clearWatermarkImage(ver.Id);
+            Test.stopTest();
+            // No exception = pass; idempotent operation
+            System.assert(true, 'Authorized clear should not throw');
+        }
+    }
+
+    @IsTest
+    static void testClearWatermarkImage_unauthorizedAccessDenied() {
+        DocGen_Template_Version__c ver = TestDataFactory.getTestTemplateVersion();
+        Id targetId = ver.Id;
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.clearWatermarkImage(targetId);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Low-priv user must not be able to clear arbitrary watermark fields');
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // saveHtmlTemplateImage / saveHtmlTemplateBody — template-binding fix
+    // -----------------------------------------------------------------------
+
+    @IsTest
+    static void testSaveHtmlTemplateImage_authorizedAccessAllowed() {
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            tpl.Type__c = 'HTML';
+            update tpl;
+            String pngB64 = EncodingUtil.base64Encode(Blob.valueOf('PNG'));
+
+            Test.startTest();
+            Map<String, Object> r = DocGenController.saveHtmlTemplateImage(tpl.Id, 'a.png', pngB64);
+            Test.stopTest();
+
+            System.assertNotEquals(null, r.get('contentVersionId'), 'Authorized save should return CV Id');
+        }
+    }
+
+    @IsTest
+    static void testSaveHtmlTemplateImage_unauthorizedAccessDenied() {
+        DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+        tpl.Type__c = 'HTML';
+        update tpl;
+        Id targetId = tpl.Id;
+        String pngB64 = EncodingUtil.base64Encode(Blob.valueOf('PNG'));
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.saveHtmlTemplateImage(targetId, 'a.png', pngB64);
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Low-priv user must not be able to attach images to arbitrary templates');
+        }
+    }
+
+    @IsTest
+    static void testSaveHtmlTemplateBody_authorizedAccessAllowed() {
+        User admin = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(admin) {
+            DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+            tpl.Type__c = 'HTML';
+            update tpl;
+
+            Test.startTest();
+            Map<String, Object> r = DocGenController.saveHtmlTemplateBody(
+                tpl.Id,
+                'body.html',
+                '<html><body>Hi</body></html>'
+            );
+            Test.stopTest();
+
+            System.assertNotEquals(null, r.get('contentVersionId'), 'Authorized save should return CV Id');
+        }
+    }
+
+    @IsTest
+    static void testSaveHtmlTemplateBody_unauthorizedAccessDenied() {
+        DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+        tpl.Type__c = 'HTML';
+        update tpl;
+        Id targetId = tpl.Id;
+
+        User low = buildLowPrivUser();
+        System.runAs(low) {
+            Test.startTest();
+            Boolean threw = false;
+            try {
+                DocGenController.saveHtmlTemplateBody(targetId, 'body.html', '<html></html>');
+            } catch (AuraHandledException e) {
+                threw = true;
+            }
+            Test.stopTest();
+            System.assert(threw, 'Low-priv user must not write body HTML to arbitrary templates');
+        }
     }
 }

@@ -458,21 +458,21 @@ private class DocGenSignatureTests {
 
     @isTest
     static void testVerifyDocument_found() {
+        // 64-char hex hash to satisfy v1.75 strict input validation on verifyDocument
+        String hash = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
         DocGen_Signature_Request__c req = getTestRequest();
         DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c(
             Signature_Request__c = req.Id,
             Signer_Name__c = 'Test',
             Signer_Email__c = 'test@test.com',
             Signed_Date__c = System.now(),
-            Document_Hash_SHA256__c = 'abc123hash',
+            Document_Hash_SHA256__c = hash,
             IP_Address__c = '1.2.3.4'
         );
         insert audit;
 
         Test.startTest();
-        DocGenAuthenticatorController.VerificationResult res = DocGenAuthenticatorController.verifyDocument(
-            'abc123hash'
-        );
+        DocGenAuthenticatorController.VerificationResult res = DocGenAuthenticatorController.verifyDocument(hash);
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -5166,5 +5166,231 @@ private class DocGenSignatureTests {
         }
         Test.stopTest();
         System.assert(threw, 'Should refuse to bypass PIN on an already-signed signer');
+    }
+
+    // =========================================================================
+    // getImageBase64 — IDOR / authorization (v1.75 hardening)
+    // =========================================================================
+
+    @isTest
+    static void testGetImageBase64_arbitraryCvRejected() {
+        // Even with a valid token, a signer should NOT be able to read an arbitrary
+        // ContentVersion that isn't bound to their signature request.
+        ContentVersion stranger = new ContentVersion(
+            Title = 'unrelated-private-doc',
+            PathOnClient = 'private.txt',
+            VersionData = Blob.valueOf('secret bytes'),
+            Origin = 'H'
+        );
+        insert stranger;
+        Id strangerCvId = [SELECT Id FROM ContentVersion WHERE Title = 'unrelated-private-doc' LIMIT 1].Id;
+
+        DocGen_Signer__c signer = getTestSigner();
+        String signerToken = signer.Secure_Token__c;
+
+        Map<String, String> result = DocGenSignatureController.getImageBase64(signerToken, strangerCvId);
+        System.assertEquals(
+            'Image not authorized for this signing session',
+            result.get('error'),
+            'Arbitrary CV must be rejected even with a valid signing token'
+        );
+        System.assertEquals(null, result.get('base64'), 'Must not leak base64 for unauthorized CV');
+    }
+
+    @isTest
+    static void testGetImageBase64_sourceDocAllowed() {
+        // The signer's request source document IS authorized.
+        ContentVersion src = new ContentVersion(
+            Title = 'source-doc-test',
+            PathOnClient = 'source.png',
+            VersionData = Blob.valueOf('source image bytes'),
+            FirstPublishLocationId = UserInfo.getUserId(),
+            Origin = 'H'
+        );
+        insert src;
+        Id srcId = [SELECT Id FROM ContentVersion WHERE Title = 'source-doc-test' LIMIT 1].Id;
+
+        DocGen_Signer__c signer = getTestSigner();
+        DocGen_Signature_Request__c req = [
+            SELECT Id
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :signer.Signature_Request__c
+            LIMIT 1
+        ];
+        req.Source_Document_Id__c = srcId;
+        update req;
+
+        Map<String, String> result = DocGenSignatureController.getImageBase64(signer.Secure_Token__c, srcId);
+        System.assertEquals(null, result.get('error'), 'Source doc CV should be authorized');
+        System.assertNotEquals(null, result.get('base64'), 'Should return base64 for the request source doc');
+    }
+
+    @isTest
+    static void testGetImageBase64_templateImageAllowed() {
+        // A template image (title prefix docgen_tmpl_img_<versionId>_) should be allowed
+        // when the request's template's active version matches.
+        DocGen_Template__c tmpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+        DocGen_Template_Version__c activeVer = [
+            SELECT Id
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :tmpl.Id AND Is_Active__c = TRUE
+            LIMIT 1
+        ];
+
+        Id versionId = activeVer.Id;
+        String tmplTitle = 'docgen_tmpl_img_' + versionId + '_rId7';
+        ContentVersion tmplImg = new ContentVersion(
+            Title = tmplTitle,
+            PathOnClient = 'logo.png',
+            VersionData = Blob.valueOf('PNGDATA'),
+            Origin = 'H'
+        );
+        insert tmplImg;
+        Id tmplImgId = [SELECT Id FROM ContentVersion WHERE Title = :tmplTitle LIMIT 1].Id;
+
+        DocGen_Signer__c signer = getTestSigner();
+        DocGen_Signature_Request__c req = [
+            SELECT Id
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :signer.Signature_Request__c
+            LIMIT 1
+        ];
+        req.Template__c = tmpl.Id;
+        update req;
+
+        Map<String, String> result = DocGenSignatureController.getImageBase64(signer.Secure_Token__c, tmplImgId);
+        System.assertEquals(
+            null,
+            result.get('error'),
+            'Template image with matching version prefix must be authorized'
+        );
+        System.assertNotEquals(null, result.get('base64'));
+    }
+
+    @isTest
+    static void testGetImageBase64_crossTemplateImageRejected() {
+        // A docgen_tmpl_img_* CV with a DIFFERENT version prefix must be rejected
+        // even though the title matches the docgen-managed pattern. This is the
+        // cross-template collision protection.
+        DocGen_Template__c tmpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+
+        // Insert a separate template + version belonging to a different template, so we
+        // get a real (different) versionId to use as the cross-template prefix.
+        DocGen_Template__c otherTmpl = new DocGen_Template__c(
+            Name = 'Cross-template foil',
+            Base_Object_API__c = 'Account',
+            Type__c = 'Word',
+            Output_Format__c = 'PDF'
+        );
+        insert otherTmpl;
+        DocGen_Template_Version__c otherVer = new DocGen_Template_Version__c(
+            Template__c = otherTmpl.Id,
+            Is_Active__c = false
+        );
+        insert otherVer;
+
+        Id foreignVersionId = otherVer.Id;
+        String foreignTitle = 'docgen_tmpl_img_' + foreignVersionId + '_rId1';
+        ContentVersion foreignTmplImg = new ContentVersion(
+            Title = foreignTitle,
+            PathOnClient = 'foreign.png',
+            VersionData = Blob.valueOf('OTHER'),
+            Origin = 'H'
+        );
+        insert foreignTmplImg;
+        Id foreignCvId = [
+            SELECT Id
+            FROM ContentVersion
+            WHERE Title = :foreignTitle
+            LIMIT 1
+        ]
+        .Id;
+
+        DocGen_Signer__c signer = getTestSigner();
+        DocGen_Signature_Request__c req = [
+            SELECT Id
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :signer.Signature_Request__c
+            LIMIT 1
+        ];
+        req.Template__c = tmpl.Id;
+        update req;
+
+        Map<String, String> result = DocGenSignatureController.getImageBase64(signer.Secure_Token__c, foreignCvId);
+        System.assertEquals(
+            'Image not authorized for this signing session',
+            result.get('error'),
+            'CV from a different template version must be rejected'
+        );
+    }
+
+    @isTest
+    static void testIsAuthorizedSignatureImage_directHelper() {
+        // Exercise the helper directly to lock in its contract.
+        ContentVersion src = new ContentVersion(
+            Title = 'helper-source',
+            PathOnClient = 'src.bin',
+            VersionData = Blob.valueOf('x'),
+            Origin = 'H'
+        );
+        insert src;
+        Id srcId = [SELECT Id FROM ContentVersion WHERE Title = 'helper-source' LIMIT 1].Id;
+
+        // Source doc match
+        System.assert(
+            DocGenSignatureController.isAuthorizedSignatureImage(srcId, srcId, null),
+            'Source doc CV must be authorized'
+        );
+        // Random CV with no template context → reject
+        System.assert(
+            !DocGenSignatureController.isAuthorizedSignatureImage(srcId, null, null),
+            'Random CV without template or source match must be rejected'
+        );
+    }
+
+    // =========================================================================
+    // ContentDistribution expiry (v1.75 hardening — public links must expire)
+    // =========================================================================
+
+    @isTest
+    static void testFetchDocumentData_publicLinkExpires() {
+        // Insert a real ContentVersion to act as the source document so getOrCreatePublicLink
+        // takes the create path and we can inspect ExpiryDate.
+        ContentVersion src = new ContentVersion(
+            Title = 'expiry-source-doc',
+            PathOnClient = 'doc.docx',
+            VersionData = Blob.valueOf('docx bytes'),
+            Origin = 'H'
+        );
+        insert src;
+        Id srcId = [SELECT Id FROM ContentVersion WHERE Title = 'expiry-source-doc' LIMIT 1].Id;
+
+        DocGen_Signer__c signer = getTestSigner();
+        DocGen_Signature_Request__c req = [
+            SELECT Id
+            FROM DocGen_Signature_Request__c
+            WHERE Id = :signer.Signature_Request__c
+            LIMIT 1
+        ];
+        req.Source_Document_Id__c = srcId;
+        update req;
+
+        Test.startTest();
+        DocGenSignatureController.fetchDocumentData(signer.Secure_Token__c);
+        Test.stopTest();
+
+        List<ContentDistribution> dists = [
+            SELECT PreferencesExpires, ExpiryDate, PreferencesAllowOriginalDownload
+            FROM ContentDistribution
+            WHERE ContentVersionId = :srcId
+        ];
+        System.assertEquals(1, dists.size(), 'Should create exactly one public link for source doc');
+        System.assertEquals(true, dists[0].PreferencesExpires, 'Public link must expire');
+        System.assertNotEquals(null, dists[0].ExpiryDate, 'ExpiryDate must be set');
+        System.assertEquals(
+            false,
+            dists[0].PreferencesAllowOriginalDownload,
+            'Original download must be disabled for the preview link'
+        );
     }
 }

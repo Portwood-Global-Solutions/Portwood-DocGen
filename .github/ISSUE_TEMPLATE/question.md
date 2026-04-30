@@ -13,9 +13,10 @@ Describe your goal — e.g., "generate an invoice PDF from Opportunity with line
 Steps you've taken so far, any errors or unexpected results.
 
 **Package version**
+
 <!-- e.g., v1.1.5 — find in Setup > Installed Packages -->
 
 **Additional context**
 Template screenshots, merge tag examples, or error messages.
 
-> **Tip:** For general discussion, best practices, or template sharing, try [Discussions](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/discussions) instead. You can also visit the [Community Hub](https://portwoodglobalsolutions.com/DocGenCommunity) for real-time help.
+> **Tip:** For general discussion, best practices, or template sharing, try [Discussions](https://github.com/Portwood-Global-Solutions/DocGen/discussions) instead. You can also visit the [Community Hub](https://portwood.dev/community) for real-time help.

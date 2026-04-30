@@ -33,9 +33,7 @@ public with sharing class DocGenSignatureEmailService {
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         String senderName = UserInfo.getName();
         String senderEmail = UserInfo.getUserEmail();
-        String brandColor = String.isNotBlank(settings.Signature_Email_Brand_Color__c)
-            ? settings.Signature_Email_Brand_Color__c
-            : '#0176D3';
+        String brandColor = safeBrandColor(settings.Signature_Email_Brand_Color__c);
         String logoUrl = settings.Signature_Email_Logo_Url__c;
         String companyName = settings.Company_Name__c;
         String footerText = settings.Signature_Email_Footer_Text__c;
@@ -328,9 +326,7 @@ public with sharing class DocGenSignatureEmailService {
                 return;
 
             DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
-            String brandColor = String.isNotBlank(settings.Signature_Email_Brand_Color__c)
-                ? settings.Signature_Email_Brand_Color__c
-                : '#0176D3';
+            String brandColor = safeBrandColor(settings.Signature_Email_Brand_Color__c);
             String companyName = settings.Company_Name__c;
 
             String html = '<!DOCTYPE html><html><head><meta charset="utf-8"/></head>';
@@ -390,6 +386,22 @@ public with sharing class DocGenSignatureEmailService {
     private static String escapeHtml(String input) {
         if (input == null)
             return '';
-        return input.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;');
+        return input.replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+            .replace('"', '&quot;')
+            .replace('\'', '&#39;');
+    }
+
+    /**
+     * Validates a brand color string against the strict 6-digit hex format (#RRGGBB).
+     * Returns the input if valid, or a safe default if not. Used to prevent
+     * inline-style injection when the value is interpolated into style="" attributes.
+     */
+    private static String safeBrandColor(String input) {
+        if (String.isNotBlank(input) && Pattern.matches('^#[0-9a-fA-F]{6}$', input)) {
+            return input;
+        }
+        return '#1589EE';
     }
 }

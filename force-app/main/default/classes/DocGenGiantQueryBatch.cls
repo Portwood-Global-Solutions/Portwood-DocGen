@@ -67,8 +67,17 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
         this.lookupField = (String) childNodeConfig.get('lookupField');
 
         // Schema validation: verify object exists and is accessible
-        if (String.isBlank(this.childObjectName) || Schema.getGlobalDescribe().get(this.childObjectName) == null) {
+        Schema.SObjectType childType = String.isBlank(this.childObjectName)
+            ? null
+            : Schema.getGlobalDescribe().get(this.childObjectName);
+        if (childType == null) {
             throw new DocGenException('Invalid or inaccessible object: ' + this.childObjectName);
+        }
+        // Allowlist-validate lookupField against the child schema — defense-in-depth
+        // on top of String.escapeSingleQuotes (which doesn't protect SOQL identifiers).
+        Map<String, Schema.SObjectField> validFields = childType.getDescribe().fields.getMap();
+        if (String.isBlank(this.lookupField) || !validFields.containsKey(this.lookupField.toLowerCase())) {
+            throw new DocGenException('Invalid or inaccessible lookup field: ' + this.lookupField);
         }
 
         this.childFields = new List<String>();

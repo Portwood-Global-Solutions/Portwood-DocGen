@@ -233,8 +233,8 @@ All signers complete:
 - No Salesforce login required.
 - Access is via a public Salesforce Site hosting `DocGenSignature.page`.
 - Authentication is a two-factor construction:
-  - **Factor 1 — token:** 256-bit random key → SHA-256 → 64-character hex string. Format-validated on every request. Single-use. 48-hour expiry.
-  - **Factor 2 — email PIN:** 6-digit code delivered to the address on file, SHA-256 hashed at rest, 10-minute expiry, 3 attempts max.
+    - **Factor 1 — token:** 256-bit random key → SHA-256 → 64-character hex string. Format-validated on every request. Single-use. 48-hour expiry.
+    - **Factor 2 — email PIN:** 6-digit code delivered to the address on file, SHA-256 hashed at rest, 10-minute expiry, 3 attempts max.
 - The guest user profile is assigned only the `DocGen Guest Signature` permission set. That permission set grants read-only access to the signature objects, exclusively through the token-gated code paths in `DocGenSignatureValidator` / `DocGenSignatureSubmitter`. The guest user cannot reach templates, jobs, query configs, or unrelated record data.
 - Guest-facing classes are declared `without sharing` **only** because signer records must be locatable by token without the guest user owning them — every entry point re-checks the token, the status, and the expiry before doing anything.
 
@@ -269,19 +269,19 @@ All cryptographic material is generated at runtime using the Salesforce `Crypto`
 
 ## 5. Data Touchpoints Summary
 
-| Touchpoint              | Direction      | Protocol              | Authentication          | Data                                          |
-|-------------------------|----------------|-----------------------|-------------------------|-----------------------------------------------|
-| Template upload         | User → SF      | HTTPS (TLS 1.2+)      | SF session              | DOCX / XLSX / PPTX file                       |
-| Record data query       | Internal SF    | SOQL (USER_MODE)      | SF session              | Record fields                                 |
-| Document generation     | Internal SF    | Apex processing       | SF session              | Merged document                               |
-| Document save           | Internal SF    | DML                   | SF session              | `ContentVersion`                              |
-| Signature invitation    | SF → Email     | SF Messaging API      | OWA or running user     | Signing link, branding                        |
-| PIN email               | SF → Email     | SF Messaging API      | OWA                     | 6-digit code                                  |
-| Signing page load       | Signer → SF    | HTTPS (TLS 1.2+)      | Token (format-checked)  | Merged HTML preview                           |
-| PIN submission          | Signer → SF    | HTTPS (TLS 1.2+)      | Token + PIN             | Candidate PIN (hashed before compare)         |
-| Signature submission    | Signer → SF    | HTTPS (TLS 1.2+)      | Token + verified PIN    | Typed name, consent flag                      |
-| Audit record creation   | Internal SF    | DML                   | SYSTEM_MODE, token-gated| IP, UA, hash, timestamps                      |
-| Client-side DOCX build  | Browser only   | Local JS (no network) | —                       | XML parts + base64 media from @AuraEnabled    |
+| Touchpoint             | Direction    | Protocol              | Authentication           | Data                                       |
+| ---------------------- | ------------ | --------------------- | ------------------------ | ------------------------------------------ |
+| Template upload        | User → SF    | HTTPS (TLS 1.2+)      | SF session               | DOCX / XLSX / PPTX file                    |
+| Record data query      | Internal SF  | SOQL (USER_MODE)      | SF session               | Record fields                              |
+| Document generation    | Internal SF  | Apex processing       | SF session               | Merged document                            |
+| Document save          | Internal SF  | DML                   | SF session               | `ContentVersion`                           |
+| Signature invitation   | SF → Email   | SF Messaging API      | OWA or running user      | Signing link, branding                     |
+| PIN email              | SF → Email   | SF Messaging API      | OWA                      | 6-digit code                               |
+| Signing page load      | Signer → SF  | HTTPS (TLS 1.2+)      | Token (format-checked)   | Merged HTML preview                        |
+| PIN submission         | Signer → SF  | HTTPS (TLS 1.2+)      | Token + PIN              | Candidate PIN (hashed before compare)      |
+| Signature submission   | Signer → SF  | HTTPS (TLS 1.2+)      | Token + verified PIN     | Typed name, consent flag                   |
+| Audit record creation  | Internal SF  | DML                   | SYSTEM_MODE, token-gated | IP, UA, hash, timestamps                   |
+| Client-side DOCX build | Browser only | Local JS (no network) | —                        | XML parts + base64 media from @AuraEnabled |
 
 - **External integrations:** none.
 - **External callouts:** none.
@@ -292,23 +292,23 @@ All cryptographic material is generated at runtime using the Salesforce `Crypto`
 
 ## 6. Threat Model and Controls
 
-| Category                  | Threat                                                         | Control in DocGen                                                                                                                                    |
-|---------------------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| SOQL injection            | Attacker-controlled strings reach dynamic SOQL                 | All dynamic object / field / relationship names are validated against `Schema.getGlobalDescribe()` allowlists in `DocGenDataRetriever`. Literal binds only. |
-| XSS (internal)            | Merge-tag content rendered as HTML in LWC                      | LWC templates use `{value}` interpolation (auto-escaped). No `innerHTML`, no `lwc:dom="manual"` on user content.                                     |
-| XSS (PDF path)            | Merge-tag content injected into HTML before `Blob.toPdf()`     | `DocGenHtmlRenderer` HTML-escapes all record-derived values before placing them inside the generated HTML. Only pre-sanitized tags are emitted.     |
-| XSS (VF signing page)     | URL parameters reflected into the signing page                 | Token format is validated (`[a-fA-F0-9]{64}`) before any reflection, and the VF page uses standard Visualforce auto-escaping.                        |
-| CSRF                      | Cross-site request forgery against `@AuraEnabled`              | Handled by the Aura/LWC framework. The package adds no custom HTTP endpoints that bypass this.                                                       |
-| Broken access control     | User reads records they should not                             | `USER_MODE` on SOQL against standard objects. Package-internal admin objects are gated by the DocGen permission sets.                                |
-| Privilege escalation      | Guest user reaches admin data                                  | Guest permission set grants only the signature objects. Guest code paths re-validate token, status, and expiry on every call.                       |
-| Replay / token reuse      | Signed token reused to impersonate a signer                    | Single-use tokens; status transitions are terminal. PIN adds a second factor bound to the signer's inbox.                                            |
-| Brute-force PIN           | Guessing 6-digit PINs                                          | Hashed storage, 10-minute expiry, 3-attempt lockout per signer.                                                                                      |
-| Data exfiltration         | Template used to leak arbitrary org data                       | Templates can only reference fields the running user can read (USER_MODE). Guest flow renders a pre-merged snapshot only.                            |
-| External callout          | Hidden callout leaks data                                      | No `Http.send()`, no Remote Site Settings, no Named Credentials in the package. `sf code-analyzer` confirms no callout sinks.                        |
-| Path traversal / ZIP      | Malicious ZIP entry paths while unpacking templates            | Entry names are treated as opaque keys; the package never writes ZIP entries back to a filesystem — only to in-memory maps and back into a new ZIP. |
-| PDF image exfiltration    | Template references arbitrary Shepherd URLs to leak content   | Only relative, in-org Shepherd URLs for CVs the package itself created or for field values on records the user can already read.                    |
-| Supply chain              | Compromised third-party JS library                             | No third-party runtime JS. `docGenZipWriter.js` is implemented in-package.                                                                            |
-| Secrets in source         | Hardcoded keys/passwords                                       | None. All cryptographic material is generated at runtime via `Crypto`.                                                                                |
+| Category               | Threat                                                      | Control in DocGen                                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SOQL injection         | Attacker-controlled strings reach dynamic SOQL              | All dynamic object / field / relationship names are validated against `Schema.getGlobalDescribe()` allowlists in `DocGenDataRetriever`. Literal binds only. |
+| XSS (internal)         | Merge-tag content rendered as HTML in LWC                   | LWC templates use `{value}` interpolation (auto-escaped). No `innerHTML`, no `lwc:dom="manual"` on user content.                                            |
+| XSS (PDF path)         | Merge-tag content injected into HTML before `Blob.toPdf()`  | `DocGenHtmlRenderer` HTML-escapes all record-derived values before placing them inside the generated HTML. Only pre-sanitized tags are emitted.             |
+| XSS (VF signing page)  | URL parameters reflected into the signing page              | Token format is validated (`[a-fA-F0-9]{64}`) before any reflection, and the VF page uses standard Visualforce auto-escaping.                               |
+| CSRF                   | Cross-site request forgery against `@AuraEnabled`           | Handled by the Aura/LWC framework. The package adds no custom HTTP endpoints that bypass this.                                                              |
+| Broken access control  | User reads records they should not                          | `USER_MODE` on SOQL against standard objects. Package-internal admin objects are gated by the DocGen permission sets.                                       |
+| Privilege escalation   | Guest user reaches admin data                               | Guest permission set grants only the signature objects. Guest code paths re-validate token, status, and expiry on every call.                               |
+| Replay / token reuse   | Signed token reused to impersonate a signer                 | Single-use tokens; status transitions are terminal. PIN adds a second factor bound to the signer's inbox.                                                   |
+| Brute-force PIN        | Guessing 6-digit PINs                                       | Hashed storage, 10-minute expiry, 3-attempt lockout per signer.                                                                                             |
+| Data exfiltration      | Template used to leak arbitrary org data                    | Templates can only reference fields the running user can read (USER_MODE). Guest flow renders a pre-merged snapshot only.                                   |
+| External callout       | Hidden callout leaks data                                   | No `Http.send()`, no Remote Site Settings, no Named Credentials in the package. `sf code-analyzer` confirms no callout sinks.                               |
+| Path traversal / ZIP   | Malicious ZIP entry paths while unpacking templates         | Entry names are treated as opaque keys; the package never writes ZIP entries back to a filesystem — only to in-memory maps and back into a new ZIP.         |
+| PDF image exfiltration | Template references arbitrary Shepherd URLs to leak content | Only relative, in-org Shepherd URLs for CVs the package itself created or for field values on records the user can already read.                            |
+| Supply chain           | Compromised third-party JS library                          | No third-party runtime JS. `docGenZipWriter.js` is implemented in-package.                                                                                  |
+| Secrets in source      | Hardcoded keys/passwords                                    | None. All cryptographic material is generated at runtime via `Crypto`.                                                                                      |
 
 ### Trust boundaries
 
@@ -321,18 +321,18 @@ All cryptographic material is generated at runtime using the Salesforce `Crypto`
 
 ## 7. Sharing Model
 
-| Class                              | Declaration          | Rationale                                                                                                                                         |
-|------------------------------------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| `DocGenController`                 | `with sharing`       | Entry point for authenticated LWC users. Defers to `USER_MODE` for standard objects.                                                               |
-| `DocGenService`                    | (service)            | Called from `with sharing` controllers; runs `USER_MODE` for data queries.                                                                         |
-| `DocGenSignatureSenderController`  | `with sharing`       | Admin-initiated sending uses the admin's sharing.                                                                                                  |
-| `DocGenSignatureEmailService`      | `with sharing`       | Email dispatch respects running-user sharing.                                                                                                      |
-| `DocGenSignatureController`        | `without sharing`    | Guest-facing entry point; access is gated by token + PIN, not by sharing rules. Every method re-validates the token.                               |
-| `DocGenSignatureValidator`         | `without sharing`    | Token/PIN validation must be able to locate signer records the guest does not own.                                                                 |
-| `DocGenSignatureSubmitter`         | `without sharing`    | Writes signer record updates and audit records under a token-gated path.                                                                           |
-| `DocGenSignatureFinalizer`         | `without sharing`    | Runs asynchronously to stitch the final PDF after the last signer completes.                                                                       |
-| `DocGenSignatureService`           | `without sharing`    | Shared helpers for token-gated signature paths.                                                                                                    |
-| `DocGenSignatureFlowAction`        | `with sharing`       | Flow invocable entry point (v1.42.0). Runs under the authenticated Flow user's sharing; delegates to `DocGenSignatureSenderController`.            |
+| Class                             | Declaration       | Rationale                                                                                                                               |
+| --------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `DocGenController`                | `with sharing`    | Entry point for authenticated LWC users. Defers to `USER_MODE` for standard objects.                                                    |
+| `DocGenService`                   | (service)         | Called from `with sharing` controllers; runs `USER_MODE` for data queries.                                                              |
+| `DocGenSignatureSenderController` | `with sharing`    | Admin-initiated sending uses the admin's sharing.                                                                                       |
+| `DocGenSignatureEmailService`     | `with sharing`    | Email dispatch respects running-user sharing.                                                                                           |
+| `DocGenSignatureController`       | `without sharing` | Guest-facing entry point; access is gated by token + PIN, not by sharing rules. Every method re-validates the token.                    |
+| `DocGenSignatureValidator`        | `without sharing` | Token/PIN validation must be able to locate signer records the guest does not own.                                                      |
+| `DocGenSignatureSubmitter`        | `without sharing` | Writes signer record updates and audit records under a token-gated path.                                                                |
+| `DocGenSignatureFinalizer`        | `without sharing` | Runs asynchronously to stitch the final PDF after the last signer completes.                                                            |
+| `DocGenSignatureService`          | `without sharing` | Shared helpers for token-gated signature paths.                                                                                         |
+| `DocGenSignatureFlowAction`       | `with sharing`    | Flow invocable entry point (v1.42.0). Runs under the authenticated Flow user's sharing; delegates to `DocGenSignatureSenderController`. |
 
 Every `without sharing` class is reachable only through a token-validated entry point; none of them expose unauthenticated DML or SOQL to guest users.
 
@@ -392,19 +392,19 @@ Every `without sharing` class is reachable only through a token-validated entry 
 
 ## 9. Security Compliance
 
-| Check                                                   | Status                                                                                              |
-|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| Salesforce Code Analyzer (Security + AppExchange)       | 0 High severity violations (30 Moderate false positives, see `code-analyzer.yml`)                   |
-| External callouts                                       | None                                                                                                 |
-| Session ID usage                                        | None                                                                                                 |
-| Data exfiltration paths                                 | None identified                                                                                      |
-| SOQL injection                                          | Schema allowlist validation on all dynamic identifiers; literal binds only                           |
-| XSS                                                     | Auto-escaping in LWC / Visualforce; HTML-escape before `Blob.toPdf()` input; token format validation |
-| CSRF                                                    | Platform-handled for all `@AuraEnabled` methods                                                      |
-| CRUD / FLS                                              | `USER_MODE` on user-facing SOQL; permission-set gating on package objects                            |
-| Sharing model                                           | `with sharing` on admin entry points; `without sharing` only on token-gated guest paths              |
-| Apex tests                                              | 850+ local tests, ≥ 75% org-wide coverage                                                            |
-| End-to-end test suite                                   | 8 chained anonymous Apex scripts (`scripts/e2e-*.apex`) run on every release                         |
+| Check                                             | Status                                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Salesforce Code Analyzer (Security + AppExchange) | 0 High severity violations (30 Moderate false positives, see `code-analyzer.yml`)                    |
+| External callouts                                 | None                                                                                                 |
+| Session ID usage                                  | None                                                                                                 |
+| Data exfiltration paths                           | None identified                                                                                      |
+| SOQL injection                                    | Schema allowlist validation on all dynamic identifiers; literal binds only                           |
+| XSS                                               | Auto-escaping in LWC / Visualforce; HTML-escape before `Blob.toPdf()` input; token format validation |
+| CSRF                                              | Platform-handled for all `@AuraEnabled` methods                                                      |
+| CRUD / FLS                                        | `USER_MODE` on user-facing SOQL; permission-set gating on package objects                            |
+| Sharing model                                     | `with sharing` on admin entry points; `without sharing` only on token-gated guest paths              |
+| Apex tests                                        | 850+ local tests, ≥ 75% org-wide coverage                                                            |
+| End-to-end test suite                             | 8 chained anonymous Apex scripts (`scripts/e2e-*.apex`) run on every release                         |
 
 **Supplementary documentation:**
 
@@ -415,4 +415,4 @@ Every `without sharing` class is reachable only through a token-validated entry 
 
 ---
 
-*Portwood Global Solutions — https://portwoodglobalsolutions.com*
+_Portwood Global Solutions — https://portwood.dev_

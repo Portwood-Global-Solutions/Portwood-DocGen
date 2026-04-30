@@ -46,7 +46,7 @@ At PDF generation time, `buildPdfImageMap()` queries for these pre-committed CVs
 - DevHub: `Portwood Global - Production` (dave@portwoodglobalsolutions.com)
 - Dev scratch org: `docgen-test-ux`
 - Demo scratch org: `docgen-demo-v2`
-- Website: https://portwoodglobalsolutions.com
+- Website: https://portwood.dev
 
 ## Key Architecture
 

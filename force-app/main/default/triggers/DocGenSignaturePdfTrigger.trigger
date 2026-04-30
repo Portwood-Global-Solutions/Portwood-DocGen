@@ -7,6 +7,8 @@
 trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e(after insert) {
     Set<Id> requestIds = new Set<Id>();
     for (DocGen_Signature_PDF__e evt : Trigger.New) {
+        if (evt.Request_Id__c == null)
+            continue;
         requestIds.add(evt.Request_Id__c);
     }
 
@@ -41,9 +43,34 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e(after insert) {
         ]
     ); // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
+    // Bulkified template name lookup — collect all template Ids up front,
+    // run one SOQL pass, then reference the map inside the per-event loop
+    // (replaces an in-loop SOQL on the sequential signing path).
+    Set<Id> templateIds = new Set<Id>();
+    for (DocGen_Signature_Request__c req : requestMap.values()) {
+        if (req.Template__c != null) {
+            templateIds.add(req.Template__c);
+        }
+    }
+    Map<Id, String> templateNameMap = new Map<Id, String>();
+    if (!templateIds.isEmpty()) {
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        for (DocGen_Template__c t : [
+            SELECT Id, Name
+            FROM DocGen_Template__c
+            WHERE Id IN :templateIds
+            WITH SYSTEM_MODE
+        ]) {
+            // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+            templateNameMap.put(t.Id, t.Name);
+        }
+    }
+
     for (DocGen_Signature_PDF__e evt : Trigger.New) {
         try {
             Id requestId = evt.Request_Id__c;
+            if (requestId == null)
+                continue;
             DocGen_Signature_Request__c req = requestMap.get(requestId);
             if (req == null)
                 continue;
@@ -115,16 +142,10 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e(after insert) {
                             nextPendingSigner.Secure_Token__c;
 
                         String docTitle = 'Document';
-                        if (req.Template__c != null) {
-                            List<DocGen_Template__c> t = [
-                                SELECT Name
-                                FROM DocGen_Template__c
-                                WHERE Id = :req.Template__c
-                                WITH SYSTEM_MODE
-                                LIMIT 1
-                            ]; // NOPMD
-                            if (!t.isEmpty())
-                                docTitle = t[0].Name;
+                        if (req.Template__c != null && templateNameMap.containsKey(req.Template__c)) {
+                            String tName = templateNameMap.get(req.Template__c);
+                            if (tName != null)
+                                docTitle = tName;
                         }
 
                         DocGenSignatureEmailService.sendSignatureRequestEmails(
@@ -137,7 +158,8 @@ trigger DocGenSignaturePdfTrigger on DocGen_Signature_PDF__e(after insert) {
                                     nextPendingSigner.Contact__c
                                 )
                             },
-                            docTitle
+                            docTitle,
+                            requestId
                         );
                     } catch (Exception seqEx) {
                         System.debug(
