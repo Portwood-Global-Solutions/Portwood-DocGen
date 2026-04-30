@@ -12,7 +12,7 @@
 - **Sandbox:** https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006UkpxAAC
 - **CLI:** `sf package install --package 04tal000006UkpxAAC --wait 10 --target-org <your-org>`
 
-> Companion to `DocGen_Solution_Architecture_and_Usage.md`, which focuses on AppExchange security review. This document describes *what* the solution is, *how it is put together*, and *how a customer uses it* day to day.
+> Companion to `DocGen_Solution_Architecture_and_Usage.md`, which focuses on AppExchange security review. This document describes _what_ the solution is, _how it is put together_, and _how a customer uses it_ day to day.
 
 ---
 
@@ -105,17 +105,17 @@ Everything inside the box runs inside the customer's Salesforce org. Nothing cro
 
 ### 3.1 Custom Objects
 
-| Object                             | Purpose                                                              |
-|------------------------------------|----------------------------------------------------------------------|
-| `DocGen_Template__c`               | Logical template: name, base object, status, default output format. |
-| `DocGen_Template_Version__c`       | Versioned template artifact (holds the uploaded OOXML via CV).      |
-| `DocGen_Saved_Query__c`            | Reusable query definition (V1 / V2 / V3 formats).                    |
-| `DocGen_Job__c`                    | Bulk-generation job tracking (counts, status, error summary).        |
-| `DocGen_Settings__c`               | Hierarchy custom setting for org-level configuration.                |
-| `DocGen_Signature_Request__c`     | Parent record for a signature request.                               |
-| `DocGen_Signer__c`                 | One per signer (token, PIN hash, status, typed name).                |
-| `DocGen_Signature_Audit__c`        | Immutable audit record (IP, UA, hash, timestamps, history tracking). |
-| `DocGen_Signature_PDF__e`         | Platform event that triggers async PDF finalization.                  |
+| Object                        | Purpose                                                              |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `DocGen_Template__c`          | Logical template: name, base object, status, default output format.  |
+| `DocGen_Template_Version__c`  | Versioned template artifact (holds the uploaded OOXML via CV).       |
+| `DocGen_Saved_Query__c`       | Reusable query definition (V1 / V2 / V3 formats).                    |
+| `DocGen_Job__c`               | Bulk-generation job tracking (counts, status, error summary).        |
+| `DocGen_Settings__c`          | Hierarchy custom setting for org-level configuration.                |
+| `DocGen_Signature_Request__c` | Parent record for a signature request.                               |
+| `DocGen_Signer__c`            | One per signer (token, PIN hash, status, typed name).                |
+| `DocGen_Signature_Audit__c`   | Immutable audit record (IP, UA, hash, timestamps, history tracking). |
+| `DocGen_Signature_PDF__e`     | Platform event that triggers async PDF finalization.                 |
 
 ### 3.2 Apex Classes
 
@@ -153,7 +153,7 @@ Everything inside the box runs inside the customer's Salesforce org. Nothing cro
 - `DocGenFlowAction` — single-record document generation.
 - `DocGenBulkFlowAction` — bulk generation against a saved query.
 - `DocGenGiantQueryFlowAction` — trigger a giant-query job.
-- `DocGenSignatureFlowAction` *(new in v1.42.0)* — create a DocGen signature request from a Flow and return one signing URL per signer. Defaults to silent (no package-sent emails) so the Flow author owns the notification path via Send Email / Slack / custom invocable.
+- `DocGenSignatureFlowAction` _(new in v1.42.0)_ — create a DocGen signature request from a Flow and return one signing URL per signer. Defaults to silent (no package-sent emails) so the Flow author owns the notification path via Send Email / Slack / custom invocable.
 
 ### 3.3 Visualforce Pages
 
@@ -184,11 +184,11 @@ Everything inside the box runs inside the customer's Salesforce org. Nothing cro
 
 ### 3.5 Permission Sets
 
-| Permission Set              | Who                    | Scope                                                                        |
-|-----------------------------|------------------------|------------------------------------------------------------------------------|
-| `DocGen Admin`              | Admins                 | Full template CRUD, bulk jobs, settings, signature requests.                 |
-| `DocGen User`               | End users              | Run generation from record pages, view own jobs, view templates.             |
-| `DocGen Guest Signature`    | Site guest user        | Read-only on signature objects, exclusively through token-gated entry points. |
+| Permission Set           | Who             | Scope                                                                         |
+| ------------------------ | --------------- | ----------------------------------------------------------------------------- |
+| `DocGen Admin`           | Admins          | Full template CRUD, bulk jobs, settings, signature requests.                  |
+| `DocGen User`            | End users       | Run generation from record pages, view own jobs, view templates.              |
+| `DocGen Guest Signature` | Site guest user | Read-only on signature objects, exclusively through token-gated entry points. |
 
 ### 3.6 Tabs
 
@@ -300,30 +300,67 @@ Preserved through `processXml()` during the ordinary merge pass (any tag startin
 `DocGen_Saved_Query__c.Query_Config__c` (a 32 KB LongTextArea) supports three formats. The retriever auto-detects.
 
 ### 6.1 V1 — Legacy flat string
+
 ```
 Name, Industry, (SELECT FirstName, LastName FROM Contacts)
 ```
 
 ### 6.2 V2 — Flat JSON with junctions
+
 ```json
-{"v":2,"baseObject":"Opportunity","baseFields":["Name"],
- "parentFields":["Account.Name"],
- "children":[{"rel":"OpportunityLineItems","fields":["Name"]}],
- "junctions":[{"junctionRel":"OpportunityContactRoles",
-               "targetObject":"Contact","targetIdField":"ContactId",
-               "targetFields":["FirstName"]}]}
+{
+    "v": 2,
+    "baseObject": "Opportunity",
+    "baseFields": ["Name"],
+    "parentFields": ["Account.Name"],
+    "children": [{ "rel": "OpportunityLineItems", "fields": ["Name"] }],
+    "junctions": [
+        {
+            "junctionRel": "OpportunityContactRoles",
+            "targetObject": "Contact",
+            "targetIdField": "ContactId",
+            "targetFields": ["FirstName"]
+        }
+    ]
+}
 ```
 
 ### 6.3 V3 — Query tree (multi-object, any depth)
+
 ```json
-{"v":3,"root":"Account","nodes":[
-  {"id":"n0","object":"Account","fields":["Name"],"parentFields":["Owner.Name"],
-   "parentNode":null,"lookupField":null,"relationshipName":null},
-  {"id":"n1","object":"Contact","fields":["FirstName"],"parentFields":[],
-   "parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"},
-  {"id":"n2","object":"Opportunity","fields":["Name","Amount"],"parentFields":[],
-   "parentNode":"n0","lookupField":"AccountId","relationshipName":"Opportunities"}
-]}
+{
+    "v": 3,
+    "root": "Account",
+    "nodes": [
+        {
+            "id": "n0",
+            "object": "Account",
+            "fields": ["Name"],
+            "parentFields": ["Owner.Name"],
+            "parentNode": null,
+            "lookupField": null,
+            "relationshipName": null
+        },
+        {
+            "id": "n1",
+            "object": "Contact",
+            "fields": ["FirstName"],
+            "parentFields": [],
+            "parentNode": "n0",
+            "lookupField": "AccountId",
+            "relationshipName": "Contacts"
+        },
+        {
+            "id": "n2",
+            "object": "Opportunity",
+            "fields": ["Name", "Amount"],
+            "parentFields": [],
+            "parentNode": "n0",
+            "lookupField": "AccountId",
+            "relationshipName": "Opportunities"
+        }
+    ]
+}
 ```
 
 Each node becomes one SOQL query; results are stitched into the parent's data map via `lookupField`. The visual V3 builder is `docGenColumnBuilder` + `docGenTreeBuilder`.
@@ -349,8 +386,8 @@ The result: unlimited-size PDFs with many images, and unlimited-size DOCX output
 1. **Install the managed package** in your production or sandbox org.
 2. **Enable the Release Update** "Use the Visualforce PDF Rendering Service for `Blob.toPdf()` Invocations" (Setup → Release Updates). This is required for the PDF path.
 3. **Assign permission sets:**
-   - `DocGen Admin` — admins.
-   - `DocGen User` — end users who should be able to generate documents.
+    - `DocGen Admin` — admins.
+    - `DocGen User` — end users who should be able to generate documents.
 4. **Add the `docGenRunner` component** to any record page layout where users should see a "Generate" button.
 5. **Open the DocGen app** (App Launcher → DocGen) and follow the Setup Wizard in the Command Hub.
 
@@ -408,7 +445,7 @@ The result: unlimited-size PDFs with many images, and unlimited-size DOCX output
 - `DocGenFlowAction` — generate a document for one record.
 - `DocGenBulkFlowAction` — kick off a bulk job from a Flow.
 - `DocGenGiantQueryFlowAction` — start a giant-query job.
-- `DocGenSignatureFlowAction` *(v1.42.0)* — create a DocGen signature request from a Flow.
+- `DocGenSignatureFlowAction` _(v1.42.0)_ — create a DocGen signature request from a Flow.
 
 All four are registered as invocable actions and appear in the Flow Builder action picker under the "Document Generation" category.
 
@@ -420,9 +457,9 @@ A typical end-to-end automation pattern with `DocGenSignatureFlowAction`:
 2. **Build signer collections:** Use Flow formula resources or loops to populate `signerNames`, `signerEmails`, and optionally `signerRoles` / `signerContactIds` text collections. Role names must match the `{@Signature_<Role>}` placeholders in the template.
 3. **Invoke the action:** `DocGen: Create Signature Request` with the template Id, the triggering record Id, and the signer collections. Leave `Send Branded Emails` unset (defaults to **false**) so Flow owns the notification.
 4. **Notify signers:** Loop over the returned `signerUrls` collection. For each signer, either:
-   - Use Flow's **Send Email Action** with a custom template body that includes `{!currentSignerUrl}`, or
-   - Call a custom HTTP-callout invocable to post to Slack/Teams/Chatter, or
-   - Update the triggering record with the first signing link for an internal preview.
+    - Use Flow's **Send Email Action** with a custom template body that includes `{!currentSignerUrl}`, or
+    - Call a custom HTTP-callout invocable to post to Slack/Teams/Chatter, or
+    - Update the triggering record with the first signing link for an internal preview.
 5. **Track state:** Update the triggering record with the returned `signatureRequestId` so you can report on outstanding signature requests and detect completion via the `DocGen_Signature_PDF__e` platform event trigger path.
 
 **Alternative:** set `Send Branded Emails = true` to have the package send its built-in branded invitation emails, identical to the LWC Sender component's behavior. Use this when you want to automate request creation without writing custom email templates.
@@ -431,13 +468,13 @@ A typical end-to-end automation pattern with `DocGenSignatureFlowAction`:
 
 ## 10. Known Limits and Guardrails
 
-| Area                         | Limit                                                                                                             |
-|------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| Apex heap                    | 6 MB sync / 12 MB async. DocGen uses pre-decomposed parts + zero-heap images + client-side ZIP to stay under.     |
-| `@AuraEnabled` payload       | Aura framework caps at ~4 MB. Affects "Save to Record" for client-assembled DOCX — falls back to server ZIP path. |
-| PDF fonts                    | `Blob.toPdf()` supports only Helvetica, Times, Courier, Arial Unicode MS. Custom fonts are a platform limitation. |
-| Bulk job size                | Limited by Batchable chunking and DML governor limits; `DocGen_Job__c` tracks per-record failures.                |
-| Signer session               | 48-hour token, 10-minute PIN, 3-attempt lockout.                                                                  |
+| Area                   | Limit                                                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Apex heap              | 6 MB sync / 12 MB async. DocGen uses pre-decomposed parts + zero-heap images + client-side ZIP to stay under.     |
+| `@AuraEnabled` payload | Aura framework caps at ~4 MB. Affects "Save to Record" for client-assembled DOCX — falls back to server ZIP path. |
+| PDF fonts              | `Blob.toPdf()` supports only Helvetica, Times, Courier, Arial Unicode MS. Custom fonts are a platform limitation. |
+| Bulk job size          | Limited by Batchable chunking and DML governor limits; `DocGen_Job__c` tracks per-record failures.                |
+| Signer session         | 48-hour token, 10-minute PIN, 3-attempt lockout.                                                                  |
 
 ---
 
@@ -463,4 +500,4 @@ Per-release regression focus lives in the feature-area-specific e2e script (e.g.
 
 ---
 
-*Portwood Global Solutions — https://portwoodglobalsolutions.com*
+_Portwood Global Solutions — https://portwood.dev_

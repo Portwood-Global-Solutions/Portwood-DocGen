@@ -14,7 +14,7 @@ If you discover a security vulnerability in Portwood DocGen, **please do not ope
 
 Instead, report it privately:
 
-1. **Email:** dave@portwoodglobalsolutions.com
+1. **Email:** dave@portwood.dev
 2. **Subject:** `[SECURITY] <brief description>`
 3. **Include:** Steps to reproduce, affected versions, and potential impact
 

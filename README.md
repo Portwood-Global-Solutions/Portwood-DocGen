@@ -2,7 +2,7 @@
 
 Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, 100% free forever. All features, all users, no paid tiers. PowerPoint and Excel coming soon.
 
-[Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)
+[Join the Community Channel](https://portwood.dev/community) | [Website](https://portwood.dev) | [Roadmap](https://portwood.dev/changelog)
 
 [![Version](https://img.shields.io/badge/version-1.75.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -11,7 +11,7 @@ Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes
 [![Apex Tests](https://img.shields.io/badge/Apex_Tests-1107%2F1107_passing-brightgreen)](#code-quality)
 [![Coverage](https://img.shields.io/badge/Coverage-75%25-brightgreen)](#code-quality)
 [![Security](https://img.shields.io/badge/Code_Analyzer-0_Critical%2C_0_High-brightgreen)](#security)
-[![Website](https://img.shields.io/badge/website-portwoodglobalsolutions.com-blue)](https://portwoodglobalsolutions.com)
+[![Website](https://img.shields.io/badge/website-portwood.dev-blue)](https://portwood.dev)
 
 ---
 
@@ -34,7 +34,7 @@ sf package install --package 04tal000006rCZ3AAM --wait 10 --target-org <your-org
 3. **Add tags and upload** — type `{Name}` where you want data. Upload the file (or a Google Docs "Download → Web Page" zip for HTML templates).
 4. **Generate** — from any record page, in bulk, or from a Flow.
 
-Download example templates from [portwoodglobalsolutions.com](https://portwoodglobalsolutions.com).
+Download example templates from [portwood.dev](https://portwood.dev).
 
 ---
 
@@ -350,16 +350,16 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ## Community
 
-DocGen is 100% free, open source, and community-driven. Published through [Portwood Global Solutions](https://portwoodglobalsolutions.com).
+DocGen is 100% free, open source, and community-driven. Published through [Portwood Global Solutions](https://portwood.dev).
 
 | Channel                                                                     | What It's For                                      |
 | --------------------------------------------------------------------------- | -------------------------------------------------- |
-| [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity)    | Real-time help, feature requests, template sharing |
+| [Community Channel](https://portwood.dev/community)                         | Real-time help, feature requests, template sharing |
 | [GitHub Issues](https://github.com/Portwood-Global-Solutions/DocGen/issues) | Bug reports and tracked feature requests           |
-| [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)                | What's shipped and what's coming next              |
-| [Website](https://portwoodglobalsolutions.com)                              | Install links, feature overview                    |
+| [Roadmap](https://portwood.dev/changelog)                                   | What's shipped and what's coming next              |
+| [Website](https://portwood.dev)                                             | Install links, feature overview                    |
 
-Need dedicated support? Contact us at [hello@portwoodglobalsolutions.com](mailto:hello@portwoodglobalsolutions.com).
+Need dedicated support? Contact us at [hello@portwood.dev](mailto:hello@portwood.dev).
 
 ## Contributing
 
@@ -458,4 +458,4 @@ Apache License, Version 2.0. See [LICENSE](LICENSE).
 
 ---
 
-Built by [Portwood Global Solutions](https://portwoodglobalsolutions.com)
+Built by [Portwood Global Solutions](https://portwood.dev)

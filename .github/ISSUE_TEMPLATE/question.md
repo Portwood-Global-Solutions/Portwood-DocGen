@@ -19,4 +19,4 @@ Steps you've taken so far, any errors or unexpected results.
 **Additional context**
 Template screenshots, merge tag examples, or error messages.
 
-> **Tip:** For general discussion, best practices, or template sharing, try [Discussions](https://github.com/Portwood-Global-Solutions/DocGen/discussions) instead. You can also visit the [Community Hub](https://portwoodglobalsolutions.com/DocGenCommunity) for real-time help.
+> **Tip:** For general discussion, best practices, or template sharing, try [Discussions](https://github.com/Portwood-Global-Solutions/DocGen/discussions) instead. You can also visit the [Community Hub](https://portwood.dev/community) for real-time help.

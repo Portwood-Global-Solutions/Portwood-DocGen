@@ -1601,6 +1601,6 @@ Every time a feature ships or changes, touch these three places:
 
 1. **This file** (`UserGuide.md`) — primary source.
 2. **Learning Center** (`force-app/main/default/lwc/docGenCommandHub/docGenCommandHub.html`) — in-app documentation.
-3. **Website** (https://portwoodglobalsolutions.com) — public marketing + docs pages.
+3. **Website** (https://portwood.dev) — public marketing + docs pages.
 
 If the three drift, this file wins.

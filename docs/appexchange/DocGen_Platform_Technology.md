@@ -14,7 +14,7 @@
 - **Sandbox:** https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006UkpxAAC
 - **CLI:** `sf package install --package 04tal000006UkpxAAC --wait 10 --target-org <your-org>`
 
-> Response to the security review prompt: *"If your solution contains Salesforce Platform technology, such as Lightning Components and Apex, provide details."*
+> Response to the security review prompt: _"If your solution contains Salesforce Platform technology, such as Lightning Components and Apex, provide details."_
 
 ---
 
@@ -28,15 +28,15 @@ DocGen is built **100% on native Salesforce Platform technology**. There are no 
 
 ### Controllers (`@AuraEnabled`, entry points from LWC / VF)
 
-| Class | Sharing | Purpose |
-|---|---|---|
-| `DocGenController` | `with sharing` | Primary generation entry point. Called from `docGenRunner` LWC. |
-| `DocGenBulkController` | `with sharing` | Bulk job creation, progress polling, analysis. |
-| `DocGenTemplateManager` | `with sharing` | Template library CRUD. |
-| `DocGenSetupController` | `with sharing` | First-run setup wizard + Command Hub metadata. |
-| `DocGenSignatureSenderController` | `with sharing` | Admin-initiated signature request creation. |
-| `DocGenSignatureController` | `without sharing` | Guest-facing signing page entry point. Token + PIN gated. |
-| `DocGenAuthenticatorController` | `without sharing` | Public document verification by SHA-256 hash (used by `DocGenVerify.page`). |
+| Class                             | Sharing           | Purpose                                                                     |
+| --------------------------------- | ----------------- | --------------------------------------------------------------------------- |
+| `DocGenController`                | `with sharing`    | Primary generation entry point. Called from `docGenRunner` LWC.             |
+| `DocGenBulkController`            | `with sharing`    | Bulk job creation, progress polling, analysis.                              |
+| `DocGenTemplateManager`           | `with sharing`    | Template library CRUD.                                                      |
+| `DocGenSetupController`           | `with sharing`    | First-run setup wizard + Command Hub metadata.                              |
+| `DocGenSignatureSenderController` | `with sharing`    | Admin-initiated signature request creation.                                 |
+| `DocGenSignatureController`       | `without sharing` | Guest-facing signing page entry point. Token + PIN gated.                   |
+| `DocGenAuthenticatorController`   | `without sharing` | Public document verification by SHA-256 hash (used by `DocGenVerify.page`). |
 
 ### Service / Helper Classes
 
@@ -53,7 +53,7 @@ DocGen is built **100% on native Salesforce Platform technology**. There are no 
 - `DocGenFlowAction` — single-record document generation
 - `DocGenBulkFlowAction` — bulk generation against a saved query
 - `DocGenGiantQueryFlowAction` — multi-million-row query job
-- `DocGenSignatureFlowAction` *(new in v1.42.0)* — create a signature request and return per-signer signing URLs for Flow-driven signature automation
+- `DocGenSignatureFlowAction` _(new in v1.42.0)_ — create a signature request and return per-signer signing URLs for Flow-driven signature automation
 
 ### Apex Triggers
 
@@ -93,11 +93,11 @@ DocGen is built **100% on native Salesforce Platform technology**. There are no 
 
 **4 Visualforce pages**, all internal to the package (no Sites or public hosting assumed by the package itself — the customer optionally hosts the signing page on their own Salesforce Site).
 
-| Page | Purpose | Access |
-|---|---|---|
-| `DocGenGuide.page` | In-app admin guide | Admin + User permission sets |
-| `DocGenSign.page` / `DocGenSignature.page` | Public signing page (served via customer's Salesforce Site) | Guest via `DocGen_Guest_Signature` permission set |
-| `DocGenVerify.page` | Document integrity verification (SHA-256 hash recomputed locally in browser — file never uploaded) | Guest + Admin + User |
+| Page                                       | Purpose                                                                                            | Access                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `DocGenGuide.page`                         | In-app admin guide                                                                                 | Admin + User permission sets                      |
+| `DocGenSign.page` / `DocGenSignature.page` | Public signing page (served via customer's Salesforce Site)                                        | Guest via `DocGen_Guest_Signature` permission set |
+| `DocGenVerify.page`                        | Document integrity verification (SHA-256 hash recomputed locally in browser — file never uploaded) | Guest + Admin + User                              |
 
 All pages use standard Visualforce auto-escaping on all merge fields. URL parameters are validated before reflection.
 
@@ -107,17 +107,17 @@ All pages use standard Visualforce auto-escaping on all merge fields. URL parame
 
 **9 custom objects** (8 sObjects + 1 platform event):
 
-| Object | Purpose |
-|---|---|
-| `DocGen_Template__c` | Logical template definition |
-| `DocGen_Template_Version__c` | Versioned OOXML artifact (master-detail to Template) |
-| `DocGen_Saved_Query__c` | Reusable V1/V2/V3 query config |
-| `DocGen_Job__c` | Bulk generation job tracking |
-| `DocGen_Settings__c` | Hierarchy custom setting for org-wide config (branding, OWA, etc.) |
-| `DocGen_Signature_Request__c` | Parent of a signature request |
-| `DocGen_Signer__c` | One per signer (token, PIN hash, status) |
-| `DocGen_Signature_Audit__c` | Immutable audit record with field history tracking |
-| `DocGen_Signature_PDF__e` | Platform event for async PDF finalization |
+| Object                        | Purpose                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `DocGen_Template__c`          | Logical template definition                                        |
+| `DocGen_Template_Version__c`  | Versioned OOXML artifact (master-detail to Template)               |
+| `DocGen_Saved_Query__c`       | Reusable V1/V2/V3 query config                                     |
+| `DocGen_Job__c`               | Bulk generation job tracking                                       |
+| `DocGen_Settings__c`          | Hierarchy custom setting for org-wide config (branding, OWA, etc.) |
+| `DocGen_Signature_Request__c` | Parent of a signature request                                      |
+| `DocGen_Signer__c`            | One per signer (token, PIN hash, status)                           |
+| `DocGen_Signature_Audit__c`   | Immutable audit record with field history tracking                 |
+| `DocGen_Signature_PDF__e`     | Platform event for async PDF finalization                          |
 
 All relationships between DocGen objects use master-detail (`ControlledByParent` sharing) where appropriate to enforce parent-record-based access.
 
@@ -127,11 +127,11 @@ All relationships between DocGen objects use master-detail (`ControlledByParent`
 
 **3 permission sets** define the complete CRUD/FLS/tab/page/class access model:
 
-| Permission Set | Target | Scope |
-|---|---|---|
-| `DocGen_Admin` | Admins | Full CRUD on all DocGen objects; access to all Apex classes, tabs, pages, and the Settings custom setting. |
-| `DocGen_User` | End users | Generate documents from record pages, view own jobs, read templates. Explicitly **denied** on `DocGen_Signer__c.PIN_Hash__c`, `Secure_Token__c`, `PIN_Attempts__c`, `PIN_Expires_At__c`, and `DocGen_Signature_Request__c.Secure_Token__c`. |
-| `DocGen_Guest_Signature` | Site guest user | Minimal scope: read on signature objects exclusively through token-gated entry points in `DocGenSignatureController`. No access to templates, jobs, or unrelated record data. |
+| Permission Set           | Target          | Scope                                                                                                                                                                                                                                       |
+| ------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DocGen_Admin`           | Admins          | Full CRUD on all DocGen objects; access to all Apex classes, tabs, pages, and the Settings custom setting.                                                                                                                                  |
+| `DocGen_User`            | End users       | Generate documents from record pages, view own jobs, read templates. Explicitly **denied** on `DocGen_Signer__c.PIN_Hash__c`, `Secure_Token__c`, `PIN_Attempts__c`, `PIN_Expires_At__c`, and `DocGen_Signature_Request__c.Secure_Token__c`. |
+| `DocGen_Guest_Signature` | Site guest user | Minimal scope: read on signature objects exclusively through token-gated entry points in `DocGenSignatureController`. No access to templates, jobs, or unrelated record data.                                                               |
 
 ---
 
@@ -193,4 +193,4 @@ See `docs/appexchange/DocGen_Code_Analyzer_Report.pdf` for the full finding-by-f
 
 ---
 
-*Portwood Global Solutions — https://portwoodglobalsolutions.com*
+_Portwood Global Solutions — https://portwood.dev_

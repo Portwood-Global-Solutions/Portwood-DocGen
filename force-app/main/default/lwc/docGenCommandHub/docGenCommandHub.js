@@ -20,7 +20,7 @@ export default class DocGenCommandHub extends LightningElement {
     }
 
     get communityUrl() {
-        return 'https://portwoodglobalsolutions.com/DocGenCommunity?view=signup&orgId=' + this.communityOrgId;
+        return 'https://portwood.dev/community?view=signup&orgId=' + this.communityOrgId;
     }
 
     @wire(getAllTemplates)

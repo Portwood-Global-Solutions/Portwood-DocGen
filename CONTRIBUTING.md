@@ -95,7 +95,7 @@ Client-side (LWC):
 
 - **Issues:** Bug reports, feature requests, and questions
 - **Discussions:** General conversation, ideas, show-and-tell, template sharing
-- **Community Hub:** [portwoodglobalsolutions.com/DocGenCommunity](https://portwoodglobalsolutions.com/DocGenCommunity) — forum with real-time help
+- **Community Hub:** [portwood.dev/community](https://portwood.dev/community) — forum with real-time help
 
 ## License
 
