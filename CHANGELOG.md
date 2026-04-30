@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.79.0 — Sprint NY hotfix
+
+Promoted package: `04tal000006rD8XAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rD8XAAU)
+
+Two field-reported bugs fixed in a combined release. Both were blocking real users.
+
+### Fix 1 — Object picker no longer hides standard objects behind namespaced lookalikes
+
+Reported at the NY Sprint (April 2026): a customer using a payment-processor managed package that ships ~30 namespaced `Opportunity_*` custom objects could not select the **standard** Opportunity object in the template wizard. The picker rendered the first 12 alphabetical `*_Opportunity_*` matches and stopped — no "see more," no API-name typeahead. Customer was completely blocked.
+
+**Fix:** new ranking algorithm in `docGenAdmin._filterObjects` — exact match → standard object with API/label prefix → custom object prefix matches → contains. Standard objects (no `__` in API name) always rank above custom on otherwise-tied scores. Result cap raised 12 → 50, dropdown scroll surface 200px → 380px, and a green **Standard** pill on standard-object rows so users can visually distinguish `Opportunity` from `CnP_PaaS__Opportunity_*` at a glance.
+
+### Fix 2 — Single verification certificate per packet
+
+Reported by Dustin Bystrom (April 2026): when sending a multi-template signature packet (MSA + SOW + NDA bundle), the verification certificate was appearing after **every** template instead of once at the end of the packet.
+
+**Root cause:** `DocGenSignatureService.renderPacketSignaturePdf` concatenates one full `<html>...</html>` per template (each with its own `</body>`), then injected the verification block via `String.replace('</body>', verifyBlock + '</body>')`. Apex `String.replace` replaces **all** occurrences — so a 5-template packet had 5 verification blocks, one wedged into the body of every doc except the last.
+
+**Fix:** new `injectVerifyBlockBeforeLastBody()` helper uses `lastIndexOf('</body>')` + substring-splice to insert the block exactly once before the final `</body>`. Both packet and single-template paths now route through the helper.
+
+### Note on v1.78.0
+
+v1.78.0 was built as an internal artifact (`04tal000006rD5JAAU`) carrying only the packet verification fix, but **was not promoted**. The Sprint NY object-picker bug landed before it could ship, and rolling both fixes into v1.79.0 saved customers from a back-to-back release. v1.78.0 is unavailable for install; subscribers should upgrade directly from v1.77.0 to v1.79.0.
+
+### Validation
+
+- DocGenSignatureTests: 260/260 pass (4 new tests pin the verification-block helper behavior)
+- E2E: 196/196 across all 10 scripts (existing) + manual smoke-test of the picker ranking
+- RunLocalTests: 1123/1123 (100% pass, 75% org-wide coverage)
+- Code Analyzer: 0 High, 41 Moderate
+
+### Upgrade notes
+
+Drop-in upgrade. No breaking changes, no data model changes, no required permission set updates. Customers running v1.77.0 can install directly. Subscribers on v1.78.0-beta (if any) — re-install v1.79.0 over the top.
+
 ## v1.77.0 — Running-user merge tags
 
 Promoted package: `04tal000006rCxFAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCxFAAU)
