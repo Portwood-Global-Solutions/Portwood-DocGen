@@ -1,5 +1,4 @@
 public without sharing class DocGenSignatureController {
-
     // Signature links expire after this many hours from creation
     private static final Integer TOKEN_EXPIRATION_HOURS = 48;
     // PIN verification settings
@@ -7,24 +6,39 @@ public without sharing class DocGenSignatureController {
     private static final Integer MAX_PIN_ATTEMPTS = 3;
 
     public class SignatureInitResponse {
-        @AuraEnabled public Boolean isValid;
-        @AuraEnabled public String errorMessage;
-        @AuraEnabled public String signerName;
-        @AuraEnabled public String signerEmail;
-        @AuraEnabled public String documentTitle;
-        @AuraEnabled public String documentUrl;
-        @AuraEnabled public String templateBase64;
-        @AuraEnabled public String recordId;
-        @AuraEnabled public String roleName;
-        @AuraEnabled public Integer totalSigners;
-        @AuraEnabled public Integer signedCount;
-        @AuraEnabled public Boolean isSignerToken;
-        @AuraEnabled public Boolean requiresPin;
+        @AuraEnabled
+        public Boolean isValid;
+        @AuraEnabled
+        public String errorMessage;
+        @AuraEnabled
+        public String signerName;
+        @AuraEnabled
+        public String signerEmail;
+        @AuraEnabled
+        public String documentTitle;
+        @AuraEnabled
+        public String documentUrl;
+        @AuraEnabled
+        public String templateBase64;
+        @AuraEnabled
+        public String recordId;
+        @AuraEnabled
+        public String roleName;
+        @AuraEnabled
+        public Integer totalSigners;
+        @AuraEnabled
+        public Integer signedCount;
+        @AuraEnabled
+        public Boolean isSignerToken;
+        @AuraEnabled
+        public Boolean requiresPin;
     }
 
     public class SaveSignatureResult {
-        @AuraEnabled public Boolean isComplete;
-        @AuraEnabled public Integer remaining;
+        @AuraEnabled
+        public Boolean isComplete;
+        @AuraEnabled
+        public Integer remaining;
     }
 
     /**
@@ -112,11 +126,21 @@ public without sharing class DocGenSignatureController {
         // Try multi-signer path first
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
-            SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Role_Name__c, Sort_Order__c,
-                   CreatedDate, PIN_Verified_At__c,
-                   Signature_Request__r.Id, Signature_Request__r.Status__c,
-                   Signature_Request__r.Source_Document_Id__c, Signature_Request__r.Related_Record_Id__c,
-                   Signature_Request__r.Template__c, Signature_Request__r.Template__r.Name
+            SELECT
+                Id,
+                Status__c,
+                Signer_Name__c,
+                Signer_Email__c,
+                Role_Name__c,
+                Sort_Order__c,
+                CreatedDate,
+                PIN_Verified_At__c,
+                Signature_Request__r.Id,
+                Signature_Request__r.Status__c,
+                Signature_Request__r.Source_Document_Id__c,
+                Signature_Request__r.Related_Record_Id__c,
+                Signature_Request__r.Template__c,
+                Signature_Request__r.Template__r.Name
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
             WITH SYSTEM_MODE
@@ -180,7 +204,8 @@ public without sharing class DocGenSignatureController {
             SELECT Id, Signer_Email__c, PIN_Attempts__c, Status__c, CreatedDate
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (signers.isEmpty()) {
@@ -217,9 +242,7 @@ public without sharing class DocGenSignatureController {
         String pinStr = String.valueOf(pin);
 
         // Hash the PIN for storage (never store plaintext)
-        String pinHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf(pinStr))
-        );
+        String pinHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(pinStr)));
 
         // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         // Store hash and expiry on signer record
@@ -248,8 +271,8 @@ public without sharing class DocGenSignatureController {
      * Verifies the 6-digit PIN entered by the signer.
      * Burns the token after MAX_PIN_ATTEMPTS failed attempts.
      */
-    @AuraEnabled
     // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
+    @AuraEnabled
     @RemoteAction
     public static Map<String, Object> verifyPin(String token, String pin) {
         Map<String, Object> result = new Map<String, Object>();
@@ -271,7 +294,8 @@ public without sharing class DocGenSignatureController {
             SELECT Id, PIN_Hash__c, PIN_Expires_At__c, PIN_Attempts__c, Status__c
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (signers.isEmpty()) {
@@ -304,9 +328,7 @@ public without sharing class DocGenSignatureController {
         }
 
         // Hash the submitted PIN and compare
-        String submittedHash = EncodingUtil.convertToHex(
-            Crypto.generateDigest('SHA-256', Blob.valueOf(pin))
-        );
+        String submittedHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(pin)));
 
         if (submittedHash != signer.PIN_Hash__c) {
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
@@ -318,10 +340,16 @@ public without sharing class DocGenSignatureController {
             Integer remaining = MAX_PIN_ATTEMPTS - Integer.valueOf(signer.PIN_Attempts__c);
             if (remaining <= 0) {
                 result.put('success', false);
-                result.put('message', 'Too many failed attempts. This link has been locked. Please request a new signature link.');
+                result.put(
+                    'message',
+                    'Too many failed attempts. This link has been locked. Please request a new signature link.'
+                );
             } else {
                 result.put('success', false);
-                result.put('message', 'Incorrect code. ' + remaining + ' attempt' + (remaining > 1 ? 's' : '') + ' remaining.');
+                result.put(
+                    'message',
+                    'Incorrect code. ' + remaining + ' attempt' + (remaining > 1 ? 's' : '') + ' remaining.'
+                );
             }
             return result;
         }
@@ -353,13 +381,17 @@ public without sharing class DocGenSignatureController {
     private static String sendPinEmail(String email, String pin) {
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         String brandColor = String.isNotBlank(settings.Signature_Email_Brand_Color__c)
-            ? settings.Signature_Email_Brand_Color__c : '#0176D3';
+            ? settings.Signature_Email_Brand_Color__c
+            : '#0176D3';
         String companyName = settings.Company_Name__c;
 
         // OWA is required for guest user context — warn if not configured
         String owaId = settings.Signature_OWA_Id__c;
         if (String.isBlank(owaId) && UserInfo.getUserType() == 'Guest') {
-            System.debug(LoggingLevel.ERROR, 'DocGen: PIN email failed — no Org-Wide Email Address configured in Signature Settings (required for guest users)');
+            System.debug(
+                LoggingLevel.ERROR,
+                'DocGen: PIN email failed — no Org-Wide Email Address configured in Signature Settings (required for guest users)'
+            );
             return 'No Org-Wide Email Address configured. An admin must set one in DocGen Signature Settings.';
         }
 
@@ -370,13 +402,22 @@ public without sharing class DocGenSignatureController {
         html += '<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">';
         html += '<tr><td style="background-color:' + brandColor + ';padding:16px 32px;text-align:center;">';
         if (String.isNotBlank(companyName)) {
-            html += '<span style="color:#ffffff;font-size:18px;font-weight:bold;">' + companyName.escapeHtml4() + '</span>';
+            html +=
+                '<span style="color:#ffffff;font-size:18px;font-weight:bold;">' +
+                companyName.escapeHtml4() +
+                '</span>';
         }
         html += '</td></tr>';
         html += '<tr><td style="padding:32px;text-align:center;">';
         html += '<p style="font-size:16px;color:#333333;margin:0 0 8px 0;">Your verification code is:</p>';
-        html += '<p style="font-size:36px;font-weight:bold;color:#181818;letter-spacing:8px;margin:16px 0;font-family:monospace;">' + pin.escapeHtml4() + '</p>';
-        html += '<p style="font-size:13px;color:#706e6b;margin:16px 0 0 0;">This code expires in ' + PIN_EXPIRATION_MINUTES + ' minutes.</p>';
+        html +=
+            '<p style="font-size:36px;font-weight:bold;color:#181818;letter-spacing:8px;margin:16px 0;font-family:monospace;">' +
+            pin.escapeHtml4() +
+            '</p>';
+        html +=
+            '<p style="font-size:13px;color:#706e6b;margin:16px 0 0 0;">This code expires in ' +
+            PIN_EXPIRATION_MINUTES +
+            ' minutes.</p>';
         html += '<p style="font-size:13px;color:#706e6b;margin:4px 0 0 0;">If you did not request this code, you can safely ignore this email.</p>';
         html += '</td></tr>';
         html += '</table></td></tr></table></body></html>';
@@ -390,7 +431,10 @@ public without sharing class DocGenSignatureController {
             email2.setOrgWideEmailAddressId(owaId);
         }
 
-        List<Messaging.SendEmailResult> results = Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ email2 }, false);
+        List<Messaging.SendEmailResult> results = Messaging.sendEmail(
+            new List<Messaging.SingleEmailMessage>{ email2 },
+            false
+        );
         if (!results.isEmpty() && !results[0].isSuccess()) {
             String errMsg = results[0].getErrors()[0].getMessage();
             System.debug(LoggingLevel.ERROR, 'DocGen: PIN email send failed — ' + errMsg);
@@ -434,14 +478,16 @@ public without sharing class DocGenSignatureController {
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> allSigners = [
-            SELECT Status__c FROM DocGen_Signer__c
+            SELECT Status__c
+            FROM DocGen_Signer__c
             WHERE Signature_Request__c = :parentReq.Id
             WITH SYSTEM_MODE
         ];
         res.totalSigners = allSigners.size();
         Integer signed = 0;
         for (DocGen_Signer__c s : allSigners) {
-            if (s.Status__c == 'Signed') signed++;
+            if (s.Status__c == 'Signed')
+                signed++;
         }
         res.signedCount = signed;
 
@@ -453,7 +499,13 @@ public without sharing class DocGenSignatureController {
             Id sourceDocId = parentReq.Source_Document_Id__c;
             // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-            List<ContentVersion> cvs = [SELECT Id, Title FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
+            List<ContentVersion> cvs = [
+                SELECT Id, Title
+                FROM ContentVersion
+                WHERE Id = :sourceDocId
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
             if (!cvs.isEmpty()) {
                 res.documentTitle = cvs[0].Title;
                 res.documentUrl = getOrCreatePublicLink(cvs[0]);
@@ -493,7 +545,13 @@ public without sharing class DocGenSignatureController {
 
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-        List<ContentVersion> cvs = [SELECT Id, Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
+        List<ContentVersion> cvs = [
+            SELECT Id, Title
+            FROM ContentVersion
+            WHERE Id = :req.Source_Document_Id__c
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
         if (!cvs.isEmpty()) {
             res.documentTitle = cvs[0].Title;
             res.documentUrl = getOrCreatePublicLink(cvs[0]);
@@ -511,7 +569,8 @@ public without sharing class DocGenSignatureController {
             SELECT DistributionPublicUrl
             FROM ContentDistribution
             WHERE ContentVersionId = :cv.Id
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         if (!dists.isEmpty()) {
             return dists[0].DistributionPublicUrl;
@@ -521,7 +580,13 @@ public without sharing class DocGenSignatureController {
         cd.ContentVersionId = cv.Id;
         cd.PreferencesAllowViewInBrowser = true;
         cd.PreferencesLinkLatestVersion = true;
-        cd.PreferencesExpires = false;
+        // Expire the public link in line with the signing token lifetime so a signed
+        // (or cancelled) request can't be re-fetched anonymously after the signing window.
+        cd.PreferencesExpires = true;
+        cd.ExpiryDate = System.now().addHours(TOKEN_EXPIRATION_HOURS);
+        cd.PreferencesNotifyOnVisit = false;
+        cd.PreferencesAllowOriginalDownload = false;
+        cd.PreferencesAllowPDFDownload = false;
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         Database.insert(new List<ContentDistribution>{ cd }, false, AccessLevel.SYSTEM_MODE);
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
@@ -541,17 +606,21 @@ public without sharing class DocGenSignatureController {
     @RemoteAction
     public static SignatureInitResponse fetchDocumentData(String token) {
         SignatureInitResponse res = validateToken(token);
-        if (!res.isValid) return res;
+        if (!res.isValid)
+            return res;
 
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         // Try multi-signer path
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
-            SELECT Signature_Request__r.Source_Document_Id__c, Signature_Request__r.Related_Record_Id__c,
-                   Signature_Request__r.Template__c
+            SELECT
+                Signature_Request__r.Source_Document_Id__c,
+                Signature_Request__r.Related_Record_Id__c,
+                Signature_Request__r.Template__c
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         Id sourceDocId;
@@ -572,7 +641,8 @@ public without sharing class DocGenSignatureController {
                 SELECT Id, Source_Document_Id__c, Related_Record_Id__c, Template__c
                 FROM DocGen_Signature_Request__c
                 WHERE Secure_Token__c = :token
-                WITH SYSTEM_MODE LIMIT 1
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
             if (!requests.isEmpty()) {
                 sourceDocId = requests[0].Source_Document_Id__c;
@@ -590,17 +660,25 @@ public without sharing class DocGenSignatureController {
             // Try cached preview first
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signature_Request__c> reqs = [
-                SELECT Signature_Data__c FROM DocGen_Signature_Request__c
-                WHERE Id = :requestId WITH SYSTEM_MODE LIMIT 1
+                SELECT Signature_Data__c
+                FROM DocGen_Signature_Request__c
+                WHERE Id = :requestId
+                WITH SYSTEM_MODE
+                LIMIT 1
             ];
             if (!reqs.isEmpty() && String.isNotBlank(reqs[0].Signature_Data__c)) {
                 try {
-                    Map<String, Object> cachedData = (Map<String, Object>) JSON.deserializeUntyped(reqs[0].Signature_Data__c);
+                    Map<String, Object> cachedData = (Map<String, Object>) JSON.deserializeUntyped(
+                        reqs[0].Signature_Data__c
+                    );
                     String previewHtml = (String) cachedData.get('previewHtml');
                     if (String.isNotBlank(previewHtml)) {
                         // Inject watermark overlay at read time — embedded base64 image
                         // would exceed Signature_Data__c's LongTextArea limit if cached.
-                        previewHtml = DocGenSignatureSenderController.injectPreviewWatermarkOverlay(previewHtml, templateId);
+                        previewHtml = DocGenSignatureSenderController.injectPreviewWatermarkOverlay(
+                            previewHtml,
+                            templateId
+                        );
                         res.templateBase64 = previewHtml;
                         return res;
                     }
@@ -633,7 +711,13 @@ public without sharing class DocGenSignatureController {
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         if (sourceDocId != null) {
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-            List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
+            List<ContentVersion> cvs = [
+                SELECT VersionData
+                FROM ContentVersion
+                WHERE Id = :sourceDocId
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
             if (!cvs.isEmpty()) {
                 res.templateBase64 = getDocumentHtml(cvs[0].VersionData);
             }
@@ -655,7 +739,10 @@ public without sharing class DocGenSignatureController {
                 return DocGenHtmlRenderer.convertToHtml(documentXml, imagesByRelId);
             }
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR, 'DocGen: Error converting DOCX to HTML for signature display: ' + e.getMessage());
+            System.debug(
+                LoggingLevel.ERROR,
+                'DocGen: Error converting DOCX to HTML for signature display: ' + e.getMessage()
+            );
         }
         return '<html><body><p>Document preview unavailable.</p></body></html>';
     }
@@ -668,7 +755,13 @@ public without sharing class DocGenSignatureController {
     // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
     @AuraEnabled
     @RemoteAction
-    public static SaveSignatureResult saveSignature(String token, String typedName, Boolean consentGiven, String ipAddress, String userAgent) {
+    public static SaveSignatureResult saveSignature(
+        String token,
+        String typedName,
+        Boolean consentGiven,
+        String ipAddress,
+        String userAgent
+    ) {
         SaveSignatureResult result = new SaveSignatureResult();
 
         // Validate token format
@@ -686,11 +779,21 @@ public without sharing class DocGenSignatureController {
 
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
-            SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Signature_Request__c,
-                   Role_Name__c, Contact__c, CreatedDate, PIN_Verified_At__c, Consent_Captured__c
+            SELECT
+                Id,
+                Status__c,
+                Signer_Name__c,
+                Signer_Email__c,
+                Signature_Request__c,
+                Role_Name__c,
+                Contact__c,
+                CreatedDate,
+                PIN_Verified_At__c,
+                Consent_Captured__c
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (signers.isEmpty()) {
@@ -737,14 +840,16 @@ public without sharing class DocGenSignatureController {
         // Check if all signers are now complete
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> allSigners = [
-            SELECT Status__c FROM DocGen_Signer__c
+            SELECT Status__c
+            FROM DocGen_Signer__c
             WHERE Signature_Request__c = :signer.Signature_Request__c
             WITH SYSTEM_MODE
         ];
 
         Integer remaining = 0;
         for (DocGen_Signer__c s : allSigners) {
-            if (s.Status__c != 'Signed') remaining++;
+            if (s.Status__c != 'Signed')
+                remaining++;
         }
 
         result.remaining = remaining;
@@ -790,14 +895,17 @@ public without sharing class DocGenSignatureController {
         // Determine if this is a multi-signer or legacy request
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signerList = [
-            SELECT Id, Signature_Request__c,
-                   Signature_Request__r.Source_Document_Id__c,
-                   Signature_Request__r.Related_Record_Id__c,
-                   Signature_Request__r.Template__c,
-                   Signature_Request__r.Template__r.Name
+            SELECT
+                Id,
+                Signature_Request__c,
+                Signature_Request__r.Source_Document_Id__c,
+                Signature_Request__r.Related_Record_Id__c,
+                Signature_Request__r.Template__c,
+                Signature_Request__r.Template__r.Name
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (!signerList.isEmpty()) {
@@ -827,18 +935,21 @@ public without sharing class DocGenSignatureController {
             String docTitle;
             if (templateId != null) {
                 docTitle = triggerSigner.Signature_Request__r.Template__r.Name;
-            // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
+                // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
             } else if (sourceDocId != null) {
                 /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-                ContentVersion sourceDoc = [SELECT Title FROM ContentVersion WHERE Id = :sourceDocId WITH SYSTEM_MODE LIMIT 1];
+                ContentVersion sourceDoc = [
+                    SELECT Title
+                    FROM ContentVersion
+                    WHERE Id = :sourceDocId
+                    WITH SYSTEM_MODE
+                    LIMIT 1
+                ];
                 docTitle = sourceDoc.Title;
             } else {
                 docTitle = 'Document';
             }
-            return new Map<String, String>{
-                'status' => 'complete',
-                'title' => docTitle + ' - Signed'
-            };
+            return new Map<String, String>{ 'status' => 'complete', 'title' => docTitle + ' - Signed' };
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Multi-signer stamping failed: ' + e.getMessage());
             throw new AuraHandledException('An error occurred while processing signatures.');
@@ -861,12 +972,13 @@ public without sharing class DocGenSignatureController {
             SELECT Id, Status__c
             FROM DocGen_Signature_Request__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         if (requests.isEmpty() || requests[0].Status__c == 'Signed' || requests[0].Status__c == 'Cancelled') {
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
             throw new AuraHandledException('Invalid request or document already signed.');
-        // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
+            // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
         }
         requests[0].Signature_Data__c = typedName;
         requests[0].Status__c = 'Viewed';
@@ -880,7 +992,8 @@ public without sharing class DocGenSignatureController {
             SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Source_Document_Id__c, Related_Record_Id__c
             FROM DocGen_Signature_Request__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
 
         if (requests.isEmpty() || requests[0].Status__c == 'Signed' || requests[0].Status__c == 'Cancelled') {
@@ -896,13 +1009,18 @@ public without sharing class DocGenSignatureController {
             // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
 
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-            ContentVersion sourceDoc = [SELECT Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
+            ContentVersion sourceDoc = [
+                SELECT Title
+                FROM ContentVersion
+                WHERE Id = :req.Source_Document_Id__c
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
             String fileName = sourceDoc.Title + ' - Signed';
             String base64Pdf = EncodingUtil.base64Encode(pdfBlob);
 
             // Save PDF to record
             saveSignedDocument(req.Related_Record_Id__c, fileName, base64Pdf, 'pdf');
-
 
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
 
@@ -925,10 +1043,7 @@ public without sharing class DocGenSignatureController {
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             Database.insert(new List<DocGen_Signature_Audit__c>{ audit }, false, AccessLevel.SYSTEM_MODE);
 
-            return new Map<String, String>{
-                'status' => 'complete',
-                'title' => fileName
-            };
+            return new Map<String, String>{ 'status' => 'complete', 'title' => fileName };
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Legacy stamping failed: ' + e.getMessage());
             throw new AuraHandledException('An error occurred while processing the signature.');
@@ -950,7 +1065,8 @@ public without sharing class DocGenSignatureController {
         Database.insert(new List<ContentVersion>{ cv }, false, AccessLevel.SYSTEM_MODE);
 
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
-        Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH SYSTEM_MODE].ContentDocumentId;
+        Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH SYSTEM_MODE]
+        .ContentDocumentId;
 
         ContentDocumentLink cdl = new ContentDocumentLink();
         cdl.ContentDocumentId = contentDocId;
@@ -990,14 +1106,17 @@ public without sharing class DocGenSignatureController {
             SELECT Source_Document_Id__c, Template__c
             FROM DocGen_Signature_Request__c
             WHERE Id = :requestId
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ];
         if (requests.isEmpty()) {
             throw new DocGenException('Signature request not found.');
         }
 
         Id sourceDocId = requests[0].Source_Document_Id__c;
-        DocGenService.applyWatermarkOverride(requests[0].Template__c);
+        Id templateId = requests[0].Template__c;
+        Id activeVersionId = lookupActiveTemplateVersionId(templateId);
+        DocGenService.applyWatermarkOverride(templateId);
 
         // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
         // Get typed-name signatures from signers
@@ -1031,26 +1150,30 @@ public without sharing class DocGenSignatureController {
         String documentXml = (String) parts.get('documentXml');
         Map<String, String> imagesByRelId = (Map<String, String>) parts.get('imagesByRelId');
 
-        // For any remaining template images, use relative CV URLs
+        // For any remaining template images, use relative CV URLs.
+        // Scope the lookup to THIS template's active version so cross-template relId
+        // collisions (rId1 in template A vs template B) can't surface the wrong image.
         Map<String, String> imageUrlMap = new Map<String, String>();
-        if (imagesByRelId != null) {
+        if (imagesByRelId != null && activeVersionId != null) {
+            String titlePrefix = 'docgen_tmpl_img_' + activeVersionId + '_';
+            String titleLike = titlePrefix + '%';
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<ContentVersion> allTmplCvs = [
-                SELECT Id, Title FROM ContentVersion
-                WHERE Title LIKE 'docgen_tmpl_img_%'
+                SELECT Id, Title
+                FROM ContentVersion
+                WHERE Title LIKE :titleLike
                 WITH SYSTEM_MODE
                 ORDER BY CreatedDate DESC
-                LIMIT 50
             ];
             Map<String, String> tmplImgUrls = new Map<String, String>();
             for (ContentVersion cv : allTmplCvs) {
-                String title = cv.Title;
-                Integer lastUnderscore = title.lastIndexOf('_');
-                if (lastUnderscore > 0) {
-                    String imgRelId = title.substring(lastUnderscore + 1);
-                    if (!tmplImgUrls.containsKey(imgRelId)) {
-                        tmplImgUrls.put(imgRelId, '/sfc/servlet.shepherd/version/download/' + cv.Id);
-                    }
+                String title = cv.Title == null ? '' : cv.Title;
+                if (!title.startsWith(titlePrefix)) {
+                    continue;
+                }
+                String imgRelId = title.substring(titlePrefix.length());
+                if (!tmplImgUrls.containsKey(imgRelId)) {
+                    tmplImgUrls.put(imgRelId, '/sfc/servlet.shepherd/version/download/' + cv.Id);
                 }
             }
             for (String relId : imagesByRelId.keySet()) {
@@ -1093,9 +1216,11 @@ public without sharing class DocGenSignatureController {
             Integer cursor = 0;
             while (cursor < relsXml.length()) {
                 Integer relStart = relsXml.indexOf('<Relationship ', cursor);
-                if (relStart == -1) break;
+                if (relStart == -1)
+                    break;
                 Integer relEnd = relsXml.indexOf('/>', relStart);
-                if (relEnd == -1) break;
+                if (relEnd == -1)
+                    break;
                 relEnd += 2;
 
                 String relTag = relsXml.substring(relStart, relEnd);
@@ -1113,10 +1238,7 @@ public without sharing class DocGenSignatureController {
             }
         }
 
-        return new Map<String, Object>{
-            'documentXml' => documentXml,
-            'imagesByRelId' => imagesByRelId
-        };
+        return new Map<String, Object>{ 'documentXml' => documentXml, 'imagesByRelId' => imagesByRelId };
     }
 
     /**
@@ -1125,10 +1247,12 @@ public without sharing class DocGenSignatureController {
     private static String extractXmlAttr(String tag, String attrName) {
         String search = attrName + '="';
         Integer start = tag.indexOf(search);
-        if (start == -1) return null;
+        if (start == -1)
+            return null;
         start += search.length();
         Integer end2 = tag.indexOf('"', start);
-        if (end2 == -1) return null;
+        if (end2 == -1)
+            return null;
         return tag.substring(start, end2);
     }
 
@@ -1136,11 +1260,13 @@ public without sharing class DocGenSignatureController {
      * Cleans up temporary signature image ContentVersion records.
      */
     private static void cleanupSignatureTempImages(String batchKey) {
-        if (String.isBlank(batchKey)) return;
+        if (String.isBlank(batchKey))
+            return;
         try {
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<ContentVersion> tempCvs = [
-                SELECT ContentDocumentId FROM ContentVersion
+                SELECT ContentDocumentId
+                FROM ContentVersion
                 WHERE Title LIKE :('docgen_sig_' + batchKey + '_%')
                 WITH SYSTEM_MODE
             ];
@@ -1168,7 +1294,12 @@ public without sharing class DocGenSignatureController {
     @AuraEnabled
     @RemoteAction
     // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
-    public static Map<String, Object> declineSignature(String token, String reason, String ipAddress, String userAgent) {
+    public static Map<String, Object> declineSignature(
+        String token,
+        String reason,
+        String ipAddress,
+        String userAgent
+    ) {
         Map<String, Object> result = new Map<String, Object>();
 
         if (String.isBlank(token) || token.length() != 64 || !Pattern.matches('[a-fA-F0-9]{64}', token)) {
@@ -1179,11 +1310,19 @@ public without sharing class DocGenSignatureController {
 
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
-            SELECT Id, Status__c, Signer_Name__c, Signer_Email__c, Signature_Request__c,
-                   Role_Name__c, Contact__c, CreatedDate
+            SELECT
+                Id,
+                Status__c,
+                Signer_Name__c,
+                Signer_Email__c,
+                Signature_Request__c,
+                Role_Name__c,
+                Contact__c,
+                CreatedDate
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ]; // NOPMD ApexCRUDViolation
 
         if (signers.isEmpty()) {
@@ -1274,7 +1413,8 @@ public without sharing class DocGenSignatureController {
             SELECT Id, Signature_Request__c, CreatedDate, PIN_Verified_At__c
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         if (signers.isEmpty()) {
@@ -1288,9 +1428,16 @@ public without sharing class DocGenSignatureController {
 
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signature_Placement__c> placements = [
-            SELECT Id, Sequence_Order__c, Placement_Type__c, Status__c,
-                   Signed_Value__c, Signed_At__c, Section_Context__c, Tag_Text__c,
-                   Document_Index__c
+            SELECT
+                Id,
+                Sequence_Order__c,
+                Placement_Type__c,
+                Status__c,
+                Signed_Value__c,
+                Signed_At__c,
+                Section_Context__c,
+                Tag_Text__c,
+                Document_Index__c
             FROM DocGen_Signature_Placement__c
             WHERE Signer__c = :signer.Id
             WITH SYSTEM_MODE
@@ -1331,7 +1478,8 @@ public without sharing class DocGenSignatureController {
             SELECT Id, CreatedDate, PIN_Verified_At__c, Status__c
             FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         if (signers.isEmpty()) {
@@ -1352,7 +1500,8 @@ public without sharing class DocGenSignatureController {
             SELECT Id, Signer__c, Status__c, Placement_Type__c
             FROM DocGen_Signature_Placement__c
             WHERE Id = :placementId AND Signer__c = :signer.Id
-            WITH SYSTEM_MODE LIMIT 1
+            WITH SYSTEM_MODE
+            LIMIT 1
         ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
         if (plcs.isEmpty()) {
@@ -1387,6 +1536,14 @@ public without sharing class DocGenSignatureController {
      * Returns a ContentVersion's binary data as base64 for guest users.
      * Guest users cannot access /sfc/servlet.shepherd/ URLs directly (auth required).
      * The signing page JS calls this per image, then injects as data URI.
+     *
+     * Authorization: a valid signing token by itself is not enough — the requested CV
+     * must be bound to this signer's signature request. Allowed CVs:
+     *   - The request's Source_Document_Id__c
+     *   - A docgen_tmpl_img_<versionId>_* image for the request's template active version
+     *   - A docgen_html_img_<templateId>_* image for the request's template
+     * Any other CV ID is rejected to prevent IDOR (a valid token leaking access to
+     * arbitrary org files).
      */
     @AuraEnabled
     @RemoteAction
@@ -1399,22 +1556,44 @@ public without sharing class DocGenSignatureController {
             return result;
         }
 
-        // Validate the token is still valid (active signer)
+        // Validate the token is still valid (active signer) AND fetch the request context
+        // we need to authorize the CV request.
         /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
         List<DocGen_Signer__c> signers = [
-            SELECT Id, CreatedDate FROM DocGen_Signer__c
+            SELECT
+                Id,
+                CreatedDate,
+                Signature_Request__c,
+                Signature_Request__r.Source_Document_Id__c,
+                Signature_Request__r.Template__c
+            FROM DocGen_Signer__c
             WHERE Secure_Token__c = :token
-            WITH SYSTEM_MODE LIMIT 1
-        ]; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
 
         if (signers.isEmpty() || signers[0].CreatedDate.addHours(TOKEN_EXPIRATION_HOURS) < System.now()) {
             result.put('error', 'Invalid or expired token');
             return result;
         }
 
-        // Validate ContentVersion ID format
-        if (String.isBlank(contentVersionId) || !contentVersionId.startsWith('068')) {
+        // Validate ContentVersion ID format (must be the 18-char ContentVersion ID prefix `068`)
+        if (
+            String.isBlank(contentVersionId) ||
+            contentVersionId.length() != 18 ||
+            !contentVersionId.startsWith('068') ||
+            !Pattern.matches('[a-zA-Z0-9]{18}', contentVersionId)
+        ) {
             result.put('error', 'Invalid content version ID');
+            return result;
+        }
+
+        DocGen_Signer__c signer = signers[0];
+        Id sourceDocId = signer.Signature_Request__r != null ? signer.Signature_Request__r.Source_Document_Id__c : null;
+        Id templateId = signer.Signature_Request__r != null ? signer.Signature_Request__r.Template__c : null;
+
+        if (!isAuthorizedSignatureImage(contentVersionId, sourceDocId, templateId)) {
+            result.put('error', 'Image not authorized for this signing session');
             return result;
         }
 
@@ -1424,13 +1603,17 @@ public without sharing class DocGenSignatureController {
                 SELECT VersionData, FileExtension
                 FROM ContentVersion
                 WHERE Id = :contentVersionId
-                WITH SYSTEM_MODE LIMIT 1
+                WITH SYSTEM_MODE
+                LIMIT 1
             ]; // NOPMD ApexCRUDViolation - ContentVersion accessed for signature document preview
 
             String mimeType = 'image/png';
-            if (cv.FileExtension == 'jpg' || cv.FileExtension == 'jpeg') mimeType = 'image/jpeg';
-            else if (cv.FileExtension == 'gif') mimeType = 'image/gif';
-            else if (cv.FileExtension == 'svg') mimeType = 'image/svg+xml';
+            if (cv.FileExtension == 'jpg' || cv.FileExtension == 'jpeg')
+                mimeType = 'image/jpeg';
+            else if (cv.FileExtension == 'gif')
+                mimeType = 'image/gif';
+            else if (cv.FileExtension == 'svg')
+                mimeType = 'image/svg+xml';
 
             result.put('base64', EncodingUtil.base64Encode(cv.VersionData));
             result.put('mimeType', mimeType);
@@ -1439,6 +1622,68 @@ public without sharing class DocGenSignatureController {
         }
 
         return result;
+    }
+
+    /**
+     * Returns the Id of the active template version (Is_Active__c = TRUE) for a template,
+     * or null if the template has no active version. Centralized so callers don't
+     * duplicate the lookup pattern.
+     */
+    @TestVisible
+    private static Id lookupActiveTemplateVersionId(Id templateId) {
+        if (templateId == null) {
+            return null;
+        }
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        List<DocGen_Template_Version__c> versions = [
+            SELECT Id
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        return versions.isEmpty() ? null : versions[0].Id;
+    }
+
+    /**
+     * Verifies a ContentVersion ID is bound to the signer's signature request context.
+     * Allowed: source document, template-version-extracted images, HTML template images.
+     */
+    @TestVisible
+    private static Boolean isAuthorizedSignatureImage(Id contentVersionId, Id sourceDocId, Id templateId) {
+        if (contentVersionId == sourceDocId) {
+            return true;
+        }
+        if (templateId == null) {
+            return false;
+        }
+        Id activeVersionId = lookupActiveTemplateVersionId(templateId);
+
+        Set<String> allowedTitlePrefixes = new Set<String>();
+        if (activeVersionId != null) {
+            allowedTitlePrefixes.add('docgen_tmpl_img_' + activeVersionId + '_');
+        }
+        allowedTitlePrefixes.add('docgen_html_img_' + templateId + '_');
+
+        // Build a single-shot SOQL with multiple LIKE clauses
+        /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
+        List<ContentVersion> cvs = [
+            SELECT Id, Title
+            FROM ContentVersion
+            WHERE Id = :contentVersionId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        if (cvs.isEmpty()) {
+            return false;
+        }
+        String title = cvs[0].Title == null ? '' : cvs[0].Title;
+        for (String prefix : allowedTitlePrefixes) {
+            if (title.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

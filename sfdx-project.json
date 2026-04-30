@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.74.0 — Async template decompose + 10 MB upload guard + 2-step Save to Record + Flow doc title fix",
-      "versionNumber": "1.74.0.NEXT",
-      "ancestorId": "04tal000006rAYrAAM",
+      "versionName": "1.75.0 — Security review hardening: IDOR fixes, admin gates, input validation, CSS/SOQL sanitization",
+      "versionNumber": "1.75.0.NEXT",
+      "ancestorId": "04tal000006rBTJAA2",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",

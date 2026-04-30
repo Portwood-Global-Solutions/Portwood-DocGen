@@ -1142,6 +1142,9 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             WITH SYSTEM_MODE
             LIMIT 1
         ];
+        if (templates.isEmpty()) {
+            throw new DocGenException('Template not found: ' + templateId);
+        }
         DocGen_Template__c template = templates[0];
 
         String shellConfig = template.Query_Config__c;
@@ -5758,7 +5761,10 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             idx++;
         }
         if (!imageCvs.isEmpty()) {
-            insert imageCvs; // NOPMD ApexCRUDViolation — package-internal; CRUD via DocGen perm sets
+            SObjectAccessDecision imgDec = Security.stripInaccessible(AccessType.CREATABLE, imageCvs);
+            insert imgDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            // Update local list so subsequent ID reads in step 2 see the assigned IDs
+            imageCvs = imgDec.getRecords();
         }
 
         // 2. Rewrite every referenced image path in the HTML to its CV URL
@@ -5799,13 +5805,22 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         htmlCv.PathOnClient = 'docgen_html_body_' + versionId + '.html';
         htmlCv.VersionData = Blob.valueOf(rewritten);
         htmlCv.FirstPublishLocationId = versionId;
-        insert htmlCv; // NOPMD ApexCRUDViolation — package-internal; CRUD via DocGen perm sets
+        SObjectAccessDecision htmlDec = Security.stripInaccessible(
+            AccessType.CREATABLE,
+            new List<ContentVersion>{ htmlCv }
+        );
+        insert htmlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+        Id htmlCvId = htmlDec.getRecords()[0].Id;
 
         DocGen_Template_Version__c upd = new DocGen_Template_Version__c(
             Id = versionId,
-            Content_Version_Id__c = htmlCv.Id
+            Content_Version_Id__c = htmlCvId
         );
-        update upd; // NOPMD ApexCRUDViolation — package-internal; CRUD via DocGen perm sets
+        SObjectAccessDecision updDec = Security.stripInaccessible(
+            AccessType.UPDATABLE,
+            new List<DocGen_Template_Version__c>{ upd }
+        );
+        update updDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
     }
 
     // =====================================================================

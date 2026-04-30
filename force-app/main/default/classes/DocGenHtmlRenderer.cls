@@ -234,9 +234,12 @@ public with sharing class DocGenHtmlRenderer {
         //      with documented Scale/Washout/rotation limitations
         String watermarkPageBgCss = '';
         if (String.isNotBlank(overrideWatermarkCvId)) {
+            // overrideWatermarkCvId is a static set by callers — sanitize defensively
+            // so it can't break out of the url('...') token even if a future caller
+            // passes through unvalidated input.
             watermarkPageBgCss =
                 'background-image: url(\'/sfc/servlet.shepherd/version/download/' +
-                overrideWatermarkCvId +
+                sanitizeCssUrlToken(overrideWatermarkCvId) +
                 '\'); ' +
                 'background-position: center center; background-repeat: no-repeat; background-size: contain;';
         }
@@ -948,7 +951,7 @@ public with sharing class DocGenHtmlRenderer {
         // Paragraph shading: <w:shd w:val="clear" w:fill="FFFF00"/>
         String pFill = extractAttr(pPr, 'w:shd', 'w:fill');
         if (pFill != null && pFill != 'auto') {
-            styles.add('background-color:#' + pFill);
+            styles.add('background-color:#' + sanitizeCssToken(pFill));
         }
 
         // Paragraph borders: <w:pBdr><w:top w:val="single" w:sz="4" w:color="000000"/>...
@@ -1573,33 +1576,36 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         // Color: <w:color w:val="FF0000"/> or <w:color w:val="auto" w:themeColor="accent1"/>
+        // Note: sanitizeCssToken() guards against a malformed DOCX value smuggling
+        // `;` or `}` to escape the surrounding `style="..."`. Trust boundary is admin,
+        // but preview HTML reaches the browser via LWC innerHTML, so we harden anyway.
         String color = extractAttr(rPr, 'w:color', 'w:val');
         if (color != null && color != 'auto' && color.length() >= 6) {
-            styles.add('color:#' + color);
+            styles.add('color:#' + sanitizeCssToken(color));
         } else if (color == 'auto' || color == null) {
             // Check for theme color — Word stores colors as theme references
             String themeColor = extractAttr(rPr, 'w:color', 'w:themeColor');
             if (themeColor != null) {
                 String resolved = resolveThemeColor(themeColor);
                 if (resolved != null) {
-                    styles.add('color:#' + resolved);
+                    styles.add('color:#' + sanitizeCssToken(resolved));
                 }
             } else if (styleAttrs.containsKey('color')) {
                 // Fall back to the color defined on the referenced style (Heading 1 / custom style / etc)
-                styles.add('color:#' + styleAttrs.get('color'));
+                styles.add('color:#' + sanitizeCssToken(styleAttrs.get('color')));
             }
         }
 
         // Highlight: <w:highlight w:val="yellow"/>
         String highlight = extractAttr(rPr, 'w:highlight', 'w:val');
         if (highlight != null) {
-            styles.add('background-color:' + highlight);
+            styles.add('background-color:' + sanitizeCssToken(highlight));
         }
 
         // Shading (different from highlight): <w:shd w:val="clear" w:fill="FFFF00"/>
         String shdFill = extractAttr(rPr, 'w:shd', 'w:fill');
         if (shdFill != null && shdFill != 'auto' && highlight == null) {
-            styles.add('background-color:#' + shdFill);
+            styles.add('background-color:#' + sanitizeCssToken(shdFill));
         }
 
         // Letter spacing: <w:spacing w:val="20"/> (in twips)
@@ -1813,13 +1819,13 @@ public with sharing class DocGenHtmlRenderer {
             // Shading: <w:shd w:val="clear" w:fill="E2EFDA"/>
             String fill = extractAttr(tcPr, 'w:shd', 'w:fill');
             if (fill != null && fill != 'auto') {
-                styles.add('background-color:#' + fill);
+                styles.add('background-color:#' + sanitizeCssToken(fill));
             }
 
             // Vertical alignment: <w:vAlign w:val="center"/>
             String vAlign = extractAttr(tcPr, 'w:vAlign', 'w:val');
             if (vAlign != null) {
-                styles.add('vertical-align:' + vAlign);
+                styles.add('vertical-align:' + sanitizeCssToken(vAlign));
             }
 
             // Cell-specific borders: <w:tcBorders>
@@ -2988,9 +2994,11 @@ public with sharing class DocGenHtmlRenderer {
             // the page dimensions usually share the same aspect ratio (Word
             // sizes watermarks proportional to page), 'contain' produces the
             // user's intended scale automatically.
+            // sanitizeCssUrlToken strips quotes/parens/whitespace so a malformed
+            // watermark src can't break out of the surrounding url('...') token.
             String pageBgCss =
                 'background-image: url(\'' +
-                firstSrc +
+                sanitizeCssUrlToken(firstSrc) +
                 '\'); ' +
                 'background-position: center center; background-repeat: no-repeat; ' +
                 'background-size: contain;';
@@ -3211,6 +3219,40 @@ public with sharing class DocGenHtmlRenderer {
      */
     private static Decimal twipsToPt(Integer twips) {
         return twips * TWIPS_TO_PT;
+    }
+
+    /**
+     * Sanitizes a value bound for inline CSS (color/fill/font/etc.) so that a
+     * malformed DOCX attribute can't break out of the surrounding `style="..."`
+     * declaration. Strips the CSS reserved chars (`;` `}` `{` `:` `<` `>` `"` `'`
+     * `(` `)` `\\` newline) and returns the cleaned value. Returns null if the
+     * input is null. The trust boundary is "admin uploaded the DOCX," but the
+     * preview HTML reaches a browser via LWC `innerHTML`, so this is
+     * defense-in-depth against a malicious template.
+     */
+    private static String sanitizeCssToken(String val) {
+        if (val == null) {
+            return null;
+        }
+        // Block: control chars, quotes, parens, braces, semicolon, colon, lt/gt, backslash, whitespace newlines
+        return val.replaceAll('[\\u0000-\\u001F;{}<>"\'\\\\()\\r\\n]', '');
+    }
+
+    /**
+     * Sanitizes a value bound for a CSS `url(...)` token. Same treatment as
+     * sanitizeCssToken plus blocks the comment sequences `/*` and `*\/`. The
+     * watermark page-background path concatenates a CV-derived path here; the
+     * caller-controlled portion is strictly numeric in normal flow, but a
+     * malformed DOCX could otherwise smuggle a `'` to break out of url('...').
+     */
+    private static String sanitizeCssUrlToken(String val) {
+        if (val == null) {
+            return null;
+        }
+        String cleaned = val.replaceAll('[\\u0000-\\u001F"\'\\\\()\\r\\n\\s]', '');
+        // Block CSS comment delimiters defensively
+        cleaned = cleaned.replace('/*', '').replace('*/', '');
+        return cleaned;
     }
 
     // Inner class for list detection

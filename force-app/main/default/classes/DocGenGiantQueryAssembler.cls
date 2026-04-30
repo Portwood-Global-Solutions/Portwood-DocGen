@@ -819,9 +819,20 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                         if (whereCls == null) {
                             whereCls = (String) node.get('whereClause');
                         }
+                        // Sanitize the whereCls pulled directly from V3 config — the
+                        // batch path passes an already-sanitized value via constructor,
+                        // but this fallback (4-arg constructor) reads it raw. Reuse the
+                        // canonical sanitizer to block injection (DML keywords, ;, --, /*).
+                        if (String.isNotBlank(whereCls)) {
+                            whereCls = DocGenDataRetriever.sanitizeWhereClause(whereCls);
+                        }
                         break;
                     }
                 }
+            } catch (DocGenException dge) {
+                // Sanitizer rejected the where clause — abort aggregate resolution
+                // and leave tags unresolved rather than running the unsafe SOQL.
+                return html;
             } catch (Exception e) {
                 String noop = e.getMessage(); // NOPMD — aggregate resolution is non-fatal
                 return html;
@@ -840,6 +851,13 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         // Regex already restricts field names to [A-Za-z0-9_]+ so SOQL injection is
         // blocked; Schema existence check is the second line of defense.
         Map<String, Schema.SObjectField> childFieldMap = childType.getDescribe().fields.getMap();
+        // Allowlist-validate lookupFld against the child schema. The batch sanitizes
+        // its own incoming clauses, but lookupFld is only escapeSingleQuotes'd — that
+        // doesn't protect against identifier-level injection (no quotes needed). Reject
+        // anything that isn't a real field on the child object.
+        if (!childFieldMap.containsKey(lookupFld.toLowerCase())) {
+            return html;
+        }
 
         // Build aggregate SELECT clauses — each unique (fn, field) pair gets one alias
         List<String> selectClauses = new List<String>();

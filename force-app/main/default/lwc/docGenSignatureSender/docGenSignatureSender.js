@@ -305,6 +305,16 @@ export default class DocGenSignatureSender extends LightningElement {
         this.previewLoading = true;
         this.previewHtml = '';
 
+        // Defense-in-depth HTML escaper for client-supplied (template name) and
+        // error-message strings injected into preview innerHTML below.
+        const escapeHtml = (s) =>
+            String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
         try {
             // Generate preview for each template and concatenate
             const htmlParts = [];
@@ -317,7 +327,7 @@ export default class DocGenSignatureSender extends LightningElement {
                             ' of ' +
                             this.selectedTemplates.length +
                             ': ' +
-                            tmpl.name +
+                            escapeHtml(tmpl.name) +
                             '</strong></div>'
                     );
                 }
@@ -330,7 +340,7 @@ export default class DocGenSignatureSender extends LightningElement {
                 } else {
                     htmlParts.push(
                         '<p style="color:#706e6b;text-align:center;padding:2rem;">Preview unavailable for ' +
-                            tmpl.name +
+                            escapeHtml(tmpl.name) +
                             '</p>'
                     );
                 }
@@ -339,7 +349,7 @@ export default class DocGenSignatureSender extends LightningElement {
         } catch (err) {
             this.previewHtml =
                 '<p style="color:#ea001e;text-align:center;padding:2rem;">Failed to generate preview: ' +
-                (err.body ? err.body.message : err.message) +
+                escapeHtml(err.body ? err.body.message : err.message) +
                 '</p>';
         }
         this.previewLoading = false;
