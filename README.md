@@ -2,7 +2,7 @@
 
 Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, 100% free forever. All features, all users, no paid tiers. PowerPoint and Excel coming soon.
 
-[Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)
+[Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwood.dev/changelog)
 
 [![Version](https://img.shields.io/badge/version-1.74.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
