@@ -8201,4 +8201,71 @@ private class DocGenMiscTests {
         String r = DocGenService.processXmlForTest('[{Contacts.totalSize}]', data);
         System.assertEquals('[0]', r);
     }
+
+    // =========================================================================
+    // {RunningUser.X} — standard "prepared by" tags (v1.77+)
+    // =========================================================================
+
+    @IsTest
+    static void runningUserNameResolvesFromUserInfo() {
+        Test.startTest();
+        String r = DocGenService.processXmlForTest('[{RunningUser.Name}]', new Map<String, Object>());
+        Test.stopTest();
+        System.assertEquals('[' + UserInfo.getName() + ']', r, 'RunningUser.Name should match UserInfo.getName()');
+    }
+
+    @IsTest
+    static void runningUserEmailResolvesFromUserRow() {
+        Test.startTest();
+        String r = DocGenService.processXmlForTest('[{RunningUser.Email}]', new Map<String, Object>());
+        Test.stopTest();
+        System.assertEquals(
+            '[' + UserInfo.getUserEmail() + ']',
+            r,
+            'RunningUser.Email should match UserInfo.getUserEmail()'
+        );
+    }
+
+    @IsTest
+    static void runningUserIsCaseInsensitive() {
+        Test.startTest();
+        String r = DocGenService.processXmlForTest('[{runninguser.name}]', new Map<String, Object>());
+        Test.stopTest();
+        System.assertEquals('[' + UserInfo.getName() + ']', r, 'Lowercased RunningUser tag should still resolve');
+    }
+
+    @IsTest
+    static void runningUserUnknownFieldResolvesEmpty() {
+        Test.startTest();
+        String r = DocGenService.processXmlForTest('[{RunningUser.NotAField}]', new Map<String, Object>());
+        Test.stopTest();
+        System.assertEquals('[]', r, 'Unknown RunningUser subfield should resolve to empty (not literal tag)');
+    }
+
+    @IsTest
+    static void runningUserAllowlistGuardBlocksProfileId() {
+        Test.startTest();
+        // ProfileId is intentionally NOT in the allowlist — must NOT be exposed via {RunningUser.X}.
+        String r = DocGenService.processXmlForTest('[{RunningUser.ProfileId}]', new Map<String, Object>());
+        Test.stopTest();
+        System.assertEquals('[]', r, 'ProfileId is not in the allowlist; tag must resolve to empty');
+    }
+
+    @IsTest
+    static void runningUserContextCachedPerTransaction() {
+        Test.startTest();
+        // Two resolutions in a single transaction must not issue two SOQL queries.
+        Integer queriesBefore = Limits.getQueries();
+        DocGenService.processXmlForTest('{RunningUser.Name}', new Map<String, Object>());
+        DocGenService.processXmlForTest('{RunningUser.Email}', new Map<String, Object>());
+        DocGenService.processXmlForTest('{RunningUser.Username}', new Map<String, Object>());
+        Integer queriesAfter = Limits.getQueries();
+        Test.stopTest();
+        System.assert(
+            (queriesAfter - queriesBefore) <= 1,
+            'RunningUser context should be loaded once per transaction; saw ' +
+                (queriesAfter - queriesBefore) +
+                ' queries'
+        );
+    }
 }

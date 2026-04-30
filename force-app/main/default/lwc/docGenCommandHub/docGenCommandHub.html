@@ -1534,6 +1534,62 @@
                                         time-stamp an invoice, add the current date to a contract header. Works in sync
                                         and giant-query PDFs, bulk generation, and e-signature stamped documents.
                                     </div>
+
+                                    <h4 class="subsection-heading">Running User Tags (Prepared by)</h4>
+                                    <p>
+                                        <code>&#123;RunningUser.X&#125;</code> resolves against the executing user's
+                                        record (whoever clicks Generate, runs the Flow, or owns the bulk job). No
+                                        configuration needed -- works on every template, every record, every output
+                                        format. Use it for &quot;Prepared by:&quot; lines, sender contact info, or audit
+                                        stamps.
+                                    </p>
+
+                                    <table class="doc-table">
+                                        <thead>
+                                            <tr>
+                                                <th>What You Type</th>
+                                                <th>What Appears</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><code>&#123;RunningUser.Name&#125;</code></td>
+                                                <td>Jane Doe</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>&#123;RunningUser.Email&#125;</code></td>
+                                                <td>jane@portwood.dev</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>&#123;RunningUser.Title&#125;</code></td>
+                                                <td>Account Executive</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>&#123;RunningUser.Phone&#125;</code></td>
+                                                <td>(317) 555-0142</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>&#123;RunningUser.Department&#125;</code></td>
+                                                <td>Sales</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>&#123;RunningUser.CompanyName&#125;</code></td>
+                                                <td>Portwood Global Solutions</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+
+                                    <p>
+                                        <strong>Allowlist:</strong> <code>Id</code>, <code>Name</code>,
+                                        <code>FirstName</code>, <code>LastName</code>, <code>Email</code>,
+                                        <code>Username</code>, <code>Alias</code>, <code>Title</code>,
+                                        <code>Department</code>, <code>CompanyName</code>, <code>EmployeeNumber</code>,
+                                        <code>Phone</code>, <code>MobilePhone</code>, <code>Extension</code>,
+                                        <code>Fax</code>, <code>Street</code>, <code>City</code>, <code>State</code>,
+                                        <code>PostalCode</code>, <code>Country</code>, <code>TimeZoneSidKey</code>,
+                                        <code>LocaleSidKey</code>, <code>LanguageLocaleKey</code>. Other field names
+                                        resolve to empty by design.
+                                    </p>
                                 </section>
 
                                 <section id="aggregates" class="content-section">

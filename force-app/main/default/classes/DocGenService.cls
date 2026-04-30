@@ -143,6 +143,37 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         'TWD'
     };
 
+    // {RunningUser.X} — standard "prepared by" tags. Allowlist of safe User fields
+    // that resolve from the executing user's record, queried once per transaction.
+    private static final List<String> RUNNING_USER_FIELDS = new List<String>{
+        'Id',
+        'Name',
+        'FirstName',
+        'LastName',
+        'Email',
+        'Username',
+        'Alias',
+        'Title',
+        'Department',
+        'CompanyName',
+        'EmployeeNumber',
+        'Phone',
+        'MobilePhone',
+        'Extension',
+        'Fax',
+        'Street',
+        'City',
+        'State',
+        'PostalCode',
+        'Country',
+        'TimeZoneSidKey',
+        'LocaleSidKey',
+        'LanguageLocaleKey'
+    };
+
+    @TestVisible
+    private static Map<String, Object> runningUserContext;
+
     /**
      * Creates an AuraHandledException with a user-facing message.
      * Centralizes exception creation for consistent error handling.
@@ -181,6 +212,64 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      */
     public static String processXmlForTest(String xml, Map<String, Object> data) {
         return processXml(xml, data);
+    }
+
+    /**
+     * Resolve {RunningUser.X} subfield against the cached running-user context.
+     * Lazy-loads on first access per transaction by querying the executing user's
+     * row for the allowlist fields. Returns null for unknown subfields.
+     */
+    private static Object resolveRunningUserField(String subfield) {
+        if (runningUserContext == null) {
+            Map<String, Object> ctx = new Map<String, Object>();
+            Id uid = UserInfo.getUserId();
+            // Static SOQL — fields are hardcoded to keep the analyzer happy and prove
+            // at compile time that no untrusted input flows into the query. The
+            // RUNNING_USER_FIELDS constant still gates which fields ship to templates.
+            List<User> rows = [
+                SELECT
+                    Id,
+                    Name,
+                    FirstName,
+                    LastName,
+                    Email,
+                    Username,
+                    Alias,
+                    Title,
+                    Department,
+                    CompanyName,
+                    EmployeeNumber,
+                    Phone,
+                    MobilePhone,
+                    Extension,
+                    Fax,
+                    Street,
+                    City,
+                    State,
+                    PostalCode,
+                    Country,
+                    TimeZoneSidKey,
+                    LocaleSidKey,
+                    LanguageLocaleKey
+                FROM User
+                WHERE Id = :uid
+                WITH USER_MODE
+                LIMIT 1
+            ];
+            if (!rows.isEmpty()) {
+                User u = rows[0];
+                for (String f : RUNNING_USER_FIELDS) {
+                    ctx.put(f, u.get(f));
+                }
+            }
+            runningUserContext = ctx;
+        }
+        for (String key : runningUserContext.keySet()) {
+            if (key.equalsIgnoreCase(subfield)) {
+                return runningUserContext.get(key);
+            }
+        }
+        return null;
     }
 
     /**
@@ -2627,6 +2716,10 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     val = DateTime.newInstance(td.year(), td.month(), td.day());
                 } else if (upperField == 'NOW') {
                     val = DateTime.now();
+                } else if (upperField.startsWith('RUNNINGUSER.')) {
+                    // {RunningUser.X} — standard "prepared by" tag (v1.77+). Resolves
+                    // from the executing user's User row. Allowlist enforced in helper.
+                    val = resolveRunningUserField(fieldName.substring('RunningUser.'.length()));
                 } else {
                     val = resolveValue(data, fieldName);
                 }

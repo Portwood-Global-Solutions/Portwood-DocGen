@@ -526,8 +526,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 fullMatches.add(m.group(0));
                 matchedPaths.add(path);
                 matchedFormats.add(m.group(2));
-                // Built-ins bypass schema field validation; the data-map fallback resolves them.
-                if (!builtins.contains(path.toUpperCase())) {
+                // Built-ins and {RunningUser.X} bypass schema validation; resolved separately.
+                String upper = path.toUpperCase();
+                if (!builtins.contains(upper) && !upper.startsWith('RUNNINGUSER.')) {
                     fieldPaths.add(path);
                 }
             }
@@ -592,6 +593,19 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                     val = DateTime.newInstance(td.year(), td.month(), td.day());
                 } else if (upperPath == 'NOW') {
                     val = DateTime.now();
+                } else if (upperPath.startsWith('RUNNINGUSER.')) {
+                    // Delegate to DocGenService.processXml — it intercepts {RunningUser.X}
+                    // against the cached running-user context. Empty data map is fine —
+                    // the RunningUser branch doesn't read from it.
+                    String tag = String.isBlank(fmt) ? '{' + path + '}' : '{' + path + ':' + fmt + '}';
+                    String resolved;
+                    try {
+                        resolved = DocGenService.processXmlForTest(tag, new Map<String, Object>());
+                    } catch (Exception ruErr) {
+                        resolved = '';
+                    }
+                    html = html.replace(fullMatches.get(i), resolved);
+                    continue;
                 } else {
                     if (!validFieldSet.contains(path)) {
                         continue;
