@@ -5,7 +5,7 @@
 > If you ship a new feature: add it here first, then propagate to the Learning Center LWC (`docGenCommandHub`) and the website.
 > If you remove/deprecate a feature: mark it in this file, then remove from the Learning Center and website.
 
-**Current release:** v1.73.0 · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rAYrAAM)
+**Current release:** v1.74.0 · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2)
 
 ---
 
@@ -53,10 +53,10 @@ Portwood DocGen is a native Salesforce document generation engine. It merges Sal
 ### Install the package
 
 ```bash
-sf package install --package 04tal000006rAYrAAM --wait 10 --target-org <your-org>
+sf package install --package 04tal000006rBTJAA2 --wait 10 --target-org <your-org>
 ```
 
-Or: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rAYrAAM) · [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rAYrAAM)
+Or: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2) · [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2)
 
 ### Post-install checklist
 
@@ -95,10 +95,24 @@ Three permission sets ship with the package. Assign what each user needs.
 
 **Output formats by template type:**
 
-- Word (`.docx`) template → output PDF or DOCX
+- Word (`.docx`) template → output PDF **or** DOCX (pick one when you save the template)
 - HTML (`.html` / `.htm` / `.zip`) template → output PDF only (see [§4.7](#47-html-templates-google-docs-notion-any-html-source))
 - PowerPoint (`.pptx`) template → output PPTX only (PowerPoint→PDF is not supported by the Salesforce platform)
 - Excel (`.xlsx`) template → output XLSX only
+
+> **One template → one output format.** As of v1.74 the runtime "Output As"
+> override picker is removed — templates render in whatever format they were
+> saved with. To offer the same source as both PDF and DOCX, save the template
+> twice (one as PDF, one as Native) and let users pick the one they want.
+> Cross-format generation produced subtle corruption in either direction and
+> the cleanest fix was to make output binding.
+
+> **Max template file size: 10 MB.** The uploader rejects anything larger with
+> a clear toast. Almost every 20+ MB template is uncompressed images — in
+> Word, right-click any image → **Compress Pictures → Email (96 ppi)** or
+> **Web (150 ppi)** — most templates drop to 1–2 MB with no visible quality
+> loss. See [§13.8](#138-template--output-size-guidance) for the full
+> breakdown of why this limit exists and what generation flows it affects.
 
 ### 4.2 Template versions
 
@@ -1429,6 +1443,86 @@ Guest users can't:
 - Access ContentVersion via `/sfc/` URLs in the browser (blocked by browser auth)
 
 DocGen's image proxy (`getImageBase64()`) returns base64 for guest users — signing-page JS replaces `<img src="/sfc/...">` with data URIs. Platform events bridge guest → system context for email sending.
+
+### 13.8 Template & output size guidance
+
+The Salesforce platform imposes hard heap and payload limits at every layer of
+the DocGen pipeline. Here's exactly where each limit applies and what to
+expect:
+
+#### Template upload (the file you save)
+
+- **Hard cap: 10 MB** for `.docx` and `.pptx` templates.
+- The uploader rejects anything larger with a friendly toast pointing to the
+  Compress Pictures workaround.
+- Why: at save time DocGen unzips the template, extracts each image as its
+  own ContentVersion, and caches the merged XML parts so PDF rendering at
+  generation time can stay heap-light. That decompression runs in a
+  Queueable's 12 MB async heap, and templates above ~10 MB plus
+  ZipReader/per-entry blob overhead don't survive.
+- HTML templates have no fixed cap because they're plain text + separate
+  image files; the picker handles them differently.
+
+#### Generation — PDF output
+
+- **Practical output size: up to ~60 MB.**
+- PDF generation runs entirely server-side. The merged HTML uses **relative
+  image URLs** (the per-image ContentVersions DocGen pre-cached at upload
+  time), so `Blob.toPdf()` fetches images natively — no image bytes pass
+  through Apex heap.
+- Save to Record for PDF: works for any output size that fits in the 12 MB
+  Queueable heap (i.e., the template ceiling, not the output ceiling).
+
+#### Generation — DOCX / XLSX output
+
+- **Output ≤ 5 MB → Save to Record works automatically.** The browser
+  assembles the file client-side and sends it back through Aura's inbound
+  ~5 MB cap, which then becomes a single ContentVersion.
+- **Output > 5 MB → 2-step save flow.**
+    1. The file downloads to your computer immediately.
+    2. A "Step 2 of 2 — drag the downloaded file here" panel appears below
+       the Generate button with a `lightning-file-upload` widget bound to
+       this record.
+    3. Drag the just-downloaded file into that box. The platform's native
+       uploader handles it (up to 2 GB) and attaches it to the record. One
+       extra step, no Apex heap involved.
+- We can't make this a single click for files this big. The Aura framework
+  caps inbound payloads at ~5 MB, and there's no Apex API to write a 10 MB
+  binary as a single ContentVersion without first base64-encoding the whole
+  thing in heap (which then exceeds the 12 MB async heap). The 2-step flow is
+  the cleanest path that uses platform-native machinery instead of fighting
+  it.
+
+#### Combine PDFs / Document Packet flows
+
+- **Download only.** No Save to Record option.
+- Both flows merge multiple existing PDFs in the browser. Saving the merged
+  result back to the same record would round-trip through Aura's inbound cap
+  AND duplicate content the user already has on the record — so we expose
+  only the Download path.
+- If users need the merged PDF on the record, they can drag the downloaded
+  file into the record's Files list in the standard Lightning UI.
+
+#### Runtime size signaling
+
+- Save to Record selected, DOCX/XLSX template: a small hint under the Output
+  Destination toggle reads
+    > "Files under 5 MB save to the record automatically. Larger files will
+    > download to your computer and a drag-and-drop upload box will appear so
+    > you can attach the file in one extra step."
+- PDF templates: no hint shown — the practical ceiling is the template size,
+  not the output, so the warning isn't relevant.
+
+#### TL;DR
+
+| Scenario                                      | Limit         | UX                                 |
+| --------------------------------------------- | ------------- | ---------------------------------- |
+| Template upload                               | 10 MB hard    | Reject with Compress Pictures hint |
+| PDF generate (download or save)               | ~60 MB output | One-click                          |
+| DOCX/XLSX generate ≤ 5 MB                     | n/a           | One-click                          |
+| DOCX/XLSX generate > 5 MB, **Download**       | n/a           | One-click                          |
+| DOCX/XLSX generate > 5 MB, **Save to Record** | n/a           | 2-step (download + drag-to-attach) |
+| Combine PDFs / Packet                         | Download only | One-click                          |
 
 ---
 

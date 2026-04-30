@@ -46,6 +46,10 @@
                 <field>Content_Version_Id__c</field>
             </layoutItems>
             <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Pre_Decomposition_Status__c</field>
+            </layoutItems>
+            <layoutItems>
                 <behavior>Edit</behavior>
                 <field>Description__c</field>
             </layoutItems>

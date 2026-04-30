@@ -2008,6 +2008,13 @@
                                                 onuploadfinished={handleEditUploadFinished}
                                             >
                                             </lightning-file-upload>
+                                            <p
+                                                class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small"
+                                            >
+                                                Max file size: 10 MB. Larger templates? In Word, right-click any image →
+                                                <em>Compress Pictures → Email (96 ppi)</em> — most 20 MB templates drop
+                                                to under 2 MB with no visible quality loss.
+                                            </p>
                                         </template>
 
                                         <template if:true={isEditTypeHtml}>

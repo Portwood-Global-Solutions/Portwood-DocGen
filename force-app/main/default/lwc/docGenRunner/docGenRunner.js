@@ -2,7 +2,6 @@ import { LightningElement, api, wire, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getTemplatesForObject from '@salesforce/apex/DocGenController.getTemplatesForObjectAndRecord';
 import processAndReturnDocument from '@salesforce/apex/DocGenController.processAndReturnDocument';
-import processAndReturnDocumentWithOverride from '@salesforce/apex/DocGenController.processAndReturnDocumentWithOverride';
 import generateDocumentParts from '@salesforce/apex/DocGenController.generateDocumentParts';
 import getContentVersionBase64 from '@salesforce/apex/DocGenController.getContentVersionBase64';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
@@ -32,7 +31,6 @@ import OUT_FMT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__
 import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 import IS_DEFAULT_FIELD from '@salesforce/schema/DocGen_Template__c.Is_Default__c';
 import CATEGORY_FIELD from '@salesforce/schema/DocGen_Template__c.Category__c';
-import LOCK_OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Lock_Output_Format__c';
 
 export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -46,7 +44,13 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @track templateOptions = [];
     @track selectedTemplateId = '';
     @track selectedCategory = '__ALL__'; // 1.47 — category filter
-    @track outputFormatOverride = ''; // 1.47 — runtime output format override
+    // 1.74 — runtime output format override removed. Templates render in
+    // the format they were saved with. To offer both PDF and DOCX from the
+    // same source, save the template twice with different Output Format
+    // values. Cross-format override produced subtle corruption in either
+    // direction (PDF→DOCX gave Word "file is corrupt" errors; DOCX→PDF blew
+    // sync heap on real templates) and is no longer worth the maintenance
+    // burden against a clean one-template-one-format model.
     @track outputMode = 'download';
     @track isLoading = false;
     @track error = '';
@@ -142,10 +146,24 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         if (this._isMobile) {
             return this.canSaveToRecord ? ['save'] : [];
         }
-        const isPdfOutput = this.appMode !== 'generate' || this.templateOutputFormat === 'PDF';
-        if (!isPdfOutput || this.isGiantQueryMode) {
+        // Combine PDFs (mergeOnly) and Document Packet are download-only.
+        // Both flows concatenate multiple source PDFs into one output, with
+        // every source file's bytes sitting in Apex heap simultaneously
+        // during the merge. Total source size has to stay under ~6 MB to
+        // survive sync heap. Save-to-Record adds nothing here (sources
+        // already live as CVs on the record) and would just amplify heap
+        // pressure with the post-merge ContentVersion insert. Download
+        // streams the merged blob to the browser without that extra step.
+        if (this.appMode === 'mergeOnly' || this.appMode === 'packet') {
             return this.canDownload ? ['download'] : [];
         }
+        // Save to Record is always offered (when the admin enabled it) for
+        // every output format. Files that exceed the 5 MB Apex single-CV
+        // stitch ceiling fall through to a "downloaded — drag here to attach"
+        // two-step flow at generate time, so the user always gets a path to
+        // attach the file. Previously DOCX/Excel and Giant-Query templates
+        // hid this option, which left users without an obvious way to
+        // attach generated DOCX output to the record.
         const modes = [];
         if (this.canDownload) {
             modes.push('download');
@@ -304,8 +322,6 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 selected: t.Id === selectedTemplateId
             };
         });
-        // Reset override when template list changes — the new selection may be a different type
-        this.outputFormatOverride = '';
     }
 
     /**
@@ -337,37 +353,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Output format picker options derived from the selected template's Type__c.
-     * Word templates: PDF + Word. PowerPoint templates: PPTX only (picker hidden).
-     * Hidden entirely when the template has Lock_Output_Format__c = true.
-     */
-    get outputFormatPickerOptions() {
-        const t = this.selectedTemplate;
-        if (!t) return [];
-        if (t[LOCK_OUTPUT_FORMAT_FIELD.fieldApiName]) return [];
-        const tplType = t[TYPE_FIELD.fieldApiName];
-        if (tplType === 'PowerPoint') return []; // PPTX only — no choice
-        if (tplType === 'Word') {
-            return [
-                { label: 'PDF', value: 'PDF' },
-                { label: 'Word (DOCX)', value: 'Word' }
-            ];
-        }
-        return [];
-    }
-
-    get showOutputFormatPicker() {
-        return this.outputFormatPickerOptions.length > 0;
-    }
-
-    /**
-     * Effective Output_Format__c value for THIS run — 'PDF' or 'Native'.
-     * Maps the override (PDF / Word / PowerPoint, matching template TYPE) onto the
-     * Output_Format__c vocabulary the runner branches on.
+     * Effective Output_Format__c value for THIS run. As of 1.74 the runtime
+     * format override picker is gone — the template's saved Output_Format__c
+     * is binding. To offer both PDF and DOCX from one source, save the
+     * template twice with different Output Format values.
      */
     get effectiveOutputFormat() {
-        if (this.outputFormatOverride === 'PDF') return 'PDF';
-        if (this.outputFormatOverride === 'Word' || this.outputFormatOverride === 'PowerPoint') return 'Native';
         return this.templateOutputFormat;
     }
 
@@ -386,10 +377,6 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     handleCategoryChange(event) {
         this.selectedCategory = event.target.value;
         this._rebuildTemplateOptions();
-    }
-
-    handleOutputFormatOverrideChange(event) {
-        this.outputFormatOverride = event.target.value || '';
     }
 
     @wire(getChildRelationships, { objectApiName: '$objectApiName' })
@@ -461,9 +448,17 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
     handlePacketIncludeToggle(event) {
         this.packetIncludeExisting = event.target.checked;
-        if (this.packetIncludeExisting && this.recordPdfOptions.length === 0) {
-            this.loadRecordPdfs();
+        if (!this.packetIncludeExisting) {
+            this.packetExistingPdfIds = [];
+            return;
         }
+        // Always re-fetch when the user toggles on — file lists change frequently
+        // (record may have new PDFs since last open) and the call is cheap.
+        this.loadRecordPdfs();
+    }
+
+    handlePacketExistingPdfSelection(event) {
+        this.packetExistingPdfIds = event.detail.value || [];
     }
 
     handleMergeOnlySelection(event) {
@@ -593,39 +588,13 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const templateType = selected ? selected[TYPE_FIELD.fieldApiName] : 'Word';
             const isPPT = templateType === 'PowerPoint';
             const isExcel = templateType === 'Excel';
-            // Use effectiveOutputFormat so a runtime PDF/Word override re-routes the path.
             const isPDF = this.effectiveOutputFormat === 'PDF' && !isPPT && !isExcel;
             const saveToRecord = this.resolvedOutputMode === 'save';
             const shouldMerge = isPDF && this.mergeEnabled && this.selectedPdfCvIds.length > 0;
-            const hasOverride = !!this.outputFormatOverride;
 
             if (isPDF) {
                 if (shouldMerge) {
                     await this._generateMergedPdf(saveToRecord);
-                } else if (hasOverride) {
-                    // Override path — runs through processAndReturnDocumentWithOverride so
-                    // the template's Lock_Output_Format__c + PowerPoint→PDF guards fire.
-                    this.showToast('Info', 'Generating PDF...', 'info');
-                    const result = await processAndReturnDocumentWithOverride({
-                        templateId: this.selectedTemplateId,
-                        recordId: this.recordId,
-                        resolvedImages: null,
-                        outputFormatOverride: this.outputFormatOverride
-                    });
-                    if (await this._handledHeapPressure(result)) {
-                        return;
-                    }
-                    if (saveToRecord) {
-                        await saveGeneratedDocument({
-                            recordId: this.recordId,
-                            fileName: result.title || 'Document',
-                            base64Data: result.base64,
-                            extension: 'pdf'
-                        });
-                        this.showToast('Success', 'PDF saved to record.', 'success');
-                    } else {
-                        this.downloadBase64(result.base64, (result.title || 'Document') + '.pdf', 'application/pdf');
-                    }
                 } else if (saveToRecord) {
                     // Pre-flight size check: attached images >30MB will fail the
                     // Save-to-Record ContentVersion insert. Warn up front instead
@@ -1032,6 +1001,28 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
         const fileBytes = buildDocx(parts.allXmlParts, allImages);
         const fileBase64 = this._uint8ArrayToBase64(fileBytes);
+        // Apex can stitch chunked uploads up to ~5 MB binary into a single CV
+        // before the 12 MB queueable heap (binary + base64 round-trip) OOMs.
+        // Above 5 MB we download the file and surface a drag-to-attach
+        // affordance instead — lightning-file-upload chunks internally up to
+        // 2 GB, so the user does the upload themselves with platform-native
+        // progress feedback. No new chunked Apex required.
+        const SAVE_TO_RECORD_BINARY_LIMIT = 5 * 1024 * 1024;
+        if (saveToRecord && fileBytes.length > SAVE_TO_RECORD_BINARY_LIMIT) {
+            this.downloadBase64(fileBase64, docTitle + '.' + extension, mimeType);
+            this._oversizedSaveToRecord = {
+                fileName: docTitle + '.' + extension,
+                sizeMb: (fileBytes.length / 1024 / 1024).toFixed(1)
+            };
+            this.showToast(
+                'Document downloaded',
+                'File is ' +
+                    this._oversizedSaveToRecord.sizeMb +
+                    ' MB — too large to save automatically. Drag the just-downloaded file into the upload box that appeared below to attach it to this record.',
+                'info'
+            );
+            return;
+        }
         if (saveToRecord) {
             // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
             await saveGeneratedDocument({
@@ -1045,6 +1036,36 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             this.downloadBase64(fileBase64, docTitle + '.' + extension, mimeType);
             this.showToast('Success', extension.toUpperCase() + ' downloaded.', 'success');
         }
+    }
+
+    @track _oversizedSaveToRecord = null;
+
+    get hasOversizedSaveToRecord() {
+        return !!this._oversizedSaveToRecord;
+    }
+
+    /**
+     * Pre-generation hint shown when the user has Save to Record selected
+     * AND the run is going through the client-side DOCX/XLSX assembly path
+     * (which has to round-trip the assembled bytes through Aura — capped at
+     * ~5 MB). PDF generation is fully server-side, save-to-record happens
+     * inline on the server, so there's no Aura ceiling to warn about.
+     */
+    get showSaveToRecordSizeHint() {
+        if (this.resolvedOutputMode !== 'save') return false;
+        return this.effectiveOutputFormat !== 'PDF';
+    }
+
+    handleOversizedDragUpload(event) {
+        const uploaded = event.detail.files;
+        if (uploaded && uploaded.length) {
+            this.showToast('Attached', uploaded[0].name + ' attached to this record.', 'success');
+        }
+        this._oversizedSaveToRecord = null;
+    }
+
+    dismissOversizedSaveToRecord() {
+        this._oversizedSaveToRecord = null;
     }
 
     /**
@@ -1169,9 +1190,23 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             const fileBytes = buildDocx(parts.allXmlParts, allImages);
             const fileBase64 = this._uint8ArrayToBase64(fileBytes);
 
-            // 8. Download or save
+            // 8. Download or save (5 MB single-CV stitch ceiling — see _generateOfficeClientSide)
             const saveToRecord = this.resolvedOutputMode === 'save';
-            if (saveToRecord) {
+            const SAVE_TO_RECORD_BINARY_LIMIT = 5 * 1024 * 1024;
+            if (saveToRecord && fileBytes.length > SAVE_TO_RECORD_BINARY_LIMIT) {
+                this.downloadBase64(fileBase64, docTitle + '.docx', 'application/octet-stream');
+                this._oversizedSaveToRecord = {
+                    fileName: docTitle + '.docx',
+                    sizeMb: (fileBytes.length / 1024 / 1024).toFixed(1)
+                };
+                this.showToast(
+                    'Document downloaded',
+                    'File is ' +
+                        this._oversizedSaveToRecord.sizeMb +
+                        ' MB — too large to save automatically. Drag the just-downloaded file into the upload box that appeared below to attach it to this record.',
+                    'info'
+                );
+            } else if (saveToRecord) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 await saveGeneratedDocument({
                     recordId: this.recordId,

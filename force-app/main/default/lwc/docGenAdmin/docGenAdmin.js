@@ -56,6 +56,9 @@ import testRecordFilter from '@salesforce/apex/DocGenController.testRecordFilter
 // 1.61 — HTML zip sidesteps File Upload Security via client-side unzip + per-part upload
 import saveHtmlTemplateImage from '@salesforce/apex/DocGenController.saveHtmlTemplateImage';
 import saveHtmlTemplateBody from '@salesforce/apex/DocGenController.saveHtmlTemplateBody';
+// 1.74 — guard rail for the async-decompose Queueable's 12 MB heap budget
+import getContentVersionSize from '@salesforce/apex/DocGenController.getContentVersionSize';
+import deleteContentVersionDocument from '@salesforce/apex/DocGenController.deleteContentVersionDocument';
 import { readZip, bytesToBase64 } from './docGenZipReader';
 // Version fields (DocGen_Template_Version__c)
 import VER_IS_ACTIVE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Is_Active__c';
@@ -2427,15 +2430,48 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
     }
 
     // --- File Upload ---
-    handleEditUploadFinished(event) {
+    async handleEditUploadFinished(event) {
         const uploadedFiles = event.detail.files;
-        if (uploadedFiles && uploadedFiles.length > 0) {
-            const file = uploadedFiles[0];
-            this.showToast('Success', 'File Uploaded: ' + file.name, 'success');
-            this.currentFileId = file.documentId;
-            this.uploadedContentVersionId = file.contentVersionId;
-            this.uploadedFileName = file.name;
+        if (!uploadedFiles || uploadedFiles.length === 0) {
+            return;
         }
+        const file = uploadedFiles[0];
+
+        // 10 MB cap on every DOCX/PPTX template upload. Both the async-decompose
+        // Queueable (PDF generation prep) and the server-side merge step in
+        // generateDocumentParts (DOCX generation) need to decompress the full
+        // ZIP, and Apex async heap (12 MB) can't survive much beyond ~10 MB
+        // binary template + per-entry blobs. One uniform rule beats a
+        // per-output-format ceiling and matches real-world template sizes
+        // (typical DOCX templates are well under 5 MB; 10 MB+ is almost always
+        // uncompressed images).
+        const TEMPLATE_MAX_BYTES = 10 * 1024 * 1024;
+        try {
+            const size = await getContentVersionSize({
+                contentVersionId: file.contentVersionId
+            });
+            if (size > TEMPLATE_MAX_BYTES) {
+                await deleteContentVersionDocument({
+                    contentVersionId: file.contentVersionId
+                });
+                this.showToast(
+                    'Template too large',
+                    'Templates must be 10 MB or smaller (' +
+                        (size / 1024 / 1024).toFixed(1) +
+                        ' MB uploaded). Almost always the cause is uncompressed images — in Word, right-click an image → Compress Pictures → Email (96 ppi) or Web (150 ppi). A 20 MB template typically drops to 1–2 MB with no visible quality loss.',
+                    'error'
+                );
+                return;
+            }
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('DocGen size guard failed (continuing):', err);
+        }
+
+        this.showToast('Success', 'File Uploaded: ' + file.name, 'success');
+        this.currentFileId = file.documentId;
+        this.uploadedContentVersionId = file.contentVersionId;
+        this.uploadedFileName = file.name;
     }
 
     @track isUploadingHtml = false;

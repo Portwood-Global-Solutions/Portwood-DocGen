@@ -1915,14 +1915,12 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 /* code-analyzer-suppress ApexFlsViolation */
                 insert version; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
-                // Extract images from DOCX/PPTX and save as ContentVersions linked to the version.
-                // Blob.toPdf() cannot render data URI images — needs committed CV URLs.
-                try {
-                    DocGenService.extractAndSaveTemplateImages(templateId, version.Id);
-                } catch (Exception imgErr) {
-                    // Intentionally swallowed — image extraction failure is non-fatal
-                    String noop = imgErr.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
-                }
+                // Decompose DOCX/PPTX into per-image and per-XML ContentVersions for
+                // heap-light PDF rendering. Runs in a Queueable (12 MB async heap)
+                // rather than inline (6 MB sync heap) so it survives real-world
+                // templates with iPhone-sized images that previously silently
+                // failed save-time decomposition.
+                DocGenService.enqueueTemplateImageExtraction(templateId, version.Id);
 
                 // HTML templates (v1.61+): if the upload was a Google Docs
                 // "Download → Web Page" zip, extract images + rewrite src refs.
@@ -2079,6 +2077,52 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     }
 
     // CxSAST: USER_MODE not viable in managed package (namespace resolution breaks unqualified field names); CRUD/FLS enforced by permission sets
+
+    /**
+     * Returns the byte size of a ContentVersion. Used by the LWC upload guard
+     * to reject PDF templates above the 10 MB ceiling that the async-decompose
+     * Queueable can survive in 12 MB heap.
+     */
+    @AuraEnabled
+    public static Long getContentVersionSize(Id contentVersionId) {
+        if (contentVersionId == null) {
+            return 0;
+        }
+        /* code-analyzer-suppress ApexFlsViolation */
+        List<ContentVersion> cvs = [
+            SELECT ContentSize
+            FROM ContentVersion
+            WHERE Id = :contentVersionId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        return cvs.isEmpty() ? 0 : (Long) cvs[0].ContentSize;
+    }
+
+    /**
+     * Deletes a ContentVersion's parent ContentDocument (which removes the CV).
+     * Used by the LWC to undo a just-uploaded file when our PDF size guard
+     * rejects it — keeps the org clean instead of leaving an orphan CV behind.
+     */
+    @AuraEnabled
+    public static void deleteContentVersionDocument(Id contentVersionId) {
+        if (contentVersionId == null) {
+            return;
+        }
+        /* code-analyzer-suppress ApexFlsViolation */
+        List<ContentVersion> cvs = [
+            SELECT ContentDocumentId
+            FROM ContentVersion
+            WHERE Id = :contentVersionId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        if (cvs.isEmpty() || cvs[0].ContentDocumentId == null) {
+            return;
+        }
+        /* code-analyzer-suppress ApexFlsViolation */
+        delete [SELECT Id FROM ContentDocument WHERE Id = :cvs[0].ContentDocumentId WITH SYSTEM_MODE];
+    }
 
     /**
      * Returns all version history records for a template, ordered by creation date descending.
@@ -4839,14 +4883,9 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         /* code-analyzer-suppress ApexFlsViolation */
         insert versions; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
-        // Extract and save template images for PDF rendering
+        // Extract and save template images for PDF rendering — async (12 MB heap).
         for (Integer i = 0; i < versions.size(); i++) {
-            try {
-                DocGenService.extractAndSaveTemplateImages(templates[i].Id, versions[i].Id);
-            } catch (Exception imgErr) {
-                // Intentionally swallowed — image extraction failure is non-fatal for sample templates
-                String noop = imgErr.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
-            }
+            DocGenService.enqueueTemplateImageExtraction(templates[i].Id, versions[i].Id);
         }
 
         return templates.size();
@@ -5048,15 +5087,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             /* code-analyzer-suppress ApexFlsViolation */
             insert ver; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 
-            // 4. Extract images and pre-decompose (non-fatal)
-            try {
-                DocGenService.extractAndSaveTemplateImages(tmpl.Id, ver.Id);
-            } catch (Exception imgErr) {
-                // Intentionally swallowed — image extraction failure is non-fatal during import
-                // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-                String noop = imgErr.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
-                // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
-            }
+            // 4. Extract images and pre-decompose — async (12 MB heap).
+            DocGenService.enqueueTemplateImageExtraction(tmpl.Id, ver.Id);
 
             // CxSAST: FLS enforced by DocGen permission sets; package-internal custom objects
 

@@ -1143,6 +1143,39 @@ private class DocGenMiscTests {
         System.assertEquals(null, responses[0].errorMessage, 'Should not have error on success');
     }
 
+    // Regression: GitHub #41 — Document Title input from Flow was silently dropped on
+    // the recordId branch (only the standalone JSON-data path honored it). Asserts the
+    // title threads from the InvocableVariable through to the saved ContentVersion.Title.
+    @IsTest
+    static void testGenerateDocumentFlowActionHonorsDocumentTitle() {
+        String docXml =
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:r><w:t>{Name}</w:t></w:r></w:p></w:body></w:document>';
+        createValidDocxFile(docXml);
+
+        DocGen_Template__c tpl = TestDataFactory.getTestTemplate();
+        Account acc = TestDataFactory.getTestAccount();
+
+        DocGenFlowAction.Request req = new DocGenFlowAction.Request();
+        req.templateId = tpl.Id;
+        req.recordId = acc.Id;
+        req.documentTitle = 'Flow Custom Title 12345';
+
+        Test.startTest();
+        List<DocGenFlowAction.Response> responses = DocGenFlowAction.generateDocument(
+            new List<DocGenFlowAction.Request>{ req }
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, responses[0].success, 'Should succeed: ' + responses[0].errorMessage);
+        Id cdId = responses[0].contentDocumentId;
+        System.assertNotEquals(null, cdId, 'Document ID should be set');
+        List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE ContentDocumentId = :cdId];
+        System.assertEquals(1, cvs.size(), 'Should have one ContentVersion');
+        System.assertEquals('Flow Custom Title 12345', cvs[0].Title, 'Document Title input must override default name');
+    }
+
     // =========================================================================
     // DocGenTemplateManager — additional coverage
     // =========================================================================

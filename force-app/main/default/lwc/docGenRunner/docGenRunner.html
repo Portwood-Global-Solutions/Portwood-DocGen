@@ -84,21 +84,6 @@
                         </div>
                     </div>
 
-                    <!-- 1.47 — Output format override (hidden when template locks format or only one format applies) -->
-                    <template lwc:if={showOutputFormatPicker}>
-                        <div class="slds-form-element slds-var-m-bottom_medium">
-                            <label class="slds-form-element__label">Output As</label>
-                            <div class="slds-form-element__control">
-                                <select class="custom-select" onchange={handleOutputFormatOverrideChange}>
-                                    <option value="">Use template default</option>
-                                    <template for:each={outputFormatPickerOptions} for:item="opt">
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    </template>
-                                </select>
-                            </div>
-                        </div>
-                    </template>
-
                     <!-- Custom Output Selector -->
                     <div lwc:if={showOutputDestinationSelector} class="slds-form-element slds-var-m-bottom_medium">
                         <label class="slds-form-element__label">Output Destination</label>
@@ -114,6 +99,13 @@
                                 </button>
                             </template>
                         </div>
+                        <template lwc:if={showSaveToRecordSizeHint}>
+                            <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                                Files under 5 MB save to the record automatically. Larger files will download to your
+                                computer and a drag-and-drop upload box will appear so you can attach the file in one
+                                extra step.
+                            </p>
+                        </template>
                     </div>
 
                     <!-- PDF Merge Toggle -->
@@ -156,6 +148,32 @@
                     <button class="cool-brand-btn" onclick={handleGenerate} disabled={isGenerateDisabled}>
                         {generateButtonLabel}
                     </button>
+
+                    <template lwc:if={hasOversizedSaveToRecord}>
+                        <div class="slds-box slds-theme_warning slds-var-m-top_medium" style="border-radius: 6px">
+                            <p class="slds-text-heading_small slds-var-m-bottom_x-small">
+                                Step 2 of 2 — drag the downloaded file here
+                            </p>
+                            <p class="slds-text-body_small slds-var-m-bottom_small">
+                                Your document ({_oversizedSaveToRecord.fileName}, {_oversizedSaveToRecord.sizeMb} MB)
+                                was downloaded to your computer. Files this large can't be saved automatically through
+                                the platform's Apex API limits, but the standard file uploader handles them directly.
+                                Drag the file you just downloaded into the box below to attach it to this record.
+                            </p>
+                            <lightning-file-upload
+                                label=""
+                                name="oversizedSaveToRecord"
+                                record-id={recordId}
+                                onuploadfinished={handleOversizedDragUpload}
+                            ></lightning-file-upload>
+                            <lightning-button
+                                class="slds-var-m-top_x-small"
+                                label="Cancel"
+                                variant="neutral"
+                                onclick={dismissOversizedSaveToRecord}
+                            ></lightning-button>
+                        </div>
+                    </template>
                 </template>
 
                 <!-- PACKET MODE -->
@@ -183,6 +201,28 @@
                             class="custom-checkbox"
                         >
                         </lightning-input>
+                        <template lwc:if={packetIncludeExisting}>
+                            <div class="merge-box slds-var-m-top_x-small">
+                                <template lwc:if={hasRecordPdfs}>
+                                    <lightning-dual-listbox
+                                        name="packetExistingPdfs"
+                                        label="Pick PDFs already on this record"
+                                        source-label="Available"
+                                        selected-label="Append to packet"
+                                        options={recordPdfOptions}
+                                        value={packetExistingPdfIds}
+                                        onchange={handlePacketExistingPdfSelection}
+                                    >
+                                    </lightning-dual-listbox>
+                                </template>
+                                <template lwc:else>
+                                    <p class="slds-text-body_small slds-text-color_weak">
+                                        No PDFs found on this record. Upload one to the record's Files list and
+                                        re-toggle this checkbox to refresh.
+                                    </p>
+                                </template>
+                            </div>
+                        </template>
                     </div>
 
                     <div lwc:if={showOutputDestinationSelector} class="slds-form-element slds-var-m-bottom_medium">

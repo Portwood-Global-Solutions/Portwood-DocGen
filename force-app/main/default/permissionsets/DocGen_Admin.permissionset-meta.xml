@@ -273,6 +273,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>DocGen_Template_Version__c.Pre_Decomposition_Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>DocGen_Template_Version__c.Page_Size__c</field>
         <readable>true</readable>
     </fieldPermissions>

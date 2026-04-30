@@ -93,7 +93,8 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
                             req.templateId,
                             req.recordId,
                             dataMap,
-                            req.outputFormatOverride
+                            req.outputFormatOverride,
+                            req.documentTitle
                         );
                     } else {
                         // No record context — render PDF and insert as a standalone ContentVersion.
@@ -127,7 +128,12 @@ global with sharing class DocGenFlowAction { // NOPMD AvoidGlobalModifier — gl
                         res.contentVersionId = saved.Id;
                     }
                 } else {
-                    docId = DocGenService.generateDocument(req.templateId, req.recordId, req.outputFormatOverride);
+                    docId = DocGenService.generateDocument(
+                        req.templateId,
+                        req.recordId,
+                        req.outputFormatOverride,
+                        req.documentTitle
+                    );
                 }
                 res.contentDocumentId = docId;
                 res.success = true;

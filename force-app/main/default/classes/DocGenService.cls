@@ -1263,19 +1263,75 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
     }
 
     /**
+     * Async wrapper around extractAndSaveTemplateImages — enqueues the heap-heavy
+     * decompose-and-save in a Queueable so it runs in 12 MB async heap rather than
+     * the 6 MB sync heap that silently broke pre-decomposition for templates above
+     * ~3 MB binary. Use this from any AuraEnabled / Lightning-file-upload save flow
+     * where the original DOCX may be too large for inline server-side decomposition.
+     */
+    public static void enqueueTemplateImageExtraction(Id templateId, Id versionId) {
+        if (templateId == null || versionId == null) {
+            return;
+        }
+        System.enqueueJob(new DocGenTemplateDecomposeQueueable(templateId, versionId));
+    }
+
+    public class DocGenTemplateDecomposeQueueable implements Queueable {
+        private final Id templateId;
+        private final Id versionId;
+
+        public DocGenTemplateDecomposeQueueable(Id templateId, Id versionId) {
+            this.templateId = templateId;
+            this.versionId = versionId;
+        }
+
+        public void execute(QueueableContext ctx) {
+            String status = 'Complete';
+            try {
+                extractAndSaveTemplateImages(templateId, versionId);
+            } catch (Exception e) {
+                status = 'Failed';
+                System.debug(
+                    LoggingLevel.ERROR,
+                    'DocGenTemplateDecomposeQueueable failed for version ' +
+                        versionId +
+                        ': ' +
+                        e.getMessage() +
+                        '\n' +
+                        e.getStackTraceString()
+                );
+            }
+            try {
+                DocGen_Template_Version__c v = new DocGen_Template_Version__c(
+                    Id = versionId,
+                    Pre_Decomposition_Status__c = status
+                );
+                /* code-analyzer-suppress ApexFlsViolation */
+                update v; // NOPMD — package-internal custom object
+            } catch (Exception updateErr) {
+                System.debug(
+                    LoggingLevel.ERROR,
+                    'Failed to update Pre_Decomposition_Status__c for ' + versionId + ': ' + updateErr.getMessage()
+                );
+            }
+        }
+    }
+
+    /**
      * Extracts images from a template DOCX/PPTX file and saves them as ContentVersion
      * records linked to the template version. These committed CVs provide stable URLs
      * for Blob.toPdf() which cannot render data URI images (Flying Saucer limitation).
      * Each version gets its own set of images — no duplicates or confusion.
+     *
+     * Heap-heavy on bigger templates (a 9 MB DOCX uses ~9 MB Blob + ZipReader state +
+     * per-entry blobs simultaneously). Always invoke via enqueueTemplateImageExtraction
+     * from AuraEnabled save paths so it runs in 12 MB async heap. Direct callers (tests,
+     * scratch demos) are still allowed if they know the template fits in the current heap.
+     *
      * @param templateId The DocGen_Template__c record ID
      * @param versionId The DocGen_Template_Version__c record ID to link images to
      */
     public static void extractAndSaveTemplateImages(Id templateId, Id versionId) {
-        String fileContent = DocGenTemplateManager.getTemplateFileContent(templateId);
-        if (fileContent == null) {
-            return;
-        }
-
         List<DocGen_Template__c> templates = [
             SELECT Type__c
             FROM DocGen_Template__c
@@ -1297,7 +1353,49 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             return;
         }
 
-        Blob templateBlob = EncodingUtil.base64Decode(fileContent);
+        // Read the template CV's VersionData directly as a Blob — bypasses the
+        // base64 round-trip in getTemplateFileContent (which would put a ~12 MB
+        // string in heap on top of the ~9 MB Blob, blowing past even the 12 MB
+        // async heap on real-world templates).
+        Id sourceCvId = null;
+        List<DocGen_Template_Version__c> activeVers = [
+            SELECT Content_Version_Id__c
+            FROM DocGen_Template_Version__c
+            WHERE Template__c = :templateId AND Is_Active__c = TRUE
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        if (!activeVers.isEmpty() && activeVers[0].Content_Version_Id__c != null) {
+            sourceCvId = (Id) activeVers[0].Content_Version_Id__c;
+        }
+        if (sourceCvId == null) {
+            List<ContentDocumentLink> links = [
+                SELECT ContentDocument.LatestPublishedVersionId
+                FROM ContentDocumentLink
+                WHERE LinkedEntityId = :templateId
+                WITH SYSTEM_MODE
+                ORDER BY ContentDocument.CreatedDate DESC
+                LIMIT 1
+            ];
+            if (!links.isEmpty()) {
+                sourceCvId = (Id) links[0].ContentDocument.LatestPublishedVersionId;
+            }
+        }
+        if (sourceCvId == null) {
+            return;
+        }
+        List<ContentVersion> cvs = [
+            SELECT VersionData
+            FROM ContentVersion
+            WHERE Id = :sourceCvId
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+        if (cvs.isEmpty()) {
+            return;
+        }
+        Blob templateBlob = cvs[0].VersionData;
+        cvs = null; // release the SObject wrapper, keep just the Blob
         Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
 
         // Determine paths based on template type
@@ -1316,20 +1414,36 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         Map<String, Blob> mediaEntries = new Map<String, Blob>();
         Map<String, String> xmlEntries = new Map<String, String>();
 
-        // Extract all entries in one pass — ZipReader may not support multiple extractions
-        Map<String, Blob> allEntries = new Map<String, Blob>();
+        // Single-pass classification — extract each entry on demand and only
+        // retain what we need (rels strings, merged XML strings, media blobs).
+        // Earlier code held every entry's bytes in `allEntries` simultaneously
+        // (~9 MB of redundant heap on a real-world template). Each iteration's
+        // `entryBlob` falls out of scope as soon as the loop advances.
         for (Compression.ZipEntry entry : reader.getEntries()) {
             String name = entry.getName();
-            allEntries.put(name, reader.extract(name));
-        }
+            Boolean wantBlob =
+                name == relsPath ||
+                (templateType == 'Word' &&
+                name.startsWith('word/_rels/') &&
+                (name.contains('header') || name.contains('footer')) &&
+                name.endsWith('.rels')) ||
+                name.startsWith(mediaPath) ||
+                (templateType == 'Word' &&
+                (name == 'word/document.xml' ||
+                name == 'word/styles.xml' ||
+                name == 'word/numbering.xml' ||
+                (name.startsWith('word/header') && name.endsWith('.xml')) ||
+                (name.startsWith('word/footer') && name.endsWith('.xml')))) ||
+                (templateType == 'PowerPoint' &&
+                name.startsWith('ppt/slides/slide') &&
+                name.endsWith('.xml'));
+            if (!wantBlob) {
+                // Skip the extract entirely — saves heap on theme.xml, settings.xml,
+                // fontTable.xml, webSettings.xml, etc., which we never use.
+                continue;
+            }
 
-        // Classify entries and build shell ZIP
-        Compression.ZipWriter shellWriter = new Compression.ZipWriter();
-        Set<String> documentXmlPaths = new Set<String>();
-
-        for (String name : allEntries.keySet()) {
-            Blob entryBlob = allEntries.get(name);
-            Boolean isDocumentXml = false;
+            Blob entryBlob = reader.extract(name);
 
             if (name == relsPath) {
                 relsXml = entryBlob.toString();
@@ -1356,23 +1470,11 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     (name.startsWith('word/footer') && name.endsWith('.xml'))
                 ) {
                     xmlEntries.put(name, entryBlob.toString());
-                    if (name != 'word/styles.xml' && name != 'word/numbering.xml') {
-                        isDocumentXml = true;
-                        documentXmlPaths.add(name);
-                    }
                 }
             } else if (templateType == 'PowerPoint') {
                 if (name.startsWith('ppt/slides/slide') && name.endsWith('.xml')) {
                     xmlEntries.put(name, entryBlob.toString());
-                    isDocumentXml = true;
-                    documentXmlPaths.add(name);
                 }
-            }
-
-            // Shell gets everything EXCEPT document XML, rels, and [Content_Types].xml
-            // (rels and content types may be modified during merge for new images)
-            if (!isDocumentXml && name != relsPath && name != '[Content_Types].xml') {
-                shellWriter.addEntry(name, entryBlob);
             }
         }
 
@@ -1467,16 +1569,6 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                 }
             }
         }
-
-        // Save shell ZIP — the template without document XML entries, rels, or content types.
-        // Client-side DOCX assembly fetches this shell, adds the server-merged XML, and produces the final DOCX.
-        Blob shellBlob = shellWriter.getArchive();
-        ContentVersion shellCv = new ContentVersion();
-        shellCv.Title = 'docgen_tmpl_shell_' + versionId;
-        shellCv.PathOnClient = 'docgen_tmpl_shell_' + versionId + '.docx';
-        shellCv.VersionData = shellBlob;
-        shellCv.FirstPublishLocationId = versionId;
-        newCvs.add(shellCv);
 
         // Insert image + XML CVs BEFORE building pre-baked HTML, so buildPdfImageMap
         // can find the image ContentVersions via SOQL.
@@ -1774,7 +1866,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * @return ContentDocumentId of the saved file
      */
     global static Id generateDocument(Id templateId, Id recordId) {
-        return generateDocument(templateId, recordId, null);
+        return generateDocument(templateId, recordId, null, null);
     }
 
     /**
@@ -1783,8 +1875,20 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * Throws DocGenException if Lock_Output_Format__c is true on the template, or if PowerPoint→PDF.
      */
     global static Id generateDocument(Id templateId, Id recordId, String outputFormatOverride) {
+        return generateDocument(templateId, recordId, outputFormatOverride, null);
+    }
+
+    /**
+     * Same as generateDocument(templateId, recordId, outputFormatOverride) but lets the caller
+     * override the saved file's title. When documentTitle is non-blank it replaces the template's
+     * resolved title format / record Name fallback. Used by Flow callers (Document Title input).
+     */
+    global static Id generateDocument(Id templateId, Id recordId, String outputFormatOverride, String documentTitle) {
         validateOutputFormatOverride(templateId, outputFormatOverride);
         MergeResult mr = mergeTemplate(templateId, recordId, null, outputFormatOverride);
+        if (String.isNotBlank(documentTitle)) {
+            mr.docTitle = documentTitle;
+        }
 
         if (mr.outputFormat == 'PDF' && (mr.templateType == 'Word' || mr.templateType == 'HTML')) {
             Blob pdfBlob = renderPdf(mr, templateId, recordId);
@@ -1856,6 +1960,21 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         Map<String, Object> dataMap,
         String outputFormatOverride
     ) {
+        return generateAndSaveFromData(templateId, attachmentRecordId, dataMap, outputFormatOverride, null);
+    }
+
+    /**
+     * Same as generateAndSaveFromData(templateId, attachmentRecordId, dataMap, outputFormatOverride)
+     * but lets the caller override the saved file's title. When documentTitle is non-blank it replaces
+     * the template's resolved title format / record Name fallback.
+     */
+    global static Id generateAndSaveFromData(
+        Id templateId,
+        Id attachmentRecordId,
+        Map<String, Object> dataMap,
+        String outputFormatOverride,
+        String documentTitle
+    ) {
         if (dataMap == null) {
             throw new DocGenException('dataMap cannot be null.');
         }
@@ -1865,7 +1984,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             );
         }
         preloadedRecordDataOverride = dataMap;
-        return generateDocument(templateId, attachmentRecordId, outputFormatOverride);
+        return generateDocument(templateId, attachmentRecordId, outputFormatOverride, documentTitle);
     }
 
     /**

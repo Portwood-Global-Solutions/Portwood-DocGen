@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.73.0 — Subscriber Apex API (DocGenService global) + Prettier baseline + e2e fixes",
-      "versionNumber": "1.73.0.NEXT",
-      "ancestorId": "04tal000006r0xiAAA",
+      "versionName": "1.74.0 — Async template decompose + 10 MB upload guard + 2-step Save to Record + Flow doc title fix",
+      "versionNumber": "1.74.0.NEXT",
+      "ancestorId": "04tal000006rAYrAAM",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -113,6 +113,7 @@
     "Portwood DocGen Managed@1.72.0-4": "04tal000006r0xiAAA",
     "Portwood DocGen Managed@1.73.0-1": "04tal000006r9EbAAI",
     "Portwood DocGen Managed@1.73.0-2": "04tal000006r9ZZAAY",
-    "Portwood DocGen Managed@1.73.0-3": "04tal000006rAYrAAM"
+    "Portwood DocGen Managed@1.73.0-3": "04tal000006rAYrAAM",
+    "Portwood DocGen Managed@1.74.0-1": "04tal000006rBTJAA2"
   }
 }

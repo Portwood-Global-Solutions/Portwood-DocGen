@@ -1,5 +1,53 @@
 # Changelog
 
+## v1.74.0 — Async template decompose, 10 MB upload guard, 2-step Save to Record, Flow doc title fix
+
+Promoted package: `04tal000006rBTJAA2` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rBTJAA2)
+
+### Bug fix — Flow Document Title input is now honored
+
+`DocGen Generate Document` Flow action accepted a `Document Title` input but the resulting file always used the template default. Threaded the title through both branches of the invocable into a new `DocGenService.generateDocument(templateId, recordId, outputFormatOverride, documentTitle)` overload. Verified end-to-end with a regression test in `DocGenMiscTests` and an `e2e-05` assertion. (Bug #41 — reported by Joe.)
+
+### Bug fix — Save to Record button no longer hidden, and DOCX corruption fixed
+
+The runner used to hide Save to Record for Word/Excel/giant-query templates and offer a runtime "Output As" picker that produced corrupt files in either direction (PDF template → Word output → Word reported "file is corrupt"; Word template → PDF override → 6 MB sync heap blow on real templates). Both removed:
+
+- **Output As picker is gone.** Templates render in whatever format they were saved with — one template, one output. Customers needing both formats save the template twice. Cross-format generation was a recurring source of subtle bugs and the cleanest fix was to make output binding.
+- **Save to Record is always offered** for every output format (PDF, DOCX, XLSX). The Aura RPC inbound cap (~5 MB) means client-assembled DOCX/XLSX above 5 MB can't round-trip back to a single ContentVersion — those drop into a clean **2-step flow**: file downloads to the user's machine + a "drag the downloaded file here" panel appears under the Generate button with `lightning-file-upload` bound to the record. Native uploader handles up to 2 GB, no heap involved. (Bug #40.)
+
+### Feature — Async template decomposition (Queueable)
+
+Save-time `extractAndSaveTemplateImages` was running inline in the LWC Save flow's 6 MB sync heap. Real-world templates above ~3 MB silently failed pre-decomposition (try/catch swallowed the heap exception), leaving every PDF generation falling through to the heap-heavy full-ZIP path. Now wrapped in `DocGenTemplateDecomposeQueueable` (12 MB async heap). Skipped the `getTemplateFileContent` base64 round-trip (was putting ~12 MB of redundant string in heap), reads the CV's `VersionData` directly as a `Blob`, dropped the `allEntries` map (held every entry simultaneously), and skips extracting unused entries (`theme.xml`, `settings.xml`, `fontTable.xml`, etc.).
+
+New `Pre_Decomposition_Status__c` picklist field on `DocGen_Template_Version__c` — `Pending` / `Complete` / `Failed`. Set by the Queueable on completion so admins can spot a failed decompose instead of debugging "why is my PDF blank?" later. Granted in `DocGen_Admin` (editable) and `DocGen_User` (read-only) perm sets, surfaced read-only on the Version page layout under Version Details.
+
+### Feature — 10 MB upload guard with friendly Compress Pictures hint
+
+`.docx` / `.pptx` template uploads above 10 MB are rejected at upload time with a toast pointing to the **Compress Pictures → Email (96 ppi)** workaround in Word — most 20 MB templates drop to under 2 MB with no visible quality loss. The orphan `ContentVersion` from the rejected upload is auto-deleted. Hint text appears under the picker so users see the limit before they pick a file.
+
+### UX — Document Packet existing-PDFs picker now appears
+
+Toggling "Include other PDFs from this record" used to do nothing — the checkbox set a flag but the picker UI was never rendered. Added a `lightning-dual-listbox` that appears below the toggle when on, fetches the record's PDFs via `getRecordPdfs`, and a friendly empty-state message when the record has no PDFs.
+
+### UX — Combine PDFs and Document Packet are Download-only
+
+Both flows merge multiple PDFs in the browser. Save to Record would round-trip the merged bytes through Aura's 5 MB inbound cap (collapses for any non-trivial packet) AND duplicate content already on the record. The Output Destination toggle in those two modes shows only Download.
+
+### UX — Always-visible Save to Record + better size hints
+
+- Save to Record pill is no longer hidden by output format or giant-query mode.
+- Pre-generation hint under the Output Destination toggle reads "Files under 5 MB save to the record automatically. Larger files will download to your computer and a drag-and-drop upload box will appear so you can attach the file in one extra step." — only shown for non-PDF output (PDF generation is fully server-side, no Aura ceiling).
+
+### Docs
+
+`UserGuide.md` §13.8 added — comprehensive template & output size guidance with a tradeoff table per generation flow. §4.1 updated with the one-template-one-output model and a 10 MB upload note.
+
+### Code Analyzer cleanup
+
+Resolved 3 pre-existing High severity findings (`pmd:ApexSOQLInjection` × 2, `pmd:ApexCRUDViolation` × 1) by moving `// NOPMD` comments onto the violation lines so PMD actually honors them. False positives all along — dynamic queries are protected by `Schema.describeSObjects()` allowlist + `USER_MODE`, and the OWA query is read-only system metadata in an admin-only AuraEnabled — but they're now suppressed properly so future releases pass cleanly.
+
+---
+
 ## v1.73.0 — Subscriber Apex API + Prettier baseline + e2e fixes
 
 Promoted package: `04tal000006rAYrAAM` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rAYrAAM)

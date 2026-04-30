@@ -235,6 +235,29 @@ try {
     System.debug('GENERATE DOCUMENT (non-Aura): FAIL — ' + e.getMessage());
 }
 
+// ===== Document Title override (Flow Document Title input — GH #41) =====
+try {
+    String customTitle = 'E2E_FlowTitleOverride_' + DateTime.now().getTime();
+    Id docId = DocGenService.generateDocument(tmplId, acctId, null, customTitle);
+    List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE ContentDocumentId = :docId];
+    if (!cvs.isEmpty() && cvs[0].Title == customTitle) {
+        pass++;
+        System.debug('DOCUMENT TITLE OVERRIDE: PASS — ' + cvs[0].Title);
+    } else {
+        fail++;
+        System.debug(
+            'DOCUMENT TITLE OVERRIDE: FAIL — expected "' +
+                customTitle +
+                '" got "' +
+                (cvs.isEmpty() ? 'NO_CV' : cvs[0].Title) +
+                '"'
+        );
+    }
+} catch (Exception e) {
+    fail++;
+    System.debug('DOCUMENT TITLE OVERRIDE: FAIL — ' + e.getMessage());
+}
+
 // ===== Clean up job =====
 try {
     if (jobId != null) {
