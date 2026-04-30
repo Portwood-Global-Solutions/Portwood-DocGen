@@ -1,7 +1,7 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.76.0 — TBD",
+      "versionName": "1.76.0 — Domain migration hotfix (in-app Community link → portwood.dev/community)",
       "versionNumber": "1.76.0.NEXT",
       "ancestorId": "04tal000006rCZ3AAM",
       "path": "force-app",
