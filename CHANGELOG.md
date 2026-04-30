@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.77.0 — Running-user merge tags
+
+Promoted package: `04tal000006rCxFAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCxFAAU)
+
+### New: `{RunningUser.X}` standard merge tags
+
+Adds a built-in `{RunningUser.X}` namespace that resolves against the **executing user's** record (whoever clicks Generate, runs the Flow, or owns the bulk job). No configuration — works on every template, every record, every output format. Use it for "Prepared by:" lines, sender contact info, or audit stamps.
+
+```
+Prepared by: {RunningUser.Name}
+Email:       {RunningUser.Email}
+Title:       {RunningUser.Title} · {RunningUser.Department}
+Phone:       {RunningUser.Phone}
+```
+
+**Allowlist (23 fields):** `Id`, `Name`, `FirstName`, `LastName`, `Email`, `Username`, `Alias`, `Title`, `Department`, `CompanyName`, `EmployeeNumber`, `Phone`, `MobilePhone`, `Extension`, `Fax`, `Street`, `City`, `State`, `PostalCode`, `Country`, `TimeZoneSidKey`, `LocaleSidKey`, `LanguageLocaleKey`. Any field name not on this list resolves to empty by design (defense in depth — signed templates can't be edited to leak arbitrary User columns).
+
+**Where it works:** sync generation, bulk runs, giant-query PDFs (headers/footers/title blocks), Flow-triggered docs, HTML templates. The User row is queried **once per transaction** and cached, so a 60K-row PDF with `{RunningUser.Name}` in the header costs one extra SOQL total. Format suffixes from §6.2 of the User Guide all apply.
+
+**Case-insensitive:** `{runninguser.name}` resolves the same as `{RunningUser.Name}`.
+
+### Drive-by fixes
+
+Repositioned NOPMD suppressions in `DocGenDataRetriever` (lines 473, 1137) so they survive prettier-plugin-apex's trailing-comment normalization. Code Analyzer now reports 0 High violations across the workspace; previously the suppressions drifted off the violation line on every commit and the Highs would re-appear.
+
+### Validation
+
+- E2E: 196/196 across 10 scripts (new `e2e-07-syntax3.apex` script for user-context tags)
+- RunLocalTests: 1113/1113 (100% pass, 75% org-wide coverage)
+- Code Analyzer: 0 High, 41 Moderate
+
+### Upgrade notes
+
+Drop-in upgrade from v1.76.0. No breaking changes, no data model changes, no required permission set updates. Existing templates render exactly as before; new templates can use `{RunningUser.X}` immediately.
+
 ## v1.76.0 — Domain migration hotfix
 
 Promoted package: `04tal000006rCu1AAE` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rCu1AAE)
