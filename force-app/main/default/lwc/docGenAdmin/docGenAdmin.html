@@ -60,7 +60,7 @@
                                                     style="
                                                         position: absolute;
                                                         z-index: 20;
-                                                        max-height: 200px;
+                                                        max-height: 380px;
                                                         overflow-y: auto;
                                                         left: 0;
                                                         right: 0;
@@ -98,6 +98,21 @@
                                                                 "
                                                                 >{obj.value}</span
                                                             >
+                                                            <template if:true={obj.isStandard}>
+                                                                <span
+                                                                    style="
+                                                                        margin-left: auto;
+                                                                        font-size: 0.7rem;
+                                                                        font-weight: 600;
+                                                                        color: #fff;
+                                                                        background: #16a085;
+                                                                        padding: 2px 8px;
+                                                                        border-radius: 10px;
+                                                                        white-space: nowrap;
+                                                                    "
+                                                                    >Standard</span
+                                                                >
+                                                            </template>
                                                         </li>
                                                     </template>
                                                 </ul>

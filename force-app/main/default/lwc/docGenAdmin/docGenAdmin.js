@@ -1173,9 +1173,36 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
 
     _filterObjects(term) {
         const t = term.toLowerCase();
-        this.filteredObjectOptions = this.objectOptions
-            .filter((o) => o.label.toLowerCase().includes(t) || o.value.toLowerCase().includes(t))
-            .slice(0, 12);
+        const matches = this.objectOptions.filter(
+            (o) => o.label.toLowerCase().includes(t) || o.value.toLowerCase().includes(t)
+        );
+
+        // Rank: exact API/label match → standard prefix match → label prefix → API prefix → contains.
+        // Surfaces standard Opportunity above payment-processor lookalikes when the user types
+        // "opportunity" in an org with 30+ namespaced Opportunity_* custom objects (Sprint NY 2026 feedback).
+        const isStandard = (apiName) => !apiName.includes('__');
+        const score = (o) => {
+            const lbl = o.label.toLowerCase();
+            const api = o.value.toLowerCase();
+            if (api === t || lbl === t) return 0;
+            if (api.startsWith(t) && isStandard(o.value)) return 1;
+            if (lbl.startsWith(t) && isStandard(o.value)) return 2;
+            if (api.startsWith(t)) return 3;
+            if (lbl.startsWith(t)) return 4;
+            if (isStandard(o.value)) return 5;
+            return 6;
+        };
+        matches.sort((a, b) => {
+            const sa = score(a);
+            const sb = score(b);
+            if (sa !== sb) return sa - sb;
+            return a.label.localeCompare(b.label);
+        });
+
+        this.filteredObjectOptions = matches.slice(0, 50).map((o) => ({
+            ...o,
+            isStandard: !o.value.includes('__')
+        }));
         this.showObjectSuggestions = this.filteredObjectOptions.length > 0;
     }
 

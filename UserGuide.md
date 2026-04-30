@@ -87,7 +87,7 @@ Three permission sets ship with the package. Assign what each user needs.
 
 1. Open the DocGen app → **My Templates** tab → **+ New Template**.
 2. Pick a template type: **Word** (`.docx`), **HTML** (`.html` / `.htm` / `.zip`), **PowerPoint** (`.pptx`), or **Excel** (`.xlsx`).
-3. Pick a base object (Account, Opportunity, Case, any custom object).
+3. Pick a base object (Account, Opportunity, Case, any custom object). The picker ranks **standard objects first** — when an org has many namespaced custom objects whose names contain `Account`, `Opportunity`, etc. (common with payment processors and managed packages), the standard `Opportunity` always appears at the top of the list with a green **Standard** pill (v1.79+). Up to 50 matches render with a scroll, so nothing falls off the bottom.
 4. Upload your file containing `{FieldName}` merge tags.
 5. Configure the query — which fields, which child relationships (see [§5](#5-query-builder)).
 6. Choose the default **output format** (PDF or the native format).
