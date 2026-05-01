@@ -65,7 +65,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             return [
                 SELECT Id, Title, VersionData
                 FROM ContentVersion
-                WHERE Title LIKE :likePattern
+                WHERE Title LIKE :likePattern AND IsLatest = TRUE
                 WITH SYSTEM_MODE // NOPMD — package-internal pre-decomposed parts
             ];
         }
@@ -1290,7 +1290,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData
             FROM ContentVersion
-            WHERE Title LIKE :(xmlPrefix + '%')
+            WHERE Title LIKE :(xmlPrefix + '%') AND IsLatest = TRUE
             WITH SYSTEM_MODE // NOPMD — package-internal pre-decomposed parts
         ];
 
@@ -1750,7 +1750,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             List<ContentVersion> tmplCvs = [
                 SELECT Id, Title
                 FROM ContentVersion
-                WHERE Title LIKE :(prefix + '%')
+                WHERE Title LIKE :(prefix + '%') AND IsLatest = TRUE
                 WITH USER_MODE
             ];
             for (ContentVersion cv : tmplCvs) {
