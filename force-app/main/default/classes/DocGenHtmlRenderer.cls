@@ -3096,11 +3096,20 @@ public with sharing class DocGenHtmlRenderer {
         // the authoritative size, regardless of the parent's `max-width: 100%`.
         Boolean autoSize = drawingXml.contains('DOCGEN_AUTOSIZE');
         String sizeStyle = autoSize
-            ? ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;width:auto;height:auto;')
+            ? ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;')
             : ('width:' + widthPx + 'px;height:' + heightPx + 'px;');
-        // Explicit HTML attributes are skipped in autoSize mode — there we want
-        // Flying Saucer to compute the fitted size from max-width.
-        String sizeAttrs = autoSize ? '' : (' width="' + widthPx + '" height="' + heightPx + '"');
+        // autoSize: emit HTML width attr only (single axis). Flying Saucer ignores
+        // CSS max-width on <img> when width:auto/height:auto are set with no HTML
+        // anchor — images render at natural pixel dimensions, blowing past the cap
+        // (issue #46 follow-up: 4032×3024 phone photos rendered at full content
+        // width despite :240 token). With an HTML width attr present, FS scales
+        // height proportionally from the source image's intrinsic aspect ratio.
+        // Single-number tokens (:240) make widthPx == heightPx so width attr alone
+        // is correct; for explicit :WxH tokens autoSize is never set in the first
+        // place (hasExplicitFixed gates useAutoSize off).
+        String sizeAttrs = autoSize
+            ? (' width="' + widthPx + '"')
+            : (' width="' + widthPx + '" height="' + heightPx + '"');
 
         if (
             imageValue.startsWith('/sfc/') ||
