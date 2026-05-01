@@ -2212,7 +2212,15 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             String idVal = extractAttrValue(relTag, ' Id="');
             String targetVal = extractAttrValue(relTag, ' Target="');
             if (String.isNotBlank(idVal) && String.isNotBlank(targetVal)) {
-                String fileName = targetVal.substringAfterLast('/').substringBefore('.xml');
+                // Strip optional leading directory ("media/image1.png" → "image1.png",
+                // "header1.xml" → "header1.xml") then drop ".xml" suffix.
+                // Note: Apex's substringAfterLast returns "" when the separator is
+                // missing, so we can't chain it blindly — that bug shipped briefly
+                // in v1.80 and emptied every header/footer mapping.
+                String fileName = targetVal.contains('/') ? targetVal.substringAfterLast('/') : targetVal;
+                if (fileName.endsWith('.xml')) {
+                    fileName = fileName.substring(0, fileName.length() - 4);
+                }
                 relIdToFile.put(idVal, fileName);
             }
             cursor = relEnd + 1;
