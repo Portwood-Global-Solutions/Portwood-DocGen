@@ -2347,4 +2347,51 @@ private class DocGenHtmlRendererTest {
             DocGenHtmlRenderer.overrideWatermarkCvId = null;
         }
     }
+
+    @IsTest
+    static void numericEntities_decimalAndHex_decodeToUnicode() {
+        String input = 'Em&#8212;dash, middle&#183;dot, hex&#x2014;dash, curly&#8220;quote&#8221;.';
+        String output = DocGenHtmlRenderer.unescapeXmlEntities(input);
+        System.assertEquals(
+            'Em—dash, middle·dot, hex—dash, curly“quote”.',
+            output,
+            'Numeric entities (decimal + hex) must decode to literal Unicode'
+        );
+    }
+
+    @IsTest
+    static void numericEntities_malformedAndControl_leftIntact() {
+        System.assertEquals(
+            '&#abc;',
+            DocGenHtmlRenderer.decodeNumericEntities('&#abc;'),
+            'Non-numeric body must be preserved'
+        );
+        System.assertEquals(
+            '&#xZZ;',
+            DocGenHtmlRenderer.decodeNumericEntities('&#xZZ;'),
+            'Invalid hex must be preserved'
+        );
+        System.assertEquals(
+            '&#0;',
+            DocGenHtmlRenderer.decodeNumericEntities('&#0;'),
+            'NUL control char must be preserved'
+        );
+        System.assertEquals(
+            '&#7;',
+            DocGenHtmlRenderer.decodeNumericEntities('&#7;'),
+            'BEL control char must be preserved'
+        );
+        System.assertEquals(
+            'no entities here',
+            DocGenHtmlRenderer.decodeNumericEntities('no entities here'),
+            'Plain text must be returned unchanged'
+        );
+    }
+
+    @IsTest
+    static void numericEntities_combineWithNamedEntities() {
+        String input = 'A &amp; B &#8212; C &lt; D';
+        String output = DocGenHtmlRenderer.unescapeXmlEntities(input);
+        System.assertEquals('A & B — C < D', output, 'Numeric and named entities decode together');
+    }
 }

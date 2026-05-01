@@ -3251,16 +3251,93 @@ public with sharing class DocGenHtmlRenderer {
     /**
      * Unescapes standard XML entities so downstream escapeHtml4() doesn't double-encode.
      */
+    @TestVisible
     private static String unescapeXmlEntities(String text) {
         if (String.isBlank(text)) {
             return text;
         }
+        text = decodeNumericEntities(text);
         text = text.replace('&amp;', '&');
         text = text.replace('&lt;', '<');
         text = text.replace('&gt;', '>');
         text = text.replace('&apos;', '\'');
         text = text.replace('&quot;', '"');
         return text;
+    }
+
+    /**
+     * Decodes numeric character references: &#NNNN; (decimal) and &#xHH; (hex).
+     * Leaves named entities and malformed sequences untouched. Skips C0 control codes
+     * other than tab/LF/CR so we don't inject anything that breaks downstream XML.
+     */
+    @TestVisible
+    private static String decodeNumericEntities(String text) {
+        if (text == null || text.indexOf('&#') == -1) {
+            return text;
+        }
+        String result = '';
+        Integer cursor = 0;
+        Integer len = text.length();
+        while (cursor < len) {
+            Integer amp = text.indexOf('&#', cursor);
+            if (amp == -1) {
+                result += text.substring(cursor);
+                break;
+            }
+            result += text.substring(cursor, amp);
+            Integer semi = text.indexOf(';', amp);
+            if (semi == -1 || semi - amp > 10) {
+                result += text.substring(amp, amp + 2);
+                cursor = amp + 2;
+                continue;
+            }
+            String body = text.substring(amp + 2, semi);
+            Integer codepoint = -1;
+            if (body.length() > 1 && (body.startsWith('x') || body.startsWith('X'))) {
+                String hex = body.substring(1);
+                if (hex.length() <= 6 && hex.toLowerCase().replaceAll('[0-9a-f]', '').length() == 0) {
+                    codepoint = parseHex(hex);
+                }
+            } else if (body.length() > 0 && body.isNumeric()) {
+                try {
+                    codepoint = Integer.valueOf(body);
+                } catch (Exception e) {
+                    codepoint = -1;
+                }
+            }
+            if (
+                codepoint >= 0 &&
+                codepoint <= 1114111 &&
+                (codepoint == 9 ||
+                codepoint == 10 ||
+                codepoint == 13 ||
+                codepoint >= 32)
+            ) {
+                result += String.fromCharArray(new List<Integer>{ codepoint });
+                cursor = semi + 1;
+            } else {
+                result += text.substring(amp, amp + 2);
+                cursor = amp + 2;
+            }
+        }
+        return result;
+    }
+
+    private static Integer parseHex(String hex) {
+        Integer value = 0;
+        for (Integer i = 0; i < hex.length(); i++) {
+            Integer code = hex.substring(i, i + 1).toLowerCase().charAt(0);
+            Integer digit;
+            if (code >= 48 && code <= 57) {
+                digit = code - 48;
+            } else if (code >= 97 && code <= 102) {
+                digit = code - 87;
+            } else {
+                return -1;
+            }
+            value = value * 16 + digit;
+        }
+        return value;
     }
 
     /**
