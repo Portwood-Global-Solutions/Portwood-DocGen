@@ -1570,6 +1570,15 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             }
         }
 
+        // Pre-flight image-overflow warning. Walks every wp:extent in document/header/footer
+        // XML and warns when any image's display width exceeds the page content area.
+        // Even with v1.80's HTML width/height attribute fix (#58), an image whose authored
+        // wp:extent itself exceeds the page width will still overflow — that's an authoring
+        // issue Word silently lets through and we can surface here for admins to fix.
+        if (templateType == 'Word') {
+            logImageOverflowWarnings(versionId, xmlEntries);
+        }
+
         List<ContentVersion> newCvs = new List<ContentVersion>();
 
         // Save pre-decomposed XML parts as ContentVersions for heap-efficient PDF generation.
@@ -2101,36 +2110,152 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             return mr.documentXml;
         }
 
-        String headers = '';
-        String footers = '';
+        // Map each header/footer file → its sectPr type (default/first/even).
+        // This lets us emit separate first-page markers so the renderer can
+        // wire up @page :first margin boxes for "Different First Page" docs.
+        Map<String, String> partTypeByFile = mapHeaderFooterTypes(mr);
+
+        String headersDefault = '';
+        String headersFirst = '';
+        String headersEven = '';
+        String footersDefault = '';
+        String footersFirst = '';
+        String footersEven = '';
         List<String> keys = new List<String>(mr.processedXmlEntries.keySet());
         keys.sort();
         for (String key : keys) {
             if (key == 'word/styles.xml') {
                 continue;
             }
-            if (key.startsWith('word/header') || key.startsWith('word/footer')) {
-                String partPrefix = key.substringAfterLast('/').substringBefore('.xml');
-                String partXml = namespaceImageRelIds(mr.processedXmlEntries.get(key), partPrefix);
-                if (key.startsWith('word/header')) {
-                    headers += partXml;
+            if (!key.startsWith('word/header') && !key.startsWith('word/footer')) {
+                continue;
+            }
+            String partPrefix = key.substringAfterLast('/').substringBefore('.xml');
+            String partXml = namespaceImageRelIds(mr.processedXmlEntries.get(key), partPrefix);
+            // Default to "default" when unmapped (older templates without sectPr refs).
+            String partType = partTypeByFile.containsKey(partPrefix) ? partTypeByFile.get(partPrefix) : 'default';
+            Boolean isHeader = key.startsWith('word/header');
+            if (isHeader) {
+                if (partType == 'first') {
+                    headersFirst += partXml;
+                } else if (partType == 'even') {
+                    headersEven += partXml;
                 } else {
-                    footers += partXml;
+                    headersDefault += partXml;
+                }
+            } else {
+                if (partType == 'first') {
+                    footersFirst += partXml;
+                } else if (partType == 'even') {
+                    footersEven += partXml;
+                } else {
+                    footersDefault += partXml;
                 }
             }
         }
 
-        // Inject header/footer markers that the HTML renderer can detect and position.
-        // Wrap in special XML comments that convertToHtml will transform to CSS-positioned divs.
+        // Inject markers for the renderer. The DEFAULT pair drives every page;
+        // FIRST drives @page :first when the doc has <w:titlePg/>. Older templates
+        // without first-page refs still use the legacy DOCGEN_HEADER_START marker
+        // for backward compatibility — the renderer treats it as default.
         String combinedXml = '';
-        if (String.isNotBlank(headers)) {
-            combinedXml += '<!-- DOCGEN_HEADER_START -->' + headers + '<!-- DOCGEN_HEADER_END -->';
+        if (String.isNotBlank(headersDefault)) {
+            combinedXml += '<!-- DOCGEN_HEADER_START -->' + headersDefault + '<!-- DOCGEN_HEADER_END -->';
+        }
+        if (String.isNotBlank(headersFirst)) {
+            combinedXml += '<!-- DOCGEN_HEADER_FIRST_START -->' + headersFirst + '<!-- DOCGEN_HEADER_FIRST_END -->';
+        }
+        if (String.isNotBlank(headersEven)) {
+            combinedXml += '<!-- DOCGEN_HEADER_EVEN_START -->' + headersEven + '<!-- DOCGEN_HEADER_EVEN_END -->';
         }
         combinedXml += mr.documentXml;
-        if (String.isNotBlank(footers)) {
-            combinedXml += '<!-- DOCGEN_FOOTER_START -->' + footers + '<!-- DOCGEN_FOOTER_END -->';
+        if (String.isNotBlank(footersDefault)) {
+            combinedXml += '<!-- DOCGEN_FOOTER_START -->' + footersDefault + '<!-- DOCGEN_FOOTER_END -->';
+        }
+        if (String.isNotBlank(footersFirst)) {
+            combinedXml += '<!-- DOCGEN_FOOTER_FIRST_START -->' + footersFirst + '<!-- DOCGEN_FOOTER_FIRST_END -->';
+        }
+        if (String.isNotBlank(footersEven)) {
+            combinedXml += '<!-- DOCGEN_FOOTER_EVEN_START -->' + footersEven + '<!-- DOCGEN_FOOTER_EVEN_END -->';
         }
         return combinedXml;
+    }
+
+    /**
+     * Builds a map of header/footer part name (e.g. "header2") → sectPr type
+     * (default / first / even) by walking the document's sectPr references and
+     * resolving them through the document rels.
+     *
+     * Returns an empty map when refs aren't present — older templates without
+     * <w:headerReference> entries fall through to the "default" bucket so they
+     * keep their pre-1.80 behavior.
+     */
+    private static Map<String, String> mapHeaderFooterTypes(MergeResult mr) {
+        Map<String, String> out = new Map<String, String>();
+        if (String.isBlank(mr.documentXml) || String.isBlank(mr.relsXml)) {
+            return out;
+        }
+
+        // Build relId → target file (e.g. "rId4" → "header2")
+        Map<String, String> relIdToFile = new Map<String, String>();
+        Integer cursor = 0;
+        while (cursor < mr.relsXml.length()) {
+            Integer relStart = mr.relsXml.indexOf('<Relationship ', cursor);
+            if (relStart == -1) {
+                break;
+            }
+            Integer relEnd = mr.relsXml.indexOf('>', relStart);
+            if (relEnd == -1) {
+                break;
+            }
+            String relTag = mr.relsXml.substring(relStart, relEnd);
+            String idVal = extractAttrValue(relTag, ' Id="');
+            String targetVal = extractAttrValue(relTag, ' Target="');
+            if (String.isNotBlank(idVal) && String.isNotBlank(targetVal)) {
+                String fileName = targetVal.substringAfterLast('/').substringBefore('.xml');
+                relIdToFile.put(idVal, fileName);
+            }
+            cursor = relEnd + 1;
+        }
+
+        // Walk every <w:headerReference .../> and <w:footerReference .../> in document.xml
+        for (String tagPrefix : new List<String>{ '<w:headerReference ', '<w:footerReference ' }) {
+            Integer refCursor = 0;
+            while (refCursor < mr.documentXml.length()) {
+                Integer refStart = mr.documentXml.indexOf(tagPrefix, refCursor);
+                if (refStart == -1) {
+                    break;
+                }
+                Integer refEnd = mr.documentXml.indexOf('>', refStart);
+                if (refEnd == -1) {
+                    break;
+                }
+                String refTag = mr.documentXml.substring(refStart, refEnd);
+                String typeVal = extractAttrValue(refTag, 'w:type="');
+                String relRef = extractAttrValue(refTag, 'r:id="');
+                if (String.isBlank(relRef)) {
+                    relRef = extractAttrValue(refTag, 'relationships:id="');
+                }
+                if (String.isNotBlank(typeVal) && String.isNotBlank(relRef) && relIdToFile.containsKey(relRef)) {
+                    out.put(relIdToFile.get(relRef), typeVal);
+                }
+                refCursor = refEnd + 1;
+            }
+        }
+        return out;
+    }
+
+    private static String extractAttrValue(String tag, String attrPrefix) {
+        Integer idx = tag.indexOf(attrPrefix);
+        if (idx == -1) {
+            return null;
+        }
+        Integer valStart = idx + attrPrefix.length();
+        Integer valEnd = tag.indexOf('"', valStart);
+        if (valEnd == -1) {
+            return null;
+        }
+        return tag.substring(valStart, valEnd);
     }
 
     /**
@@ -2141,6 +2266,125 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * The VML rewrite is scoped to <v:imagedata ...> elements only — rewriting every
      * r:id would also touch hyperlinks and other non-image relationships.
      */
+    /**
+     * Walks every <wp:extent cx="..." cy="..."/> in document/header/footer XML and
+     * emits a System.debug warning when an image's display width exceeds the page
+     * content area. Page dimensions are read from the document's <w:sectPr><w:pgSz>
+     * + <w:pgMar>. Falls back silently when no sectPr is found (older templates).
+     *
+     * EMU constants: 914400 EMU/inch (Word's wp:extent unit). 1440 twips/inch (sectPr
+     * pgSz/pgMar unit).
+     */
+    private static void logImageOverflowWarnings(Id versionId, Map<String, String> xmlEntries) {
+        if (xmlEntries == null || xmlEntries.isEmpty()) {
+            return;
+        }
+        String docXml = xmlEntries.get('word/document.xml');
+        if (String.isBlank(docXml)) {
+            return;
+        }
+
+        // Parse content-area width from final sectPr. Default to letter portrait
+        // (8.5" - 1" left - 1" right = 6.5") if we can't read the doc's settings.
+        Decimal contentWidthInches = 6.5;
+        Integer sectPrIdx = docXml.lastIndexOf('<w:sectPr');
+        if (sectPrIdx != -1) {
+            Integer sectPrEnd = docXml.indexOf('</w:sectPr>', sectPrIdx);
+            if (sectPrEnd == -1) {
+                sectPrEnd = docXml.length();
+            }
+            String sectPrXml = docXml.substring(sectPrIdx, sectPrEnd);
+            Decimal pageW = parseTwipsAttr(sectPrXml, '<w:pgSz', 'w:w');
+            Decimal marL = parseTwipsAttr(sectPrXml, '<w:pgMar', 'w:left');
+            Decimal marR = parseTwipsAttr(sectPrXml, '<w:pgMar', 'w:right');
+            if (pageW != null && pageW > 0) {
+                Decimal computed = pageW - (marL != null ? marL : 0) - (marR != null ? marR : 0);
+                if (computed > 0) {
+                    contentWidthInches = computed / 1440;
+                }
+            }
+        }
+
+        // EMU max for content area
+        Decimal contentWidthEmu = contentWidthInches * 914400;
+
+        Integer overflowCount = 0;
+        for (String partName : xmlEntries.keySet()) {
+            if (
+                partName != 'word/document.xml' &&
+                !(partName.startsWith('word/header') || partName.startsWith('word/footer'))
+            ) {
+                continue;
+            }
+            String partXml = xmlEntries.get(partName);
+            Integer cursor = 0;
+            while (cursor < partXml.length()) {
+                Integer extIdx = partXml.indexOf('<wp:extent ', cursor);
+                if (extIdx == -1) {
+                    break;
+                }
+                Integer extEnd = partXml.indexOf('/>', extIdx);
+                if (extEnd == -1) {
+                    extEnd = partXml.indexOf('>', extIdx);
+                }
+                if (extEnd == -1) {
+                    break;
+                }
+                String extTag = partXml.substring(extIdx, extEnd);
+                String cxStr = extractAttrValue(extTag, ' cx="');
+                if (String.isNotBlank(cxStr) && cxStr.isNumeric()) {
+                    Long cx = Long.valueOf(cxStr);
+                    if (cx > contentWidthEmu) {
+                        overflowCount++;
+                        Decimal imgInches = (Decimal.valueOf(cx) / 914400).setScale(2);
+                        System.debug(
+                            LoggingLevel.WARN,
+                            'DocGen image-overflow: template version ' +
+                                versionId +
+                                ' part ' +
+                                partName +
+                                ' has wp:extent ' +
+                                imgInches +
+                                '" wide vs ' +
+                                contentWidthInches.setScale(2) +
+                                '" content area — image will overflow page margins'
+                        );
+                    }
+                }
+                cursor = extEnd + 1;
+            }
+        }
+        if (overflowCount > 0) {
+            System.debug(
+                LoggingLevel.WARN,
+                'DocGen image-overflow summary: ' +
+                    overflowCount +
+                    ' oversized image(s) detected in template version ' +
+                    versionId +
+                    '. Authors: resize images so wp:extent ≤ ' +
+                    contentWidthInches.setScale(2) +
+                    '" (or widen page margins).'
+            );
+        }
+    }
+
+    private static Decimal parseTwipsAttr(String xml, String elementOpen, String attrName) {
+        Integer idx = xml.indexOf(elementOpen);
+        if (idx == -1) {
+            return null;
+        }
+        Integer tagEnd = xml.indexOf('>', idx);
+        if (tagEnd == -1) {
+            return null;
+        }
+        String tag = xml.substring(idx, tagEnd);
+        String val = extractAttrValue(tag, ' ' + attrName + '="');
+        if (String.isBlank(val) || !val.isNumeric()) {
+            return null;
+        }
+        return Decimal.valueOf(val);
+    }
+
     private static String namespaceImageRelIds(String xml, String partPrefix) {
         String result = namespaceAttrInXml(xml, 'r:embed="', null, partPrefix);
         result = namespaceAttrInXml(result, 'r:id="', '<v:imagedata', partPrefix);

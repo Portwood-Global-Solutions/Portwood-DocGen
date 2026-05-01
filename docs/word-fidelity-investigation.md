@@ -30,41 +30,29 @@ The `EMU_TO_PX = 0.000104987` constant (1/9525) is correct: 914400 EMU/inch ÷ 9
 
 ## What's broken — confirmed bugs
 
-### Bug 1: Pre-decomp render produces different visual output than ZIP path
+### Bug 1: Pre-decomp render produces different visual output than ZIP path — FIXED v1.80
 
-**Symptom:** The same template, same record, generates different PDFs depending on whether `extractAndSaveTemplateImages` has run. Pre-decomp PDFs show right-aligned/justified text where ZIP path shows left-aligned. Images render as broken in pre-decomp, fine in ZIP.
+**Symptom:** The same template, same record, generated different PDFs depending on whether `extractAndSaveTemplateImages` had run. Pre-decomp PDFs showed right-aligned text where ZIP path showed left-aligned.
 
-**What's NOT the cause:** Source XML (verified byte-identical), styles.xml (verified byte-identical).
+**Actual root cause:** `DocGenHtmlRenderer.isDefaultStyleRtl()` used `stylesXml.contains('<w:bidi ')` to detect RTL. That naive check matched `<w:bidi w:val="0"/>` — the **disabled** form — as truthy. LibreOffice's `.doc → .docx` conversion injects `<w:bidi w:val="0"/>` into the Normal style for every English LTR document. Pre-decomp passed styles.xml to the renderer (the ZIP path didn't, which is why it appeared as a divergence rather than a global bug). When the renderer thought the doc was RTL, it emitted `text-align: right` on body CSS, which cascaded to every paragraph that didn't override it.
 
-**What IS the cause (hypothesis):** `mr.relsXml` differs. Pre-decomp concatenates document rels + ALL header/footer rels into one string. ZIP path keeps only document rels in `mr.relsXml` and stores header/footer rels separately in `passthroughEntries`. The renderer's image-resolution logic likely hits duplicate or overlapping relIds in the concatenated string and produces wrapping markup that cascades right-alignment.
+**Fix:** Added `isOoxmlOnOffElementTrue(xml, elementName)` helper that parses `w:val` correctly per ECMA-376 §17.17.4 (`"1"`/`"true"`/`"on"` truthy, `"0"`/`"false"`/`"off"` falsy, absent attribute defaults to true). Replaced 11 naive `<w:elementName ` checks across the renderer (b, i, strike, caps, smallCaps, rtl, bidi, bidiVisual, titlePg, pageBreakBefore, keepNext, keepLines, tblHeader). Three regression tests added.
 
-**Workaround:** Delete `docgen_tmpl_xml_<verId>_*` ContentVersions to force the ZIP path. Loses ~75% heap savings but fixes alignment.
+The original asymmetry between pre-decomp and ZIP paths (only pre-decomp populates `processedXmlEntries['word/styles.xml']`) is intentional — keeping it means ZIP path now still works even on docs whose styles.xml has unrelated bugs we haven't anticipated. We left that asymmetry in place; the fix is in the parser.
 
-**Real fix (v1.81+):** Either (a) keep header/footer rels separate in pre-decomp by saving each `header1_rels`, `header2_rels`, etc. as their own CVs, or (b) update the renderer to walk multiple rels strings instead of one concatenated string.
+### Bug 2: First-page-distinct headers/footers (`<w:titlePg/>`) ignored — FIXED v1.80
 
-### Bug 2: First-page-distinct headers/footers (`<w:titlePg/>`) ignored
+**Symptom:** Templates with separate "first" and "default" header/footer references rendered only the "default" pair on every page. The page-1-specific design was lost.
 
-**Symptom:** Templates with separate "first" and "default" header/footer references (set via `<w:headerReference w:type="first"/>` + `<w:headerReference w:type="default"/>`) render only the "default" pair on every page. The page-1-specific design is lost.
+**Fix:** `DocGenService.combineXmlWithHeadersFooters` now walks the document's `<w:sectPr>` `<w:headerReference w:type="X" r:id="...">` entries, resolves each relId via document rels, and emits separate marker pairs (`DOCGEN_HEADER_FIRST_START/END`, `DOCGEN_FOOTER_FIRST_START/END`, plus the default pair). `DocGenHtmlRenderer.convertToHtml` extracts both, hoists the first-page divs into named running elements (`docgen-running-header-first`, `docgen-running-footer-first`), and emits a `@page :first { @top-center { content: element(docgen-running-header-first); } }` rule alongside the default `@page`. Even-page distinct headers (rare) are accepted by the parser but folded into the default pair for now — Flying Saucer's `@page :left/:right` support is partial. Three regression tests added.
 
-**What's NOT the cause:** Image extraction (extractor walks all rels).
+### Bug 3: `width:Xpx` on `<img>` not honored for floating/anchored images — FIXED v1.80
 
-**What IS the cause:** `DocGenHtmlRenderer.convertToHtmlWithHeaderFooter` takes a single header HTML and a single footer HTML. There's no code path that emits Flying Saucer's `@page :first { @top-center { content: element(firstHeader) } }` ruleset alongside the default `@page`. The first-typed reference gets dropped during sectPr parsing.
+**Symptom:** Renderer correctly emitted `<img style="width:Xpx;height:Ypx">` per Word's wp:extent. But high-resolution embedded images (Mantis ROM example: 15068×5731 native) rendered at native pixel size in PDF, overflowing the page.
 
-**Workaround:** Edit the .docx to remove `<w:titlePg/>` and consolidate headers/footers into one default pair per type. Lose page-1-specific layout, gain a working PDF.
+**Root cause:** Flying Saucer's image scaler resolves dimensions in this order: HTML `width=`/`height=` attributes → CSS `width`/`height` → natural image bytes. Without HTML attributes, the engine reads the image's natural pixel dimensions during decode, then _maybe_ applies CSS — but for very large source images the CSS path silently fell back to natural size.
 
-**Real fix (v1.81+):** ~1-2 day feature. Walk all 6 possible header/footer references (default/first/even × header/footer), emit each as a `position: running()` block, and emit `@page :first` and `@page` rules pointing to the right running elements. Genuine win for Conga/Word migrations.
-
-### Bug 3: `width:Xpx` on `<img>` not honored for floating/anchored images
-
-**Symptom:** Renderer correctly emits `<img style="width:Xpx;height:Ypx">` per Word's wp:extent (verified above). Yet templates with high-resolution embedded images render at native pixel size in PDF, overflowing the page.
-
-**What's NOT the cause:** wp:extent extraction (verified correct), EMU→px conversion (verified correct), CSS emission (verified correct in renderer output).
-
-**What IS the cause (hypothesis):** Flying Saucer ignores `width:Xpx` on `<img>` tags inside floating containers (i.e., Word's `<wp:anchor>` blocks with `behindDoc="1"`, `wrapNone`, etc.). Inline images (`<wp:inline>`) probably render correctly; anchored images probably don't.
-
-**Workaround for users:** Pre-resize source images so native pixel dimensions equal desired display size at 96 DPI. For an 8.5"-wide image at 96 DPI, native PNG should be 816 px wide.
-
-**Real fix (v1.81+):** Investigation task. Render a known anchored image to PDF outside Apex, see if Flying Saucer emits at native or styled size. If Flying Saucer is the wall, document as a Word-template authoring constraint.
+**Fix:** `DocGenHtmlRenderer.processDrawing` now emits HTML `width="N" height="N"` attributes on every `<img>` alongside the existing CSS, locking dimensions at the engine's authoritative attribute layer. Defense-in-depth: CSS still emitted, body's `img { max-width: 100% }` rule still in place. Autosize mode (rich text images without explicit width/height) skips the HTML attrs since it intentionally relies on max-width. One regression test added asserts both attribute and CSS emission for Mantis-style 813×229 px display dimensions.
 
 ## What's NOT broken but customers think might be
 
@@ -113,13 +101,11 @@ Templates that need pixel-perfect Word fidelity should output DOCX, not PDF. Doc
 
 What this branch (`feature/v1.80-word-fidelity`) actually shipped:
 
-1. **#54 — `IsLatest = TRUE` guards on pre-decomp + image-map queries**. Prevents "entity is deleted" UNKNOWN_EXCEPTION when extractAndSaveTemplateImages runs against a template with stale (recycled) ContentVersions from a prior version. Confirmed via triple-extract regression test.
-
-What was investigated but not fixed (deferred to v1.81.0+):
-
-- #53 pre-decomp alignment regression (real bug, needs deeper diff)
-- #57 first-page-distinct headers/footers (real feature gap, ~1-2 day lift)
-- #58 Flying Saucer image width binding (investigation, may be platform wall)
+1. **#54 — `IsLatest = TRUE` guards on pre-decomp + image-map queries**. Prevents "entity is deleted" UNKNOWN_EXCEPTION when extractAndSaveTemplateImages runs against a template with stale (recycled) ContentVersions from a prior version.
+2. **#53 — OOXML on/off element parsing**. Renderer now correctly handles `<w:elementName w:val="0"/>` as disabled across 11 element types. Fixes the pre-decomp alignment regression for LibreOffice-converted templates.
+3. **#57 — First-page-distinct headers/footers**. `<w:titlePg/>` + `<w:headerReference w:type="first">` now produces a `@page :first` ruleset with the right running elements. Page-1-specific layouts work end-to-end.
+4. **#58 — Flying Saucer image dimension binding**. `<img>` tags now emit HTML `width=`/`height=` attributes alongside CSS so high-resolution embedded images respect Word's wp:extent display size instead of falling back to natural pixel dimensions.
+5. **#56 — Pre-flight image-overflow warning**. `extractAndSaveTemplateImages` walks every `wp:extent` against the parsed page content area and emits `System.debug` WARN entries for oversized images. Helps admins spot authoring issues that #58 can't fully fix (when the authored display size itself exceeds the page).
 
 What was investigated and confirmed working as designed:
 

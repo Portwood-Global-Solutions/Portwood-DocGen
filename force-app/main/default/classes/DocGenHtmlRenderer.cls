@@ -100,9 +100,9 @@ public with sharing class DocGenHtmlRenderer {
             String sz = extractAttr(styleDef, 'w:sz', 'w:val');
             if (sz != null && sz.isNumeric())
                 attrs.put('fontSize', sz);
-            if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b '))
+            if (isOoxmlOnOffElementTrue(styleDef, 'w:b'))
                 attrs.put('bold', 'true');
-            if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i '))
+            if (isOoxmlOnOffElementTrue(styleDef, 'w:i'))
                 attrs.put('italic', 'true');
             if (!attrs.isEmpty())
                 out.put(styleName, attrs);
@@ -199,29 +199,41 @@ public with sharing class DocGenHtmlRenderer {
         }
         currentDocumentXml = documentXml;
 
-        // Extract header/footer markers if present
+        // Extract header/footer markers if present. Six possible markers:
+        //   DEFAULT (every page) / FIRST (page 1 when w:titlePg is set) / EVEN (rare)
+        // for both header and footer. Older templates only emit DEFAULT — keeping
+        // backward compat with the original two-marker behavior.
+        String mainXml = documentXml;
         String headerXml = '';
         String footerXml = '';
-        String mainXml = documentXml;
-        if (documentXml.contains('<!-- DOCGEN_HEADER_START -->')) {
-            Integer hStart =
-                documentXml.indexOf('<!-- DOCGEN_HEADER_START -->') + '<!-- DOCGEN_HEADER_START -->'.length();
-            Integer hEnd = documentXml.indexOf('<!-- DOCGEN_HEADER_END -->');
-            if (hEnd > hStart) {
-                headerXml = documentXml.substring(hStart, hEnd);
-                mainXml =
-                    documentXml.substring(0, documentXml.indexOf('<!-- DOCGEN_HEADER_START -->')) +
-                    documentXml.substring(hEnd + '<!-- DOCGEN_HEADER_END -->'.length());
-            }
+        String headerFirstXml = '';
+        String footerFirstXml = '';
+        Map<String, String> extracted = extractMarkerSection(mainXml, 'DOCGEN_HEADER_START', 'DOCGEN_HEADER_END');
+        headerXml = extracted.get('content');
+        mainXml = extracted.get('remainder');
+        extracted = extractMarkerSection(mainXml, 'DOCGEN_HEADER_FIRST_START', 'DOCGEN_HEADER_FIRST_END');
+        headerFirstXml = extracted.get('content');
+        mainXml = extracted.get('remainder');
+        extracted = extractMarkerSection(mainXml, 'DOCGEN_FOOTER_START', 'DOCGEN_FOOTER_END');
+        footerXml = extracted.get('content');
+        mainXml = extracted.get('remainder');
+        extracted = extractMarkerSection(mainXml, 'DOCGEN_FOOTER_FIRST_START', 'DOCGEN_FOOTER_FIRST_END');
+        footerFirstXml = extracted.get('content');
+        mainXml = extracted.get('remainder');
+        // Even-page distinct markers are stripped but not yet wired to a separate
+        // CSS @page rule — Flying Saucer's @page :left/:right support is partial
+        // and the customer use case for even-only headers is rare. They render
+        // as part of the default pair for now.
+        extracted = extractMarkerSection(mainXml, 'DOCGEN_HEADER_EVEN_START', 'DOCGEN_HEADER_EVEN_END');
+        if (String.isNotBlank(extracted.get('content'))) {
+            headerXml += extracted.get('content');
         }
-        if (mainXml.contains('<!-- DOCGEN_FOOTER_START -->')) {
-            Integer fStart = mainXml.indexOf('<!-- DOCGEN_FOOTER_START -->') + '<!-- DOCGEN_FOOTER_START -->'.length();
-            Integer fEnd = mainXml.indexOf('<!-- DOCGEN_FOOTER_END -->');
-            if (fEnd > fStart) {
-                footerXml = mainXml.substring(fStart, fEnd);
-                mainXml = mainXml.substring(0, mainXml.indexOf('<!-- DOCGEN_FOOTER_START -->'));
-            }
+        mainXml = extracted.get('remainder');
+        extracted = extractMarkerSection(mainXml, 'DOCGEN_FOOTER_EVEN_START', 'DOCGEN_FOOTER_EVEN_END');
+        if (String.isNotBlank(extracted.get('content'))) {
+            footerXml += extracted.get('content');
         }
+        mainXml = extracted.get('remainder');
 
         String bodyContent = extractBodyContent(mainXml);
         String html = processBodyContent(bodyContent, images);
@@ -252,25 +264,57 @@ public with sharing class DocGenHtmlRenderer {
         // Process header/footer HTML for Flying Saucer running elements
         String headerHtml = '';
         String footerHtml = '';
-        if (String.isNotBlank(headerXml) || String.isNotBlank(footerXml)) {
+        String headerFirstHtml = '';
+        String footerFirstHtml = '';
+        if (
+            String.isNotBlank(headerXml) ||
+            String.isNotBlank(footerXml) ||
+            String.isNotBlank(headerFirstXml) ||
+            String.isNotBlank(footerFirstXml)
+        ) {
             headerHtml = String.isNotBlank(headerXml) ? processBodyContent(extractBodyContent(headerXml), images) : '';
             footerHtml = String.isNotBlank(footerXml) ? processBodyContent(extractBodyContent(footerXml), images) : '';
+            headerFirstHtml = String.isNotBlank(headerFirstXml)
+                ? processBodyContent(extractBodyContent(headerFirstXml), images)
+                : '';
+            footerFirstHtml = String.isNotBlank(footerFirstXml)
+                ? processBodyContent(extractBodyContent(footerFirstXml), images)
+                : '';
 
-            // Watermarks may live in header XML (most common); pick up @page bg from there too.
-            Map<String, String> hExtract = extractWatermarks(headerHtml);
-            headerHtml = hExtract.get('html');
-            if (String.isBlank(watermarkPageBgCss) && String.isNotBlank(hExtract.get('pageBgCss'))) {
-                watermarkPageBgCss = hExtract.get('pageBgCss');
-            }
-            Map<String, String> fExtract = extractWatermarks(footerHtml);
-            footerHtml = fExtract.get('html');
-            if (String.isBlank(watermarkPageBgCss) && String.isNotBlank(fExtract.get('pageBgCss'))) {
-                watermarkPageBgCss = fExtract.get('pageBgCss');
+            // Watermarks may live in any header XML (most common); pick up @page bg from there too.
+            // Walk all four header/footer HTMLs in order until we find a watermark.
+            for (String htmlVar : new List<String>{ 'header', 'headerFirst', 'footer', 'footerFirst' }) {
+                String content;
+                if (htmlVar == 'header') {
+                    content = headerHtml;
+                } else if (htmlVar == 'headerFirst') {
+                    content = headerFirstHtml;
+                } else if (htmlVar == 'footer') {
+                    content = footerHtml;
+                } else {
+                    content = footerFirstHtml;
+                }
+                Map<String, String> wExtract = extractWatermarks(content);
+                String stripped = wExtract.get('html');
+                if (htmlVar == 'header') {
+                    headerHtml = stripped;
+                } else if (htmlVar == 'headerFirst') {
+                    headerFirstHtml = stripped;
+                } else if (htmlVar == 'footer') {
+                    footerHtml = stripped;
+                } else {
+                    footerFirstHtml = stripped;
+                }
+                if (String.isBlank(watermarkPageBgCss) && String.isNotBlank(wExtract.get('pageBgCss'))) {
+                    watermarkPageBgCss = wExtract.get('pageBgCss');
+                }
             }
 
             // Zero out paragraph margins inside header/footer for tight spacing
             headerHtml = headerHtml.replace('<p>', '<p style="margin:0;">');
             footerHtml = footerHtml.replace('<p>', '<p style="margin:0;">');
+            headerFirstHtml = headerFirstHtml.replace('<p>', '<p style="margin:0;">');
+            footerFirstHtml = footerFirstHtml.replace('<p>', '<p style="margin:0;">');
         }
 
         // Build dynamic page CSS from document dimensions + styles
@@ -278,11 +322,13 @@ public with sharing class DocGenHtmlRenderer {
         String cellPadding = resolveDefaultCellPadding();
         Boolean hasHeader = String.isNotBlank(headerHtml);
         Boolean hasFooter = String.isNotBlank(footerHtml);
+        Boolean hasHeaderFirst = String.isNotBlank(headerFirstHtml);
+        Boolean hasFooterFirst = String.isNotBlank(footerFirstHtml);
 
         // Check if document has a title page (Different First Page in Word)
-        // <w:titlePg/> in the final <w:sectPr> means page 1 gets no header/footer
-        // Check the original documentXml since extractBodyContent strips the final sectPr
-        Boolean hasTitlePage = documentXml.contains('<w:titlePg/>') || documentXml.contains('<w:titlePg ');
+        // <w:titlePg/> in the final <w:sectPr> means page 1 gets a separate
+        // header/footer pair (or none, if no first-typed reference exists).
+        Boolean hasTitlePage = isOoxmlOnOffElementTrue(documentXml, 'w:titlePg');
 
         // Build @page rule with running header/footer margin boxes (Flying Saucer)
         // CSS @page rule order: properties before nested margin boxes.
@@ -318,9 +364,26 @@ public with sharing class DocGenHtmlRenderer {
         }
         dynamicPageCss += ' }';
 
-        // Title page: suppress header/footer on first page via @page :first
-        if (hasTitlePage && (hasHeader || hasFooter)) {
-            dynamicPageCss += ' @page :first { @top-center { content: normal; } @bottom-center { content: normal; } }';
+        // Title page handling. With <w:titlePg/> the doc tells us page 1 is distinct.
+        // Three cases:
+        //   1. Has explicit first-typed header/footer → swap in those running elements.
+        //   2. Has only default pair → suppress on page 1 (legacy v1 behavior).
+        //   3. No headers/footers at all → no rule needed.
+        if (hasTitlePage) {
+            String firstPageCss = '';
+            if (hasHeaderFirst) {
+                firstPageCss += '@top-center { content: element(docgen-running-header-first); }';
+            } else if (hasHeader) {
+                firstPageCss += '@top-center { content: normal; }';
+            }
+            if (hasFooterFirst) {
+                firstPageCss += '@bottom-center { content: element(docgen-running-footer-first); }';
+            } else if (hasFooter) {
+                firstPageCss += '@bottom-center { content: normal; }';
+            }
+            if (String.isNotBlank(firstPageCss)) {
+                dynamicPageCss += ' @page :first { ' + firstPageCss + ' }';
+            }
         }
 
         // Running element CSS — tells Flying Saucer to pull these divs out of flow
@@ -331,6 +394,12 @@ public with sharing class DocGenHtmlRenderer {
         }
         if (hasFooter) {
             runningCss += '#docgen-footer { position: running(docgen-running-footer); }';
+        }
+        if (hasHeaderFirst) {
+            runningCss += '#docgen-header-first { position: running(docgen-running-header-first); }';
+        }
+        if (hasFooterFirst) {
+            runningCss += '#docgen-footer-first { position: running(docgen-running-footer-first); }';
         }
 
         // Check if document default style is RTL (Normal style with <w:bidi/> in styles.xml)
@@ -407,6 +476,12 @@ public with sharing class DocGenHtmlRenderer {
         }
         if (hasFooter) {
             bodyHtml += '<div id="docgen-footer">' + footerHtml + '</div>';
+        }
+        if (hasHeaderFirst) {
+            bodyHtml += '<div id="docgen-header-first">' + headerFirstHtml + '</div>';
+        }
+        if (hasFooterFirst) {
+            bodyHtml += '<div id="docgen-footer-first">' + footerFirstHtml + '</div>';
         }
         bodyHtml += html;
 
@@ -766,7 +841,7 @@ public with sharing class DocGenHtmlRenderer {
         String pPr = extractElement(pXml, 'w:pPr');
         if (String.isNotBlank(pPr)) {
             style = parseParagraphStyle(pPr);
-            if (pPr.contains('<w:bidi/>') || pPr.contains('<w:bidi ')) {
+            if (isOoxmlOnOffElementTrue(pPr, 'w:bidi')) {
                 isRtl = true;
             }
 
@@ -798,7 +873,7 @@ public with sharing class DocGenHtmlRenderer {
             }
 
             // Check for page break before
-            if (pPr.contains('<w:pageBreakBefore/>') || pPr.contains('<w:pageBreakBefore ')) {
+            if (isOoxmlOnOffElementTrue(pPr, 'w:pageBreakBefore')) {
                 pageBreakBefore = true;
             }
         }
@@ -875,7 +950,7 @@ public with sharing class DocGenHtmlRenderer {
 
         // RTL / Bidi: <w:bidi/> marks right-to-left paragraph (Hebrew, Arabic)
         // Flying Saucer: use text-align:right (not direction:rtl which causes double-reversal)
-        if (pPr.contains('<w:bidi/>') || pPr.contains('<w:bidi ')) {
+        if (isOoxmlOnOffElementTrue(pPr, 'w:bidi')) {
             styles.add('text-align:right');
         }
 
@@ -996,12 +1071,12 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         // Keep with next (avoid page break after this paragraph)
-        if (pPr.contains('<w:keepNext/>') || pPr.contains('<w:keepNext ')) {
+        if (isOoxmlOnOffElementTrue(pPr, 'w:keepNext')) {
             styles.add('page-break-after:avoid');
         }
 
         // Keep lines together (avoid page break inside this paragraph)
-        if (pPr.contains('<w:keepLines/>') || pPr.contains('<w:keepLines ')) {
+        if (isOoxmlOnOffElementTrue(pPr, 'w:keepLines')) {
             styles.add('page-break-inside:avoid');
         }
 
@@ -1236,28 +1311,30 @@ public with sharing class DocGenHtmlRenderer {
         String rPr = extractElement(rXml, 'w:rPr');
         String style = (String.isNotBlank(rPr)) ? parseRunStyle(rPr) : '';
         // RTL run: Flying Saucer renders all chars LTR, so we reverse RTL text in Apex
-        Boolean isRtlRun = String.isNotBlank(rPr) && (rPr.contains('<w:rtl/>') || rPr.contains('<w:rtl '));
+        Boolean isRtlRun = String.isNotBlank(rPr) && isOoxmlOnOffElementTrue(rPr, 'w:rtl');
 
         String openTags = '';
         String closeTags = '';
         if (String.isNotBlank(rPr)) {
             // Bold
-            if (rPr.contains('<w:b/>') || rPr.contains('<w:b ')) {
+            if (isOoxmlOnOffElementTrue(rPr, 'w:b')) {
                 openTags += '<b>';
                 closeTags = '</b>' + closeTags;
             }
             // Italic
-            if (rPr.contains('<w:i/>') || rPr.contains('<w:i ')) {
+            if (isOoxmlOnOffElementTrue(rPr, 'w:i')) {
                 openTags += '<i>';
                 closeTags = '</i>' + closeTags;
             }
-            // Underline
-            if (rPr.contains('<w:u ')) {
+            // Underline: w:u takes a value enum (single/double/none/...) rather than on/off,
+            // so don't route through isOoxmlOnOffElementTrue. "none" disables it.
+            String uVal = extractAttr(rPr, 'w:u', 'w:val');
+            if (uVal != null && uVal != 'none') {
                 openTags += '<u>';
                 closeTags = '</u>' + closeTags;
             }
             // Strikethrough
-            if (rPr.contains('<w:strike/>') || rPr.contains('<w:strike ')) {
+            if (isOoxmlOnOffElementTrue(rPr, 'w:strike')) {
                 openTags += '<s>';
                 closeTags = '</s>' + closeTags;
             }
@@ -1348,10 +1425,10 @@ public with sharing class DocGenHtmlRenderer {
                         } else {
                             // Check for caps in rPr
                             if (String.isNotBlank(rPr)) {
-                                if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) {
+                                if (isOoxmlOnOffElementTrue(rPr, 'w:caps')) {
                                     text = text.toUpperCase();
                                 }
-                                if (rPr.contains('<w:smallCaps/>') || rPr.contains('<w:smallCaps ')) {
+                                if (isOoxmlOnOffElementTrue(rPr, 'w:smallCaps')) {
                                     text = text.toUpperCase();
                                     if (!style.contains('font-variant:small-caps')) {
                                         style += (String.isNotBlank(style) ? ';' : '') + 'font-variant:small-caps';
@@ -1530,9 +1607,9 @@ public with sharing class DocGenHtmlRenderer {
         String sz = extractAttr(styleDef, 'w:sz', 'w:val');
         if (sz != null && sz.isNumeric())
             out.put('fontSize', sz);
-        if (styleDef.contains('<w:b/>') || styleDef.contains('<w:b '))
+        if (isOoxmlOnOffElementTrue(styleDef, 'w:b'))
             out.put('bold', 'true');
-        if (styleDef.contains('<w:i/>') || styleDef.contains('<w:i '))
+        if (isOoxmlOnOffElementTrue(styleDef, 'w:i'))
             out.put('italic', 'true');
         return out;
     }
@@ -1560,7 +1637,7 @@ public with sharing class DocGenHtmlRenderer {
         }
         String fontCs = extractAttr(rPr, 'w:rFonts', 'w:cs');
         // RTL run detection: <w:rtl/> marks a run as right-to-left
-        Boolean isRtlRun = rPr.contains('<w:rtl/>') || rPr.contains('<w:rtl ');
+        Boolean isRtlRun = isOoxmlOnOffElementTrue(rPr, 'w:rtl');
         if (isRtlRun && fontCs != null) {
             // Use complex script font for RTL runs, fall back to Arial Unicode MS
             styles.add('font-family:\'Arial Unicode MS\',\'' + fontCs.escapeHtml4() + '\',sans-serif');
@@ -1718,8 +1795,7 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         // RTL table: reverse cell order manually
-        Boolean isBidiVisual =
-            String.isNotBlank(tblPr) && (tblPr.contains('<w:bidiVisual/>') || tblPr.contains('<w:bidiVisual '));
+        Boolean isBidiVisual = String.isNotBlank(tblPr) && isOoxmlOnOffElementTrue(tblPr, 'w:bidiVisual');
 
         // Process rows
         String rows = '';
@@ -1756,8 +1832,7 @@ public with sharing class DocGenHtmlRenderer {
 
         // Check for header row
         String trPr = extractElement(trXml, 'w:trPr');
-        Boolean isHeader = (String.isNotBlank(trPr) &&
-        (trPr.contains('<w:tblHeader/>') || trPr.contains('<w:tblHeader ')));
+        Boolean isHeader = String.isNotBlank(trPr) && isOoxmlOnOffElementTrue(trPr, 'w:tblHeader');
 
         List<String> cellList = new List<String>();
         while (cursor < trXml.length()) {
@@ -2381,6 +2456,34 @@ public with sharing class DocGenHtmlRenderer {
         return result;
     }
 
+    /**
+     * Extracts the content between an HTML-comment start/end marker pair (e.g.
+     * `<!-- DOCGEN_HEADER_FIRST_START -->...<!-- DOCGEN_HEADER_FIRST_END -->`).
+     * Returns a 2-key map: `content` (extracted body, or "") and `remainder`
+     * (input with the marker section stripped, or unchanged when no match).
+     */
+    @TestVisible
+    private static Map<String, String> extractMarkerSection(String input, String startMarker, String endMarker) {
+        Map<String, String> result = new Map<String, String>{ 'content' => '', 'remainder' => input };
+        if (String.isBlank(input)) {
+            return result;
+        }
+        String startTag = '<!-- ' + startMarker + ' -->';
+        String endTag = '<!-- ' + endMarker + ' -->';
+        Integer startIdx = input.indexOf(startTag);
+        if (startIdx == -1) {
+            return result;
+        }
+        Integer contentStart = startIdx + startTag.length();
+        Integer endIdx = input.indexOf(endTag, contentStart);
+        if (endIdx == -1) {
+            return result;
+        }
+        result.put('content', input.substring(contentStart, endIdx));
+        result.put('remainder', input.substring(0, startIdx) + input.substring(endIdx + endTag.length()));
+        return result;
+    }
+
     private static Boolean isDefaultStyleRtl() {
         if (String.isBlank(stylesXml)) {
             return false;
@@ -2399,11 +2502,52 @@ public with sharing class DocGenHtmlRenderer {
             if (styleStart == -1 || styleEnd == -1) {
                 return false;
             }
-            String normalDef = stylesXml.substring(styleStart, styleEnd);
-            return normalDef.contains('<w:bidi/>') || normalDef.contains('<w:bidi ');
+            return isOoxmlOnOffElementTrue(stylesXml.substring(styleStart, styleEnd), 'w:bidi');
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * OOXML on/off element evaluator (ECMA-376 §17.17.4).
+     *
+     * Returns true if `<elementName/>` (self-closing, no attrs) is present, OR
+     * `<elementName w:val="X"/>` where X is "1", "true", or "on". False otherwise.
+     *
+     * Critical: LibreOffice's .doc→.docx conversion emits `<w:bidi w:val="0"/>` in
+     * the Normal style for every LTR document. A naive `contains('<w:bidi ')` check
+     * matches this and incorrectly flags the doc as RTL — fixed in v1.80.
+     */
+    @TestVisible
+    private static Boolean isOoxmlOnOffElementTrue(String xml, String elementName) {
+        if (String.isBlank(xml) || String.isBlank(elementName)) {
+            return false;
+        }
+        // Self-closing with no attributes — implicit val="1" per spec
+        if (xml.contains('<' + elementName + '/>')) {
+            return true;
+        }
+        Integer idx = xml.indexOf('<' + elementName + ' ');
+        if (idx == -1) {
+            return false;
+        }
+        Integer tagEnd = xml.indexOf('>', idx);
+        if (tagEnd == -1) {
+            return false;
+        }
+        String tag = xml.substring(idx, tagEnd);
+        Integer valIdx = tag.indexOf('w:val="');
+        if (valIdx == -1) {
+            // Element present with attributes but no w:val — defaults to true per spec.
+            return true;
+        }
+        String afterVal = tag.substring(valIdx + 7);
+        Integer quoteIdx = afterVal.indexOf('"');
+        if (quoteIdx == -1) {
+            return true;
+        }
+        String val = afterVal.substring(0, quoteIdx).toLowerCase();
+        return val == '1' || val == 'true' || val == 'on';
     }
 
     /**
@@ -2696,10 +2840,20 @@ public with sharing class DocGenHtmlRenderer {
         // The DOCGEN_AUTOSIZE marker (set by processRichTextImage when no width
         // OR height info was found in the rich text) flips us to max-width +
         // width:auto so we preserve aspect for unsized phone-photo style images.
+        //
+        // Critical for Flying Saucer (v1.80+): emit HTML width/height attributes
+        // alongside CSS. For high-resolution embedded images (Mantis ROM example:
+        // 15068×5731 px native, Word displays at 8.46"×2.39" = 813×229 px),
+        // CSS-only sizing falls through to natural pixel dimensions because
+        // Flying Saucer's image scaler reads HTML attrs first and uses them as
+        // the authoritative size, regardless of the parent's `max-width: 100%`.
         Boolean autoSize = drawingXml.contains('DOCGEN_AUTOSIZE');
         String sizeStyle = autoSize
             ? ('max-width:' + widthPx + 'px;max-height:' + heightPx + 'px;width:auto;height:auto;')
             : ('width:' + widthPx + 'px;height:' + heightPx + 'px;');
+        // Explicit HTML attributes are skipped in autoSize mode — there we want
+        // Flying Saucer to compute the fitted size from max-width.
+        String sizeAttrs = autoSize ? '' : (' width="' + widthPx + '" height="' + heightPx + '"');
 
         if (
             imageValue.startsWith('/sfc/') ||
@@ -2707,7 +2861,13 @@ public with sharing class DocGenHtmlRenderer {
             imageValue.startsWith('/apex/') ||
             imageValue.startsWithIgnoreCase('http')
         ) {
-            return '<img src="' + imageValue + '" ' + 'style="' + sizeStyle + 'image-orientation:from-image;" />';
+            return '<img src="' +
+                imageValue +
+                '"' +
+                sizeAttrs +
+                ' style="' +
+                sizeStyle +
+                'image-orientation:from-image;" />';
         }
 
         String mimeType = 'image/png';
@@ -2719,8 +2879,9 @@ public with sharing class DocGenHtmlRenderer {
             mimeType +
             ';base64,' +
             imageValue +
-            '" ' +
-            'style="' +
+            '"' +
+            sizeAttrs +
+            ' style="' +
             sizeStyle +
             'image-orientation:from-image;" />';
     }

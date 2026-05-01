@@ -2141,6 +2141,184 @@ private class DocGenHtmlRendererTest {
 
     // v1.65+ admin-uploaded watermark override beats any Word VML watermark in the template.
     @IsTest
+    static void testOoxmlOnOffElementParsing() {
+        // Self-closing — implicit val="1" per spec
+        System.assertEquals(true, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi/>', 'w:bidi'));
+        // Attributed without val — defaults to true per spec
+        System.assertEquals(true, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:foo="x"/>', 'w:bidi'));
+        // Truthy values
+        System.assertEquals(true, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:val="1"/>', 'w:bidi'));
+        System.assertEquals(true, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:val="true"/>', 'w:bidi'));
+        System.assertEquals(true, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:val="on"/>', 'w:bidi'));
+        // Falsy values — these are the regression case (LibreOffice .doc→.docx conversion)
+        System.assertEquals(false, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:val="0"/>', 'w:bidi'));
+        System.assertEquals(false, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:val="false"/>', 'w:bidi'));
+        System.assertEquals(false, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi w:val="off"/>', 'w:bidi'));
+        // Element absent
+        System.assertEquals(false, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:pPr></w:pPr>', 'w:bidi'));
+        // Blank inputs
+        System.assertEquals(false, DocGenHtmlRenderer.isOoxmlOnOffElementTrue(null, 'w:bidi'));
+        System.assertEquals(false, DocGenHtmlRenderer.isOoxmlOnOffElementTrue('<w:bidi/>', null));
+    }
+
+    @IsTest
+    static void testLibreOfficeNormalStyleNotMisreadAsRtl() {
+        // Regression for v1.80 #53: LibreOffice's .doc→.docx conversion injects
+        // <w:bidi w:val="0"/> into the Normal style for English LTR documents.
+        // The pre-decomp path passes styles.xml to the renderer (the ZIP path
+        // doesn't) — before the fix, isDefaultStyleRtl() matched <w:bidi w:val="0"/>
+        // and emitted text-align:right on body, which broke layout.
+        DocGenHtmlRenderer.stylesXml =
+            '<?xml version="1.0"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:style w:type="paragraph" w:styleId="Normal">' +
+            '<w:name w:val="Normal"/><w:qFormat/>' +
+            '<w:pPr><w:widowControl/><w:bidi w:val="0"/></w:pPr>' +
+            '</w:style></w:styles>';
+        try {
+            String docXml =
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                '<w:body><w:p><w:r><w:t>Hello</w:t></w:r></w:p></w:body></w:document>';
+            String html = DocGenHtmlRenderer.convertToHtml(docXml);
+            System.assert(
+                !html.contains('text-align: right'),
+                'Body CSS must not emit text-align:right for an LTR doc whose Normal style has <w:bidi w:val="0"/>'
+            );
+        } finally {
+            DocGenHtmlRenderer.stylesXml = null;
+        }
+    }
+
+    @IsTest
+    static void testHebrewNormalStyleStillDetectsRtl() {
+        // Positive case: a real Hebrew/Arabic doc has <w:bidi/> (self-closing) in Normal.
+        // After the v1.80 fix, this still must trigger RTL handling.
+        DocGenHtmlRenderer.stylesXml =
+            '<?xml version="1.0"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:style w:type="paragraph" w:styleId="Normal">' +
+            '<w:name w:val="Normal"/><w:qFormat/>' +
+            '<w:pPr><w:bidi/></w:pPr>' +
+            '</w:style></w:styles>';
+        try {
+            String docXml =
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                '<w:body><w:p><w:r><w:t>שלום</w:t></w:r></w:p></w:body></w:document>';
+            String html = DocGenHtmlRenderer.convertToHtml(docXml);
+            System.assert(
+                html.contains('text-align: right'),
+                'Body CSS must emit text-align:right for an RTL doc whose Normal style has <w:bidi/>'
+            );
+        } finally {
+            DocGenHtmlRenderer.stylesXml = null;
+        }
+    }
+
+    @IsTest
+    static void testFirstPageDistinctHeaderFooterRunningElements() {
+        // Regression for v1.80 #57: <w:titlePg/> + separate "first" headerReference
+        // must produce @page :first running elements pointing at the first-typed
+        // header, not suppress the page-1 header entirely.
+        String docXml =
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+            '<!-- DOCGEN_HEADER_START --><w:hdr><w:p><w:r><w:t>Default Header</w:t></w:r></w:p></w:hdr><!-- DOCGEN_HEADER_END -->' +
+            '<!-- DOCGEN_HEADER_FIRST_START --><w:hdr><w:p><w:r><w:t>First Page Header</w:t></w:r></w:p></w:hdr><!-- DOCGEN_HEADER_FIRST_END -->' +
+            '<!-- DOCGEN_FOOTER_START --><w:ftr><w:p><w:r><w:t>Default Footer</w:t></w:r></w:p></w:ftr><!-- DOCGEN_FOOTER_END -->' +
+            '<!-- DOCGEN_FOOTER_FIRST_START --><w:ftr><w:p><w:r><w:t>First Page Footer</w:t></w:r></w:p></w:ftr><!-- DOCGEN_FOOTER_FIRST_END -->' +
+            '<w:p><w:r><w:t>Body</w:t></w:r></w:p>' +
+            '<w:sectPr><w:titlePg/></w:sectPr>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(docXml);
+
+        // Both default and first-page running elements must be wired up
+        System.assert(
+            html.contains('docgen-running-header-first'),
+            'Expected first-page running header to be declared'
+        );
+        System.assert(
+            html.contains('docgen-running-footer-first'),
+            'Expected first-page running footer to be declared'
+        );
+        // @page :first must point at the first-typed elements (NOT suppress them)
+        System.assert(html.contains('@page :first'), 'Expected @page :first rule to be emitted for titlePg doc');
+        System.assert(
+            html.contains('content: element(docgen-running-header-first)'),
+            'Expected @page :first @top-center to point at first-page header running element'
+        );
+        // The body divs that get hoisted into running positions
+        System.assert(html.contains('id="docgen-header-first"'), 'Expected first-page header div in body');
+        System.assert(html.contains('First Page Header'), 'Expected first-page header content to render');
+    }
+
+    @IsTest
+    static void testTitlePgWithoutFirstHeaderFallsBackToSuppression() {
+        // Backward compat: docs with <w:titlePg/> but no first-typed header
+        // should suppress the default header on page 1 (legacy v1 behavior).
+        String docXml =
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+            '<!-- DOCGEN_HEADER_START --><w:hdr><w:p><w:r><w:t>Header</w:t></w:r></w:p></w:hdr><!-- DOCGEN_HEADER_END -->' +
+            '<w:p><w:r><w:t>Body</w:t></w:r></w:p>' +
+            '<w:sectPr><w:titlePg/></w:sectPr>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(docXml);
+        System.assert(html.contains('@page :first'), 'Expected @page :first rule');
+        System.assert(
+            html.contains('@top-center { content: normal'),
+            'Expected default header to be suppressed on page 1'
+        );
+    }
+
+    @IsTest
+    static void testExtractMarkerSection() {
+        Map<String, String> r = DocGenHtmlRenderer.extractMarkerSection(
+            'before<!-- A -->payload<!-- B -->after',
+            'A',
+            'B'
+        );
+        System.assertEquals('payload', r.get('content'));
+        System.assertEquals('beforeafter', r.get('remainder'));
+
+        // Marker not present — content empty, remainder unchanged
+        r = DocGenHtmlRenderer.extractMarkerSection('hello world', 'X', 'Y');
+        System.assertEquals('', r.get('content'));
+        System.assertEquals('hello world', r.get('remainder'));
+
+        // Blank input
+        r = DocGenHtmlRenderer.extractMarkerSection(null, 'X', 'Y');
+        System.assertEquals('', r.get('content'));
+    }
+
+    @IsTest
+    static void testDrawingEmitsHtmlWidthHeightAttributes() {
+        // Regression for v1.80 #58: high-resolution embedded images (e.g. Mantis ROM
+        // proposal: 15068×5731 native, Word displays at 8.46"×2.39" = 813×229 px) were
+        // rendering at native pixel size in PDF because Flying Saucer's image scaler
+        // resolves dimensions from HTML width/height attributes BEFORE applying CSS.
+        // Without explicit attrs the engine fell back to natural pixel dimensions and
+        // the CSS width:Xpx didn't override it. Fix: emit width="N" height="N" alongside
+        // the inline style so Flying Saucer locks size at the HTML attribute layer.
+        // EMU per px = 9525. 813px * 9525 = 7,743,825 EMU. 229px * 9525 = 2,181,225 EMU.
+        String docXml =
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"' +
+            ' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"' +
+            ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"' +
+            ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>' +
+            '<w:p><w:r><w:drawing>' +
+            '<wp:anchor><wp:extent cx="7743825" cy="2181225"/>' +
+            '<a:graphic><a:graphicData><a:blip r:embed="rIdMantisHero"/></a:graphicData></a:graphic>' +
+            '</wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+        Map<String, String> images = new Map<String, String>{
+            'rIdMantisHero' => '/sfc/servlet.shepherd/version/download/068000000000ABC'
+        };
+        String html = DocGenHtmlRenderer.convertToHtml(docXml, images, null);
+        System.assert(
+            html.contains('width="813"'),
+            'Drawing must emit HTML width attribute matching wp:extent — got: ' + html
+        );
+        System.assert(html.contains('height="229"'), 'Drawing must emit HTML height attribute matching wp:extent');
+        // CSS still emitted as defense-in-depth
+        System.assert(html.contains('width:813px;height:229px'), 'CSS width/height must still be emitted');
+    }
+
+    @IsTest
     static void testWatermarkOverrideBeatsVmlWatermark() {
         DocGenHtmlRenderer.overrideWatermarkCvId = '068000000000999';
         try {
