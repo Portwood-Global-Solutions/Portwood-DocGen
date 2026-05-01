@@ -1,5 +1,45 @@
 # Changelog
 
+## v1.81.0 — Special characters
+
+Promoted package: `04tal000006rKA1AAM` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rKA1AAM)
+
+Two-part fix for special-character rendering in PDF output. Driven by a tester who saw `&#8212;` and `&#183;` render as literal text in the v1.80 showcase, plus a follow-up where the showcase template's Greek/CJK/Hebrew/Arabic lines came out blank.
+
+### Numeric entity decoding
+
+`DocGenHtmlRenderer.unescapeXmlEntities` now decodes numeric character references in addition to named XML entities. Adds `decodeNumericEntities()` which:
+
+- Handles decimal (`&#NNNN;`) and hex (`&#xHH;` / `&#XHH;`) forms
+- Preserves malformed sequences (`&#abc;`, `&#xZZ;`) untouched
+- Skips C0 control codes (NUL, BEL) other than tab/LF/CR
+- Bounded to valid Unicode range U+0000–U+10FFFF
+
+This fixes em-dash, smart quotes, ©, ™, €, accented Latin, and any other content where the source DOCX/HTML embedded numeric entities (programmatically-generated docs, copy-paste from Notion/ChatGPT, hand-edited XML).
+
+### Full Unicode glyph rendering
+
+Flying Saucer's default fonts (Helvetica/Times/Courier) cover Latin-1 plus a small General Punctuation allowlist — they lack glyphs for Greek, CJK, Hebrew, Arabic, math operators, ₹ rupee, dingbats, and arrows. CSS body-level `font-family` fallback is **ignored** by Flying Saucer; only inline spans force the engine to swap fonts.
+
+New `wrapNonLatinGlyphs()` in both `DocGenHtmlRenderer` (DOCX→PDF path) and `DocGenService` (HTML template path):
+
+1. Walks body content (skipping markup), wraps each contiguous run of non-Latin codepoints in `<span style="font-family:'Arial Unicode MS',sans-serif;">`
+2. Pre-decodes high-codepoint named HTML entities (`&pi;`, `&sum;`, `&alpha;`, ~100 entries) back to literal Unicode before scanning — `String.escapeHtml4()` upstream converts these chars to named entities, hiding them from a raw-codepoint scan
+3. Allowlist for chars Helvetica DOES cover (en/em dash, smart quotes, bullet, ellipsis, dagger, trademark, euro)
+
+Result: full Unicode renders correctly in PDF — Greek alphabet, math operators (≠ ≤ ≥ ≈ ∞ √ ∑), CJK (Chinese/Japanese/Korean), Hebrew, Arabic, ₹ rupee, dingbat suits, arrows.
+
+### Validation
+
+Visual proof: `docs/special-chars-proof.pdf` demonstrates em-dash, en-dash, bullet, smart quotes, ©®™§¶, currencies (€£¥¢₹), math operators, fractions, accented Latin, Greek, CJK, Hebrew, Arabic, plus edge-case preservation.
+
+- RunLocalTests: 1183/1183 (100% pass, 75% org-wide coverage)
+- Code Analyzer: 0 High violations, 41 Moderate (known false positives)
+
+### Upgrade notes
+
+Drop-in upgrade. No breaking changes, no data model changes, no permission set updates. Customers running v1.80.0 can install directly. Only renderer-internal helpers added; existing templates render exactly as before for all already-supported characters, with broader Unicode now correctly rendering instead of falling back to empty glyph boxes.
+
 ## v1.80.0 — Word fidelity
 
 Promoted package: `04tal000006rJkDAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rJkDAAU)

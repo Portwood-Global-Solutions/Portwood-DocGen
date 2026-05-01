@@ -6,7 +6,7 @@ public with sharing class DocGenHtmlRenderer {
     private static final String HTML_PREFIX =
         '<html><head><meta charset="utf-8"/><style>' +
         '@page { size: letter; margin: 1in; }' + // default — overridden by convertToHtmlWithHeaderFooter
-        'body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }' +
+        'body { font-family: Arial, "Arial Unicode MS", sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }' +
         'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }' +
         'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }' +
         'h3 { font-size: 14pt; font-weight: bold; margin: 0 0 4pt 0; }' +
@@ -485,7 +485,7 @@ public with sharing class DocGenHtmlRenderer {
         }
         bodyHtml += html;
 
-        return dynamicPrefix + bodyHtml + HTML_SUFFIX;
+        return dynamicPrefix + wrapNonLatinGlyphs(bodyHtml) + HTML_SUFFIX;
     }
 
     /**
@@ -542,7 +542,7 @@ public with sharing class DocGenHtmlRenderer {
             '; margin-bottom: ' +
             (String.isNotBlank(footerHtml) ? '1.75in' : '1in') +
             '; }';
-        css += 'body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }';
+        css += 'body { font-family: Arial, "Arial Unicode MS", sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }';
         css += 'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }';
         css += 'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }';
         css += 'h3 { font-size: 14pt; font-weight: bold; margin: 0 0 4pt 0; }';
@@ -578,7 +578,254 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         result += HTML_SUFFIX;
-        return result;
+        return wrapNonLatinGlyphsInBody(result);
+    }
+
+    // Wraps body content's non-Latin glyphs without touching <head>/<style>.
+    private static String wrapNonLatinGlyphsInBody(String html) {
+        if (String.isBlank(html))
+            return html;
+        Integer bodyStart = html.indexOf('<body>');
+        Integer bodyEnd = html.lastIndexOf('</body>');
+        if (bodyStart == -1 || bodyEnd == -1 || bodyEnd <= bodyStart)
+            return html;
+        Integer contentStart = bodyStart + '<body>'.length();
+        String prefix = html.substring(0, contentStart);
+        String body = html.substring(contentStart, bodyEnd);
+        String suffix = html.substring(bodyEnd);
+        return prefix + wrapNonLatinGlyphs(body) + suffix;
+    }
+
+    @TestVisible
+    private static String wrapNonLatinGlyphs(String s) {
+        if (String.isBlank(s))
+            return s;
+        s = decodeHighCodepointEntities(s);
+        Integer len = s.length();
+        Boolean needsWrap = false;
+        for (Integer i = 0; i < len; i++) {
+            if (codepointNeedsUnicodeFont(s.charAt(i))) {
+                needsWrap = true;
+                break;
+            }
+        }
+        if (!needsWrap)
+            return s;
+
+        String out = '';
+        Integer i = 0;
+        Boolean inTag = false;
+        Integer runStart = -1;
+        while (i < len) {
+            Integer cp = s.charAt(i);
+            if (cp == 60) {
+                if (runStart >= 0) {
+                    out +=
+                        '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' +
+                        s.substring(runStart, i) +
+                        '</span>';
+                    runStart = -1;
+                }
+                inTag = true;
+                out += s.substring(i, i + 1);
+                i++;
+                continue;
+            }
+            if (cp == 62) {
+                inTag = false;
+                out += s.substring(i, i + 1);
+                i++;
+                continue;
+            }
+            if (inTag) {
+                out += s.substring(i, i + 1);
+                i++;
+                continue;
+            }
+            if (codepointNeedsUnicodeFont(cp)) {
+                if (runStart < 0)
+                    runStart = i;
+            } else {
+                if (runStart >= 0) {
+                    out +=
+                        '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' +
+                        s.substring(runStart, i) +
+                        '</span>';
+                    runStart = -1;
+                }
+                out += s.substring(i, i + 1);
+            }
+            i++;
+        }
+        if (runStart >= 0) {
+            out +=
+                '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' +
+                s.substring(runStart, len) +
+                '</span>';
+        }
+        return out;
+    }
+
+    private static Boolean codepointNeedsUnicodeFont(Integer cp) {
+        if (cp <= 591)
+            return false;
+        if (cp == 8211 || cp == 8212)
+            return false;
+        if (cp == 8216 || cp == 8217)
+            return false;
+        if (cp == 8220 || cp == 8221)
+            return false;
+        if (cp == 8226 || cp == 8230)
+            return false;
+        if (cp == 8224 || cp == 8225)
+            return false;
+        if (cp == 8482)
+            return false;
+        if (cp == 8364)
+            return false;
+        return true;
+    }
+
+    // String.escapeHtml4() converts Greek / math / dingbat Unicode chars back into
+    // named HTML entities. Flying Saucer renders them, but our font-wrap scan needs
+    // literal codepoints to detect chars Helvetica lacks. Decode the entities for
+    // glyphs that need the Arial Unicode MS span before wrap-time.
+    private static Map<String, Integer> highCodepointEntityMap;
+    private static Map<String, Integer> getHighCodepointEntityMap() {
+        if (highCodepointEntityMap != null)
+            return highCodepointEntityMap;
+        highCodepointEntityMap = new Map<String, Integer>{
+            // Greek lowercase
+            'alpha' => 945,
+            'beta' => 946,
+            'gamma' => 947,
+            'delta' => 948,
+            'epsilon' => 949,
+            'zeta' => 950,
+            'eta' => 951,
+            'theta' => 952,
+            'iota' => 953,
+            'kappa' => 954,
+            'lambda' => 955,
+            'mu' => 956,
+            'nu' => 957,
+            'xi' => 958,
+            'omicron' => 959,
+            'pi' => 960,
+            'rho' => 961,
+            'sigmaf' => 962,
+            'sigma' => 963,
+            'tau' => 964,
+            'upsilon' => 965,
+            'phi' => 966,
+            'chi' => 967,
+            'psi' => 968,
+            'omega' => 969,
+            'thetasym' => 977,
+            'upsih' => 978,
+            'piv' => 982,
+            // Greek uppercase
+            'Alpha' => 913,
+            'Beta' => 914,
+            'Gamma' => 915,
+            'Delta' => 916,
+            'Epsilon' => 917,
+            'Zeta' => 918,
+            'Eta' => 919,
+            'Theta' => 920,
+            'Iota' => 921,
+            'Kappa' => 922,
+            'Lambda' => 923,
+            'Mu' => 924,
+            'Nu' => 925,
+            'Xi' => 926,
+            'Omicron' => 927,
+            'Pi' => 928,
+            'Rho' => 929,
+            'Sigma' => 931,
+            'Tau' => 932,
+            'Upsilon' => 933,
+            'Phi' => 934,
+            'Chi' => 935,
+            'Psi' => 936,
+            'Omega' => 937,
+            // Math operators
+            'forall' => 8704,
+            'part' => 8706,
+            'exist' => 8707,
+            'empty' => 8709,
+            'nabla' => 8711,
+            'isin' => 8712,
+            'notin' => 8713,
+            'ni' => 8715,
+            'prod' => 8719,
+            'sum' => 8721,
+            'minus' => 8722,
+            'lowast' => 8727,
+            'radic' => 8730,
+            'prop' => 8733,
+            'infin' => 8734,
+            'ang' => 8736,
+            'and' => 8743,
+            'or' => 8744,
+            'cap' => 8745,
+            'cup' => 8746,
+            'int' => 8747,
+            'there4' => 8756,
+            'sim' => 8764,
+            'cong' => 8773,
+            'asymp' => 8776,
+            'ne' => 8800,
+            'equiv' => 8801,
+            'le' => 8804,
+            'ge' => 8805,
+            'sub' => 8834,
+            'sup' => 8835,
+            'nsub' => 8836,
+            'sube' => 8838,
+            'supe' => 8839,
+            'oplus' => 8853,
+            'otimes' => 8855,
+            'perp' => 8869,
+            'sdot' => 8901,
+            // Misc symbols
+            'lceil' => 8968,
+            'rceil' => 8969,
+            'lfloor' => 8970,
+            'rfloor' => 8971,
+            'lang' => 9001,
+            'rang' => 9002,
+            'loz' => 9674,
+            'spades' => 9824,
+            'clubs' => 9827,
+            'hearts' => 9829,
+            'diams' => 9830,
+            'larr' => 8592,
+            'uarr' => 8593,
+            'rarr' => 8594,
+            'darr' => 8595,
+            'harr' => 8596,
+            'crarr' => 8629,
+            'lArr' => 8656,
+            'uArr' => 8657,
+            'rArr' => 8658,
+            'dArr' => 8659,
+            'hArr' => 8660
+        };
+        return highCodepointEntityMap;
+    }
+
+    private static String decodeHighCodepointEntities(String s) {
+        if (String.isBlank(s) || s.indexOf('&') == -1)
+            return s;
+        Map<String, Integer> entityMap = getHighCodepointEntityMap();
+        for (String name : entityMap.keySet()) {
+            String token = '&' + name + ';';
+            if (s.contains(token)) {
+                s = s.replace(token, String.fromCharArray(new List<Integer>{ entityMap.get(name) }));
+            }
+        }
+        return s;
     }
 
     /**
@@ -3251,16 +3498,93 @@ public with sharing class DocGenHtmlRenderer {
     /**
      * Unescapes standard XML entities so downstream escapeHtml4() doesn't double-encode.
      */
+    @TestVisible
     private static String unescapeXmlEntities(String text) {
         if (String.isBlank(text)) {
             return text;
         }
+        text = decodeNumericEntities(text);
         text = text.replace('&amp;', '&');
         text = text.replace('&lt;', '<');
         text = text.replace('&gt;', '>');
         text = text.replace('&apos;', '\'');
         text = text.replace('&quot;', '"');
         return text;
+    }
+
+    /**
+     * Decodes numeric character references: &#NNNN; (decimal) and &#xHH; (hex).
+     * Leaves named entities and malformed sequences untouched. Skips C0 control codes
+     * other than tab/LF/CR so we don't inject anything that breaks downstream XML.
+     */
+    @TestVisible
+    private static String decodeNumericEntities(String text) {
+        if (text == null || text.indexOf('&#') == -1) {
+            return text;
+        }
+        String result = '';
+        Integer cursor = 0;
+        Integer len = text.length();
+        while (cursor < len) {
+            Integer amp = text.indexOf('&#', cursor);
+            if (amp == -1) {
+                result += text.substring(cursor);
+                break;
+            }
+            result += text.substring(cursor, amp);
+            Integer semi = text.indexOf(';', amp);
+            if (semi == -1 || semi - amp > 10) {
+                result += text.substring(amp, amp + 2);
+                cursor = amp + 2;
+                continue;
+            }
+            String body = text.substring(amp + 2, semi);
+            Integer codepoint = -1;
+            if (body.length() > 1 && (body.startsWith('x') || body.startsWith('X'))) {
+                String hex = body.substring(1);
+                if (hex.length() <= 6 && hex.toLowerCase().replaceAll('[0-9a-f]', '').length() == 0) {
+                    codepoint = parseHex(hex);
+                }
+            } else if (body.length() > 0 && body.isNumeric()) {
+                try {
+                    codepoint = Integer.valueOf(body);
+                } catch (Exception e) {
+                    codepoint = -1;
+                }
+            }
+            if (
+                codepoint >= 0 &&
+                codepoint <= 1114111 &&
+                (codepoint == 9 ||
+                codepoint == 10 ||
+                codepoint == 13 ||
+                codepoint >= 32)
+            ) {
+                result += String.fromCharArray(new List<Integer>{ codepoint });
+                cursor = semi + 1;
+            } else {
+                result += text.substring(amp, amp + 2);
+                cursor = amp + 2;
+            }
+        }
+        return result;
+    }
+
+    private static Integer parseHex(String hex) {
+        Integer value = 0;
+        for (Integer i = 0; i < hex.length(); i++) {
+            Integer code = hex.substring(i, i + 1).toLowerCase().charAt(0);
+            Integer digit;
+            if (code >= 48 && code <= 57) {
+                digit = code - 48;
+            } else if (code >= 97 && code <= 102) {
+                digit = code - 87;
+            } else {
+                return -1;
+            }
+            value = value * 16 + digit;
+        }
+        return value;
     }
 
     /**

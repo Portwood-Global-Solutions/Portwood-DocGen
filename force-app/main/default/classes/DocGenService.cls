@@ -6562,7 +6562,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         if (String.isNotBlank(footer) && !footerHasCounters) {
             css += ' .docgen-running-footer { position: running(dgfooter); }';
         }
-        css += ' body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.4; color: #000; margin: 0; }';
+        css += ' body { font-family: Arial, Helvetica, "Arial Unicode MS", sans-serif; font-size: 11pt; line-height: 1.4; color: #000; margin: 0; }';
         css += ' img { max-width: 100%; }';
         css += ' table { border-collapse: collapse; }';
 
@@ -6578,22 +6578,241 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         if (String.isNotBlank(footer) && !footerHasCounters) {
             html += '<div class="docgen-running-footer">' + footer + '</div>';
         }
-        html += wrapHtmlCheckmarks(body == null ? '' : body);
+        html += wrapNonLatinGlyphs(body == null ? '' : body);
         html += '</body></html>';
         return html;
     }
 
-    // Flying Saucer's default fonts (Helvetica/Times/Courier) lack checkbox/check
-    // glyphs — Arial Unicode MS has them. Wrap any checkmark Unicode chars in
-    // body text with a font span. Skips substrings already inside a <span style=...>
-    // by doing a direct char replace; double-wrapping is harmless (inner span wins).
-    private static final String[] HTML_CHECKMARK_CHARS = new List<String>{ '☐', '☑', '☒', '✓', '✔', '✗', '✘' };
-    private static String wrapHtmlCheckmarks(String s) {
+    // Flying Saucer's default fonts (Helvetica/Times/Courier) cover Latin-1 plus a
+    // small allowlist of General Punctuation (smart quotes, dashes, bullet, ellipsis,
+    // trademark, euro). Everything else — Greek, CJK, Hebrew, Arabic, math operators,
+    // ₹ rupee, checkboxes — must be wrapped in an inline 'Arial Unicode MS' span.
+    // Body-level font-family fallback is ignored by Flying Saucer; only inline spans work.
+    @TestVisible
+    private static String wrapNonLatinGlyphs(String s) {
         if (String.isBlank(s))
             return s;
-        for (String c : HTML_CHECKMARK_CHARS) {
-            if (s.contains(c)) {
-                s = s.replace(c, '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' + c + '</span>');
+        s = decodeHighCodepointEntities(s);
+        Integer len = s.length();
+        Boolean needsWrap = false;
+        for (Integer i = 0; i < len; i++) {
+            if (codepointNeedsUnicodeFont(s.charAt(i))) {
+                needsWrap = true;
+                break;
+            }
+        }
+        if (!needsWrap)
+            return s;
+
+        String out = '';
+        Integer i = 0;
+        Boolean inTag = false;
+        Integer runStart = -1;
+        while (i < len) {
+            Integer cp = s.charAt(i);
+            if (cp == 60) {
+                // '<' — entering markup; close any open run first
+                if (runStart >= 0) {
+                    out +=
+                        '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' +
+                        s.substring(runStart, i) +
+                        '</span>';
+                    runStart = -1;
+                }
+                inTag = true;
+                out += s.substring(i, i + 1);
+                i++;
+                continue;
+            }
+            if (cp == 62) {
+                // '>'
+                inTag = false;
+                out += s.substring(i, i + 1);
+                i++;
+                continue;
+            }
+            if (inTag) {
+                out += s.substring(i, i + 1);
+                i++;
+                continue;
+            }
+            if (codepointNeedsUnicodeFont(cp)) {
+                if (runStart < 0)
+                    runStart = i;
+            } else {
+                if (runStart >= 0) {
+                    out +=
+                        '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' +
+                        s.substring(runStart, i) +
+                        '</span>';
+                    runStart = -1;
+                }
+                out += s.substring(i, i + 1);
+            }
+            i++;
+        }
+        if (runStart >= 0) {
+            out +=
+                '<span style="font-family:\'Arial Unicode MS\', sans-serif;">' +
+                s.substring(runStart, len) +
+                '</span>';
+        }
+        return out;
+    }
+
+    private static Boolean codepointNeedsUnicodeFont(Integer cp) {
+        if (cp <= 591)
+            return false; // Latin-1 + Latin Extended-A/B
+        if (cp == 8211 || cp == 8212)
+            return false; // en/em dash
+        if (cp == 8216 || cp == 8217)
+            return false; // single smart quotes
+        if (cp == 8220 || cp == 8221)
+            return false; // double smart quotes
+        if (cp == 8226 || cp == 8230)
+            return false; // bullet, ellipsis
+        if (cp == 8224 || cp == 8225)
+            return false; // dagger, double dagger
+        if (cp == 8482)
+            return false; // trademark
+        if (cp == 8364)
+            return false; // euro
+        return true;
+    }
+
+    // Decode HTML 4 named entities for high codepoints (Greek, math, dingbats) so the
+    // wrap scan can detect them as needing the Arial Unicode MS span. escapeHtml4()
+    // upstream converts literal Unicode chars into named entities; we reverse that for
+    // glyphs Helvetica lacks.
+    private static Map<String, Integer> highCodepointEntityMap;
+    private static Map<String, Integer> getHighCodepointEntityMap() {
+        if (highCodepointEntityMap != null)
+            return highCodepointEntityMap;
+        highCodepointEntityMap = new Map<String, Integer>{
+            'alpha' => 945,
+            'beta' => 946,
+            'gamma' => 947,
+            'delta' => 948,
+            'epsilon' => 949,
+            'zeta' => 950,
+            'eta' => 951,
+            'theta' => 952,
+            'iota' => 953,
+            'kappa' => 954,
+            'lambda' => 955,
+            'mu' => 956,
+            'nu' => 957,
+            'xi' => 958,
+            'omicron' => 959,
+            'pi' => 960,
+            'rho' => 961,
+            'sigmaf' => 962,
+            'sigma' => 963,
+            'tau' => 964,
+            'upsilon' => 965,
+            'phi' => 966,
+            'chi' => 967,
+            'psi' => 968,
+            'omega' => 969,
+            'thetasym' => 977,
+            'upsih' => 978,
+            'piv' => 982,
+            'Alpha' => 913,
+            'Beta' => 914,
+            'Gamma' => 915,
+            'Delta' => 916,
+            'Epsilon' => 917,
+            'Zeta' => 918,
+            'Eta' => 919,
+            'Theta' => 920,
+            'Iota' => 921,
+            'Kappa' => 922,
+            'Lambda' => 923,
+            'Mu' => 924,
+            'Nu' => 925,
+            'Xi' => 926,
+            'Omicron' => 927,
+            'Pi' => 928,
+            'Rho' => 929,
+            'Sigma' => 931,
+            'Tau' => 932,
+            'Upsilon' => 933,
+            'Phi' => 934,
+            'Chi' => 935,
+            'Psi' => 936,
+            'Omega' => 937,
+            'forall' => 8704,
+            'part' => 8706,
+            'exist' => 8707,
+            'empty' => 8709,
+            'nabla' => 8711,
+            'isin' => 8712,
+            'notin' => 8713,
+            'ni' => 8715,
+            'prod' => 8719,
+            'sum' => 8721,
+            'minus' => 8722,
+            'lowast' => 8727,
+            'radic' => 8730,
+            'prop' => 8733,
+            'infin' => 8734,
+            'ang' => 8736,
+            'and' => 8743,
+            'or' => 8744,
+            'cap' => 8745,
+            'cup' => 8746,
+            'int' => 8747,
+            'there4' => 8756,
+            'sim' => 8764,
+            'cong' => 8773,
+            'asymp' => 8776,
+            'ne' => 8800,
+            'equiv' => 8801,
+            'le' => 8804,
+            'ge' => 8805,
+            'sub' => 8834,
+            'sup' => 8835,
+            'nsub' => 8836,
+            'sube' => 8838,
+            'supe' => 8839,
+            'oplus' => 8853,
+            'otimes' => 8855,
+            'perp' => 8869,
+            'sdot' => 8901,
+            'lceil' => 8968,
+            'rceil' => 8969,
+            'lfloor' => 8970,
+            'rfloor' => 8971,
+            'lang' => 9001,
+            'rang' => 9002,
+            'loz' => 9674,
+            'spades' => 9824,
+            'clubs' => 9827,
+            'hearts' => 9829,
+            'diams' => 9830,
+            'larr' => 8592,
+            'uarr' => 8593,
+            'rarr' => 8594,
+            'darr' => 8595,
+            'harr' => 8596,
+            'crarr' => 8629,
+            'lArr' => 8656,
+            'uArr' => 8657,
+            'rArr' => 8658,
+            'dArr' => 8659,
+            'hArr' => 8660
+        };
+        return highCodepointEntityMap;
+    }
+
+    private static String decodeHighCodepointEntities(String s) {
+        if (String.isBlank(s) || s.indexOf('&') == -1)
+            return s;
+        Map<String, Integer> entityMap = getHighCodepointEntityMap();
+        for (String name : entityMap.keySet()) {
+            String token = '&' + name + ';';
+            if (s.contains(token)) {
+                s = s.replace(token, String.fromCharArray(new List<Integer>{ entityMap.get(name) }));
             }
         }
         return s;
