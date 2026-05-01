@@ -124,7 +124,7 @@ HEADER1 = '''<?xml version="1.0" encoding="UTF-8"?>
        xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
 <w:p><w:pPr><w:jc w:val="right"/></w:pPr>
 <w:r><w:rPr><w:sz w:val="20"/><w:color w:val="666666"/></w:rPr>
-<w:t>DocGen v1.80 Showcase &#8212; default header (pages 2+)</w:t></w:r></w:p>
+<w:t>DocGen v1.80 Showcase — default header (pages 2+)</w:t></w:r></w:p>
 </w:hdr>'''
 
 # FOOTER #2 — first page footer
@@ -132,7 +132,7 @@ FOOTER2 = '''<?xml version="1.0" encoding="UTF-8"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 <w:p><w:pPr><w:jc w:val="center"/></w:pPr>
 <w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="2E5C8A"/></w:rPr>
-<w:t>Title-Page Footer &#183; v1.80 Fix #57</w:t></w:r></w:p>
+<w:t>Title-Page Footer · v1.80 Fix #57</w:t></w:r></w:p>
 </w:ftr>'''
 
 # FOOTER #1 — default footer (pages 2+)
@@ -140,7 +140,7 @@ FOOTER1 = '''<?xml version="1.0" encoding="UTF-8"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 <w:p><w:pPr><w:jc w:val="center"/></w:pPr>
 <w:r><w:rPr><w:sz w:val="18"/><w:color w:val="999999"/></w:rPr>
-<w:t>Default footer &#8212; rendered on pages 2 and beyond</w:t></w:r></w:p>
+<w:t>Default footer — rendered on pages 2 and beyond</w:t></w:r></w:p>
 </w:ftr>'''
 
 # Document body. Page 1 = title page that exercises #53 + #58.
@@ -158,22 +158,22 @@ DOCUMENT = '''<?xml version="1.0" encoding="UTF-8"?>
 <w:r><w:t>DocGen v1.80 Word-Fidelity Showcase</w:t></w:r></w:p>
 
 <w:p><w:r><w:rPr><w:i/><w:sz w:val="20"/><w:color w:val="666666"/></w:rPr>
-<w:t>Generated for {Name} &#183; this body must render LEFT-ALIGNED. (Fix #53)</w:t></w:r></w:p>
+<w:t>Generated for {Name} · this body must render LEFT-ALIGNED. (Fix #53)</w:t></w:r></w:p>
 
 <w:p><w:r><w:t></w:t></w:r></w:p>
 
-<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Fix #53 &#8212; LibreOffice RTL false positive</w:t></w:r></w:p>
+<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Fix #53 — LibreOffice RTL false positive</w:t></w:r></w:p>
 <w:p><w:r><w:t>This template's styles.xml contains </w:t></w:r>
 <w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/></w:rPr>
 <w:t>&lt;w:bidi w:val="0"/&gt;</w:t></w:r>
-<w:r><w:t> in the Normal style &#8212; the artifact LibreOffice's .doc&#8594;.docx conversion injects into every English document. Before v1.80 the renderer matched the substring "&lt;w:bidi " and incorrectly flagged the doc as right-to-left, emitting </w:t></w:r>
+<w:r><w:t> in the Normal style — the artifact LibreOffice's .doc→.docx conversion injects into every English document. Before v1.80 the renderer matched the substring "&lt;w:bidi " and incorrectly flagged the doc as right-to-left, emitting </w:t></w:r>
 <w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/></w:rPr><w:t>text-align: right</w:t></w:r>
 <w:r><w:t> on body. After the fix, this paragraph renders left-aligned as authored.</w:t></w:r></w:p>
 
 <w:p><w:r><w:t></w:t></w:r></w:p>
 
-<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Fix #58 &#8212; image dimension binding</w:t></w:r></w:p>
-<w:p><w:r><w:t>The 1-inch test image below has wp:extent of 914400&#215;914400 EMU (1in&#215;1in display). Its native PNG is 1px&#215;1px. Without v1.80's HTML width/height attribute fix, Flying Saucer's image scaler would have read native pixel dims and rendered a 1px dot. With the fix, it renders as a 96px&#215;96px square exactly as authored.</w:t></w:r></w:p>
+<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Fix #58 — image dimension binding</w:t></w:r></w:p>
+<w:p><w:r><w:t>The 1-inch test image below has wp:extent of 914400×914400 EMU (1in×1in display). Its native PNG is 1px×1px. Without v1.80's HTML width/height attribute fix, Flying Saucer's image scaler would have read native pixel dims and rendered a 1px dot. With the fix, it renders as a 96px×96px square exactly as authored.</w:t></w:r></w:p>
 
 <w:p><w:pPr><w:jc w:val="center"/></w:pPr>
 <w:r><w:drawing>
@@ -192,35 +192,35 @@ DOCUMENT = '''<?xml version="1.0" encoding="UTF-8"?>
 
 <w:p><w:r><w:t></w:t></w:r></w:p>
 
-<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Fix #56 &#8212; pre-flight overflow warning</w:t></w:r></w:p>
+<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Fix #56 — pre-flight overflow warning</w:t></w:r></w:p>
 <w:p><w:r><w:t>The blue banner in this title-page header is authored at 8.27" wide. The page content area (8.5" - 0.5" - 0.5" margins) is only 7.5". When extractAndSaveTemplateImages ran, it emitted a System.debug WARN entry surfacing the overflow so admins can resize before users hit it.</w:t></w:r></w:p>
 
 <w:p><w:r><w:t></w:t></w:r></w:p>
 
-<w:p><w:r><w:rPr><w:b/><w:color w:val="2E5C8A"/></w:rPr><w:t>&#8595; Page 2 should look noticeably different &#8212; smaller right-aligned default header, plain footer.</w:t></w:r></w:p>
+<w:p><w:r><w:rPr><w:b/><w:color w:val="2E5C8A"/></w:rPr><w:t>↓ Page 2 should look noticeably different — smaller right-aligned default header, plain footer.</w:t></w:r></w:p>
 
 <w:p><w:r><w:br w:type="page"/></w:r></w:p>
 
 <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
-<w:r><w:t>Fix #57 &#8212; First-Page-Distinct Headers/Footers</w:t></w:r></w:p>
+<w:r><w:t>Fix #57 — First-Page-Distinct Headers/Footers</w:t></w:r></w:p>
 
 <w:p><w:r><w:t>This is page 2. The doc has </w:t></w:r>
 <w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/></w:rPr><w:t>&lt;w:titlePg/&gt;</w:t></w:r>
 <w:r><w:t> set in sectPr, plus separate "first" and "default" headerReference entries. Before v1.80 the renderer concatenated all headers into one block and rendered all of them on every page. After the fix:</w:t></w:r></w:p>
 
-<w:p><w:r><w:t>&#8226; Page 1 used the FIRST-typed header (the big blue banner you saw) and FIRST-typed footer.</w:t></w:r></w:p>
+<w:p><w:r><w:t>• Page 1 used the FIRST-typed header (the big blue banner you saw) and FIRST-typed footer.</w:t></w:r></w:p>
 
-<w:p><w:r><w:t>&#8226; Pages 2+ use the DEFAULT header (the small grey label, top-right) and DEFAULT footer (small grey text, bottom-center).</w:t></w:r></w:p>
+<w:p><w:r><w:t>• Pages 2+ use the DEFAULT header (the small grey label, top-right) and DEFAULT footer (small grey text, bottom-center).</w:t></w:r></w:p>
 
 <w:p><w:r><w:t>If you are reading this on page 2 and the headers/footers look different from page 1, the fix is working.</w:t></w:r></w:p>
 
 <w:p><w:r><w:t></w:t></w:r></w:p>
 
 <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Quick reference of the four v1.80 fixes:</w:t></w:r></w:p>
-<w:p><w:r><w:t>&#8226; #53 OOXML on/off parser &#8212; correctly handles w:val="0" disabled form across 11 element types</w:t></w:r></w:p>
-<w:p><w:r><w:t>&#8226; #56 Pre-flight image-overflow warning &#8212; debug-log alerts when wp:extent exceeds page area</w:t></w:r></w:p>
-<w:p><w:r><w:t>&#8226; #57 First-page-distinct headers/footers &#8212; @page :first running elements wired to first-typed refs</w:t></w:r></w:p>
-<w:p><w:r><w:t>&#8226; #58 Image dimension binding &#8212; HTML width/height attrs lock display size at Flying Saucer's authoritative layer</w:t></w:r></w:p>
+<w:p><w:r><w:t>• #53 OOXML on/off parser — correctly handles w:val="0" disabled form across 11 element types</w:t></w:r></w:p>
+<w:p><w:r><w:t>• #56 Pre-flight image-overflow warning — debug-log alerts when wp:extent exceeds page area</w:t></w:r></w:p>
+<w:p><w:r><w:t>• #57 First-page-distinct headers/footers — @page :first running elements wired to first-typed refs</w:t></w:r></w:p>
+<w:p><w:r><w:t>• #58 Image dimension binding — HTML width/height attrs lock display size at Flying Saucer's authoritative layer</w:t></w:r></w:p>
 
 <w:sectPr>
 <w:headerReference w:type="first" r:id="rId3"/>
