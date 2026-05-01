@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.82.0 — Image sizing hotfix
+
+Promoted package: `04tal000006rKBdAAM` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rKBdAAM)
+
+Single-issue hotfix on top of v1.81. Resolves a v1.80 regression filed by Joe (issue #46 follow-up): image-heavy PDFs using `{%Image:N:max-dim}` tags rendered at natural pixel size instead of the requested cap. Phone photos at 4032×3024 native resolution were filling the full 6.5" content width on PDFs and breaking page layout downstream.
+
+### Root cause
+
+The v1.80 `DOCGEN_AUTOSIZE` fix (#46) emitted `<img max-width:Npx;max-height:Npx;width:auto;height:auto;>` with no HTML `width`/`height` attributes. Flying Saucer's image scaler reads HTML attrs as authoritative; absent those, `width:auto;height:auto;max-width:Npx` falls through to the source image's natural pixel dimensions, with only the document-level `img { max-width: 100% }` rule as a backstop — clamping to page-content width, not the requested cap.
+
+### Fix
+
+`DocGenHtmlRenderer.processDrawing` now emits an HTML `width="N"` attr alongside the CSS in the autoSize branch:
+
+```html
+<img src="..." width="240" style="max-width:240px;max-height:240px;..." />
+```
+
+Single-axis HTML width attr is the right anchor — Flying Saucer scales height proportionally from the source image's intrinsic aspect ratio. Single-number tokens like `{%Image:1:240}` set both maxWidth and maxHeight to the same value, so `width="240"` is correct. Explicit `:WxH` tokens never enter autoSize (gated on `hasExplicitFixed`).
+
+### Validation
+
+- Unit test added: `DocGenImageTagTests.v181Issue46Followup_autoSizeEmitsHtmlWidthAttr` — asserts HTML `width` attr present, no `height` attr (no squashing), no leaked `width:auto;height:auto`
+- Visual proof: scratch render of `{%Image:1:240}` against a CV-backed image confirms output `<img width="240" ...>` form
+- All other image-tag tests (rich text inline, single-axis percent, explicit WxH, CV-backed) continue to pass
+
+### Upgrade notes
+
+Drop-in upgrade. No breaking changes, no data model changes, no permission set updates. Customers running v1.80.0 / v1.81.0 should upgrade — this resolves the most common rendering regression in image-heavy PDFs.
+
 ## v1.81.0 — Special characters
 
 Promoted package: `04tal000006rKA1AAM` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rKA1AAM)

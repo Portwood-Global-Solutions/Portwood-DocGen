@@ -541,4 +541,51 @@ private class DocGenImageTagTests {
             DocGenService.currentOutputFormat = null;
         }
     }
+
+    @IsTest
+    static void v181Issue46Followup_autoSizeEmitsHtmlWidthAttr() {
+        // Joe's regression: in autoSize mode the rendered <img> had no HTML
+        // width/height attrs, only CSS max-width/max-height + width:auto;height:auto.
+        // Flying Saucer ignored the CSS clamp and rendered images at natural pixel
+        // size — 4032x3024 phone photos blew past the 240px cap. Fix emits a
+        // single-axis HTML width attr so FS computes height proportionally.
+        String drawingXml =
+            '<w:drawing>' +
+            '<wp:inline distT="0" distB="0" distL="0" distR="0">' +
+            '<wp:extent cx="2286000" cy="2286000"/>' +
+            '<wp:docPr id="1" name="Picture 1" descr="DOCGEN_AUTOSIZE"/>' +
+            '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
+            '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+            '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+            '<pic:blipFill><a:blip r:embed="rId99" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/></pic:blipFill>' +
+            '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+        String docXml =
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:body><w:p><w:r>' +
+            drawingXml +
+            '</w:r></w:p></w:body></w:document>';
+
+        Map<String, String> images = new Map<String, String>{
+            'rId99' => '/sfc/servlet.shepherd/version/download/068000000000999'
+        };
+        String html = DocGenHtmlRenderer.convertToHtml(docXml, images);
+
+        System.assert(
+            html.contains('width="240"'),
+            'autoSize must emit HTML width attr to anchor Flying Saucer layout: ' + html.left(800)
+        );
+        System.assert(
+            !html.contains('height="240"'),
+            'autoSize must NOT emit height attr — would force squashing: ' + html.left(800)
+        );
+        System.assert(
+            html.contains('max-width:240px'),
+            'max-width CSS still expected as a backstop: ' + html.left(800)
+        );
+        System.assert(
+            !html.contains('width:auto;height:auto'),
+            'Old width:auto;height:auto would override HTML width attr: ' + html.left(800)
+        );
+    }
 }
