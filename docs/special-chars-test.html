@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>DocGen Special Characters Test</title>
+<style>
+  body { font-family: sans-serif; font-size: 11pt; line-height: 1.5; }
+  h1 { font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 4pt; }
+  h2 { font-size: 13pt; color: #444; margin-top: 18pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+  th, td { border: 1px solid #999; padding: 4pt 8pt; text-align: left; }
+  th { background: #eee; }
+  .label { color: #666; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>DocGen Special Characters Test &#8212; Numeric Entity Decoding</h1>
+<p class="label">Account: {Name} &#183; Generated: {Today}</p>
+
+<h2>1. Punctuation</h2>
+<table>
+<tr><th>Entity</th><th>Decimal</th><th>Hex</th><th>Result</th></tr>
+<tr><td>Em dash</td><td>&amp;#8212;</td><td>&amp;#x2014;</td><td>&#8212; / &#x2014;</td></tr>
+<tr><td>En dash</td><td>&amp;#8211;</td><td>&amp;#x2013;</td><td>&#8211; / &#x2013;</td></tr>
+<tr><td>Middle dot</td><td>&amp;#183;</td><td>&amp;#xB7;</td><td>&#183; / &#xB7;</td></tr>
+<tr><td>Bullet</td><td>&amp;#8226;</td><td>&amp;#x2022;</td><td>&#8226; / &#x2022;</td></tr>
+<tr><td>Horizontal ellipsis</td><td>&amp;#8230;</td><td>&amp;#x2026;</td><td>&#8230; / &#x2026;</td></tr>
+<tr><td>Left double quote</td><td>&amp;#8220;</td><td>&amp;#x201C;</td><td>&#8220; / &#x201C;</td></tr>
+<tr><td>Right double quote</td><td>&amp;#8221;</td><td>&amp;#x201D;</td><td>&#8221; / &#x201D;</td></tr>
+<tr><td>Left single quote</td><td>&amp;#8216;</td><td>&amp;#x2018;</td><td>&#8216; / &#x2018;</td></tr>
+<tr><td>Right single quote</td><td>&amp;#8217;</td><td>&amp;#x2019;</td><td>&#8217; / &#x2019;</td></tr>
+</table>
+
+<h2>2. Symbols</h2>
+<table>
+<tr><th>Entity</th><th>Decimal</th><th>Hex</th><th>Result</th></tr>
+<tr><td>Copyright</td><td>&amp;#169;</td><td>&amp;#xA9;</td><td>&#169; / &#xA9;</td></tr>
+<tr><td>Registered</td><td>&amp;#174;</td><td>&amp;#xAE;</td><td>&#174; / &#xAE;</td></tr>
+<tr><td>Trademark</td><td>&amp;#8482;</td><td>&amp;#x2122;</td><td>&#8482; / &#x2122;</td></tr>
+<tr><td>Section</td><td>&amp;#167;</td><td>&amp;#xA7;</td><td>&#167; / &#xA7;</td></tr>
+<tr><td>Paragraph (pilcrow)</td><td>&amp;#182;</td><td>&amp;#xB6;</td><td>&#182; / &#xB6;</td></tr>
+<tr><td>Dagger</td><td>&amp;#8224;</td><td>&amp;#x2020;</td><td>&#8224; / &#x2020;</td></tr>
+<tr><td>Double dagger</td><td>&amp;#8225;</td><td>&amp;#x2021;</td><td>&#8225; / &#x2021;</td></tr>
+</table>
+
+<h2>3. Currency</h2>
+<table>
+<tr><th>Entity</th><th>Decimal</th><th>Hex</th><th>Result</th></tr>
+<tr><td>Euro</td><td>&amp;#8364;</td><td>&amp;#x20AC;</td><td>&#8364; / &#x20AC;</td></tr>
+<tr><td>Pound</td><td>&amp;#163;</td><td>&amp;#xA3;</td><td>&#163; / &#xA3;</td></tr>
+<tr><td>Yen</td><td>&amp;#165;</td><td>&amp;#xA5;</td><td>&#165; / &#xA5;</td></tr>
+<tr><td>Cent</td><td>&amp;#162;</td><td>&amp;#xA2;</td><td>&#162; / &#xA2;</td></tr>
+<tr><td>Indian Rupee</td><td>&amp;#8377;</td><td>&amp;#x20B9;</td><td>&#8377; / &#x20B9;</td></tr>
+</table>
+
+<h2>4. Math</h2>
+<table>
+<tr><th>Entity</th><th>Decimal</th><th>Hex</th><th>Result</th></tr>
+<tr><td>Plus-minus</td><td>&amp;#177;</td><td>&amp;#xB1;</td><td>&#177; / &#xB1;</td></tr>
+<tr><td>Multiplication</td><td>&amp;#215;</td><td>&amp;#xD7;</td><td>&#215; / &#xD7;</td></tr>
+<tr><td>Division</td><td>&amp;#247;</td><td>&amp;#xF7;</td><td>&#247; / &#xF7;</td></tr>
+<tr><td>Not equal</td><td>&amp;#8800;</td><td>&amp;#x2260;</td><td>&#8800; / &#x2260;</td></tr>
+<tr><td>Less-or-equal</td><td>&amp;#8804;</td><td>&amp;#x2264;</td><td>&#8804; / &#x2264;</td></tr>
+<tr><td>Greater-or-equal</td><td>&amp;#8805;</td><td>&amp;#x2265;</td><td>&#8805; / &#x2265;</td></tr>
+<tr><td>Approximately</td><td>&amp;#8776;</td><td>&amp;#x2248;</td><td>&#8776; / &#x2248;</td></tr>
+<tr><td>Infinity</td><td>&amp;#8734;</td><td>&amp;#x221E;</td><td>&#8734; / &#x221E;</td></tr>
+<tr><td>Square root</td><td>&amp;#8730;</td><td>&amp;#x221A;</td><td>&#8730; / &#x221A;</td></tr>
+<tr><td>Sum</td><td>&amp;#8721;</td><td>&amp;#x2211;</td><td>&#8721; / &#x2211;</td></tr>
+<tr><td>Pi</td><td>&amp;#960;</td><td>&amp;#x3C0;</td><td>&#960; / &#x3C0;</td></tr>
+<tr><td>Degree</td><td>&amp;#176;</td><td>&amp;#xB0;</td><td>&#176; / &#xB0;</td></tr>
+<tr><td>One-half</td><td>&amp;#189;</td><td>&amp;#xBD;</td><td>&#189; / &#xBD;</td></tr>
+<tr><td>One-quarter</td><td>&amp;#188;</td><td>&amp;#xBC;</td><td>&#188; / &#xBC;</td></tr>
+<tr><td>Three-quarters</td><td>&amp;#190;</td><td>&amp;#xBE;</td><td>&#190; / &#xBE;</td></tr>
+</table>
+
+<h2>5. Accented Latin</h2>
+<table>
+<tr><th>Entity</th><th>Decimal</th><th>Hex</th><th>Result</th></tr>
+<tr><td>&aacute; e-acute style</td><td>&amp;#225; &amp;#233;</td><td>&amp;#xE1; &amp;#xE9;</td><td>&#225; &#233; / &#xE1; &#xE9;</td></tr>
+<tr><td>n-tilde</td><td>&amp;#241;</td><td>&amp;#xF1;</td><td>&#241; / &#xF1;</td></tr>
+<tr><td>u-umlaut</td><td>&amp;#252;</td><td>&amp;#xFC;</td><td>&#252; / &#xFC;</td></tr>
+<tr><td>c-cedilla</td><td>&amp;#231;</td><td>&amp;#xE7;</td><td>&#231; / &#xE7;</td></tr>
+<tr><td>ae ligature</td><td>&amp;#230;</td><td>&amp;#xE6;</td><td>&#230; / &#xE6;</td></tr>
+<tr><td>o-slash</td><td>&amp;#248;</td><td>&amp;#xF8;</td><td>&#248; / &#xF8;</td></tr>
+</table>
+
+<h2>6. Greek</h2>
+<p>&#913; &#914; &#915; &#916; &#917; &#918; &#919; &#920; &#921; &#922; &#923; &#924; &#925; &#926; &#927; &#928; &#929; &#931; &#932; &#933; &#934; &#935; &#936; &#937;</p>
+<p>&#945; &#946; &#947; &#948; &#949; &#950; &#951; &#952; &#953; &#954; &#955; &#956; &#957; &#958; &#959; &#960; &#961; &#963; &#964; &#965; &#966; &#967; &#968; &#969;</p>
+
+<h2>7. Hebrew</h2>
+<p>&#1513;&#1500;&#1493;&#1501; &#1499;&#1497;&#1510;&#1491; &#1488;&#1514;&#1492;? (Hebrew &quot;Hello, how are you?&quot;)</p>
+
+<h2>8. Arabic</h2>
+<p>&#1605;&#1585;&#1581;&#1576;&#1575;&#1611; &#1576;&#1575;&#1604;&#1593;&#1575;&#1604;&#1605; (Arabic &quot;Hello world&quot;)</p>
+
+<h2>9. CJK</h2>
+<table>
+<tr><th>Language</th><th>Decimal</th><th>Result</th></tr>
+<tr><td>Chinese hello</td><td>&amp;#20320;&amp;#22909;</td><td>&#20320;&#22909;</td></tr>
+<tr><td>Japanese hello</td><td>&amp;#12371;&amp;#12435;&amp;#12395;&amp;#12385;&amp;#12399;</td><td>&#12371;&#12435;&#12395;&#12385;&#12399;</td></tr>
+<tr><td>Korean hello</td><td>&amp;#50504;&amp;#45397;</td><td>&#50504;&#45397;</td></tr>
+</table>
+
+<h2>10. Edge cases (should be preserved as-is)</h2>
+<table>
+<tr><th>Input</th><th>Expected behavior</th></tr>
+<tr><td>&amp;#abc;</td><td>Non-numeric body &#8212; preserved literally</td></tr>
+<tr><td>&amp;#xZZ;</td><td>Invalid hex &#8212; preserved literally</td></tr>
+<tr><td>&amp;#0;</td><td>NUL control &#8212; preserved literally</td></tr>
+<tr><td>&amp;#7;</td><td>BEL control &#8212; preserved literally</td></tr>
+<tr><td>&amp;amp; &amp;lt; &amp;gt;</td><td>Named entities still decode: &amp; &lt; &gt;</td></tr>
+</table>
+
+<h2>11. Combined with merge tags</h2>
+<p>{Name} &#8212; signed by {Owner.Name} on {Today} &#183; Status: &#8220;Active&#8221;.</p>
+<p>Total &#8804; {Account.AnnualRevenue:currency} &#8226; Effective &#8805; {Today}.</p>
+
+</body>
+</html>
