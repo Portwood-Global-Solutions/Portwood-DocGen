@@ -4958,20 +4958,62 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             }
             pendingImages.add(imgEntry);
 
-            // Compute image dimensions in EMU with intrinsic size detection and scaling
+            // Compute image dimensions in EMU with intrinsic size detection and scaling.
+            //
+            // Intrinsic dim lookup requires reading the image's bytes (PNG IHDR or JPEG SOF
+            // marker). On the PDF path we deliberately skip blob loading to save heap, so
+            // imageBlobData is null and getImageDimensionsInEmu returns null. The pre-v1.80
+            // fallback was a hardcoded 4:3 default (288×216 EMU = 4×3in) which then got
+            // scaled to whatever max constraint was given. For `{%Image:N:240}` against a
+            // portrait phone photo this produced a 240×180 rectangle — the source's natural
+            // aspect was lost (#46).
+            //
+            // Fix: when we have no intrinsic dims AND no explicit fixed width/height on the
+            // spec (so the user did NOT give us a definitive WxH), emit DOCGEN_AUTOSIZE on
+            // the drawing's docPr/descr. The renderer's processDrawing flips to
+            // `max-width:Xpx;max-height:Ypx;width:auto;height:auto;`, which lets Flying
+            // Saucer compute aspect from the actual image bytes at render time. The cx/cy
+            // we emit becomes the upper bound, not the forced size.
             List<Integer> intrinsicSizeEmu = getImageDimensionsInEmu(spec.imageBlobData, ext);
-            Integer baseWidthEmu = (intrinsicSizeEmu != null &&
-                intrinsicSizeEmu.size() == 2)
-                ? intrinsicSizeEmu[0]
-                : (288 * 12700);
-            Integer baseHeightEmu = (intrinsicSizeEmu != null &&
-                intrinsicSizeEmu.size() == 2)
-                ? intrinsicSizeEmu[1]
-                : (216 * 12700);
+            Boolean hasIntrinsic = (intrinsicSizeEmu != null && intrinsicSizeEmu.size() == 2);
+            Boolean hasExplicitFixed =
+                (spec.widthPx != null && spec.heightPx != null) ||
+                (spec.widthPercent != null &&
+                spec.heightPercent != null);
+            Boolean useAutoSize = !hasIntrinsic && !hasExplicitFixed;
 
-            Integer[] scaledDims = scaleImageDimensionsEmu(baseWidthEmu, baseHeightEmu, spec);
-            Integer widthEmu = scaledDims[0];
-            Integer heightEmu = scaledDims[1];
+            Integer baseWidthEmu = hasIntrinsic ? intrinsicSizeEmu[0] : (288 * 12700);
+            Integer baseHeightEmu = hasIntrinsic ? intrinsicSizeEmu[1] : (216 * 12700);
+
+            Integer widthEmu;
+            Integer heightEmu;
+            if (useAutoSize) {
+                // No source aspect known. Resolve cx/cy from the spec's max constraint
+                // (single-number tags like `{%Image:N:240}` set both maxWidthPx and
+                // maxHeightPx). Defaults to page content area when no constraint given.
+                Integer pageContentWidthEmu = 5943600; // 6.5in
+                Integer pageContentHeightEmu = 8229600; // 9in
+                Integer maxW = spec.maxWidthPx != null
+                    ? (spec.maxWidthPx * 9525)
+                    : (spec.maxWidthPercent != null ? (pageContentWidthEmu * spec.maxWidthPercent) / 100 : null);
+                Integer maxH = spec.maxHeightPx != null
+                    ? (spec.maxHeightPx * 9525)
+                    : (spec.maxHeightPercent != null ? (pageContentHeightEmu * spec.maxHeightPercent) / 100 : null);
+                widthEmu = (maxW != null && maxW > 0) ? maxW : pageContentWidthEmu;
+                heightEmu = (maxH != null && maxH > 0) ? maxH : pageContentHeightEmu;
+            } else {
+                Integer[] scaledDims = scaleImageDimensionsEmu(baseWidthEmu, baseHeightEmu, spec);
+                widthEmu = scaledDims[0];
+                heightEmu = scaledDims[1];
+            }
+
+            String docPrAttrs =
+                'id="' +
+                imageCounter +
+                '" name="DocGenImage' +
+                imageCounter +
+                '"' +
+                (useAutoSize ? ' descr="DOCGEN_AUTOSIZE"' : '');
 
             return '</w:t></w:r>' +
                 '<w:r><w:drawing>' +
@@ -4982,11 +5024,9 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                 '" cy="' +
                 heightEmu +
                 '"/>' +
-                '<wp:docPr id="' +
-                imageCounter +
-                '" name="DocGenImage' +
-                imageCounter +
-                '"/>' +
+                '<wp:docPr ' +
+                docPrAttrs +
+                '/>' +
                 '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
                 '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
                 '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
