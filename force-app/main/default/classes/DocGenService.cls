@@ -3,6 +3,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
     private static List<Map<String, Object>> pendingImages = new List<Map<String, Object>>();
     private static Integer imageCounter = 0;
     private static String currentTemplateType = 'Word'; // Set before processXml calls
+    @TestVisible
     private static String currentOutputFormat = 'Native'; // Set before processXml — PDF skips blob loading for images
 
     /**
@@ -65,7 +66,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             return [
                 SELECT Id, Title, VersionData
                 FROM ContentVersion
-                WHERE Title LIKE :likePattern
+                WHERE Title LIKE :likePattern AND IsLatest = TRUE
                 WITH SYSTEM_MODE // NOPMD — package-internal pre-decomposed parts
             ];
         }
@@ -1290,7 +1291,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData
             FROM ContentVersion
-            WHERE Title LIKE :(xmlPrefix + '%')
+            WHERE Title LIKE :(xmlPrefix + '%') AND IsLatest = TRUE
             WITH SYSTEM_MODE // NOPMD — package-internal pre-decomposed parts
         ];
 
@@ -1570,6 +1571,15 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             }
         }
 
+        // Pre-flight image-overflow warning. Walks every wp:extent in document/header/footer
+        // XML and warns when any image's display width exceeds the page content area.
+        // Even with v1.80's HTML width/height attribute fix (#58), an image whose authored
+        // wp:extent itself exceeds the page width will still overflow — that's an authoring
+        // issue Word silently lets through and we can surface here for admins to fix.
+        if (templateType == 'Word') {
+            logImageOverflowWarnings(versionId, xmlEntries);
+        }
+
         List<ContentVersion> newCvs = new List<ContentVersion>();
 
         // Save pre-decomposed XML parts as ContentVersions for heap-efficient PDF generation.
@@ -1750,7 +1760,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             List<ContentVersion> tmplCvs = [
                 SELECT Id, Title
                 FROM ContentVersion
-                WHERE Title LIKE :(prefix + '%')
+                WHERE Title LIKE :(prefix + '%') AND IsLatest = TRUE
                 WITH USER_MODE
             ];
             for (ContentVersion cv : tmplCvs) {
@@ -2101,36 +2111,162 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             return mr.documentXml;
         }
 
-        String headers = '';
-        String footers = '';
+        // Map each header/footer file → its sectPr type (default/first/even).
+        // This lets us emit separate first-page markers so the renderer can
+        // wire up @page :first margin boxes for "Different First Page" docs.
+        Map<String, String> partTypeByFile = mapHeaderFooterTypes(mr);
+
+        String headersDefault = '';
+        String headersFirst = '';
+        String headersEven = '';
+        String footersDefault = '';
+        String footersFirst = '';
+        String footersEven = '';
         List<String> keys = new List<String>(mr.processedXmlEntries.keySet());
         keys.sort();
         for (String key : keys) {
             if (key == 'word/styles.xml') {
                 continue;
             }
-            if (key.startsWith('word/header') || key.startsWith('word/footer')) {
-                String partPrefix = key.substringAfterLast('/').substringBefore('.xml');
-                String partXml = namespaceImageRelIds(mr.processedXmlEntries.get(key), partPrefix);
-                if (key.startsWith('word/header')) {
-                    headers += partXml;
+            if (!key.startsWith('word/header') && !key.startsWith('word/footer')) {
+                continue;
+            }
+            String partPrefix = key.substringAfterLast('/').substringBefore('.xml');
+            String partXml = namespaceImageRelIds(mr.processedXmlEntries.get(key), partPrefix);
+            // Default to "default" when unmapped (older templates without sectPr refs).
+            String partType = partTypeByFile.containsKey(partPrefix) ? partTypeByFile.get(partPrefix) : 'default';
+            Boolean isHeader = key.startsWith('word/header');
+            if (isHeader) {
+                if (partType == 'first') {
+                    headersFirst += partXml;
+                } else if (partType == 'even') {
+                    headersEven += partXml;
                 } else {
-                    footers += partXml;
+                    headersDefault += partXml;
+                }
+            } else {
+                if (partType == 'first') {
+                    footersFirst += partXml;
+                } else if (partType == 'even') {
+                    footersEven += partXml;
+                } else {
+                    footersDefault += partXml;
                 }
             }
         }
 
-        // Inject header/footer markers that the HTML renderer can detect and position.
-        // Wrap in special XML comments that convertToHtml will transform to CSS-positioned divs.
+        // Inject markers for the renderer. The DEFAULT pair drives every page;
+        // FIRST drives @page :first when the doc has <w:titlePg/>. Older templates
+        // without first-page refs still use the legacy DOCGEN_HEADER_START marker
+        // for backward compatibility — the renderer treats it as default.
         String combinedXml = '';
-        if (String.isNotBlank(headers)) {
-            combinedXml += '<!-- DOCGEN_HEADER_START -->' + headers + '<!-- DOCGEN_HEADER_END -->';
+        if (String.isNotBlank(headersDefault)) {
+            combinedXml += '<!-- DOCGEN_HEADER_START -->' + headersDefault + '<!-- DOCGEN_HEADER_END -->';
+        }
+        if (String.isNotBlank(headersFirst)) {
+            combinedXml += '<!-- DOCGEN_HEADER_FIRST_START -->' + headersFirst + '<!-- DOCGEN_HEADER_FIRST_END -->';
+        }
+        if (String.isNotBlank(headersEven)) {
+            combinedXml += '<!-- DOCGEN_HEADER_EVEN_START -->' + headersEven + '<!-- DOCGEN_HEADER_EVEN_END -->';
         }
         combinedXml += mr.documentXml;
-        if (String.isNotBlank(footers)) {
-            combinedXml += '<!-- DOCGEN_FOOTER_START -->' + footers + '<!-- DOCGEN_FOOTER_END -->';
+        if (String.isNotBlank(footersDefault)) {
+            combinedXml += '<!-- DOCGEN_FOOTER_START -->' + footersDefault + '<!-- DOCGEN_FOOTER_END -->';
+        }
+        if (String.isNotBlank(footersFirst)) {
+            combinedXml += '<!-- DOCGEN_FOOTER_FIRST_START -->' + footersFirst + '<!-- DOCGEN_FOOTER_FIRST_END -->';
+        }
+        if (String.isNotBlank(footersEven)) {
+            combinedXml += '<!-- DOCGEN_FOOTER_EVEN_START -->' + footersEven + '<!-- DOCGEN_FOOTER_EVEN_END -->';
         }
         return combinedXml;
+    }
+
+    /**
+     * Builds a map of header/footer part name (e.g. "header2") → sectPr type
+     * (default / first / even) by walking the document's sectPr references and
+     * resolving them through the document rels.
+     *
+     * Returns an empty map when refs aren't present — older templates without
+     * <w:headerReference> entries fall through to the "default" bucket so they
+     * keep their pre-1.80 behavior.
+     */
+    @TestVisible
+    private static Map<String, String> mapHeaderFooterTypes(MergeResult mr) {
+        Map<String, String> out = new Map<String, String>();
+        if (String.isBlank(mr.documentXml) || String.isBlank(mr.relsXml)) {
+            return out;
+        }
+
+        // Build relId → target file (e.g. "rId4" → "header2")
+        Map<String, String> relIdToFile = new Map<String, String>();
+        Integer cursor = 0;
+        while (cursor < mr.relsXml.length()) {
+            Integer relStart = mr.relsXml.indexOf('<Relationship ', cursor);
+            if (relStart == -1) {
+                break;
+            }
+            Integer relEnd = mr.relsXml.indexOf('>', relStart);
+            if (relEnd == -1) {
+                break;
+            }
+            String relTag = mr.relsXml.substring(relStart, relEnd);
+            String idVal = extractAttrValue(relTag, ' Id="');
+            String targetVal = extractAttrValue(relTag, ' Target="');
+            if (String.isNotBlank(idVal) && String.isNotBlank(targetVal)) {
+                // Strip optional leading directory ("media/image1.png" → "image1.png",
+                // "header1.xml" → "header1.xml") then drop ".xml" suffix.
+                // Note: Apex's substringAfterLast returns "" when the separator is
+                // missing, so we can't chain it blindly — that bug shipped briefly
+                // in v1.80 and emptied every header/footer mapping.
+                String fileName = targetVal.contains('/') ? targetVal.substringAfterLast('/') : targetVal;
+                if (fileName.endsWith('.xml')) {
+                    fileName = fileName.substring(0, fileName.length() - 4);
+                }
+                relIdToFile.put(idVal, fileName);
+            }
+            cursor = relEnd + 1;
+        }
+
+        // Walk every <w:headerReference .../> and <w:footerReference .../> in document.xml
+        for (String tagPrefix : new List<String>{ '<w:headerReference ', '<w:footerReference ' }) {
+            Integer refCursor = 0;
+            while (refCursor < mr.documentXml.length()) {
+                Integer refStart = mr.documentXml.indexOf(tagPrefix, refCursor);
+                if (refStart == -1) {
+                    break;
+                }
+                Integer refEnd = mr.documentXml.indexOf('>', refStart);
+                if (refEnd == -1) {
+                    break;
+                }
+                String refTag = mr.documentXml.substring(refStart, refEnd);
+                String typeVal = extractAttrValue(refTag, 'w:type="');
+                String relRef = extractAttrValue(refTag, 'r:id="');
+                if (String.isBlank(relRef)) {
+                    relRef = extractAttrValue(refTag, 'relationships:id="');
+                }
+                if (String.isNotBlank(typeVal) && String.isNotBlank(relRef) && relIdToFile.containsKey(relRef)) {
+                    out.put(relIdToFile.get(relRef), typeVal);
+                }
+                refCursor = refEnd + 1;
+            }
+        }
+        return out;
+    }
+
+    @TestVisible
+    private static String extractAttrValue(String tag, String attrPrefix) {
+        Integer idx = tag.indexOf(attrPrefix);
+        if (idx == -1) {
+            return null;
+        }
+        Integer valStart = idx + attrPrefix.length();
+        Integer valEnd = tag.indexOf('"', valStart);
+        if (valEnd == -1) {
+            return null;
+        }
+        return tag.substring(valStart, valEnd);
     }
 
     /**
@@ -2141,6 +2277,126 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * The VML rewrite is scoped to <v:imagedata ...> elements only — rewriting every
      * r:id would also touch hyperlinks and other non-image relationships.
      */
+    /**
+     * Walks every <wp:extent cx="..." cy="..."/> in document/header/footer XML and
+     * emits a System.debug warning when an image's display width exceeds the page
+     * content area. Page dimensions are read from the document's <w:sectPr><w:pgSz>
+     * + <w:pgMar>. Falls back silently when no sectPr is found (older templates).
+     *
+     * EMU constants: 914400 EMU/inch (Word's wp:extent unit). 1440 twips/inch (sectPr
+     * pgSz/pgMar unit).
+     */
+    @TestVisible
+    private static void logImageOverflowWarnings(Id versionId, Map<String, String> xmlEntries) {
+        if (xmlEntries == null || xmlEntries.isEmpty()) {
+            return;
+        }
+        String docXml = xmlEntries.get('word/document.xml');
+        if (String.isBlank(docXml)) {
+            return;
+        }
+
+        // Parse content-area width from final sectPr. Default to letter portrait
+        // (8.5" - 1" left - 1" right = 6.5") if we can't read the doc's settings.
+        Decimal contentWidthInches = 6.5;
+        Integer sectPrIdx = docXml.lastIndexOf('<w:sectPr');
+        if (sectPrIdx != -1) {
+            Integer sectPrEnd = docXml.indexOf('</w:sectPr>', sectPrIdx);
+            if (sectPrEnd == -1) {
+                sectPrEnd = docXml.length();
+            }
+            String sectPrXml = docXml.substring(sectPrIdx, sectPrEnd);
+            Decimal pageW = parseTwipsAttr(sectPrXml, '<w:pgSz', 'w:w');
+            Decimal marL = parseTwipsAttr(sectPrXml, '<w:pgMar', 'w:left');
+            Decimal marR = parseTwipsAttr(sectPrXml, '<w:pgMar', 'w:right');
+            if (pageW != null && pageW > 0) {
+                Decimal computed = pageW - (marL != null ? marL : 0) - (marR != null ? marR : 0);
+                if (computed > 0) {
+                    contentWidthInches = computed / 1440;
+                }
+            }
+        }
+
+        // EMU max for content area
+        Decimal contentWidthEmu = contentWidthInches * 914400;
+
+        Integer overflowCount = 0;
+        for (String partName : xmlEntries.keySet()) {
+            if (
+                partName != 'word/document.xml' &&
+                !(partName.startsWith('word/header') || partName.startsWith('word/footer'))
+            ) {
+                continue;
+            }
+            String partXml = xmlEntries.get(partName);
+            Integer cursor = 0;
+            while (cursor < partXml.length()) {
+                Integer extIdx = partXml.indexOf('<wp:extent ', cursor);
+                if (extIdx == -1) {
+                    break;
+                }
+                Integer extEnd = partXml.indexOf('/>', extIdx);
+                if (extEnd == -1) {
+                    extEnd = partXml.indexOf('>', extIdx);
+                }
+                if (extEnd == -1) {
+                    break;
+                }
+                String extTag = partXml.substring(extIdx, extEnd);
+                String cxStr = extractAttrValue(extTag, ' cx="');
+                if (String.isNotBlank(cxStr) && cxStr.isNumeric()) {
+                    Long cx = Long.valueOf(cxStr);
+                    if (cx > contentWidthEmu) {
+                        overflowCount++;
+                        Decimal imgInches = (Decimal.valueOf(cx) / 914400).setScale(2);
+                        System.debug(
+                            LoggingLevel.WARN,
+                            'DocGen image-overflow: template version ' +
+                                versionId +
+                                ' part ' +
+                                partName +
+                                ' has wp:extent ' +
+                                imgInches +
+                                '" wide vs ' +
+                                contentWidthInches.setScale(2) +
+                                '" content area — image will overflow page margins'
+                        );
+                    }
+                }
+                cursor = extEnd + 1;
+            }
+        }
+        if (overflowCount > 0) {
+            System.debug(
+                LoggingLevel.WARN,
+                'DocGen image-overflow summary: ' +
+                    overflowCount +
+                    ' oversized image(s) detected in template version ' +
+                    versionId +
+                    '. Authors: resize images so wp:extent ≤ ' +
+                    contentWidthInches.setScale(2) +
+                    '" (or widen page margins).'
+            );
+        }
+    }
+
+    private static Decimal parseTwipsAttr(String xml, String elementOpen, String attrName) {
+        Integer idx = xml.indexOf(elementOpen);
+        if (idx == -1) {
+            return null;
+        }
+        Integer tagEnd = xml.indexOf('>', idx);
+        if (tagEnd == -1) {
+            return null;
+        }
+        String tag = xml.substring(idx, tagEnd);
+        String val = extractAttrValue(tag, ' ' + attrName + '="');
+        if (String.isBlank(val) || !val.isNumeric()) {
+            return null;
+        }
+        return Decimal.valueOf(val);
+    }
+
     private static String namespaceImageRelIds(String xml, String partPrefix) {
         String result = namespaceAttrInXml(xml, 'r:embed="', null, partPrefix);
         result = namespaceAttrInXml(result, 'r:id="', '<v:imagedata', partPrefix);
@@ -4706,20 +4962,62 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
             }
             pendingImages.add(imgEntry);
 
-            // Compute image dimensions in EMU with intrinsic size detection and scaling
+            // Compute image dimensions in EMU with intrinsic size detection and scaling.
+            //
+            // Intrinsic dim lookup requires reading the image's bytes (PNG IHDR or JPEG SOF
+            // marker). On the PDF path we deliberately skip blob loading to save heap, so
+            // imageBlobData is null and getImageDimensionsInEmu returns null. The pre-v1.80
+            // fallback was a hardcoded 4:3 default (288×216 EMU = 4×3in) which then got
+            // scaled to whatever max constraint was given. For `{%Image:N:240}` against a
+            // portrait phone photo this produced a 240×180 rectangle — the source's natural
+            // aspect was lost (#46).
+            //
+            // Fix: when we have no intrinsic dims AND no explicit fixed width/height on the
+            // spec (so the user did NOT give us a definitive WxH), emit DOCGEN_AUTOSIZE on
+            // the drawing's docPr/descr. The renderer's processDrawing flips to
+            // `max-width:Xpx;max-height:Ypx;width:auto;height:auto;`, which lets Flying
+            // Saucer compute aspect from the actual image bytes at render time. The cx/cy
+            // we emit becomes the upper bound, not the forced size.
             List<Integer> intrinsicSizeEmu = getImageDimensionsInEmu(spec.imageBlobData, ext);
-            Integer baseWidthEmu = (intrinsicSizeEmu != null &&
-                intrinsicSizeEmu.size() == 2)
-                ? intrinsicSizeEmu[0]
-                : (288 * 12700);
-            Integer baseHeightEmu = (intrinsicSizeEmu != null &&
-                intrinsicSizeEmu.size() == 2)
-                ? intrinsicSizeEmu[1]
-                : (216 * 12700);
+            Boolean hasIntrinsic = (intrinsicSizeEmu != null && intrinsicSizeEmu.size() == 2);
+            Boolean hasExplicitFixed =
+                (spec.widthPx != null && spec.heightPx != null) ||
+                (spec.widthPercent != null &&
+                spec.heightPercent != null);
+            Boolean useAutoSize = !hasIntrinsic && !hasExplicitFixed;
 
-            Integer[] scaledDims = scaleImageDimensionsEmu(baseWidthEmu, baseHeightEmu, spec);
-            Integer widthEmu = scaledDims[0];
-            Integer heightEmu = scaledDims[1];
+            Integer baseWidthEmu = hasIntrinsic ? intrinsicSizeEmu[0] : (288 * 12700);
+            Integer baseHeightEmu = hasIntrinsic ? intrinsicSizeEmu[1] : (216 * 12700);
+
+            Integer widthEmu;
+            Integer heightEmu;
+            if (useAutoSize) {
+                // No source aspect known. Resolve cx/cy from the spec's max constraint
+                // (single-number tags like `{%Image:N:240}` set both maxWidthPx and
+                // maxHeightPx). Defaults to page content area when no constraint given.
+                Integer pageContentWidthEmu = 5943600; // 6.5in
+                Integer pageContentHeightEmu = 8229600; // 9in
+                Integer maxW = spec.maxWidthPx != null
+                    ? (spec.maxWidthPx * 9525)
+                    : (spec.maxWidthPercent != null ? (pageContentWidthEmu * spec.maxWidthPercent) / 100 : null);
+                Integer maxH = spec.maxHeightPx != null
+                    ? (spec.maxHeightPx * 9525)
+                    : (spec.maxHeightPercent != null ? (pageContentHeightEmu * spec.maxHeightPercent) / 100 : null);
+                widthEmu = (maxW != null && maxW > 0) ? maxW : pageContentWidthEmu;
+                heightEmu = (maxH != null && maxH > 0) ? maxH : pageContentHeightEmu;
+            } else {
+                Integer[] scaledDims = scaleImageDimensionsEmu(baseWidthEmu, baseHeightEmu, spec);
+                widthEmu = scaledDims[0];
+                heightEmu = scaledDims[1];
+            }
+
+            String docPrAttrs =
+                'id="' +
+                imageCounter +
+                '" name="DocGenImage' +
+                imageCounter +
+                '"' +
+                (useAutoSize ? ' descr="DOCGEN_AUTOSIZE"' : '');
 
             return '</w:t></w:r>' +
                 '<w:r><w:drawing>' +
@@ -4730,11 +5028,9 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                 '" cy="' +
                 heightEmu +
                 '"/>' +
-                '<wp:docPr id="' +
-                imageCounter +
-                '" name="DocGenImage' +
-                imageCounter +
-                '"/>' +
+                '<wp:docPr ' +
+                docPrAttrs +
+                '/>' +
                 '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">' +
                 '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
                 '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
@@ -5367,7 +5663,132 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         return tag.substring(start, end2);
     }
 
-    private static String generateDocTitle(String format, Map<String, Object> data) {
+    /**
+     * Loads a token-resolution map for a single record, suitable for feeding
+     * into generateDocTitle. Walks any `{Field}` or `{Rel.Field}` tokens in the
+     * supplied format string and queries only those columns — keeping the SOQL
+     * narrow even when the user references a deep relationship like
+     * `{Account.Owner.Email}`.
+     *
+     * Returns an empty map when the record can't be loaded or the format has
+     * no tokens. Used by signature packet naming (issue #42).
+     */
+    public static Map<String, Object> loadRecordDataForTitle(Id recordId, String format) {
+        Map<String, Object> out = new Map<String, Object>();
+        if (recordId == null) {
+            return out;
+        }
+        // Collect referenced field paths from the format string. If no tokens,
+        // return an empty map — the caller will fall back to a static name.
+        Set<String> fieldPaths = new Set<String>();
+        if (String.isNotBlank(format)) {
+            Pattern p = Pattern.compile('\\{([^}]+)\\}');
+            Matcher m = p.matcher(format);
+            while (m.find()) {
+                fieldPaths.add(m.group(1));
+            }
+        }
+        if (fieldPaths.isEmpty()) {
+            return out;
+        }
+        try {
+            String objType = String.valueOf(recordId.getSObjectType());
+            String soql =
+                'SELECT Id, ' +
+                String.join(new List<String>(fieldPaths), ', ') +
+                ' FROM ' +
+                objType +
+                ' WHERE Id = :recordId LIMIT 1';
+            List<SObject> rows = Database.query(soql);
+            if (rows.isEmpty()) {
+                return out;
+            }
+            SObject row = rows[0];
+            for (String path : fieldPaths) {
+                Object val = walkRelationshipPath(row, path);
+                if (val == null) {
+                    continue;
+                }
+                // generateDocTitle → resolveValue walks dot-paths through nested
+                // Maps. Flat "Account.Name" keys won't resolve. Build nested
+                // structure so {Account.Name} traverses out["Account"]["Name"].
+                List<String> parts = path.split('\\.');
+                if (parts.size() == 1) {
+                    out.put(parts[0], val);
+                } else {
+                    Map<String, Object> cursor = out;
+                    for (Integer i = 0; i < parts.size() - 1; i++) {
+                        Object child = cursor.get(parts[i]);
+                        if (!(child instanceof Map<String, Object>)) {
+                            child = new Map<String, Object>();
+                            cursor.put(parts[i], child);
+                        }
+                        cursor = (Map<String, Object>) child;
+                    }
+                    cursor.put(parts[parts.size() - 1], val);
+                }
+            }
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'loadRecordDataForTitle failed for ' + recordId + ': ' + e.getMessage());
+        }
+        return out;
+    }
+
+    /**
+     * Convenience overload — pulls a small set of standard fields without
+     * needing a format string up front. Intended for callers that resolve
+     * tokens later.
+     */
+    public static Map<String, Object> loadRecordDataForTitle(Id recordId) {
+        if (recordId == null) {
+            return new Map<String, Object>();
+        }
+        // Default: pull Name + try common parent relationship fields. Best-effort.
+        try {
+            String objType = String.valueOf(recordId.getSObjectType());
+            List<SObject> rows = Database.query('SELECT Id, Name FROM ' + objType + ' WHERE Id = :recordId LIMIT 1');
+            Map<String, Object> out = new Map<String, Object>();
+            if (!rows.isEmpty()) {
+                out.put('Name', rows[0].get('Name'));
+            }
+            return out;
+        } catch (Exception e) {
+            return new Map<String, Object>();
+        }
+    }
+
+    private static Object walkRelationshipPath(SObject row, String path) {
+        if (row == null || String.isBlank(path)) {
+            return null;
+        }
+        List<String> parts = path.split('\\.');
+        SObject cursor = row;
+        for (Integer i = 0; i < parts.size() - 1; i++) {
+            try {
+                cursor = cursor.getSObject(parts[i]);
+            } catch (Exception e) {
+                return null;
+            }
+            if (cursor == null) {
+                return null;
+            }
+        }
+        try {
+            return cursor.get(parts[parts.size() - 1]);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves a title format string by substituting `{Field}` and `{Rel.Field}`
+     * tokens from a record-data map. Returns null when the format is blank.
+     * Made @TestVisible public in v1.80 so the signature service can use it
+     * to honor the optional Document_Title_Format__c on signature requests
+     * (issue #42 — packet naming convention).
+     */
+    @TestVisible
+    public static String generateDocTitle(String format, Map<String, Object> data) {
         if (String.isBlank(format)) {
             return null;
         }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Document_Title_Format__c</fullName>
+    <description
+    >Optional naming pattern for the signed PDF/packet output. Supports merge tokens against the related record (e.g. {Account.Name} - Master Agreement Packet). When blank, defaults to "&lt;first template name&gt; - Signed".</description>
+    <externalId>false</externalId>
+    <label>Document Title Format</label>
+    <length>255</length>
+    <type>Text</type>
+    <required>false</required>
+</CustomField>

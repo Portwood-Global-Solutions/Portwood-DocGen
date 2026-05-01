@@ -413,6 +413,11 @@
         <field>DocGen_Signature_Request__c.Email_Status__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>DocGen_Signature_Request__c.Document_Title_Format__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <!-- Signer fields (User: read-only; PIN_Hash/PIN_Attempts/PIN_Expires_At/Secure_Token intentionally blocked) -->
     <fieldPermissions>
         <editable>false</editable>

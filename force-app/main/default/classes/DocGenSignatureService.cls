@@ -696,7 +696,7 @@ public without sharing class DocGenSignatureService {
         public void execute(QueueableContext ctx) {
             /* code-analyzer-suppress ApexFlsViolation, DatabaseOperationsMustUseWithSharing */
             List<DocGen_Signature_Request__c> requests = [
-                SELECT Id, Template__c, Template_Ids__c, Related_Record_Id__c
+                SELECT Id, Template__c, Template_Ids__c, Related_Record_Id__c, Document_Title_Format__c
                 FROM DocGen_Signature_Request__c
                 WHERE Id = :requestId
                 WITH SYSTEM_MODE
@@ -727,6 +727,29 @@ public without sharing class DocGenSignatureService {
                     LIMIT 1
                 ];
                 String fileName = (!templates.isEmpty() ? templates[0].Name : 'Document') + ' - Signed';
+
+                // Optional admin-supplied naming pattern (issue #42). Tokens like
+                // {Account.Name} resolve against the related record. Falls back
+                // to "<first template> - Signed" when blank or when the related
+                // record can't be loaded.
+                if (String.isNotBlank(req.Document_Title_Format__c) && String.isNotBlank(req.Related_Record_Id__c)) {
+                    try {
+                        Map<String, Object> recordData = DocGenService.loadRecordDataForTitle(
+                            req.Related_Record_Id__c,
+                            req.Document_Title_Format__c
+                        );
+                        String resolved = DocGenService.generateDocTitle(
+                            req.Document_Title_Format__c,
+                            recordData != null ? recordData : new Map<String, Object>()
+                        );
+                        if (String.isNotBlank(resolved)) {
+                            fileName = resolved.trim();
+                        }
+                    } catch (Exception titleErr) {
+                        // Title resolution is best-effort — fall back to the default file name
+                        System.debug(LoggingLevel.WARN, 'DocGen packet title format failed: ' + titleErr.getMessage());
+                    }
+                }
 
                 if (String.isNotBlank(req.Related_Record_Id__c)) {
                     ContentVersion pdfCv = new ContentVersion();

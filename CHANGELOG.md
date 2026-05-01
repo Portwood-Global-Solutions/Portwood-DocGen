@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.80.0 — Word fidelity
+
+Promoted package: `04tal000006rJkDAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rJkDAAU)
+
+A targeted release polishing Word→PDF rendering fidelity, plus two GitHub-issue cleanups (#42 packet naming, #46 image aspect) and a UX simplification on the signature sender. Driven by reviewing real-world DOCX samples (Apex Surveys quotation, Conga-style proposals) where Flying Saucer was producing visibly-off output even though the rendering pipeline reported success.
+
+### Word-fidelity fixes
+
+Four bugs that all shipped together because they share the same XML-parsing surface area:
+
+- **#53 — LibreOffice RTL false-positive.** `<w:bidi w:val="false"/>` was being treated as RTL because the renderer matched on element presence (`<w:bidi `) rather than value. Touched 11 sites across `DocGenHtmlRenderer.cls`; consolidated through one helper `isOoxmlOnOffElementTrue(xml, elementName)` that parses `w:val` per ECMA-376 §17.17.4 (treats `false`, `0`, `off` as off; default-on when omitted).
+- **#56 — Pre-flight overflow warning.** Templates with images sized larger than the section's content area would silently render clipped. Added `DocGenService.logImageOverflowWarnings()` which walks `wp:extent cx/cy` against `pgSz` minus `pgMar` and writes a Job Log entry naming the offending image and the overflow amount in inches.
+- **#57 — First-page-distinct headers/footers.** Section properties marked `<w:titlePg/>` weren't differentiating type=`first` references from type=`default`. Combined-XML construction in `combineXmlWithHeadersFooters` now buckets header/footer fragments by sectPr type, and Flying Saucer's `@page :first` margin boxes pick the right `position: running()` flow.
+- **#58 — Image dimension binding.** `<wp:extent cx="..." cy="..."/>` values were carried into HTML as CSS-only sizing, which Flying Saucer interprets at 96 DPI even when the EMU values were calibrated for 72 DPI. Added explicit `width="N" height="N"` attributes alongside the CSS so the PDF engine has the same answer from both directions.
+
+While fixing #57 also caught a one-line trap in `mapHeaderFooterTypes`: Apex `String.substringAfterLast('/')` returns the **empty string** when the separator is absent, not the original string. Header rels with bare filenames (`header1.xml`, no path) were collapsing every entry to the same empty key. Now guarded.
+
+### #46 — Image aspect-ratio preservation on PDF (Joe)
+
+Single-axis Word images (e.g. `cx="3000000"` with no `cy`, or `data-max-width-px="600"` with no height) were being rendered at the missing axis's _page-content area_, which stretched portrait images into squares on PDF. New `DOCGEN_AUTOSIZE` marker emitted from `DocGenService.buildImageXml` when only one axis is fixed; `processDrawing` resolves it through the image's intrinsic dimensions before final layout.
+
+### #42 — Packet document naming with merge tokens
+
+New field `DocGen_Signature_Request__c.Document_Title_Format__c` — Text(255) supporting merge tokens like `{Account.Name} - MSA - {Today}`. Resolved at PDF-stamp time by `TemplateSignaturePdfQueueable` via `DocGenService.loadRecordDataForTitle()` + `generateDocTitle()`. Falls back to template title when blank. Wired through both single-template and packet paths via two new sender methods (`createTemplateSignerRequestWithTitle`, `createPacketSignerRequestWithTitle`); old methods preserved as backward-compat wrappers passing `null`. Added to all three permission sets.
+
+### Sender UX — simpler role pills
+
+Curated picklist of common signer roles is gone. Pill suggestions in `docGenSignatureSender` now derive **only** from `{@Signature_Role:N:Type}` placements detected in the actual template. Rationale: the curated list was creating noise on templates with non-standard roles; pulling from the document is what users actually want.
+
+### Showcase template
+
+`docs/v180-showcase.docx` — a from-scratch OOXML showcase demonstrating all four word-fidelity fixes in a single render. Built by `scripts/build-v180-showcase.py` (Python, no external deps). Companion writeup in `docs/v180-showcase.md` walks through each fix with before/after PDF stills.
+
+### Validation
+
+- E2E: 196/196 across all 10 scripts
+- RunLocalTests: **1141/1141** (100% pass, **75% org-wide coverage**)
+- Code Analyzer: 0 High violations
+- Manual rendering: Apex Surveys quotation template + new showcase template, both producing pixel-aligned PDFs
+
+### Upgrade notes
+
+Drop-in upgrade. One new field (`Document_Title_Format__c`) with permission set updates already in the package; no migration steps. Customers on v1.79.0 can install directly.
+
 ## v1.79.0 — Sprint NY hotfix
 
 Promoted package: `04tal000006rD8XAAU` · [Install URL](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006rD8XAAU)

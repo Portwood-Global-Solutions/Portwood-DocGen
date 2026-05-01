@@ -1176,6 +1176,87 @@ private class DocGenSignatureTests {
         System.assert(true, 'Template queueable executed without exception');
     }
 
+    @isTest
+    static void testTemplateSignaturePdfQueueable_withTitleFormat_v180Issue42() {
+        // Exercises the v1.80 #42 title-format branch in TemplateSignaturePdfQueueable.execute.
+        // The queueable should pull Document_Title_Format__c, run loadRecordDataForTitle
+        // against the related record, and use the resolved name as the file title.
+        DocGen_Signature_Request__c req = getTestRequest();
+        DocGen_Signer__c signer = getTestSigner();
+        signer.Status__c = 'Signed';
+        signer.Signature_Data__c = 'Title Format Test';
+        update signer;
+
+        // Set a title-format that uses a token resolvable against the Account
+        // related record (created by getTestRequest helper).
+        req.Document_Title_Format__c = '{Name} Master Agreement';
+        update req;
+
+        Test.startTest();
+        DocGenSignatureService.TemplateSignaturePdfQueueable q = new DocGenSignatureService.TemplateSignaturePdfQueueable(
+            req.Id
+        );
+        q.execute(null);
+        Test.stopTest();
+        // No exception — the resolved title path executed end-to-end.
+        // (Test.isRunningTest() short-circuits actual PDF rendering, so we
+        // don't assert against the file name itself.)
+        System.assert(true, 'Title-format queueable path executed without exception');
+    }
+
+    @isTest
+    static void testTemplateSignaturePdfQueueable_withTitleFormat_emptyFalls_v180Issue42() {
+        // Empty Document_Title_Format__c — should NOT enter the resolution branch
+        // and fall back to "<template name> - Signed".
+        DocGen_Signature_Request__c req = getTestRequest();
+        DocGen_Signer__c signer = getTestSigner();
+        signer.Status__c = 'Signed';
+        signer.Signature_Data__c = 'No Title Format';
+        update signer;
+
+        req.Document_Title_Format__c = null;
+        update req;
+
+        Test.startTest();
+        new DocGenSignatureService.TemplateSignaturePdfQueueable(req.Id).execute(null);
+        Test.stopTest();
+        System.assert(true, 'Null title format falls through without exception');
+    }
+
+    @isTest
+    static void testGenerateDocTitle_resolvesTokens() {
+        // #42 helper — exposed @TestVisible public so signature service can build
+        // the bundled-document file name from a tokenized format string.
+        // generateDocTitle resolves dot-paths via nested Maps (resolveValue walks
+        // each segment), so {Account.Name} requires data["Account"]["Name"].
+        Map<String, Object> data = new Map<String, Object>{
+            'Name' => 'Acme',
+            'Account' => new Map<String, Object>{ 'Name' => 'Acme Corp' }
+        };
+        System.assertEquals(
+            'Acme - Master Agreement',
+            DocGenService.generateDocTitle('{Name} - Master Agreement', data)
+        );
+        System.assertEquals('Acme Corp Packet', DocGenService.generateDocTitle('{Account.Name} Packet', data));
+        System.assertEquals(null, DocGenService.generateDocTitle(null, data));
+        System.assertEquals(null, DocGenService.generateDocTitle('', data));
+    }
+
+    @isTest
+    static void testLoadRecordDataForTitle_handlesMissingFields() {
+        Account acc = new Account(Name = 'Title Format Test');
+        insert acc;
+        // Format references Name only — should return a populated map
+        Map<String, Object> data = DocGenService.loadRecordDataForTitle(acc.Id, '{Name} Doc');
+        System.assertEquals('Title Format Test', data.get('Name'));
+        // Format with no tokens — empty map (fallback path)
+        Map<String, Object> noTokens = DocGenService.loadRecordDataForTitle(acc.Id, 'Static Title');
+        System.assertEquals(true, noTokens.isEmpty());
+        // Null id — empty map without error
+        Map<String, Object> nullId = DocGenService.loadRecordDataForTitle(null, '{Name}');
+        System.assertEquals(true, nullId.isEmpty());
+    }
+
     // =========================================================================
     // Service — handleSignatureSubmission
     // =========================================================================

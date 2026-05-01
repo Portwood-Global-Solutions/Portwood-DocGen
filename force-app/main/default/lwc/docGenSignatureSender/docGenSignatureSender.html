@@ -122,6 +122,20 @@
                 </lightning-radio-group>
             </div>
 
+            <!-- Document Title (#42) -->
+            <div class="slds-var-m-bottom_medium">
+                <lightning-input
+                    type="text"
+                    name="documentTitleFormat"
+                    label="Signed Document Title (optional)"
+                    field-level-help="Leave blank to use the template name. Supports merge tokens like {Account.Name} or {Name} that resolve against the related record."
+                    placeholder="\{Account.Name} - Master Agreement Packet"
+                    value={documentTitleFormat}
+                    onchange={handleDocumentTitleChange}
+                    max-length="255"
+                ></lightning-input>
+            </div>
+
             <!-- Signers Table -->
             <div class="slds-var-m-bottom_medium">
                 <h3 class="slds-text-heading_small slds-var-m-bottom_x-small">Signers</h3>
