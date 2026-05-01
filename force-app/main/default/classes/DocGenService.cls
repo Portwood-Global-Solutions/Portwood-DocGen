@@ -5659,7 +5659,132 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         return tag.substring(start, end2);
     }
 
-    private static String generateDocTitle(String format, Map<String, Object> data) {
+    /**
+     * Loads a token-resolution map for a single record, suitable for feeding
+     * into generateDocTitle. Walks any `{Field}` or `{Rel.Field}` tokens in the
+     * supplied format string and queries only those columns — keeping the SOQL
+     * narrow even when the user references a deep relationship like
+     * `{Account.Owner.Email}`.
+     *
+     * Returns an empty map when the record can't be loaded or the format has
+     * no tokens. Used by signature packet naming (issue #42).
+     */
+    public static Map<String, Object> loadRecordDataForTitle(Id recordId, String format) {
+        Map<String, Object> out = new Map<String, Object>();
+        if (recordId == null) {
+            return out;
+        }
+        // Collect referenced field paths from the format string. If no tokens,
+        // return an empty map — the caller will fall back to a static name.
+        Set<String> fieldPaths = new Set<String>();
+        if (String.isNotBlank(format)) {
+            Pattern p = Pattern.compile('\\{([^}]+)\\}');
+            Matcher m = p.matcher(format);
+            while (m.find()) {
+                fieldPaths.add(m.group(1));
+            }
+        }
+        if (fieldPaths.isEmpty()) {
+            return out;
+        }
+        try {
+            String objType = String.valueOf(recordId.getSObjectType());
+            String soql =
+                'SELECT Id, ' +
+                String.join(new List<String>(fieldPaths), ', ') +
+                ' FROM ' +
+                objType +
+                ' WHERE Id = :recordId LIMIT 1';
+            List<SObject> rows = Database.query(soql);
+            if (rows.isEmpty()) {
+                return out;
+            }
+            SObject row = rows[0];
+            for (String path : fieldPaths) {
+                Object val = walkRelationshipPath(row, path);
+                if (val == null) {
+                    continue;
+                }
+                // generateDocTitle → resolveValue walks dot-paths through nested
+                // Maps. Flat "Account.Name" keys won't resolve. Build nested
+                // structure so {Account.Name} traverses out["Account"]["Name"].
+                List<String> parts = path.split('\\.');
+                if (parts.size() == 1) {
+                    out.put(parts[0], val);
+                } else {
+                    Map<String, Object> cursor = out;
+                    for (Integer i = 0; i < parts.size() - 1; i++) {
+                        Object child = cursor.get(parts[i]);
+                        if (!(child instanceof Map<String, Object>)) {
+                            child = new Map<String, Object>();
+                            cursor.put(parts[i], child);
+                        }
+                        cursor = (Map<String, Object>) child;
+                    }
+                    cursor.put(parts[parts.size() - 1], val);
+                }
+            }
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'loadRecordDataForTitle failed for ' + recordId + ': ' + e.getMessage());
+        }
+        return out;
+    }
+
+    /**
+     * Convenience overload — pulls a small set of standard fields without
+     * needing a format string up front. Intended for callers that resolve
+     * tokens later.
+     */
+    public static Map<String, Object> loadRecordDataForTitle(Id recordId) {
+        if (recordId == null) {
+            return new Map<String, Object>();
+        }
+        // Default: pull Name + try common parent relationship fields. Best-effort.
+        try {
+            String objType = String.valueOf(recordId.getSObjectType());
+            List<SObject> rows = Database.query('SELECT Id, Name FROM ' + objType + ' WHERE Id = :recordId LIMIT 1');
+            Map<String, Object> out = new Map<String, Object>();
+            if (!rows.isEmpty()) {
+                out.put('Name', rows[0].get('Name'));
+            }
+            return out;
+        } catch (Exception e) {
+            return new Map<String, Object>();
+        }
+    }
+
+    private static Object walkRelationshipPath(SObject row, String path) {
+        if (row == null || String.isBlank(path)) {
+            return null;
+        }
+        List<String> parts = path.split('\\.');
+        SObject cursor = row;
+        for (Integer i = 0; i < parts.size() - 1; i++) {
+            try {
+                cursor = cursor.getSObject(parts[i]);
+            } catch (Exception e) {
+                return null;
+            }
+            if (cursor == null) {
+                return null;
+            }
+        }
+        try {
+            return cursor.get(parts[parts.size() - 1]);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves a title format string by substituting `{Field}` and `{Rel.Field}`
+     * tokens from a record-data map. Returns null when the format is blank.
+     * Made @TestVisible public in v1.80 so the signature service can use it
+     * to honor the optional Document_Title_Format__c on signature requests
+     * (issue #42 — packet naming convention).
+     */
+    @TestVisible
+    public static String generateDocTitle(String format, Map<String, Object> data) {
         if (String.isBlank(format)) {
             return null;
         }

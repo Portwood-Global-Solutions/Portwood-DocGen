@@ -1176,6 +1176,40 @@ private class DocGenSignatureTests {
         System.assert(true, 'Template queueable executed without exception');
     }
 
+    @isTest
+    static void testGenerateDocTitle_resolvesTokens() {
+        // #42 helper — exposed @TestVisible public so signature service can build
+        // the bundled-document file name from a tokenized format string.
+        // generateDocTitle resolves dot-paths via nested Maps (resolveValue walks
+        // each segment), so {Account.Name} requires data["Account"]["Name"].
+        Map<String, Object> data = new Map<String, Object>{
+            'Name' => 'Acme',
+            'Account' => new Map<String, Object>{ 'Name' => 'Acme Corp' }
+        };
+        System.assertEquals(
+            'Acme - Master Agreement',
+            DocGenService.generateDocTitle('{Name} - Master Agreement', data)
+        );
+        System.assertEquals('Acme Corp Packet', DocGenService.generateDocTitle('{Account.Name} Packet', data));
+        System.assertEquals(null, DocGenService.generateDocTitle(null, data));
+        System.assertEquals(null, DocGenService.generateDocTitle('', data));
+    }
+
+    @isTest
+    static void testLoadRecordDataForTitle_handlesMissingFields() {
+        Account acc = new Account(Name = 'Title Format Test');
+        insert acc;
+        // Format references Name only — should return a populated map
+        Map<String, Object> data = DocGenService.loadRecordDataForTitle(acc.Id, '{Name} Doc');
+        System.assertEquals('Title Format Test', data.get('Name'));
+        // Format with no tokens — empty map (fallback path)
+        Map<String, Object> noTokens = DocGenService.loadRecordDataForTitle(acc.Id, 'Static Title');
+        System.assertEquals(true, noTokens.isEmpty());
+        // Null id — empty map without error
+        Map<String, Object> nullId = DocGenService.loadRecordDataForTitle(null, '{Name}');
+        System.assertEquals(true, nullId.isEmpty());
+    }
+
     // =========================================================================
     // Service — handleSignatureSubmission
     // =========================================================================

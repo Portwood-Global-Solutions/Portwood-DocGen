@@ -397,13 +397,24 @@ public with sharing class DocGenSignatureSenderController {
     }
 
     @AuraEnabled
-    // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
-    // CxSAST: Apex_CRUD_ContentDistribution — ContentDistribution created for signature preview images
     public static List<SignerResult> createTemplateSignerRequestWithOrder(
         Id templateId,
         String relatedRecordId,
         String signersJson,
         String signingOrder
+    ) {
+        return createTemplateSignerRequestWithTitle(templateId, relatedRecordId, signersJson, signingOrder, null);
+    }
+
+    @AuraEnabled
+    // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
+    // CxSAST: Apex_CRUD_ContentDistribution — ContentDistribution created for signature preview images
+    public static List<SignerResult> createTemplateSignerRequestWithTitle(
+        Id templateId,
+        String relatedRecordId,
+        String signersJson,
+        String signingOrder,
+        String documentTitleFormat
     ) {
         // Validate template exists
         /* code-analyzer-suppress ApexFlsViolation */
@@ -434,6 +445,9 @@ public with sharing class DocGenSignatureSenderController {
         req.Related_Record_Id__c = relatedRecordId;
         req.Status__c = 'Sent';
         req.Signing_Order__c = String.isNotBlank(signingOrder) ? signingOrder : 'Parallel';
+        if (String.isNotBlank(documentTitleFormat)) {
+            req.Document_Title_Format__c = documentTitleFormat;
+        }
         // Package-internal object — CRUD controlled by DocGen permission sets
         /* code-analyzer-suppress ApexFlsViolation */
         insert req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
@@ -523,12 +537,23 @@ public with sharing class DocGenSignatureSenderController {
      * and placements are created across documents with Document_Index__c.
      */
     @AuraEnabled
-    // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
     public static List<SignerResult> createPacketSignerRequest(
         String templateIdsJson,
         String relatedRecordId,
         String signersJson,
         String signingOrder
+    ) {
+        return createPacketSignerRequestWithTitle(templateIdsJson, relatedRecordId, signersJson, signingOrder, null);
+    }
+
+    @AuraEnabled
+    // CxSAST: Apex_CRUD_Violation — package-internal custom objects; CRUD controlled by DocGen permission sets
+    public static List<SignerResult> createPacketSignerRequestWithTitle(
+        String templateIdsJson,
+        String relatedRecordId,
+        String signersJson,
+        String signingOrder,
+        String documentTitleFormat
     ) {
         List<Object> rawTemplateIds = (List<Object>) JSON.deserializeUntyped(templateIdsJson);
         List<Id> templateIds = new List<Id>();
@@ -541,7 +566,13 @@ public with sharing class DocGenSignatureSenderController {
 
         // Single template — delegate to existing method
         if (templateIds.size() == 1) {
-            return createTemplateSignerRequestWithOrder(templateIds[0], relatedRecordId, signersJson, signingOrder);
+            return createTemplateSignerRequestWithTitle(
+                templateIds[0],
+                relatedRecordId,
+                signersJson,
+                signingOrder,
+                documentTitleFormat
+            );
         }
 
         // Validate all templates exist
@@ -570,6 +601,9 @@ public with sharing class DocGenSignatureSenderController {
         req.Related_Record_Id__c = relatedRecordId;
         req.Status__c = 'Sent';
         req.Signing_Order__c = String.isNotBlank(signingOrder) ? signingOrder : 'Parallel';
+        if (String.isNotBlank(documentTitleFormat)) {
+            req.Document_Title_Format__c = documentTitleFormat;
+        }
         /* code-analyzer-suppress ApexFlsViolation */
         insert req; // NOPMD ApexCRUDViolation - package-internal custom object; CRUD controlled by DocGen permission sets
 

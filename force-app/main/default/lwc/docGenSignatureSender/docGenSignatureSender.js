@@ -1,9 +1,9 @@
 import { LightningElement, api, wire, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getSignerRolePicklistValues from '@salesforce/apex/DocGenSignatureSenderController.getSignerRolePicklistValues';
-import createTemplateSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createTemplateSignerRequestWithOrder';
+import createTemplateSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createTemplateSignerRequestWithTitle';
 import markSignerVerifiedInPerson from '@salesforce/apex/DocGenSignatureSenderController.markSignerVerifiedInPerson';
-import createPacketSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createPacketSignerRequest';
+import createPacketSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createPacketSignerRequestWithTitle';
 import getContactInfo from '@salesforce/apex/DocGenSignatureSenderController.getContactInfo';
 import getPendingSignatureRequests from '@salesforce/apex/DocGenSignatureSenderController.getPendingSignatureRequests';
 import getDocGenTemplates from '@salesforce/apex/DocGenSignatureSenderController.getDocGenTemplatesForRecord';
@@ -33,6 +33,7 @@ export default class DocGenSignatureSender extends LightningElement {
 
     // Signing order
     @track signingOrder = 'Parallel';
+    @track documentTitleFormat = '';
 
     // Signers
     @track signers = [];
@@ -106,11 +107,13 @@ export default class DocGenSignatureSender extends LightningElement {
     }
 
     /**
-     * Merged role suggestions: roles auto-detected from the selected template(s)
-     * (rendered first since they're the live, document-specific signal) plus the
-     * curated picklist values from Role_Name__c. Deduped, capped at ~14 to keep
-     * the UI tidy. The role field itself is free-text — these are convenience
-     * pills so admins don't have to retype "Buyer" every time.
+     * Role suggestion pills — derived ONLY from the roles that actually appear in
+     * the selected template(s)' signature tags. The earlier UI also surfaced the
+     * curated Role_Name__c picklist values, but that produced an overwhelming row
+     * of generic suggestions ("Buyer", "Seller", "Witness", ...) that rarely
+     * matched the doc the admin was about to send. Keeping the pills tied to the
+     * document means: if the template defines roles, you get them; otherwise the
+     * row stays empty and the free-text role field is the only input.
      */
     get roleSuggestions() {
         const seen = new Set();
@@ -121,13 +124,7 @@ export default class DocGenSignatureSender extends LightningElement {
                 merged.push({ label: p.role, value: p.role, title: 'From template tag' });
             }
         }
-        for (const opt of this.roleOptions || []) {
-            if (opt.value && !seen.has(opt.value)) {
-                seen.add(opt.value);
-                merged.push({ label: opt.label, value: opt.value, title: 'Common role' });
-            }
-        }
-        return merged.slice(0, 14);
+        return merged;
     }
 
     get hasRoleSuggestions() {
@@ -188,6 +185,10 @@ export default class DocGenSignatureSender extends LightningElement {
 
     handleSigningOrderChange(event) {
         this.signingOrder = event.detail.value;
+    }
+
+    handleDocumentTitleChange(event) {
+        this.documentTitleFormat = event.detail.value || '';
     }
 
     // --- Template Selection ---
@@ -448,13 +449,15 @@ export default class DocGenSignatureSender extends LightningElement {
             }));
             const signersJson = JSON.stringify(signersPayload);
 
+            const titleFormat = (this.documentTitleFormat || '').trim() || null;
             if (this.selectedTemplates.length === 1) {
                 // CxSAST: CSRF protection handled by Salesforce Aura/LWC framework
                 this.signerResults = await createTemplateSignerRequest({
                     templateId: this.selectedTemplates[0].templateId,
                     relatedRecordId: this.recordId,
                     signersJson,
-                    signingOrder: this.signingOrder
+                    signingOrder: this.signingOrder,
+                    documentTitleFormat: titleFormat
                 });
             } else {
                 const templateIds = this.selectedTemplates.map((t) => t.templateId);
@@ -463,7 +466,8 @@ export default class DocGenSignatureSender extends LightningElement {
                     templateIdsJson: JSON.stringify(templateIds),
                     relatedRecordId: this.recordId,
                     signersJson,
-                    signingOrder: this.signingOrder
+                    signingOrder: this.signingOrder,
+                    documentTitleFormat: titleFormat
                 });
             }
 
