@@ -3,6 +3,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
     private static List<Map<String, Object>> pendingImages = new List<Map<String, Object>>();
     private static Integer imageCounter = 0;
     private static String currentTemplateType = 'Word'; // Set before processXml calls
+    @TestVisible
     private static String currentOutputFormat = 'Native'; // Set before processXml — PDF skips blob loading for images
 
     /**
@@ -2190,6 +2191,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * <w:headerReference> entries fall through to the "default" bucket so they
      * keep their pre-1.80 behavior.
      */
+    @TestVisible
     private static Map<String, String> mapHeaderFooterTypes(MergeResult mr) {
         Map<String, String> out = new Map<String, String>();
         if (String.isBlank(mr.documentXml) || String.isBlank(mr.relsXml)) {
@@ -2253,6 +2255,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         return out;
     }
 
+    @TestVisible
     private static String extractAttrValue(String tag, String attrPrefix) {
         Integer idx = tag.indexOf(attrPrefix);
         if (idx == -1) {
@@ -2283,6 +2286,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * EMU constants: 914400 EMU/inch (Word's wp:extent unit). 1440 twips/inch (sectPr
      * pgSz/pgMar unit).
      */
+    @TestVisible
     private static void logImageOverflowWarnings(Id versionId, Map<String, String> xmlEntries) {
         if (xmlEntries == null || xmlEntries.isEmpty()) {
             return;

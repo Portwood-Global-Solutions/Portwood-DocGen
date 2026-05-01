@@ -456,4 +456,89 @@ private class DocGenImageTagTests {
             'No size token → no style attr: ' + r4
         );
     }
+
+    // ==================================================================
+    // v1.80 #46 — autoSize fallback when intrinsic dims unavailable
+    // ==================================================================
+
+    /**
+     * Joe's bug: {%Image:N:max-dim} on PDF output forced 4:3 because the PDF
+     * path skips loading the blob (heap rule), so getImageDimensionsInEmu
+     * returned null and the code fell back to a hardcoded 4×3 default.
+     * Post-fix: when no intrinsic dims AND no explicit fixed WxH, the drawing
+     * gets a DOCGEN_AUTOSIZE marker and the renderer uses max-width/max-height
+     * + width:auto so Flying Saucer computes aspect from actual bytes.
+     */
+    @IsTest
+    static void v180Issue46_singleNumberMaxDimEmitsAutoSizeOnPdf() {
+        Account a = setupAccountWithImages(1);
+        DocGenService.currentOutputFormat = 'PDF';
+        try {
+            // Single-number form sets BOTH maxWidthPx and maxHeightPx — the
+            // exact `{%Image:N:240}` pattern Joe filed against.
+            String r = DocGenService.processXmlForTest(
+                '<w:p><w:r><w:t>{%Image:1:240}</w:t></w:r></w:p>',
+                new Map<String, Object>{ 'Id' => a.Id }
+            );
+            System.assert(
+                r.contains('DOCGEN_AUTOSIZE'),
+                'PDF path with single-number max-dim must emit DOCGEN_AUTOSIZE marker so the renderer preserves source aspect: ' +
+                r.left(400)
+            );
+            // wp:extent should be the max constraint in EMU, not the 4:3 fallback.
+            // 240px * 9525 EMU/px = 2286000 EMU. The bug fallback was 288*12700 = 3657600.
+            System.assert(
+                r.contains('cx="2286000"') && r.contains('cy="2286000"'),
+                'wp:extent should reflect the max constraint (240px = 2286000 EMU each), not the 4:3 default. Got: ' +
+                r.left(400)
+            );
+        } finally {
+            DocGenService.currentOutputFormat = null;
+        }
+    }
+
+    @IsTest
+    static void v180Issue46_noSizeTokenDefaultsToPageContentArea() {
+        // {%Image:N} with no size token at all on PDF — autoSize should still
+        // engage (no intrinsic dims, no explicit fixed WxH) and cx/cy should
+        // default to the page content area (5943600 × 8229600 EMU).
+        Account a = setupAccountWithImages(1);
+        DocGenService.currentOutputFormat = 'PDF';
+        try {
+            String r = DocGenService.processXmlForTest(
+                '<w:p><w:r><w:t>{%Image:1}</w:t></w:r></w:p>',
+                new Map<String, Object>{ 'Id' => a.Id }
+            );
+            System.assert(
+                r.contains('DOCGEN_AUTOSIZE'),
+                'Bare {%Image:N} on PDF must emit autosize marker: ' + r.left(400)
+            );
+            System.assert(
+                r.contains('cx="5943600"') && r.contains('cy="8229600"'),
+                'No-size-token should fall back to page content area cx/cy: ' + r.left(400)
+            );
+        } finally {
+            DocGenService.currentOutputFormat = null;
+        }
+    }
+
+    @IsTest
+    static void v180Issue46_explicitWxHSkipsAutoSize() {
+        // When the user gives W and H explicitly, we have a definitive size and
+        // should NOT emit the autosize marker — Flying Saucer locks the aspect.
+        Account a = setupAccountWithImages(1);
+        DocGenService.currentOutputFormat = 'PDF';
+        try {
+            String r = DocGenService.processXmlForTest(
+                '<w:p><w:r><w:t>{%Image:1:300x200}</w:t></w:r></w:p>',
+                new Map<String, Object>{ 'Id' => a.Id }
+            );
+            System.assert(
+                !r.contains('DOCGEN_AUTOSIZE'),
+                'Explicit WxH should NOT emit autosize marker: ' + r.left(400)
+            );
+        } finally {
+            DocGenService.currentOutputFormat = null;
+        }
+    }
 }
