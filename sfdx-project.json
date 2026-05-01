@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.80.0 — TBD",
-      "versionNumber": "1.80.0.NEXT",
+      "versionName": "1.80.0 — Word Fidelity",
+      "versionNumber": "1.80.0.1",
       "ancestorId": "04tal000006rD8XAAU",
       "path": "force-app",
       "default": true,
@@ -119,6 +119,7 @@
     "Portwood DocGen Managed@1.76.0-1": "04tal000006rCu1AAE",
     "Portwood DocGen Managed@1.77.0-1": "04tal000006rCxFAAU",
     "Portwood DocGen Managed@1.78.0-1": "04tal000006rD5JAAU",
-    "Portwood DocGen Managed@1.79.0-1": "04tal000006rD8XAAU"
+    "Portwood DocGen Managed@1.79.0-1": "04tal000006rD8XAAU",
+    "Portwood DocGen Managed@1.80.0-1": "04tal000006rJkDAAU"
   }
 }
