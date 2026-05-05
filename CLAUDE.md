@@ -50,6 +50,7 @@ sf apex run --target-org <org> -f scripts/e2e-08-cleanup.apex
 Each script must print `PASS: N  FAIL: 0  ALL TESTS PASSED`. Sequence: 01 standalone, 02 creates test data, 03–06 depend on 02, 07-syntax1/2 standalone (use `processXmlForTest`), 08 cleans up.
 
 For these three bugs:
+
 - #47 → add a `processXmlForTest` assertion in `e2e-07-syntax2` that a rich text field containing `<ul><li>a</li><li>b</li></ul>` survives merge with per-item separation.
 - #48 → add assertions in `e2e-07-syntax1` for both `{#Field}` and `{^Field}` against null, empty string, whitespace, and `<p><br></p>` rich-text values. Both tags must agree on falsy.
 - #49 → add a `processXmlForTest` assertion that exercises the stacked nested-loop pattern (outer 1-cell row containing `{#Rel}…{/Rel}`, inner table with header + data rows) and asserts the data row's run XML still carries `<w:b w:val="false"/>` after merge.

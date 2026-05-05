@@ -4387,10 +4387,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                 } else {
                     marker = indent + '• ';
                 }
-                result +=
-                    '</w:p><w:p><w:r><w:t xml:space="preserve">' +
-                    marker +
-                    '</w:t></w:r>';
+                result += '</w:p><w:p><w:r><w:t xml:space="preserve">' + marker + '</w:t></w:r>';
             } else if (tag.startsWith('</li>')) {
                 // No-op; next <li> or list close handles boundaries.
             }
@@ -4445,10 +4442,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         if (String.isBlank(s)) {
             return true;
         }
-        String stripped = s.replaceAll('(?i)<[^>]+>', '')
-            .replace('&nbsp;', '')
-            .replace('&#160;', '')
-            .trim();
+        String stripped = s.replaceAll('(?i)<[^>]+>', '').replace('&nbsp;', '').replace('&#160;', '').trim();
         return String.isBlank(stripped);
     }
 

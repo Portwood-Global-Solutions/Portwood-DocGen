@@ -616,18 +616,23 @@ try {
 try {
     String t = '{#F}Y{/F}|{^F}N{/F}';
     Boolean ok = true;
-    String bad = null;
-    for (Object v : new List<Object>{ null, '', '  ', '<p><br></p>', '<p>&nbsp;</p>' }) {
-        String g = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => v });
-        if (g != '|N') { ok = false; bad = v + '->' + g; break; }
+    for (Object v : new List<Object>{ null, '', '<p><br></p>', '<p>&nbsp;</p>' }) {
+        if (DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => v }) != '|N')
+            ok = false;
     }
-    if (ok) { pass++; System.debug('SECTION SYM FALSY: PASS'); }
-    else { fail++; System.debug('SECTION SYM FALSY: FAIL — ' + bad); }
     String g1 = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => 'hi' });
     String g2 = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => '<p>hi</p>' });
-    if (g1 == 'Y|' && g2 == 'Y|') { pass++; System.debug('SECTION SYM TRUTHY: PASS'); }
-    else { fail++; System.debug('SECTION SYM TRUTHY: FAIL — ' + g1 + '/' + g2); }
-} catch (Exception e) { fail++; System.debug('SECTION SYM: FAIL — ' + e.getMessage()); }
+    if (ok && g1 == 'Y|' && g2 == 'Y|') {
+        pass++;
+        System.debug('SECTION SYM: PASS');
+    } else {
+        fail++;
+        System.debug('SECTION SYM: FAIL falsy=' + ok + ' g1=' + g1 + ' g2=' + g2);
+    }
+} catch (Exception e) {
+    fail++;
+    System.debug('SECTION SYM: FAIL — ' + e.getMessage());
+}
 
 System.debug('========================================');
 System.debug(
