@@ -2,7 +2,7 @@
   "packageDirectories": [
     {
       "versionName": "1.83.0 — Rich Text & Nested Table Bug Fixes",
-      "versionNumber": "1.83.0.1",
+      "versionNumber": "1.83.0.2",
       "ancestorId": "04tal000006rKBdAAM",
       "path": "force-app",
       "default": true,

@@ -157,7 +157,7 @@ const VERSION_COLUMNS = [
     { label: 'Created By', fieldName: 'CreatedByName' },
     {
         type: 'button',
-        initialWidth: 100,
+        initialWidth: 130,
         typeAttributes: {
             label: 'Preview',
             name: 'preview',
@@ -2172,14 +2172,25 @@ export default class DocGenAdmin extends NavigationMixin(LightningElement) {
         return this.previewVersion?.[F.VerIsActive] || false;
     }
 
+    // Namespace-aware truthy check — F.QueryConfig resolves to the namespaced
+    // field name in subscriber orgs (e.g. portwoodglobal__Query_Config__c), so
+    // the modal must read via this getter rather than `previewVersion.Query_Config__c`.
+    get hasPreviewVersionQuery() {
+        const v = this.previewVersion?.[F.QueryConfig];
+        return typeof v === 'string' && v.trim().length > 0;
+    }
+
     get previewVersionQueryFormatted() {
         const raw = this.previewVersion?.[F.QueryConfig];
         if (!raw) return '';
-        // Format: split on commas that are NOT inside parentheses (subqueries)
+        // Reuse the main edit UI's V1/V2/V3-aware formatter so V3 JSON trees
+        // render as readable SOQL-ish text instead of one giant JSON blob.
+        const flattened = this._formatQueryConfig(raw);
+        // Apply the same comma/parens line-break sweetening for readability.
         let depth = 0;
         let formatted = '';
-        for (let i = 0; i < raw.length; i++) {
-            const ch = raw[i];
+        for (let i = 0; i < flattened.length; i++) {
+            const ch = flattened[i];
             if (ch === '(') {
                 depth++;
                 formatted += '\n  (';
