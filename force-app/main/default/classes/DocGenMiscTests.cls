@@ -5468,6 +5468,34 @@ private class DocGenMiscTests {
     }
 
     @IsTest
+    static void testIfConditionalInsideTableRowDoesNotCorruptDocx() {
+        // Issue #53: {#IF X = Y}…{/IF} placed inside a <w:tr> caused the
+        // smart-container expansion to backtrack the row's opening tags. When
+        // the condition was false (no else), nothing was re-emitted, leaving
+        // an orphaned </w:tr> downstream — Word refused to open the DOCX, and
+        // PDF silently dropped trailing content.
+        String tableXml =
+            '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>{#IF Status = open}{Name}{/IF}</w:t></w:r></w:p></w:tc></w:tr>' +
+            '<w:tr><w:tc><w:p><w:r><w:t>after-row</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+
+        // FALSE branch: row tags must remain balanced and trailing content preserved.
+        Map<String, Object> falseData = new Map<String, Object>{ 'Status' => 'closed', 'Name' => 'Acme' };
+        String r1 = DocGenService.processXmlForTest(tableXml, falseData);
+        System.assertEquals(
+            r1.split('<w:tr>').size(),
+            r1.split('</w:tr>').size(),
+            'unbalanced row tags after false IF: ' + r1
+        );
+        System.assert(r1.contains('after-row'), 'trailing content dropped after false IF: ' + r1);
+
+        // TRUE branch: name renders, trailing content preserved.
+        Map<String, Object> trueData = new Map<String, Object>{ 'Status' => 'open', 'Name' => 'Acme' };
+        String r2 = DocGenService.processXmlForTest(tableXml, trueData);
+        System.assert(r2.contains('Acme'), 'true IF dropped its body: ' + r2);
+        System.assert(r2.contains('after-row'), 'trailing content dropped after true IF: ' + r2);
+    }
+
+    @IsTest
     static void testGenerateDocTitleResolvesBuiltins() {
         // generateDocTitle must resolve {Today}, {Now}, {RunningUser.X} and date-format suffixes
         // — previously these returned empty because the resolver only walked the data map.

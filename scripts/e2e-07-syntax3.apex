@@ -217,6 +217,41 @@ try {
     System.debug('TITLE BUILTINS: FAIL — ' + e.getMessage());
 }
 
+// ===== IF inside table row, condition false, no else (issue #53) =====
+// Pre-fix: smart-container expansion backtracked the row's <w:tr> opening,
+// IF emitted nothing, downstream </w:tr> orphaned → DOCX corruption + PDF
+// trailing-content drop. Post-fix: IF must NEVER trigger container expansion.
+try {
+    String tableXml =
+        '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>{#IF Status = open}{Name}{/IF}</w:t></w:r></w:p></w:tc></w:tr>' +
+        '<w:tr><w:tc><w:p><w:r><w:t>after-row</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+    Map<String, Object> falseData = new Map<String, Object>{ 'Status' => 'closed', 'Name' => 'Acme' };
+    String r1 = DocGenService.processXmlForTest(tableXml, falseData);
+    Boolean falseHasFirstRow = r1.contains('<w:tr>') && r1.indexOf('<w:tr>') < r1.indexOf('after-row');
+    Boolean falseHasAfter = r1.contains('after-row');
+    Boolean falseBalanced = (r1.indexOf('<w:tr>') != -1) && (r1.indexOf('</w:tr>') != -1)
+        && r1.split('<w:tr>').size() == r1.split('</w:tr>').size();
+
+    Map<String, Object> trueData = new Map<String, Object>{ 'Status' => 'open', 'Name' => 'Acme' };
+    String r2 = DocGenService.processXmlForTest(tableXml, trueData);
+    Boolean trueHasName = r2.contains('Acme');
+    Boolean trueHasAfter = r2.contains('after-row');
+
+    if (falseHasFirstRow && falseHasAfter && falseBalanced && trueHasName && trueHasAfter) {
+        pass++;
+        System.debug('IF-IN-ROW (issue #53): PASS');
+    } else {
+        fail++;
+        System.debug('IF-IN-ROW (issue #53): FAIL — falseHasFirstRow=' + falseHasFirstRow +
+            ' falseHasAfter=' + falseHasAfter + ' falseBalanced=' + falseBalanced +
+            ' trueHasName=' + trueHasName + ' trueHasAfter=' + trueHasAfter +
+            ' r1=' + r1 + ' r2=' + r2);
+    }
+} catch (Exception e) {
+    fail++;
+    System.debug('IF-IN-ROW (issue #53): FAIL — ' + e.getMessage());
+}
+
 System.debug('========================================');
 System.debug(
     'E2E-07-SYNTAX3 — PASS: ' + pass + '  FAIL: ' + fail + (fail == 0 ? '  ALL TESTS PASSED' : '  FAILURES DETECTED')

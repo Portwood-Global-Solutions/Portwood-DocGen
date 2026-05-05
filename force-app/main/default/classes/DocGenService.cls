@@ -2638,12 +2638,20 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     // Candidate containers:
                     // 1) Table row (<w:tr>...</w:tr>)
                     // 2) Numbered/bulleted paragraph (nearest <w:p> containing <w:numPr>)
+                    //
+                    // {#IF ...} is a conditional, NOT a loop — it must NEVER trigger container
+                    // expansion. If we backtrack the output to drop the parent row's opening
+                    // tags expecting to re-emit them, and then the IF evaluates false with no
+                    // {:else}, we emit nothing while the closing </w:tr> downstream remains —
+                    // producing unmatched markup that PDF silently truncates and Word refuses
+                    // to open as a corrupted DOCX. (Issue #53)
                     Integer closeTagEnd = xml.indexOf('}', sectionEnd);
                     Integer chosenContainerStart = -1;
                     Integer chosenContainerEnd = -1;
+                    Boolean isIfConditional = key.startsWith('IF ') || key.startsWith('if ');
 
-                    // Candidate: row container
-                    Integer rowContainerStart = lastIndexOfTagStart(xml, 'w:tr', cursor);
+                    // Candidate: row container (skipped for {#IF ...} conditionals — issue #53)
+                    Integer rowContainerStart = isIfConditional ? -1 : lastIndexOfTagStart(xml, 'w:tr', cursor);
                     if (rowContainerStart != -1) {
                         Integer rowContainerEnd = xml.indexOf('</w:tr>', rowContainerStart);
                         Boolean rowClosedBeforeCursor = xml.substring(rowContainerStart, cursor).contains('</w:tr>');
@@ -2653,8 +2661,8 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                         }
                     }
 
-                    // Candidate: list paragraph container (w:p with w:numPr)
-                    Integer numPropsStart = xml.lastIndexOf('<w:numPr', cursor);
+                    // Candidate: list paragraph container (w:p with w:numPr) — skipped for IF
+                    Integer numPropsStart = isIfConditional ? -1 : xml.lastIndexOf('<w:numPr', cursor);
                     if (numPropsStart != -1) {
                         Integer paragraphStart = lastIndexOfTagStart(xml, 'w:p', cursor);
                         if (paragraphStart != -1 && paragraphStart <= numPropsStart) {
@@ -2680,7 +2688,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     // HTML template type (v1.61+): mirror the DOCX auto-expand behavior
                     // for <tr> rows and <li> list items. Only considered when the merge
                     // engine is running in HTML context — leaves DOCX paths untouched.
-                    if (currentTemplateType == 'HTML') {
+                    if (currentTemplateType == 'HTML' && !isIfConditional) {
                         // Candidate: HTML <tr> row
                         Integer htmlTrStart = lastIndexOfTagStart(xml, 'tr', cursor);
                         if (htmlTrStart != -1) {
