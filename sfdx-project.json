@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.82.0 — Image Sizing Hotfix",
-      "versionNumber": "1.82.0.1",
-      "ancestorId": "04tal000006rKA1AAM",
+      "versionName": "1.83.0 — Rich Text & Nested Table Bug Fixes",
+      "versionNumber": "1.83.0.1",
+      "ancestorId": "04tal000006rKBdAAM",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
