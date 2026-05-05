@@ -2838,8 +2838,16 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                                 checkHeapPressure(key);
                             }
                         }
+                    } else if (val instanceof String) {
+                        // Strings: blank/whitespace-only and "visually empty" rich text
+                        // (e.g. <p><br></p>) are treated as falsy. Symmetric with the
+                        // inverse-section path below (issue #48).
+                        if (!isVisuallyBlankRichText((String) val)) {
+                            isTruthy = true;
+                            sectionResult = processXml(trueBranch, data);
+                        }
                     } else if (val != null && !(val instanceof Boolean)) {
-                        // Non-null, non-boolean, non-list, non-map value (e.g., non-blank string)
+                        // Non-null, non-boolean, non-list, non-map, non-string value
                         isTruthy = true;
                         sectionResult = processXml(trueBranch, data);
                     }
@@ -2877,7 +2885,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     Boolean isFalsy =
                         (val == null) ||
                         (val instanceof Boolean && !(Boolean) val) ||
-                        (val instanceof String && String.isBlank((String) val)) ||
+                        (val instanceof String && isVisuallyBlankRichText((String) val)) ||
                         (val instanceof List<Object> && ((List<Object>) val).isEmpty());
                     if (isFalsy) {
                         sectionResult = processXml(inverseTrueBranch, data);
@@ -3028,7 +3036,10 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                         strVal.containsIgnoreCase('<i>') ||
                         strVal.containsIgnoreCase('<u>') ||
                         strVal.containsIgnoreCase('<strong') ||
-                        strVal.containsIgnoreCase('<em'))
+                        strVal.containsIgnoreCase('<em') ||
+                        strVal.containsIgnoreCase('<ul') ||
+                        strVal.containsIgnoreCase('<ol') ||
+                        strVal.containsIgnoreCase('<li'))
                     ) {
                         if (currentTemplateType == 'PowerPoint') {
                             // Strip HTML tags for plain text in PPTX
@@ -4268,6 +4279,10 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         Boolean isItalic = false;
         Boolean isUnderline = false;
 
+        // Track list nesting: 'ul' or 'ol' per level. Counter parallel for ordered numbering.
+        List<String> listStack = new List<String>();
+        List<Integer> listCounters = new List<Integer>();
+
         while (cursor < html.length()) {
             Integer nextTag = html.indexOf('<', cursor);
 
@@ -4346,6 +4361,38 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                 if (imgResult != null) {
                     result += imgResult;
                 }
+            } else if (tag.startsWith('<ul>') || tag.startsWith('<ul ')) {
+                listStack.add('ul');
+                listCounters.add(0);
+            } else if (tag.startsWith('<ol>') || tag.startsWith('<ol ')) {
+                listStack.add('ol');
+                listCounters.add(0);
+            } else if (tag.startsWith('</ul>') || tag.startsWith('</ol>')) {
+                if (!listStack.isEmpty()) {
+                    listStack.remove(listStack.size() - 1);
+                    listCounters.remove(listCounters.size() - 1);
+                }
+            } else if (tag.startsWith('<li>') || tag.startsWith('<li ')) {
+                // Close current paragraph and open a new one prefixed with a bullet/number marker.
+                String marker;
+                Integer depth = listStack.isEmpty() ? 1 : listStack.size();
+                String indent = '';
+                for (Integer i = 1; i < depth; i++) {
+                    indent += '    ';
+                }
+                if (!listStack.isEmpty() && listStack[listStack.size() - 1] == 'ol') {
+                    Integer count = listCounters[listCounters.size() - 1] + 1;
+                    listCounters[listCounters.size() - 1] = count;
+                    marker = indent + count + '. ';
+                } else {
+                    marker = indent + '• ';
+                }
+                result +=
+                    '</w:p><w:p><w:r><w:t xml:space="preserve">' +
+                    marker +
+                    '</w:t></w:r>';
+            } else if (tag.startsWith('</li>')) {
+                // No-op; next <li> or list close handles boundaries.
             }
             // Closing </a> tags and other tags (spans, etc.) are skipped — just process their text content
 
@@ -4384,6 +4431,25 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      */
     private static String stripTags(String text) {
         return text.replaceAll('<[^>]+>', '');
+    }
+
+    /**
+     * Returns true if a String is null/blank or contains only HTML markup that
+     * renders as nothing (e.g. Salesforce Lightning rich text "empty" values
+     * stored as <p><br></p> or <div>&nbsp;</div>). Used by section-tag truthy/
+     * inverse checks so {#Field} and {^Field} agree on what "empty" means and
+     * both treat visually-empty rich text as falsy. Issue #48.
+     */
+    @TestVisible
+    private static Boolean isVisuallyBlankRichText(String s) {
+        if (String.isBlank(s)) {
+            return true;
+        }
+        String stripped = s.replaceAll('(?i)<[^>]+>', '')
+            .replace('&nbsp;', '')
+            .replace('&#160;', '')
+            .trim();
+        return String.isBlank(stripped);
     }
 
     /**

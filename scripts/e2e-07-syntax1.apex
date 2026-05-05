@@ -612,6 +612,23 @@ try {
     System.debug('MULTI FIELD SINGLE NODE: FAIL — ' + e.getMessage());
 }
 
+// ===== Section-tag symmetry (issue #48) =====
+try {
+    String t = '{#F}Y{/F}|{^F}N{/F}';
+    Boolean ok = true;
+    String bad = null;
+    for (Object v : new List<Object>{ null, '', '  ', '<p><br></p>', '<p>&nbsp;</p>' }) {
+        String g = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => v });
+        if (g != '|N') { ok = false; bad = v + '->' + g; break; }
+    }
+    if (ok) { pass++; System.debug('SECTION SYM FALSY: PASS'); }
+    else { fail++; System.debug('SECTION SYM FALSY: FAIL — ' + bad); }
+    String g1 = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => 'hi' });
+    String g2 = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'F' => '<p>hi</p>' });
+    if (g1 == 'Y|' && g2 == 'Y|') { pass++; System.debug('SECTION SYM TRUTHY: PASS'); }
+    else { fail++; System.debug('SECTION SYM TRUTHY: FAIL — ' + g1 + '/' + g2); }
+} catch (Exception e) { fail++; System.debug('SECTION SYM: FAIL — ' + e.getMessage()); }
+
 System.debug('========================================');
 System.debug(
     'E2E-07-SYNTAX1 — PASS: ' + pass + '  FAIL: ' + fail + (fail == 0 ? '  ALL TESTS PASSED' : '  FAILURES DETECTED')

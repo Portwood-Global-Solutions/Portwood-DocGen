@@ -424,6 +424,24 @@ try {
     System.debug('PAGE SETUP MATRIX: FAIL — ' + e.getMessage() + ' line ' + e.getLineNumber());
 }
 
+// ===== Nested-table direct-child property scoping (issue #49) =====
+// Outer cell wrapping an inner table whose first row has <w:tblHeader/> must
+// NOT inherit that header status (would cause inherited bold cascade).
+try {
+    String d = '<w:document xmlns:w="x"><w:body>'
+        + '<w:tbl><w:tblPr/><w:tr><w:tc><w:tcPr/>'
+        + '<w:tbl><w:tblPr/>'
+        + '<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>H</w:t></w:r></w:p></w:tc></w:tr>'
+        + '<w:tr><w:tc><w:p><w:r><w:rPr><w:b w:val="false"/></w:rPr><w:t>D</w:t></w:r></w:p></w:tc></w:tr>'
+        + '</w:tbl>'
+        + '</w:tc></w:tr></w:tbl>'
+        + '</w:body></w:document>';
+    String html = portwoodglobal.DocGenHtmlRenderer.convertToHtml(d, new Map<String, String>());
+    Boolean ok = html.contains('<tr><td><table') && !html.contains('<b>D</b>');
+    if (ok) { pass++; System.debug('NESTED TABLE NO-BOLD CASCADE: PASS'); }
+    else { fail++; System.debug('NESTED TABLE NO-BOLD CASCADE: FAIL — ' + html); }
+} catch (Exception e) { fail++; System.debug('NESTED TABLE NO-BOLD CASCADE: FAIL — ' + e.getMessage()); }
+
 System.debug('========================================');
 System.debug(
     'E2E-03 GENERATE PDF — PASS: ' +
