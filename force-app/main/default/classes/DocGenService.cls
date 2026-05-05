@@ -4220,8 +4220,19 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * Returns DOCX XML that closes the current run/paragraph context and reopens it after.
      */
     private static String convertRichTextToDocxXml(String html) {
-        // Normalize: replace common entities and whitespace
-        html = html.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>');
+        // Normalize: named entities first, then numeric character references.
+        // The Lightning RTE stores apostrophes as &#39;, smart quotes as &#8217;
+        // /&#8220;/&#8221;, em/en dashes as &#8212;/&#8211;, accented chars as
+        // &#xE9; etc. Without decoding they render literally in DOCX (issue #51).
+        // The renderer's decodeNumericEntities (v1.81.0) already handles every
+        // numeric form for the PDF/HTML path; routing through it brings DOCX
+        // to parity.
+        html = html.replace('&nbsp;', ' ')
+            .replace('&amp;', '&')
+            .replace('&lt;', '<')
+            .replace('&gt;', '>')
+            .replace('&quot;', '"');
+        html = DocGenHtmlRenderer.decodeNumericEntities(html);
 
         // Split into paragraphs by <p>, <div>, and <br> tags
         // First, normalize paragraph boundaries: replace </p><p>, </div><div>, <br>, <br/> with a delimiter
@@ -5857,12 +5868,54 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         Matcher m = p.matcher(format);
         while (m.find()) {
             String key = m.group(1);
-            Object val = resolveValue(data, key);
-            if (val != null) {
-                result = result.replace('{' + key + '}', String.valueOf(val));
-            } else {
-                result = result.replace('{' + key + '}', '');
+
+            // Parse optional format suffix: {Field:format} (e.g. {Today:MM-dd-yyyy}).
+            String fieldName = key;
+            String dateFormat = null;
+            if (key.contains(':')) {
+                Integer colonIdx = key.indexOf(':');
+                fieldName = key.substring(0, colonIdx).trim();
+                dateFormat = key.substring(colonIdx + 1).trim();
             }
+
+            // Built-ins parity with processXml: {Today}, {Now}, {RunningUser.X}.
+            // These aren't in the data map so plain resolveValue would return null
+            // and the tag would render empty in document titles.
+            Object val;
+            String upperField = fieldName.toUpperCase();
+            if (upperField == 'TODAY') {
+                Date td = Date.today();
+                val = DateTime.newInstance(td.year(), td.month(), td.day());
+            } else if (upperField == 'NOW') {
+                val = DateTime.now();
+            } else if (upperField.startsWith('RUNNINGUSER.')) {
+                val = resolveRunningUserField(fieldName.substring('RunningUser.'.length()));
+            } else {
+                val = resolveValue(data, fieldName);
+            }
+
+            String strVal = '';
+            if (val != null) {
+                if (dateFormat != null && (val instanceof DateTime || val instanceof Date)) {
+                    DateTime dt = val instanceof DateTime
+                        ? (DateTime) val
+                        : DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
+                    if (dateFormat.toLowerCase().startsWith('date')) {
+                        // {Field:date} or {Field:date:locale}
+                        String dateLocale = dateFormat.contains(':')
+                            ? dateFormat.substring(dateFormat.indexOf(':') + 1).trim()
+                            : UserInfo.getLocale();
+                        strVal = dt.format(getLocaleDatePattern(dateLocale));
+                    } else {
+                        strVal = dt.format(dateFormat);
+                    }
+                } else if (dateFormat != null && isNumericFormat(dateFormat)) {
+                    strVal = formatNumber(val, dateFormat);
+                } else {
+                    strVal = String.valueOf(val);
+                }
+            }
+            result = result.replace('{' + key + '}', strVal);
         }
         return result;
     }

@@ -5422,6 +5422,74 @@ private class DocGenMiscTests {
     }
 
     // =========================================================================
+    // DocGenService — convertRichTextToDocxXml decodes &#39; and &quot;
+    // (issue #51). Lightning RTE stores apostrophes as the numeric reference;
+    // without decoding they render literally in the output document.
+    // =========================================================================
+    @IsTest
+    static void testRichTextDecodesApostropheAndQuoteEntities() {
+        String tpl = '<w:p><w:r><w:t>{Notes}</w:t></w:r></w:p>';
+        Map<String, Object> data = new Map<String, Object>{
+            'Notes' => '<p>ain&#39;t it &quot;great&quot;</p>'
+        };
+        String out = DocGenService.processXmlForTest(tpl, data);
+        // After decode, OOXML re-escapes apostrophe as &apos; and quote as &quot;
+        // for XML safety; Word/PDF unescape on render. The bug signature is the
+        // numeric reference &#39; surviving — that's the only thing we must not see.
+        System.assert(!out.contains('&#39;'), 'numeric apostrophe ref must not survive: ' + out);
+        System.assert(
+            out.contains('ain&apos;t') || out.contains('ain\'t'),
+            'apostrophe must render (as &apos; or literal): ' + out
+        );
+        System.assert(
+            out.contains('&quot;great&quot;') || out.contains('"great"'),
+            'quote must render (as &quot; or literal): ' + out
+        );
+    }
+
+    @IsTest
+    static void testRichTextDecodesUnicodeNumericReferences() {
+        // Smart quotes / em-dash / en-dash / hex-form accent — all must decode.
+        // DOCX rich-text path now reuses DocGenHtmlRenderer.decodeNumericEntities.
+        String tpl = '<w:p><w:r><w:t>{N}</w:t></w:r></w:p>';
+        Map<String, Object> data = new Map<String, Object>{
+            'N' => '<p>he said &#8220;don&#8217;t&#8221; &#8212; ok&#8211;done caf&#xE9;</p>'
+        };
+        String out = DocGenService.processXmlForTest(tpl, data);
+        System.assert(!out.contains('&#8220;'), 'left double quote must decode: ' + out);
+        System.assert(!out.contains('&#8217;'), 'right single quote must decode: ' + out);
+        System.assert(!out.contains('&#8221;'), 'right double quote must decode: ' + out);
+        System.assert(!out.contains('&#8212;'), 'em dash must decode: ' + out);
+        System.assert(!out.contains('&#8211;'), 'en dash must decode: ' + out);
+        System.assert(!out.contains('&#xE9;'), 'hex e-acute must decode: ' + out);
+        System.assert(out.contains('“'), 'left double quote literal present: ' + out);
+        System.assert(out.contains('—'), 'em dash literal present: ' + out);
+        System.assert(out.contains('é'), 'e-acute literal present: ' + out);
+    }
+
+    @IsTest
+    static void testGenerateDocTitleResolvesBuiltins() {
+        // generateDocTitle must resolve {Today}, {Now}, {RunningUser.X} and date-format suffixes
+        // — previously these returned empty because the resolver only walked the data map.
+        Map<String, Object> data = new Map<String, Object>{ 'Name' => 'Acme' };
+
+        String t1 = DocGenService.generateDocTitle('{Name}-{Today:MM-dd-yyyy}', data);
+        Date td = Date.today();
+        String mm = td.month() < 10 ? '0' + td.month() : String.valueOf(td.month());
+        String dd = td.day() < 10 ? '0' + td.day() : String.valueOf(td.day());
+        System.assertEquals('Acme-' + mm + '-' + dd + '-' + td.year(), t1, 'Today with format suffix');
+
+        String t2 = DocGenService.generateDocTitle('{Now:yyyy}', data);
+        System.assertEquals(String.valueOf(DateTime.now().year()), t2, 'Now with format suffix');
+
+        String t3 = DocGenService.generateDocTitle('By {RunningUser.Name}', data);
+        System.assert(t3.contains(UserInfo.getName()), 'RunningUser.Name in title: ' + t3);
+
+        String t4 = DocGenService.generateDocTitle('{Today}', data);
+        System.assert(String.isNotBlank(t4) && t4.contains(String.valueOf(td.year())), 'bare Today: ' + t4);
+    }
+
+    // =========================================================================
     // DocGenHtmlRenderer — nested-table direct-child property scoping (issue #49)
     // Outer cell wrapping an inner table must NOT inherit the inner header row's
     // <w:tblHeader/> from <w:trPr>; if it does, outer renders as <th> and bold

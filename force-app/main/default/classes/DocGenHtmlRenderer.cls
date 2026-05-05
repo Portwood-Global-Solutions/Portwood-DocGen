@@ -3559,7 +3559,7 @@ public with sharing class DocGenHtmlRenderer {
      * other than tab/LF/CR so we don't inject anything that breaks downstream XML.
      */
     @TestVisible
-    private static String decodeNumericEntities(String text) {
+    public static String decodeNumericEntities(String text) {
         if (text == null || text.indexOf('&#') == -1) {
             return text;
         }
