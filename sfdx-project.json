@@ -2,7 +2,7 @@
   "packageDirectories": [
     {
       "versionName": "1.83.0 — Rich Text & Nested Table Bug Fixes",
-      "versionNumber": "1.83.0.2",
+      "versionNumber": "1.83.0.4",
       "ancestorId": "04tal000006rKBdAAM",
       "path": "force-app",
       "default": true,
@@ -125,6 +125,7 @@
     "Portwood DocGen Managed@1.82.0-1": "04tal000006rKBdAAM",
     "Portwood DocGen Managed@1.83.0-1": "04tVx000000Q3rtIAC",
     "Portwood DocGen Managed@1.83.0-2": "04tVx000000Q4ZRIA0",
-    "Portwood DocGen Managed@1.83.0-3": "04tVx000000Q4b3IAC"
+    "Portwood DocGen Managed@1.83.0-3": "04tVx000000Q4b3IAC",
+    "Portwood DocGen Managed@1.83.0-4": "04tVx000000QE7NIAW"
   }
 }
