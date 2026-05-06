@@ -282,3 +282,57 @@
 .limit-card strong { display: block; margin-bottom: var(--slds-g-spacing-2, 0.5rem); }
 
 .about-card { background: var(--docgen-color-neutral-base-2, #f9fafb); border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb); border-radius: var(--slds-g-radius-border-3, 12px); padding: var(--slds-g-spacing-6, 2rem); margin-top: var(--slds-g-spacing-12, 5rem); }
+
+/* User-guide redirect card — replaces the in-app Learning Center.
+   Single CTA pointing at portwood.dev/guide; sized to read as a hero
+   on first paint. */
+.guide-redirect-card {
+    max-width: 720px;
+    margin: var(--slds-g-spacing-8, 3rem) auto;
+    padding: var(--slds-g-spacing-8, 3rem) var(--slds-g-spacing-6, 2rem);
+    background: var(--docgen-color-neutral-base-2, #f9fafb);
+    border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e7eb);
+    border-radius: var(--slds-g-radius-border-3, 12px);
+    text-align: center;
+}
+.guide-redirect-card h3 {
+    margin: 0 0 var(--slds-g-spacing-3, 0.75rem) 0;
+    font-size: var(--slds-g-font-scale-3, 1.5rem);
+    font-weight: var(--slds-g-font-weight-7, 700);
+    color: var(--slds-g-color-neutral-base-15, #111827);
+}
+.guide-redirect-card p {
+    margin: 0 0 var(--slds-g-spacing-5, 1.5rem) 0;
+    font-size: var(--slds-g-font-scale-1, 1rem);
+    line-height: 1.55;
+    color: var(--slds-g-color-neutral-base-50, #4b5563);
+}
+.guide-redirect-button {
+    display: inline-block;
+    padding: var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-6, 2rem);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: var(--slds-g-color-surface-1, #fff);
+    font-size: var(--slds-g-font-scale-1, 1rem);
+    font-weight: var(--slds-g-font-weight-6, 600);
+    text-decoration: none;
+    border-radius: var(--slds-g-radius-border-2, 8px);
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.guide-redirect-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+    color: var(--slds-g-color-surface-1, #fff);
+    text-decoration: none;
+}
+.guide-redirect-fineprint {
+    margin-top: var(--slds-g-spacing-6, 2rem) !important;
+    font-size: var(--slds-g-font-scale-neg-1, 0.85rem) !important;
+    color: var(--slds-g-color-neutral-base-65, #6b7280) !important;
+}
+.guide-redirect-fineprint a {
+    color: #047857;
+    text-decoration: none;
+    font-weight: var(--slds-g-font-weight-6, 600);
+}
+.guide-redirect-fineprint a:hover { text-decoration: underline; }
