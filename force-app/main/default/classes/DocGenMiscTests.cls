@@ -5255,6 +5255,346 @@ private class DocGenMiscTests {
     }
 
     // =========================================================================
+    // DocGenService — rich text list tags (issue #47)
+    // <ul>/<ol>/<li> must produce per-item paragraph breaks with bullet/number markers
+    // =========================================================================
+
+    @IsTest
+    static void testRichTextBulletedListEmitsPerItemParagraphs() {
+        String tpl = '<w:p><w:r><w:t>Instructions: {Notes}</w:t></w:r></w:p>';
+        Map<String, Object> data = new Map<String, Object>{
+            'Notes' => '<ul><li>alpha</li><li>beta</li><li>gamma</li></ul>'
+        };
+
+        String out = DocGenService.processXmlForTest(tpl, data);
+
+        // Each item must appear with its bullet marker in its own paragraph (• and item text
+        // are emitted as separate runs inside one <w:p>, separated by run-close/open markup).
+        System.assert(
+            out.contains('<w:t xml:space="preserve">• </w:t></w:r><w:r><w:t xml:space="preserve">alpha</w:t>'),
+            'first item must be in its own paragraph with bullet prefix: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">• </w:t></w:r><w:r><w:t xml:space="preserve">beta</w:t>'),
+            'second item must be in its own paragraph with bullet prefix: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">• </w:t></w:r><w:r><w:t xml:space="preserve">gamma</w:t>'),
+            'third item must be in its own paragraph with bullet prefix: ' + out
+        );
+        // Three new <w:p> openers for three items (each <li> opens a new paragraph).
+        Integer pCount = out.countMatches('<w:p>');
+        System.assert(
+            pCount >= 3,
+            'expected at least 3 paragraph openings for 3 list items, got ' + pCount + ': ' + out
+        );
+        // Items must not run together as plain text.
+        System.assert(!out.contains('alphabeta'), 'items must not concatenate: ' + out);
+        System.assert(!out.contains('betagamma'), 'items must not concatenate: ' + out);
+    }
+
+    @IsTest
+    static void testRichTextNumberedListEmitsPerItemParagraphs() {
+        String tpl = '<w:p><w:r><w:t>Steps: {Notes}</w:t></w:r></w:p>';
+        Map<String, Object> data = new Map<String, Object>{
+            'Notes' => '<ol><li>first</li><li>second</li><li>third</li></ol>'
+        };
+
+        String out = DocGenService.processXmlForTest(tpl, data);
+
+        System.assert(
+            out.contains('<w:t xml:space="preserve">1. </w:t></w:r><w:r><w:t xml:space="preserve">first</w:t>'),
+            'item 1 must carry "1. " marker run: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">2. </w:t></w:r><w:r><w:t xml:space="preserve">second</w:t>'),
+            'item 2 must carry "2. " marker run: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">3. </w:t></w:r><w:r><w:t xml:space="preserve">third</w:t>'),
+            'item 3 must carry "3. " marker run: ' + out
+        );
+    }
+
+    @IsTest
+    static void testRichTextNestedListsIndentAndResetCounter() {
+        String tpl = '<w:p><w:r><w:t>{Notes}</w:t></w:r></w:p>';
+        // Outer ul with two items; second item has a nested ol with two items.
+        Map<String, Object> data = new Map<String, Object>{
+            'Notes' => '<ul><li>outer one</li><li>outer two<ol><li>inner one</li><li>inner two</li></ol></li></ul>'
+        };
+
+        String out = DocGenService.processXmlForTest(tpl, data);
+
+        System.assert(
+            out.contains('<w:t xml:space="preserve">• </w:t></w:r><w:r><w:t xml:space="preserve">outer one</w:t>'),
+            'outer item 1 bullet: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">• </w:t></w:r><w:r><w:t xml:space="preserve">outer two</w:t>'),
+            'outer item 2 bullet: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">    1. </w:t></w:r><w:r><w:t xml:space="preserve">inner one</w:t>'),
+            'nested ordered item 1 indented + numbered: ' + out
+        );
+        System.assert(
+            out.contains('<w:t xml:space="preserve">    2. </w:t></w:r><w:r><w:t xml:space="preserve">inner two</w:t>'),
+            'nested ordered item 2 indented + numbered: ' + out
+        );
+    }
+
+    // =========================================================================
+    // DocGenService — section-tag truthy/falsy symmetry (issue #48)
+    // {#Field} and {^Field} must agree on what "empty" means; rich text values
+    // that are visually empty (<p><br></p>, &nbsp; only, etc.) must be falsy.
+    // =========================================================================
+
+    @IsTest
+    static void testSectionTagSymmetryAgainstNullField() {
+        String tpl = '{#F}YES{/F}|{^F}NO{/F}';
+        Map<String, Object> data = new Map<String, Object>{ 'F' => null };
+        String out = DocGenService.processXmlForTest(tpl, data);
+        System.assertEquals('|NO', out, 'null must be falsy in both paths: ' + out);
+    }
+
+    @IsTest
+    static void testSectionTagSymmetryAgainstEmptyString() {
+        String tpl = '{#F}YES{/F}|{^F}NO{/F}';
+        String out = DocGenService.processXmlForTest(tpl, new Map<String, Object>{ 'F' => '' });
+        System.assertEquals('|NO', out, 'empty string must be falsy in both paths: ' + out);
+    }
+
+    @IsTest
+    static void testSectionTagSymmetryAgainstWhitespaceString() {
+        String tpl = '{#F}YES{/F}|{^F}NO{/F}';
+        String out = DocGenService.processXmlForTest(tpl, new Map<String, Object>{ 'F' => '   \t\n  ' });
+        System.assertEquals('|NO', out, 'whitespace must be falsy in both paths: ' + out);
+    }
+
+    @IsTest
+    static void testSectionTagSymmetryAgainstVisuallyEmptyRichText() {
+        String tpl = '{#F}YES{/F}|{^F}NO{/F}';
+        // Common Lightning RT "empty" residual values
+        for (
+            String empty : new List<String>{
+                '<p><br></p>',
+                '<p></p>',
+                '<div><br/></div>',
+                '<p>&nbsp;</p>',
+                '<p>   </p>'
+            }
+        ) {
+            String out = DocGenService.processXmlForTest(tpl, new Map<String, Object>{ 'F' => empty });
+            System.assertEquals('|NO', out, 'visually empty RT [' + empty + '] must be falsy: ' + out);
+        }
+    }
+
+    @IsTest
+    static void testSectionTagSymmetryAgainstNonEmptyString() {
+        String tpl = '{#F}YES{/F}|{^F}NO{/F}';
+        String out = DocGenService.processXmlForTest(tpl, new Map<String, Object>{ 'F' => 'hello' });
+        System.assertEquals('YES|', out, 'non-blank string must be truthy in both paths: ' + out);
+    }
+
+    @IsTest
+    static void testSectionTagSymmetryAgainstRichTextWithVisibleContent() {
+        String tpl = '{#F}YES{/F}|{^F}NO{/F}';
+        Map<String, Object> data = new Map<String, Object>{ 'F' => '<p>hello world</p>' };
+        String out = DocGenService.processXmlForTest(tpl, data);
+        System.assertEquals('YES|', out, 'RT with visible content must be truthy in both paths: ' + out);
+    }
+
+    @IsTest
+    static void testIsVisuallyBlankRichTextHelper() {
+        System.assert(DocGenService.isVisuallyBlankRichText(null), 'null is blank');
+        System.assert(DocGenService.isVisuallyBlankRichText(''), 'empty is blank');
+        System.assert(DocGenService.isVisuallyBlankRichText('   '), 'whitespace is blank');
+        System.assert(DocGenService.isVisuallyBlankRichText('<p><br></p>'), '<p><br></p> is blank');
+        System.assert(DocGenService.isVisuallyBlankRichText('<p>&nbsp;</p>'), 'nbsp-only is blank');
+        System.assert(
+            DocGenService.isVisuallyBlankRichText('<div><span>&#160;</span></div>'),
+            '#160 nbsp entity is blank'
+        );
+        System.assert(!DocGenService.isVisuallyBlankRichText('hello'), 'plain text not blank');
+        System.assert(!DocGenService.isVisuallyBlankRichText('<p>hello</p>'), 'wrapped text not blank');
+        System.assert(!DocGenService.isVisuallyBlankRichText('<p><b>x</b></p>'), 'wrapped char not blank');
+    }
+
+    // =========================================================================
+    // DocGenService — convertRichTextToDocxXml decodes &#39; and &quot;
+    // (issue #51). Lightning RTE stores apostrophes as the numeric reference;
+    // without decoding they render literally in the output document.
+    // =========================================================================
+    @IsTest
+    static void testRichTextDecodesApostropheAndQuoteEntities() {
+        String tpl = '<w:p><w:r><w:t>{Notes}</w:t></w:r></w:p>';
+        Map<String, Object> data = new Map<String, Object>{ 'Notes' => '<p>ain&#39;t it &quot;great&quot;</p>' };
+        String out = DocGenService.processXmlForTest(tpl, data);
+        // After decode, OOXML re-escapes apostrophe as &apos; and quote as &quot;
+        // for XML safety; Word/PDF unescape on render. The bug signature is the
+        // numeric reference &#39; surviving — that's the only thing we must not see.
+        System.assert(!out.contains('&#39;'), 'numeric apostrophe ref must not survive: ' + out);
+        System.assert(
+            out.contains('ain&apos;t') || out.contains('ain\'t'),
+            'apostrophe must render (as &apos; or literal): ' + out
+        );
+        System.assert(
+            out.contains('&quot;great&quot;') || out.contains('"great"'),
+            'quote must render (as &quot; or literal): ' + out
+        );
+    }
+
+    @IsTest
+    static void testRichTextDecodesUnicodeNumericReferences() {
+        // Smart quotes / em-dash / en-dash / hex-form accent — all must decode.
+        // DOCX rich-text path now reuses DocGenHtmlRenderer.decodeNumericEntities.
+        String tpl = '<w:p><w:r><w:t>{N}</w:t></w:r></w:p>';
+        Map<String, Object> data = new Map<String, Object>{
+            'N' => '<p>he said &#8220;don&#8217;t&#8221; &#8212; ok&#8211;done caf&#xE9;</p>'
+        };
+        String out = DocGenService.processXmlForTest(tpl, data);
+        System.assert(!out.contains('&#8220;'), 'left double quote must decode: ' + out);
+        System.assert(!out.contains('&#8217;'), 'right single quote must decode: ' + out);
+        System.assert(!out.contains('&#8221;'), 'right double quote must decode: ' + out);
+        System.assert(!out.contains('&#8212;'), 'em dash must decode: ' + out);
+        System.assert(!out.contains('&#8211;'), 'en dash must decode: ' + out);
+        System.assert(!out.contains('&#xE9;'), 'hex e-acute must decode: ' + out);
+        System.assert(out.contains('“'), 'left double quote literal present: ' + out);
+        System.assert(out.contains('—'), 'em dash literal present: ' + out);
+        System.assert(out.contains('é'), 'e-acute literal present: ' + out);
+    }
+
+    @IsTest
+    static void testIfConditionalInsideTableRowDoesNotCorruptDocx() {
+        // Issue #53: {#IF X = Y}…{/IF} placed inside a <w:tr> caused the
+        // smart-container expansion to backtrack the row's opening tags. When
+        // the condition was false (no else), nothing was re-emitted, leaving
+        // an orphaned </w:tr> downstream — Word refused to open the DOCX, and
+        // PDF silently dropped trailing content.
+        String tableXml =
+            '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>{#IF Status = open}{Name}{/IF}</w:t></w:r></w:p></w:tc></w:tr>' +
+            '<w:tr><w:tc><w:p><w:r><w:t>after-row</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+
+        // FALSE branch: row tags must remain balanced and trailing content preserved.
+        Map<String, Object> falseData = new Map<String, Object>{ 'Status' => 'closed', 'Name' => 'Acme' };
+        String r1 = DocGenService.processXmlForTest(tableXml, falseData);
+        System.assertEquals(
+            r1.split('<w:tr>').size(),
+            r1.split('</w:tr>').size(),
+            'unbalanced row tags after false IF: ' + r1
+        );
+        System.assert(r1.contains('after-row'), 'trailing content dropped after false IF: ' + r1);
+
+        // TRUE branch: name renders, trailing content preserved.
+        Map<String, Object> trueData = new Map<String, Object>{ 'Status' => 'open', 'Name' => 'Acme' };
+        String r2 = DocGenService.processXmlForTest(tableXml, trueData);
+        System.assert(r2.contains('Acme'), 'true IF dropped its body: ' + r2);
+        System.assert(r2.contains('after-row'), 'trailing content dropped after true IF: ' + r2);
+    }
+
+    @IsTest
+    static void testGenerateDocTitleResolvesBuiltins() {
+        // generateDocTitle must resolve {Today}, {Now}, {RunningUser.X} and date-format suffixes
+        // — previously these returned empty because the resolver only walked the data map.
+        Map<String, Object> data = new Map<String, Object>{ 'Name' => 'Acme' };
+
+        String t1 = DocGenService.generateDocTitle('{Name}-{Today:MM-dd-yyyy}', data);
+        Date td = Date.today();
+        String mm = td.month() < 10 ? '0' + td.month() : String.valueOf(td.month());
+        String dd = td.day() < 10 ? '0' + td.day() : String.valueOf(td.day());
+        System.assertEquals('Acme-' + mm + '-' + dd + '-' + td.year(), t1, 'Today with format suffix');
+
+        String t2 = DocGenService.generateDocTitle('{Now:yyyy}', data);
+        System.assertEquals(String.valueOf(DateTime.now().year()), t2, 'Now with format suffix');
+
+        String t3 = DocGenService.generateDocTitle('By {RunningUser.Name}', data);
+        System.assert(t3.contains(UserInfo.getName()), 'RunningUser.Name in title: ' + t3);
+
+        String t4 = DocGenService.generateDocTitle('{Today}', data);
+        System.assert(String.isNotBlank(t4) && t4.contains(String.valueOf(td.year())), 'bare Today: ' + t4);
+    }
+
+    // =========================================================================
+    // DocGenHtmlRenderer — nested-table direct-child property scoping (issue #49)
+    // Outer cell wrapping an inner table must NOT inherit the inner header row's
+    // <w:tblHeader/> from <w:trPr>; if it does, outer renders as <th> and bold
+    // cascades into every nested data cell.
+    // =========================================================================
+
+    @IsTest
+    static void testNestedTableOuterRowDoesNotInheritInnerHeader() {
+        // Outer row: no <w:trPr>. Outer cell: a nested table whose first row has
+        // <w:trPr><w:tblHeader/></w:trPr>. The outer row must still render <td>.
+        String docXml =
+            '<w:document xmlns:w="x"><w:body>' +
+            '<w:tbl><w:tblPr/><w:tr><w:tc><w:tcPr/>' +
+            '<w:tbl><w:tblPr/>' +
+            '<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>H</w:t></w:r></w:p></w:tc></w:tr>' +
+            '<w:tr><w:tc><w:p><w:r><w:rPr><w:b w:val="false"/></w:rPr><w:t>D</w:t></w:r></w:p></w:tc></w:tr>' +
+            '</w:tbl>' +
+            '</w:tc></w:tr></w:tbl>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(docXml, new Map<String, String>());
+        // Outer row's cell must be <td>, not <th>.
+        System.assert(html.contains('<tr><td><table'), 'outer cell wrapping nested table must render as <td>: ' + html);
+        // Inner header still <th>, inner data still <td>.
+        System.assert(html.contains('<th><p><b>H</b></p></th>'), 'inner header preserved as <th> with bold: ' + html);
+        System.assert(
+            html.contains('<td><p>D</p></td>') || html.contains('<td><p><span'),
+            'inner data row must render as <td> without inherited bold wrapper: ' + html
+        );
+        // Critical regression check: data row text "D" must NOT be wrapped in <b>.
+        System.assert(!html.contains('<b>D</b>'), 'inner data text must not be bolded: ' + html);
+    }
+
+    @IsTest
+    static void testNestedTableOuterRowOwnTrPrStillRespected() {
+        // Outer row HAS its own <w:trPr><w:tblHeader/></w:trPr> AND contains a
+        // nested table — outer must still be detected as a header row.
+        String docXml =
+            '<w:document xmlns:w="x"><w:body>' +
+            '<w:tbl><w:tblPr/>' +
+            '<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc><w:tcPr/>' +
+            '<w:tbl><w:tblPr/>' +
+            '<w:tr><w:tc><w:p><w:r><w:t>X</w:t></w:r></w:p></w:tc></w:tr>' +
+            '</w:tbl>' +
+            '</w:tc></w:tr>' +
+            '</w:tbl>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(docXml, new Map<String, String>());
+        System.assert(
+            html.contains('<tr><th><table'),
+            'outer row with own w:tblHeader must still render <th>: ' + html
+        );
+    }
+
+    @IsTest
+    static void testNestedTableOuterCellOwnTcPrStillRespected() {
+        // Outer cell has its own <w:tcPr> with shading; nested cells have their
+        // own tcPr. Outer must use ITS OWN shading, not the inner cell's.
+        String docXml =
+            '<w:document xmlns:w="x"><w:body>' +
+            '<w:tbl><w:tblPr/>' +
+            '<w:tr><w:tc>' +
+            '<w:tcPr><w:shd w:val="clear" w:fill="FF0000"/></w:tcPr>' +
+            '<w:tbl><w:tblPr/>' +
+            '<w:tr><w:tc>' +
+            '<w:tcPr><w:shd w:val="clear" w:fill="00FF00"/></w:tcPr>' +
+            '<w:p><w:r><w:t>I</w:t></w:r></w:p>' +
+            '</w:tc></w:tr>' +
+            '</w:tbl>' +
+            '</w:tc></w:tr>' +
+            '</w:tbl>' +
+            '</w:body></w:document>';
+        String html = DocGenHtmlRenderer.convertToHtml(docXml, new Map<String, String>());
+        // Outer cell should carry the red shading from its OWN tcPr.
+        System.assert(html.contains('background-color:#FF0000'), 'outer cell must use its own shading: ' + html);
+        // Inner cell should still get its green shading.
+        System.assert(html.contains('background-color:#00FF00'), 'inner cell must use its own shading: ' + html);
+    }
+
+    // =========================================================================
     // DocGenService — generateDocumentParts with dynamic image CV ID
     // =========================================================================
 

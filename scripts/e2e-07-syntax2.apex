@@ -524,6 +524,31 @@ try {
 
 System.debug('========================================');
 
+// ===== Rich text <ul>/<ol>/<li> (issue #47) =====
+try {
+    String t = '<w:p><w:r><w:t>{N}</w:t></w:r></w:p>';
+    String s = '</w:t></w:r><w:r><w:t xml:space="preserve">';
+    r = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'N' => '<ul><li>a</li><li>b</li></ul>' });
+    if (r.contains('• ' + s + 'a') && r.contains('• ' + s + 'b')) {
+        pass++;
+        System.debug('RT BULLETED: PASS');
+    } else {
+        fail++;
+        System.debug('RT BULLETED: FAIL — ' + r);
+    }
+    r = DocGenService.processXmlForTest(t, new Map<String, Object>{ 'N' => '<ol><li>x</li><li>y</li></ol>' });
+    if (r.contains('1. ' + s + 'x') && r.contains('2. ' + s + 'y')) {
+        pass++;
+        System.debug('RT NUMBERED: PASS');
+    } else {
+        fail++;
+        System.debug('RT NUMBERED: FAIL — ' + r);
+    }
+} catch (Exception e) {
+    fail++;
+    System.debug('RT LIST: FAIL — ' + e.getMessage());
+}
+
 System.debug('========================================');
 System.debug(
     'E2E-07-SYNTAX2 — PASS: ' + pass + '  FAIL: ' + fail + (fail == 0 ? '  ALL TESTS PASSED' : '  FAILURES DETECTED')

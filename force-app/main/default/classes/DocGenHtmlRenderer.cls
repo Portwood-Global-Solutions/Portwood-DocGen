@@ -2077,8 +2077,21 @@ public with sharing class DocGenHtmlRenderer {
     ) {
         Integer cursor = 0;
 
-        // Check for header row
-        String trPr = extractElement(trXml, 'w:trPr');
+        // Check for header row. extractElement is naive (returns first match), so when
+        // a row contains a nested table whose rows have their own w:trPr, we'd otherwise
+        // pick up the inner row's <w:tblHeader/> and mark this outer row as a header.
+        // Symptom: outer cell renders as <th>, browsers/Flying Saucer apply default
+        // bold to th, and that bold cascades into every nested cell. Issue #49.
+        // Direct-child rule: w:trPr is always the first child element in a w:tr — if
+        // the first <w:trPr we find appears after a <w:tc, it belongs to a nested row.
+        String trPr = null;
+        Integer trPrIdx = trXml.indexOf('<w:trPr');
+        if (trPrIdx != -1) {
+            Integer firstTcIdx = trXml.indexOf('<w:tc');
+            if (firstTcIdx == -1 || trPrIdx < firstTcIdx) {
+                trPr = extractElement(trXml, 'w:trPr');
+            }
+        }
         Boolean isHeader = String.isNotBlank(trPr) && isOoxmlOnOffElementTrue(trPr, 'w:tblHeader');
 
         List<String> cellList = new List<String>();
@@ -2122,8 +2135,27 @@ public with sharing class DocGenHtmlRenderer {
         List<String> styles = new List<String>();
         Integer colspan = 0;
 
-        // Cell properties
-        String tcPr = extractElement(tcXml, 'w:tcPr');
+        // Cell properties. Same direct-child guard as processTableRow (issue #49):
+        // when a cell contains a nested table, the inner cells' <w:tcPr> would
+        // otherwise be returned by the naive extractElement. <w:tcPr> is always the
+        // first child of <w:tc>, so a tcPr position after the first <w:p or <w:tbl
+        // belongs to a nested cell.
+        String tcPr = null;
+        Integer tcPrIdx = tcXml.indexOf('<w:tcPr');
+        if (tcPrIdx != -1) {
+            Integer firstChildIdx = -1;
+            Integer pIdx = tcXml.indexOf('<w:p');
+            Integer tblIdx = tcXml.indexOf('<w:tbl');
+            if (pIdx != -1) {
+                firstChildIdx = pIdx;
+            }
+            if (tblIdx != -1 && (firstChildIdx == -1 || tblIdx < firstChildIdx)) {
+                firstChildIdx = tblIdx;
+            }
+            if (firstChildIdx == -1 || tcPrIdx < firstChildIdx) {
+                tcPr = extractElement(tcXml, 'w:tcPr');
+            }
+        }
         if (String.isNotBlank(tcPr)) {
             // Cell width: <w:tcW w:w="2880" w:type="dxa"/>
             String tcW = extractAttr(tcPr, 'w:tcW', 'w:w');
@@ -3527,7 +3559,7 @@ public with sharing class DocGenHtmlRenderer {
      * other than tab/LF/CR so we don't inject anything that breaks downstream XML.
      */
     @TestVisible
-    private static String decodeNumericEntities(String text) {
+    public static String decodeNumericEntities(String text) {
         if (text == null || text.indexOf('&#') == -1) {
             return text;
         }

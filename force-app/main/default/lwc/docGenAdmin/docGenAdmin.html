@@ -2220,7 +2220,7 @@
 
                     <div class="slds-box slds-var-m-bottom_large" style="border-radius: 8px">
                         <h3 class="slds-text-heading_small slds-var-m-bottom_medium">Query Configuration</h3>
-                        <template if:true={previewVersion.Query_Config__c}>
+                        <template if:true={hasPreviewVersionQuery}>
                             <pre
                                 class="slds-var-p-around_medium slds-theme_shade"
                                 style="
@@ -2233,7 +2233,7 @@
 {previewVersionQueryFormatted}</pre
                             >
                         </template>
-                        <template if:false={previewVersion.Query_Config__c}>
+                        <template if:false={hasPreviewVersionQuery}>
                             <p class="slds-text-color_weak">No query configuration saved.</p>
                         </template>
                     </div>

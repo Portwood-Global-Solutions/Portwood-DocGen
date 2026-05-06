@@ -2638,12 +2638,20 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     // Candidate containers:
                     // 1) Table row (<w:tr>...</w:tr>)
                     // 2) Numbered/bulleted paragraph (nearest <w:p> containing <w:numPr>)
+                    //
+                    // {#IF ...} is a conditional, NOT a loop — it must NEVER trigger container
+                    // expansion. If we backtrack the output to drop the parent row's opening
+                    // tags expecting to re-emit them, and then the IF evaluates false with no
+                    // {:else}, we emit nothing while the closing </w:tr> downstream remains —
+                    // producing unmatched markup that PDF silently truncates and Word refuses
+                    // to open as a corrupted DOCX. (Issue #53)
                     Integer closeTagEnd = xml.indexOf('}', sectionEnd);
                     Integer chosenContainerStart = -1;
                     Integer chosenContainerEnd = -1;
+                    Boolean isIfConditional = key.startsWith('IF ') || key.startsWith('if ');
 
-                    // Candidate: row container
-                    Integer rowContainerStart = lastIndexOfTagStart(xml, 'w:tr', cursor);
+                    // Candidate: row container (skipped for {#IF ...} conditionals — issue #53)
+                    Integer rowContainerStart = isIfConditional ? -1 : lastIndexOfTagStart(xml, 'w:tr', cursor);
                     if (rowContainerStart != -1) {
                         Integer rowContainerEnd = xml.indexOf('</w:tr>', rowContainerStart);
                         Boolean rowClosedBeforeCursor = xml.substring(rowContainerStart, cursor).contains('</w:tr>');
@@ -2653,8 +2661,8 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                         }
                     }
 
-                    // Candidate: list paragraph container (w:p with w:numPr)
-                    Integer numPropsStart = xml.lastIndexOf('<w:numPr', cursor);
+                    // Candidate: list paragraph container (w:p with w:numPr) — skipped for IF
+                    Integer numPropsStart = isIfConditional ? -1 : xml.lastIndexOf('<w:numPr', cursor);
                     if (numPropsStart != -1) {
                         Integer paragraphStart = lastIndexOfTagStart(xml, 'w:p', cursor);
                         if (paragraphStart != -1 && paragraphStart <= numPropsStart) {
@@ -2680,7 +2688,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     // HTML template type (v1.61+): mirror the DOCX auto-expand behavior
                     // for <tr> rows and <li> list items. Only considered when the merge
                     // engine is running in HTML context — leaves DOCX paths untouched.
-                    if (currentTemplateType == 'HTML') {
+                    if (currentTemplateType == 'HTML' && !isIfConditional) {
                         // Candidate: HTML <tr> row
                         Integer htmlTrStart = lastIndexOfTagStart(xml, 'tr', cursor);
                         if (htmlTrStart != -1) {
@@ -2838,8 +2846,16 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                                 checkHeapPressure(key);
                             }
                         }
+                    } else if (val instanceof String) {
+                        // Strings: blank/whitespace-only and "visually empty" rich text
+                        // (e.g. <p><br></p>) are treated as falsy. Symmetric with the
+                        // inverse-section path below (issue #48).
+                        if (!isVisuallyBlankRichText((String) val)) {
+                            isTruthy = true;
+                            sectionResult = processXml(trueBranch, data);
+                        }
                     } else if (val != null && !(val instanceof Boolean)) {
-                        // Non-null, non-boolean, non-list, non-map value (e.g., non-blank string)
+                        // Non-null, non-boolean, non-list, non-map, non-string value
                         isTruthy = true;
                         sectionResult = processXml(trueBranch, data);
                     }
@@ -2877,7 +2893,7 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                     Boolean isFalsy =
                         (val == null) ||
                         (val instanceof Boolean && !(Boolean) val) ||
-                        (val instanceof String && String.isBlank((String) val)) ||
+                        (val instanceof String && isVisuallyBlankRichText((String) val)) ||
                         (val instanceof List<Object> && ((List<Object>) val).isEmpty());
                     if (isFalsy) {
                         sectionResult = processXml(inverseTrueBranch, data);
@@ -3028,7 +3044,10 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                         strVal.containsIgnoreCase('<i>') ||
                         strVal.containsIgnoreCase('<u>') ||
                         strVal.containsIgnoreCase('<strong') ||
-                        strVal.containsIgnoreCase('<em'))
+                        strVal.containsIgnoreCase('<em') ||
+                        strVal.containsIgnoreCase('<ul') ||
+                        strVal.containsIgnoreCase('<ol') ||
+                        strVal.containsIgnoreCase('<li'))
                     ) {
                         if (currentTemplateType == 'PowerPoint') {
                             // Strip HTML tags for plain text in PPTX
@@ -4209,8 +4228,19 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      * Returns DOCX XML that closes the current run/paragraph context and reopens it after.
      */
     private static String convertRichTextToDocxXml(String html) {
-        // Normalize: replace common entities and whitespace
-        html = html.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>');
+        // Normalize: named entities first, then numeric character references.
+        // The Lightning RTE stores apostrophes as &#39;, smart quotes as &#8217;
+        // /&#8220;/&#8221;, em/en dashes as &#8212;/&#8211;, accented chars as
+        // &#xE9; etc. Without decoding they render literally in DOCX (issue #51).
+        // The renderer's decodeNumericEntities (v1.81.0) already handles every
+        // numeric form for the PDF/HTML path; routing through it brings DOCX
+        // to parity.
+        html = html.replace('&nbsp;', ' ')
+            .replace('&amp;', '&')
+            .replace('&lt;', '<')
+            .replace('&gt;', '>')
+            .replace('&quot;', '"');
+        html = DocGenHtmlRenderer.decodeNumericEntities(html);
 
         // Split into paragraphs by <p>, <div>, and <br> tags
         // First, normalize paragraph boundaries: replace </p><p>, </div><div>, <br>, <br/> with a delimiter
@@ -4267,6 +4297,10 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         Boolean isBold = false;
         Boolean isItalic = false;
         Boolean isUnderline = false;
+
+        // Track list nesting: 'ul' or 'ol' per level. Counter parallel for ordered numbering.
+        List<String> listStack = new List<String>();
+        List<Integer> listCounters = new List<Integer>();
 
         while (cursor < html.length()) {
             Integer nextTag = html.indexOf('<', cursor);
@@ -4346,6 +4380,35 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
                 if (imgResult != null) {
                     result += imgResult;
                 }
+            } else if (tag.startsWith('<ul>') || tag.startsWith('<ul ')) {
+                listStack.add('ul');
+                listCounters.add(0);
+            } else if (tag.startsWith('<ol>') || tag.startsWith('<ol ')) {
+                listStack.add('ol');
+                listCounters.add(0);
+            } else if (tag.startsWith('</ul>') || tag.startsWith('</ol>')) {
+                if (!listStack.isEmpty()) {
+                    listStack.remove(listStack.size() - 1);
+                    listCounters.remove(listCounters.size() - 1);
+                }
+            } else if (tag.startsWith('<li>') || tag.startsWith('<li ')) {
+                // Close current paragraph and open a new one prefixed with a bullet/number marker.
+                String marker;
+                Integer depth = listStack.isEmpty() ? 1 : listStack.size();
+                String indent = '';
+                for (Integer i = 1; i < depth; i++) {
+                    indent += '    ';
+                }
+                if (!listStack.isEmpty() && listStack[listStack.size() - 1] == 'ol') {
+                    Integer count = listCounters[listCounters.size() - 1] + 1;
+                    listCounters[listCounters.size() - 1] = count;
+                    marker = indent + count + '. ';
+                } else {
+                    marker = indent + '• ';
+                }
+                result += '</w:p><w:p><w:r><w:t xml:space="preserve">' + marker + '</w:t></w:r>';
+            } else if (tag.startsWith('</li>')) {
+                // No-op; next <li> or list close handles boundaries.
             }
             // Closing </a> tags and other tags (spans, etc.) are skipped — just process their text content
 
@@ -4384,6 +4447,22 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
      */
     private static String stripTags(String text) {
         return text.replaceAll('<[^>]+>', '');
+    }
+
+    /**
+     * Returns true if a String is null/blank or contains only HTML markup that
+     * renders as nothing (e.g. Salesforce Lightning rich text "empty" values
+     * stored as <p><br></p> or <div>&nbsp;</div>). Used by section-tag truthy/
+     * inverse checks so {#Field} and {^Field} agree on what "empty" means and
+     * both treat visually-empty rich text as falsy. Issue #48.
+     */
+    @TestVisible
+    private static Boolean isVisuallyBlankRichText(String s) {
+        if (String.isBlank(s)) {
+            return true;
+        }
+        String stripped = s.replaceAll('(?i)<[^>]+>', '').replace('&nbsp;', '').replace('&#160;', '').trim();
+        return String.isBlank(stripped);
     }
 
     /**
@@ -5797,12 +5876,54 @@ global with sharing class DocGenService { // NOPMD AvoidGlobalModifier — globa
         Matcher m = p.matcher(format);
         while (m.find()) {
             String key = m.group(1);
-            Object val = resolveValue(data, key);
-            if (val != null) {
-                result = result.replace('{' + key + '}', String.valueOf(val));
-            } else {
-                result = result.replace('{' + key + '}', '');
+
+            // Parse optional format suffix: {Field:format} (e.g. {Today:MM-dd-yyyy}).
+            String fieldName = key;
+            String dateFormat = null;
+            if (key.contains(':')) {
+                Integer colonIdx = key.indexOf(':');
+                fieldName = key.substring(0, colonIdx).trim();
+                dateFormat = key.substring(colonIdx + 1).trim();
             }
+
+            // Built-ins parity with processXml: {Today}, {Now}, {RunningUser.X}.
+            // These aren't in the data map so plain resolveValue would return null
+            // and the tag would render empty in document titles.
+            Object val;
+            String upperField = fieldName.toUpperCase();
+            if (upperField == 'TODAY') {
+                Date td = Date.today();
+                val = DateTime.newInstance(td.year(), td.month(), td.day());
+            } else if (upperField == 'NOW') {
+                val = DateTime.now();
+            } else if (upperField.startsWith('RUNNINGUSER.')) {
+                val = resolveRunningUserField(fieldName.substring('RunningUser.'.length()));
+            } else {
+                val = resolveValue(data, fieldName);
+            }
+
+            String strVal = '';
+            if (val != null) {
+                if (dateFormat != null && (val instanceof DateTime || val instanceof Date)) {
+                    DateTime dt = val instanceof DateTime
+                        ? (DateTime) val
+                        : DateTime.newInstance((Date) val, Time.newInstance(0, 0, 0, 0));
+                    if (dateFormat.toLowerCase().startsWith('date')) {
+                        // {Field:date} or {Field:date:locale}
+                        String dateLocale = dateFormat.contains(':')
+                            ? dateFormat.substring(dateFormat.indexOf(':') + 1).trim()
+                            : UserInfo.getLocale();
+                        strVal = dt.format(getLocaleDatePattern(dateLocale));
+                    } else {
+                        strVal = dt.format(dateFormat);
+                    }
+                } else if (dateFormat != null && isNumericFormat(dateFormat)) {
+                    strVal = formatNumber(val, dateFormat);
+                } else {
+                    strVal = String.valueOf(val);
+                }
+            }
+            result = result.replace('{' + key + '}', strVal);
         }
         return result;
     }

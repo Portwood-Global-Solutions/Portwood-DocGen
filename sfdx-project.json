@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.82.0 — Image Sizing Hotfix",
-      "versionNumber": "1.82.0.1",
-      "ancestorId": "04tal000006rKA1AAM",
+      "versionName": "1.83.0 — Rich Text & Nested Table Bug Fixes",
+      "versionNumber": "1.83.0.NEXT",
+      "ancestorId": "04tal000006rKBdAAM",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
@@ -122,6 +122,11 @@
     "Portwood DocGen Managed@1.79.0-1": "04tal000006rD8XAAU",
     "Portwood DocGen Managed@1.80.0-1": "04tal000006rJkDAAU",
     "Portwood DocGen Managed@1.81.0-1": "04tal000006rKA1AAM",
-    "Portwood DocGen Managed@1.82.0-1": "04tal000006rKBdAAM"
+    "Portwood DocGen Managed@1.82.0-1": "04tal000006rKBdAAM",
+    "Portwood DocGen Managed@1.83.0-1": "04tVx000000Q3rtIAC",
+    "Portwood DocGen Managed@1.83.0-2": "04tVx000000Q4ZRIA0",
+    "Portwood DocGen Managed@1.83.0-3": "04tVx000000Q4b3IAC",
+    "Portwood DocGen Managed@1.83.0-4": "04tVx000000QE7NIAW",
+    "Portwood DocGen Managed@1.83.0-5": "04tVx000000QKRJIA4"
   }
 }
