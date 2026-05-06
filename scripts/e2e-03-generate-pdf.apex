@@ -375,15 +375,26 @@ try {
         String hex = EncodingUtil.convertToHex(psPdfCv.VersionData);
         Decimal w = -1;
         Decimal h = -1;
+        // Walk every /MediaBox occurrence — Salesforce's Blob.toPdf() can place
+        // a hex-coincidental match inside a compressed FlateDecode stream where
+        // the trailing bytes are binary (not valid UTF-8). The dictionary entry
+        // we want is ASCII like "/MediaBox [0 0 612 792]"; skip any occurrence
+        // whose chunk fails to decode or doesn't match the regex. Use a tight
+        // ~30-byte window since "/MediaBox " plus four numbers fits inside that.
         Integer hi = hex.indexOf('2f4d65646961426f78');
-        if (hi >= 0) {
-            String chunk = EncodingUtil.convertFromHex(hex.substring(hi + 18, Math.min(hi + 220, hex.length())))
-                .toString();
-            Matcher mm = mbPat.matcher(chunk);
-            if (mm.find()) {
-                w = Decimal.valueOf(mm.group(3));
-                h = Decimal.valueOf(mm.group(4));
+        while (hi >= 0 && w < 0) {
+            try {
+                String chunk = EncodingUtil.convertFromHex(hex.substring(hi + 18, Math.min(hi + 80, hex.length())))
+                    .toString();
+                Matcher mm = mbPat.matcher(chunk);
+                if (mm.find()) {
+                    w = Decimal.valueOf(mm.group(3));
+                    h = Decimal.valueOf(mm.group(4));
+                }
+            } catch (Exception decodeErr) {
+                // Binary chunk — try the next /MediaBox occurrence
             }
+            hi = hex.indexOf('2f4d65646961426f78', hi + 18);
         }
         Integer expW = (Integer) row[2];
         Integer expH = (Integer) row[3];
