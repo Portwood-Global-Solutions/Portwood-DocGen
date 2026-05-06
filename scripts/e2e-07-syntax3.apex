@@ -133,7 +133,16 @@ try {
         System.debug('RICHTEXT APOSTROPHE DECODE: PASS');
     } else {
         fail++;
-        System.debug('RICHTEXT APOSTROPHE DECODE: FAIL — apos=' + apos + ' quot=' + quot + ' noNumericRef=' + noNumericRef + ' r=' + r);
+        System.debug(
+            'RICHTEXT APOSTROPHE DECODE: FAIL — apos=' +
+                apos +
+                ' quot=' +
+                quot +
+                ' noNumericRef=' +
+                noNumericRef +
+                ' r=' +
+                r
+        );
     }
 } catch (Exception e) {
     fail++;
@@ -145,24 +154,43 @@ try {
 // The renderer's decodeNumericEntities is reused by the DOCX rich-text path.
 try {
     String rt = '<p>he said &#8220;don&#8217;t&#8221; &#8212; ok&#8211;done caf&#xE9;</p>';
-    r = DocGenService.processXmlForTest(
-        '<w:p><w:r><w:t>{N}</w:t></w:r></w:p>',
-        new Map<String, Object>{ 'N' => rt }
-    );
-    Boolean noRefs = !r.contains('&#8220;') && !r.contains('&#8217;') && !r.contains('&#8221;')
-        && !r.contains('&#8212;') && !r.contains('&#8211;') && !r.contains('&#xE9;');
-    Boolean ldquo = r.contains('“');   // left double quote
-    Boolean rsquo = r.contains('’');   // right single quote
-    Boolean rdquo = r.contains('”');   // right double quote
-    Boolean mdash = r.contains('—');   // em dash
-    Boolean ndash = r.contains('–');   // en dash
-    Boolean eacute = r.contains('é');  // é
+    r = DocGenService.processXmlForTest('<w:p><w:r><w:t>{N}</w:t></w:r></w:p>', new Map<String, Object>{ 'N' => rt });
+    Boolean noRefs =
+        !r.contains('&#8220;') &&
+        !r.contains('&#8217;') &&
+        !r.contains('&#8221;') &&
+        !r.contains('&#8212;') &&
+        !r.contains('&#8211;') &&
+        !r.contains('&#xE9;');
+    Boolean ldquo = r.contains('“'); // left double quote
+    Boolean rsquo = r.contains('’'); // right single quote
+    Boolean rdquo = r.contains('”'); // right double quote
+    Boolean mdash = r.contains('—'); // em dash
+    Boolean ndash = r.contains('–'); // en dash
+    Boolean eacute = r.contains('é'); // é
     if (noRefs && ldquo && rsquo && rdquo && mdash && ndash && eacute) {
         pass++;
         System.debug('RICHTEXT UNICODE DECODE: PASS');
     } else {
         fail++;
-        System.debug('RICHTEXT UNICODE DECODE: FAIL — noRefs=' + noRefs + ' ldquo=' + ldquo + ' rsquo=' + rsquo + ' rdquo=' + rdquo + ' mdash=' + mdash + ' ndash=' + ndash + ' eacute=' + eacute + ' r=' + r);
+        System.debug(
+            'RICHTEXT UNICODE DECODE: FAIL — noRefs=' +
+                noRefs +
+                ' ldquo=' +
+                ldquo +
+                ' rsquo=' +
+                rsquo +
+                ' rdquo=' +
+                rdquo +
+                ' mdash=' +
+                mdash +
+                ' ndash=' +
+                ndash +
+                ' eacute=' +
+                eacute +
+                ' r=' +
+                r
+        );
     }
 } catch (Exception e) {
     fail++;
@@ -210,7 +238,24 @@ try {
         System.debug('TITLE BUILTINS: PASS — ' + t1 + ' | ' + t2 + ' | ' + t3 + ' | ' + t4);
     } else {
         fail++;
-        System.debug('TITLE BUILTINS: FAIL — ok1=' + ok1 + ' ok2=' + ok2 + ' ok3=' + ok3 + ' ok4=' + ok4 + ' t1=' + t1 + ' t2=' + t2 + ' t3=' + t3 + ' t4=' + t4);
+        System.debug(
+            'TITLE BUILTINS: FAIL — ok1=' +
+                ok1 +
+                ' ok2=' +
+                ok2 +
+                ' ok3=' +
+                ok3 +
+                ' ok4=' +
+                ok4 +
+                ' t1=' +
+                t1 +
+                ' t2=' +
+                t2 +
+                ' t3=' +
+                t3 +
+                ' t4=' +
+                t4
+        );
     }
 } catch (Exception e) {
     fail++;
@@ -229,8 +274,10 @@ try {
     String r1 = DocGenService.processXmlForTest(tableXml, falseData);
     Boolean falseHasFirstRow = r1.contains('<w:tr>') && r1.indexOf('<w:tr>') < r1.indexOf('after-row');
     Boolean falseHasAfter = r1.contains('after-row');
-    Boolean falseBalanced = (r1.indexOf('<w:tr>') != -1) && (r1.indexOf('</w:tr>') != -1)
-        && r1.split('<w:tr>').size() == r1.split('</w:tr>').size();
+    Boolean falseBalanced =
+        (r1.indexOf('<w:tr>') != -1) &&
+        (r1.indexOf('</w:tr>') != -1) &&
+        r1.split('<w:tr>').size() == r1.split('</w:tr>').size();
 
     Map<String, Object> trueData = new Map<String, Object>{ 'Status' => 'open', 'Name' => 'Acme' };
     String r2 = DocGenService.processXmlForTest(tableXml, trueData);
@@ -242,10 +289,22 @@ try {
         System.debug('IF-IN-ROW (issue #53): PASS');
     } else {
         fail++;
-        System.debug('IF-IN-ROW (issue #53): FAIL — falseHasFirstRow=' + falseHasFirstRow +
-            ' falseHasAfter=' + falseHasAfter + ' falseBalanced=' + falseBalanced +
-            ' trueHasName=' + trueHasName + ' trueHasAfter=' + trueHasAfter +
-            ' r1=' + r1 + ' r2=' + r2);
+        System.debug(
+            'IF-IN-ROW (issue #53): FAIL — falseHasFirstRow=' +
+                falseHasFirstRow +
+                ' falseHasAfter=' +
+                falseHasAfter +
+                ' falseBalanced=' +
+                falseBalanced +
+                ' trueHasName=' +
+                trueHasName +
+                ' trueHasAfter=' +
+                trueHasAfter +
+                ' r1=' +
+                r1 +
+                ' r2=' +
+                r2
+        );
     }
 } catch (Exception e) {
     fail++;

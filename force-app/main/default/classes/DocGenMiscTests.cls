@@ -5429,9 +5429,7 @@ private class DocGenMiscTests {
     @IsTest
     static void testRichTextDecodesApostropheAndQuoteEntities() {
         String tpl = '<w:p><w:r><w:t>{Notes}</w:t></w:r></w:p>';
-        Map<String, Object> data = new Map<String, Object>{
-            'Notes' => '<p>ain&#39;t it &quot;great&quot;</p>'
-        };
+        Map<String, Object> data = new Map<String, Object>{ 'Notes' => '<p>ain&#39;t it &quot;great&quot;</p>' };
         String out = DocGenService.processXmlForTest(tpl, data);
         // After decode, OOXML re-escapes apostrophe as &apos; and quote as &quot;
         // for XML safety; Word/PDF unescape on render. The bug signature is the
